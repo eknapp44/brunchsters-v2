@@ -1,5 +1,7 @@
 packages:
   - 'apps/*'
   - 'packages/*'
-onlyBuiltDependencies:
-  - sharp
+
+# pnpm 11: explicit allowlist for packages that may run install scripts
+allowBuilds:
+  sharp: true

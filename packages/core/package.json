@@ -8,6 +8,10 @@
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "@brunchsters/shared": "workspace:*",
+    "neverthrow": "^6.0.0"
+  },
   "devDependencies": {
     "typescript": "^5.6.0"
   }
