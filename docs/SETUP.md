@@ -1,6 +1,6 @@
 # SETUP.md — Local Environment & Testing Guide
 
-**Status:** v0 — forward-looking. Some commands assume the monorepo scaffold exists. Refine this doc against reality as each piece is built (per the documentation cadence in `CLAUDE.md`). Anything not yet true should be marked `[pending scaffold]`.
+**Status:** v1 — verified against the scaffolded monorepo (specs/0001-repo-scaffold).
 
 This guide gets a developer (today, that's you; later, future-you) from a fresh machine to a running local Brunchsters with tests passing. It is **local-first**: the default loop runs entirely on your machine, with cloud services only where they can't be replicated locally.
 
@@ -21,13 +21,15 @@ Install these before anything else.
 | Tool | Version | Why | Install |
 |------|---------|-----|---------|
 | **Node.js** | 20 LTS or newer (22 LTS recommended) | Runtime for Next.js + tooling | [nodejs.org](https://nodejs.org) or `nvm install 22` |
-| **pnpm** | latest (9+) | Monorepo package manager (workspaces) | `npm install -g pnpm` or `corepack enable pnpm` |
+| **pnpm** | 11+ | Monorepo package manager (workspaces) | `npm install -g pnpm` or `corepack enable pnpm` |
 | **Git** | latest | Source control | [git-scm.com](https://git-scm.com) |
 | **Docker Desktop** | latest | Runs local Postgres + the local Supabase stack | [docker.com](https://www.docker.com/products/docker-desktop) |
-| **Supabase CLI** | latest | Spins up Postgres + Realtime + Auth locally in Docker | `brew install supabase/tap/supabase` or see Supabase docs |
+| **Supabase CLI** | latest | Spins up Postgres + Realtime + Auth locally in Docker | `npm install -g supabase` |
 | **A code editor** | — | VS Code recommended (good TS + Prisma extensions) | [code.visualstudio.com](https://code.visualstudio.com) |
 
 **Recommended editor extensions:** Prisma, ESLint, Prettier, Vitest.
+
+**Windows note:** Docker Desktop uses the WSL 2 backend on Windows 11. Ensure Docker Desktop is fully started (whale icon steady in system tray) before running `supabase start`.
 
 **Why Docker if we're not containerizing the app?** We decided against containerizing the *application* (Vercel handles deploys). Docker here is only for **local infrastructure** — Postgres and the Supabase stack — so local dev mirrors production behavior (especially Supabase Realtime) without touching the cloud.
 
@@ -61,8 +63,6 @@ You don't need all of these on day one. The "When" column tells you when each be
 
 ## 4. First-Time Setup
 
-> Assumes the monorepo scaffold exists. Steps marked `[pending scaffold]` will be real once the scaffold and Prisma schema are in.
-
 ```bash
 # 1. Clone
 git clone git@github.com:<you>/brunchsters.git
@@ -71,26 +71,32 @@ cd brunchsters
 # 2. Install all workspace dependencies
 pnpm install
 
-# 3. Copy the environment template and fill it in
-cp .env.example .env.local          # [pending scaffold]
-#    -> see Section 5 for what each var means
+# 3. Copy the environment template and fill in local values from step 4
+cp .env.example .env.local
 
 # 4. Start local infrastructure (Postgres + Realtime + Auth) in Docker
 supabase start
-#    -> prints local URLs + keys; copy the DB URL and anon key into .env.local
+#    -> prints local URLs + keys; copy DB_URL into .env.local as DATABASE_URL
+#    -> and DIRECT_URL. Copy API_URL, ANON_KEY, SERVICE_ROLE_KEY too.
+#    -> Local ports: DB on :54322, API on :54321, Studio on :54323
 
-# 5. Apply the database schema and generate the Prisma client
-pnpm --filter @brunchsters/database prisma migrate dev     # [pending scaffold]
-pnpm --filter @brunchsters/database prisma generate        # [pending scaffold]
+# 5. Apply the database schema
+pnpm db:migrate
+#    -> runs: prisma migrate dev (applies all pending migrations)
 
-# 6. Seed lookup tables (statuses, RSVP states, decision types, etc.)
-pnpm --filter @brunchsters/database seed                   # [pending scaffold]
+# 6. Generate the Prisma client
+pnpm db:generate
+#    -> runs: prisma generate
 
-# 7. (Optional) Start the Inngest local dev server in a second terminal
-npx inngest-cli dev                                        # [pending scaffold]
+# 7. Seed lookup tables (statuses, RSVP states, decision types, etc.)
+pnpm db:seed
 
-# 8. Run the app
-pnpm dev                                                    # [pending scaffold]
+# 8. (Optional) Start the Inngest local dev server in a second terminal
+npx inngest-cli dev
+#    -> when building queued side effects; not needed for most early work
+
+# 9. Run the app
+pnpm dev
 #    -> http://localhost:3000
 ```
 
@@ -104,11 +110,11 @@ Maintain a committed `.env.example` (no secrets) as the canonical list; keep rea
 
 | Variable | Purpose | Where to get it (local) |
 |----------|---------|------------------------|
-| `DATABASE_URL` | Pooled Postgres connection (app runtime) | From `supabase start` output |
-| `DIRECT_URL` | Direct Postgres connection (Prisma migrations) | From `supabase start` output |
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase URL for the Realtime client | From `supabase start` output |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public anon key for client-side Realtime | From `supabase start` output |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server-side privileged key | From `supabase start` output |
+| `DATABASE_URL` | Pooled Postgres connection (app runtime) | `DB_URL` from `supabase start` output |
+| `DIRECT_URL` | Direct Postgres connection (Prisma migrations) | same as `DATABASE_URL` for local dev |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase URL for the Realtime client | `API_URL` from `supabase start` output |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public anon key for client-side Realtime | `ANON_KEY` from `supabase start` output |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-side privileged key | `SERVICE_ROLE_KEY` from `supabase start` output |
 | `AUTH_SECRET` | NextAuth/Auth.js session encryption | `openssl rand -base64 32` |
 | `AUTH_URL` | Base URL for auth callbacks | `http://localhost:3000` locally |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth | Google Cloud Console → Credentials (when you reach auth) |
@@ -116,7 +122,7 @@ Maintain a committed `.env.example` (no secrets) as the canonical list; keep rea
 | `RESEND_API_KEY` | Email sending | Resend dashboard (mock locally until then) |
 | `GOOGLE_PLACES_API_KEY` | Location search | Google Cloud Console (mock locally until then) |
 | `INNGEST_EVENT_KEY` / `INNGEST_SIGNING_KEY` | Job queue auth | Inngest dashboard; local dev server runs without them |
-| `TOKEN_ENCRYPTION_KEY` | AES-256-GCM key for OAuth token encryption (application-level, per ADR) | `openssl rand -base64 32` — 32 bytes. **Never commit. Rotating it invalidates stored tokens.** |
+| `TOKEN_ENCRYPTION_KEY` | AES-256-GCM key for OAuth token encryption | `openssl rand -base64 32` — 32 bytes. **Never commit. Rotating it invalidates stored tokens.** |
 
 **Rule:** every var above must exist in `.env.example` with a placeholder/empty value and a one-line comment. The app should fail fast on startup with a clear message if a required var is missing (validate env with Zod at boot).
 
@@ -141,7 +147,32 @@ supabase stop             # when done for the day (frees Docker resources)
 
 ---
 
-## 7. Local Testing
+## 7. 30-Second Smoke Test
+
+The shortest sequence that proves your local stack is healthy:
+
+```bash
+# 1. Supabase up?
+supabase status           # should print DB_URL and other keys (not "not running")
+
+# 2. Dependencies installed?
+pnpm install              # should print "Already up to date"
+
+# 3. Schema valid?
+pnpm db:validate          # should print "The schema at prisma\schema.prisma is valid 🚀"
+
+# 4. Tests passing?
+pnpm test                 # should print "4 passed" across shared, core, database, web
+
+# 5. App boots?
+pnpm dev                  # visit http://localhost:3000 — should show "Brunchsters / Coming soon."
+```
+
+If all five pass, the stack is healthy.
+
+---
+
+## 8. Local Testing
 
 The whole point: **fast, deterministic tests that run offline.**
 
@@ -153,18 +184,17 @@ The whole point: **fast, deterministic tests that run offline.**
 | **Integration** | DB interactions, Prisma queries, transactions | Vitest | **local Postgres (test DB)** | mocked |
 | **E2E** | Critical user flows end-to-end | Playwright | local stack | mocked or sandbox |
 
-### Local test database
-
-Integration tests run against a **dedicated local test database**, separate from your dev DB, so tests can wipe and reseed freely.
+### Running tests
 
 ```bash
-# Recommended: a separate test database on the local Supabase Postgres,
-# or a lightweight throwaway Postgres via docker-compose. [pending scaffold]
-pnpm test:setup     # creates/migrates/seeds the test DB
-pnpm test           # unit + integration
-pnpm test:watch     # watch mode during a milestone
-pnpm test:e2e       # Playwright
+pnpm test           # unit tests across all packages (no DB needed)
+pnpm test:watch     # watch mode during a milestone (add script when needed)
+pnpm test:e2e       # Playwright (added when E2E tests exist)
 ```
+
+### Local test database
+
+Integration tests run against a **dedicated local test database**, separate from your dev DB, so tests can wipe and reseed freely. Setup TBD when the first feature spec adds integration tests — the local Supabase Postgres can host a `postgres_test` database alongside the dev database.
 
 Conventions:
 - Each integration test starts from a known seeded state and cleans up after itself (transaction rollback per test, or truncate-and-reseed).
@@ -177,25 +207,14 @@ Per the workflow in `CLAUDE.md`, every milestone records a short testing note (w
 
 ---
 
-## 8. Troubleshooting
+## 9. Troubleshooting
 
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
-| `supabase start` fails | Docker Desktop not running | Start Docker Desktop, retry |
-| Port already in use | Stale containers or a previous `pnpm dev` | `supabase stop`, kill the process on the port, retry |
-| Prisma can't connect | `DATABASE_URL` / `DIRECT_URL` not matching `supabase start` output | Re-copy the URLs from the CLI output into `.env.local` |
-| Migration drift errors | Schema changed without a migration | `prisma migrate dev` to generate a migration; never edit the DB by hand |
+| `supabase start` fails with pipe error | Docker Desktop not running (Windows) | Open Docker Desktop, wait for whale icon to be steady, retry |
+| `supabase start` fails with port conflict | Stale containers or another process on :54322 | `supabase stop`, check for other processes, retry |
+| Prisma can't connect | `DATABASE_URL` / `DIRECT_URL` not matching `supabase start` output | Re-copy `DB_URL` from the CLI output into `.env.local` |
+| `pnpm install` blocked by build scripts | pnpm 11 requires explicit allowBuilds approval | Run `pnpm approve-builds` and set new entries to `true` in `pnpm-workspace.yaml` |
+| Migration drift errors | Schema changed without a migration | `pnpm db:migrate` to generate a migration; never edit the DB by hand |
 | App boots then crashes on a missing key | Required env var unset | Check `.env.local` against `.env.example`; the boot-time Zod validation message names the missing var |
 | Tests pass locally, fail in CI | CI test DB not seeded the same way | Ensure `test:setup` runs in CI before `test`; keep seed deterministic |
-
----
-
-## 9. What This Doc Should Become
-
-Once the scaffold exists, remove every `[pending scaffold]` marker by verifying the real command works, and add:
-- Exact `pnpm` script names from the root `package.json`
-- The real `docker-compose.yml` path (if used for the test DB)
-- Any per-package setup quirks
-- A "30-second smoke test" — the shortest command sequence that proves the local stack is healthy
-
-Keep it runnable. If a step here ever fails for you, it will fail for the next person — fix the doc in the same commit that changes the behavior.
