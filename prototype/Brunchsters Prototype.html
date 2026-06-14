@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Brunchsters — Interactive Prototype</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&family=Fraunces:opsz,wght,SOFT@9..144,400,0;9..144,500,0;9..144,600,0;9..144,500,100;9..144,600,100&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles/tokens.css" />
+  <link rel="stylesheet" href="styles/screens.css" />
+  <link rel="stylesheet" href="styles/mobile-shell.css" />
+  <link rel="stylesheet" href="styles/a11y.css" />
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <style>
+    :root {
+      --font-sans: "Nunito", ui-sans-serif, system-ui, sans-serif;
+      --font-display: "Fraunces", Georgia, serif;
+      font-variation-settings: "SOFT" 100;
+    }
+    html, body, #root { margin: 0; height: 100%; overflow: hidden; }
+    body {
+      font-family: var(--font-sans);
+      background:
+        radial-gradient(120% 80% at 30% 10%, oklch(0.97 0.025 75) 0%, transparent 60%),
+        radial-gradient(80% 60% at 80% 90%, oklch(0.94 0.040 65) 0%, transparent 60%),
+        oklch(0.95 0.020 70);
+      color: var(--fg);
+    }
+
+    /* ─── Layout ─── */
+    .proto-shell {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      height: 100vh;
+    }
+    .proto-sidebar {
+      background: oklch(0.99 0.005 70);
+      border-right: 1px solid oklch(0.90 0.015 70);
+      overflow-y: auto;
+      padding: 24px 0;
+    }
+    .proto-stage {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      overflow: auto; padding: 32px;
+      position: relative;
+    }
+
+    /* ─── Sidebar ─── */
+    .proto-brand {
+      padding: 0 24px 20px;
+      border-bottom: 1px solid oklch(0.93 0.015 70);
+      margin-bottom: 16px;
+    }
+    .proto-brand h1 {
+      font-family: var(--font-display); font-weight: 500;
+      font-variation-settings: "SOFT" 100, "opsz" 144;
+      font-size: 28px; letter-spacing: -0.02em;
+      margin: 0; color: var(--fg);
+    }
+    .proto-brand p {
+      margin: 4px 0 0;
+      font-size: 12px; color: var(--fg-subtle);
+    }
+
+    .proto-group {
+      padding: 0 24px;
+      margin-bottom: 18px;
+    }
+    .proto-group-label {
+      font-size: 10.5px; font-weight: 700;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--fg-subtle);
+      margin: 0 0 8px;
+    }
+    .proto-scene {
+      display: block; width: 100%;
+      text-align: left;
+      padding: 10px 12px; margin-bottom: 2px;
+      background: transparent; border: none;
+      border-radius: 8px;
+      font-family: inherit; font-size: 13.5px;
+      color: var(--fg-muted);
+      cursor: pointer;
+      transition: background 0.12s, color 0.12s;
+      line-height: 1.35;
+    }
+    .proto-scene:hover { background: oklch(0.95 0.02 70); color: var(--fg); }
+    .proto-scene.active {
+      background: var(--accent-soft);
+      color: var(--accent-fg);
+      font-weight: 600;
+    }
+    .proto-scene .sub {
+      display: block;
+      font-size: 11.5px; font-weight: 400;
+      color: var(--fg-subtle);
+      margin-top: 2px;
+    }
+    .proto-scene.active .sub { color: var(--accent-fg); opacity: 0.7; }
+
+    /* ─── Stage ─── */
+    .proto-frame-wrap {
+      display: flex; flex-direction: column;
+      align-items: center; gap: 14px;
+    }
+    .proto-hint {
+      max-width: 560px; text-align: center;
+      font-size: 13px; color: var(--fg-muted);
+      line-height: 1.5;
+      padding: 10px 18px;
+      background: oklch(0.99 0.005 70 / 0.7);
+      border: 1px solid oklch(0.90 0.015 70);
+      border-radius: 999px;
+      backdrop-filter: blur(8px);
+    }
+    .proto-hint strong { color: var(--fg); font-weight: 600; }
+    .proto-controls {
+      display: flex; gap: 8px;
+      margin-top: 6px;
+    }
+    .proto-ctrl {
+      padding: 6px 12px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      font-family: inherit; font-size: 12px;
+      color: var(--fg-muted);
+      cursor: pointer;
+    }
+    .proto-ctrl:hover { background: var(--surface-2); color: var(--fg); }
+
+    /* Desktop "frame" (used for screens that are desktop-primary) */
+    .desktop-frame {
+      width: 1200px; max-width: calc(100vw - 380px);
+      height: 760px; max-height: calc(100vh - 160px);
+      background: var(--surface);
+      border-radius: 14px;
+      box-shadow:
+        0 1px 2px rgba(0,0,0,0.06),
+        0 24px 60px -12px rgba(60,40,20,0.18);
+      overflow: hidden;
+      position: relative;
+      border: 1px solid oklch(0.88 0.012 70);
+    }
+    .desktop-chrome {
+      height: 28px;
+      background: oklch(0.96 0.010 70);
+      border-bottom: 1px solid oklch(0.90 0.012 70);
+      display: flex; align-items: center;
+      padding: 0 12px;
+      gap: 8px;
+    }
+    .desktop-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: oklch(0.85 0.030 30);
+    }
+    .desktop-dot.y { background: oklch(0.85 0.080 80); }
+    .desktop-dot.g { background: oklch(0.82 0.080 145); }
+    .desktop-url {
+      flex: 1; text-align: center;
+      font-size: 11px; color: var(--fg-subtle);
+      font-family: var(--font-mono);
+    }
+    .desktop-body {
+      height: calc(100% - 28px);
+      overflow: auto;
+      background: var(--bg);
+    }
+
+    /* Phone frame override for in-stage rendering */
+    .phone-wrap > div { transform-origin: top center; }
+
+    .scene-tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 10px; font-weight: 700;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      vertical-align: middle;
+      margin-left: 6px;
+    }
+    .scene-tag.new {
+      background: oklch(0.94 0.060 75);
+      color: oklch(0.42 0.140 65);
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- Component imports (same set as Design v3) -->
+  <script type="text/babel" src="components/Icons.jsx"></script>
+  <script type="text/babel" src="components/IconsPop.jsx"></script>
+  <script type="text/babel" src="components/Logos.jsx"></script>
+  <script type="text/babel" src="components/sampleData.jsx"></script>
+  <script type="text/babel" src="components/useResponsive.jsx"></script>
+  <script type="text/babel" src="components/useFocusTrap.jsx"></script>
+  <script type="text/babel" src="components/Drawer.jsx"></script>
+  <script type="text/babel" src="components/TopBar.jsx"></script>
+  <script type="text/babel" src="components/SignIn.jsx"></script>
+  <script type="text/babel" src="components/Dashboard.jsx"></script>
+  <script type="text/babel" src="components/CreateBrunchWizard.jsx"></script>
+  <script type="text/babel" src="components/HostDetail.jsx"></script>
+  <script type="text/babel" src="components/InviteeDetail.jsx"></script>
+  <script type="text/babel" src="components/QuickBrunch.jsx"></script>
+  <script type="text/babel" src="components/EmptyDashboard.jsx"></script>
+  <script type="text/babel" src="components/CountdownRing.jsx"></script>
+  <script type="text/babel" src="components/PlateProgressBar.jsx"></script>
+  <script type="text/babel" src="components/CalendarChip.jsx"></script>
+  <script type="text/babel" src="components/InviteeDetailV3.jsx"></script>
+  <script type="text/babel" src="components/HostDetailV3.jsx"></script>
+  <script type="text/babel" src="components/DashboardV3.jsx"></script>
+  <script type="text/babel" src="components/MobileShell.jsx"></script>
+  <script type="text/babel" src="components/CancelChangeModals.jsx"></script>
+  <script type="text/babel" src="components/InboxScreen.jsx"></script>
+  <script type="text/babel" src="components/PlusOneSetting.jsx"></script>
+  <script type="text/babel" src="components/SendingLoader.jsx"></script>
+  <script type="text/babel" src="components/EdgeStates.jsx"></script>
+  <script type="text/babel" src="components/MeTab.jsx"></script>
+  <script type="text/babel" src="components/OpenGraphPreview.jsx"></script>
+  <script type="text/babel" src="components/WelcomeScreen.jsx"></script>
+  <script type="text/babel" src="components/InvitePreview.jsx"></script>
+  <script type="text/babel" src="components/PushPermPrompt.jsx"></script>
+  <script type="text/babel" src="components/MarketingLanding.jsx"></script>
+  <script type="text/babel" src="components/SignOutModal.jsx"></script>
+  <script type="text/babel" src="components/Toasts.jsx"></script>
+  <script type="text/babel" src="components/DeleteAccount.jsx"></script>
+  <script type="text/babel" src="components/PastBrunchDetail.jsx"></script>
+  <script type="text/babel" src="components/ShareSheet.jsx"></script>
+  <script type="text/babel" src="components/HelpFAQ.jsx"></script>
+  <script type="text/babel" src="components/MuteBrunchControl.jsx"></script>
+  <script type="text/babel" src="components/FirstBrunchCoach.jsx"></script>
+  <script type="text/babel" src="components/PhotoUpload.jsx"></script>
+  <script type="text/babel" src="components/SkeletonStates.jsx"></script>
+  <script type="text/babel" src="components/V11LateAdditions.jsx"></script>
+  <script type="text/babel" src="ios-frame.jsx"></script>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // ─── Scenes registry ──────────────────────────────────────────
+    // Each scene declares its starting screen + a viewport hint.
+    // Some scenes are "static" (single screen), some are flows that
+    // chain screens via the components' own callbacks.
+    const SCENES = [
+      // ── Sign-in & onboarding ──
+      { group: 'Sign-in & onboarding',
+        id: 'marketing',  label: 'Marketing landing',     sub: 'brunchsters.app (logged-out)', viewport: 'desktop',
+        hint: 'Public face of the site. Click "Sign up" to head into onboarding.' },
+      { group: 'Sign-in & onboarding',
+        id: 'welcome',    label: 'Welcome / Sign-in',      sub: 'First-touch · mobile',         viewport: 'mobile',
+        hint: 'Apple + Google only. No email/SMS. Pick a provider to "auth".' },
+      { group: 'Sign-in & onboarding',
+        id: 'invite',     label: 'Invite preview',         sub: 'Tap Sam\'s link · mobile',     viewport: 'mobile',
+        hint: 'What invitees see before they auth. Tap "Continue" to RSVP.' },
+
+      // ── Core flows ──
+      { group: 'Core flows',
+        id: 'empty-dash', label: 'Empty dashboard',        sub: 'First-time user',              viewport: 'desktop',
+        hint: 'No brunches yet. Tap "Plan a brunch" to start.' },
+      { group: 'Core flows',
+        id: 'dashboard',  label: 'Dashboard (v3)',         sub: 'Returning user · "next up"',   viewport: 'desktop',
+        hint: 'Click any brunch to open detail. Tap "Plan another" to create.' },
+      { group: 'Core flows',
+        id: 'dashboard-mobile', label: 'Dashboard (mobile shell)', sub: 'Bottom tab + FAB',     viewport: 'mobile',
+        hint: 'Mobile shell with bottom nav and the butter-FAB.' },
+      { group: 'Core flows',
+        id: 'quick',      label: 'Quick brunch',           sub: 'Default creation path',        viewport: 'desktop',
+        hint: 'Conversational single-field flow for "I have a spot in mind."' },
+      { group: 'Core flows',
+        id: 'wizard',     label: 'Create-brunch wizard',   sub: 'Multi-place / voting path',    viewport: 'desktop',
+        hint: 'Four-step wizard. Walks through Title → Where → When → Who.' },
+
+      // ── Detail screens ──
+      { group: 'Detail screens',
+        id: 'host',       label: 'Host detail',            sub: 'Manage · countdown · voting',  viewport: 'desktop',
+        hint: 'Try the overflow menu (⋯) for edit / cancel / hand-off.' },
+      { group: 'Detail screens',
+        id: 'invitee',    label: 'Invitee detail',         sub: 'RSVP · vote · plus-ones',      viewport: 'desktop',
+        hint: 'Click "Yes" to unlock plus-ones, late, dietary note.' },
+      { group: 'Detail screens',
+        id: 'past',       label: 'Past brunch detail',     sub: 'Read-only memory view',        viewport: 'desktop',
+        hint: '"Do this again?" CTA carries you back into the wizard.' },
+
+      // ── Account & help ──
+      { group: 'Account & help',
+        id: 'me',         label: 'Me tab',                 sub: 'Profile · notifications · zone',viewport: 'desktop',
+        hint: 'Scroll down for Danger zone (delete account).' },
+      { group: 'Account & help',
+        id: 'help',       label: 'Help / FAQ',             sub: 'Self-serve answers',           viewport: 'desktop',
+        hint: 'Click an FAQ to expand; tap "Email us" at the bottom.' },
+      { group: 'Account & help',
+        id: 'inbox',      label: 'Inbox',                  sub: 'Activity grouped by day',      viewport: 'mobile',
+        hint: 'Activity feed. Tap a row to jump to the brunch.' },
+
+      // ── v1.1 surfaces ──
+      { group: 'v1.1 late additions',
+        id: 'late',       label: 'Running late',           sub: 'Day-of "tell the gang"',       viewport: 'card', tag: 'new',
+        hint: 'Two surfaces shown together. Try the day-of "Tell the gang" button.' },
+      { group: 'v1.1 late additions',
+        id: 'plusone-edit', label: 'Edit plus-one name',   sub: 'After-RSVP edit',              viewport: 'card', tag: 'new',
+        hint: 'Tap "Edit" to rename a plus-one. Silent — no host notification.' },
+      { group: 'v1.1 late additions',
+        id: 'transfer',   label: 'Host transfer',          sub: '"Hand off hosting"',           viewport: 'card', tag: 'new',
+        hint: 'Pick a new host. They get a push; you stay as a regular attendee.' },
+      { group: 'v1.1 late additions',
+        id: 'undo',       label: 'Undo on cancel',         sub: '5-second window',              viewport: 'card', tag: 'new',
+        hint: 'Click "Simulate" to fire a cancel. The 5s ring is live — tap "Undo" before it ends.' },
+      { group: 'v1.1 late additions',
+        id: 'timezone',   label: 'Timezone display',       sub: 'Multi-tz groups',              viewport: 'card', tag: 'new',
+        hint: 'Same brunch, two viewers. Host\'s-time subline only appears when zones differ.' },
+      { group: 'v1.1 late additions',
+        id: 'tie',        label: 'Inline tie-breaker',     sub: 'Voting closed · tied',         viewport: 'card', tag: 'new',
+        hint: 'Tie at close → host picks in place. No modal.' },
+      { group: 'v1.1 late additions',
+        id: 'reduced',    label: 'Reduced-data states',    sub: 'Loaded but empty',             viewport: 'card', tag: 'new',
+        hint: 'Six inline patterns. Playful, never apologetic.' },
+    ];
+
+    // ─── Wrappers that wire screen-to-screen navigation ─────────────
+    const Stage = ({ children, viewport }) => {
+      if (viewport === 'mobile') {
+        return (
+          <div className="phone-wrap">
+            <window.IOSDevice width={420} height={860}>
+              <div style={{ height: '100%', background: 'var(--bg)' }}>
+                {children}
+              </div>
+            </window.IOSDevice>
+          </div>
+        );
+      }
+      if (viewport === 'card') {
+        return (
+          <div style={{
+            background: 'var(--surface)',
+            borderRadius: 14,
+            border: '1px solid oklch(0.88 0.012 70)',
+            boxShadow: '0 24px 60px -12px rgba(60,40,20,0.18)',
+            padding: 28,
+            minWidth: 560, maxWidth: 880,
+            maxHeight: 'calc(100vh - 200px)',
+            overflow: 'auto',
+          }}>
+            {children}
+          </div>
+        );
+      }
+      // desktop
+      return (
+        <div className="desktop-frame">
+          <div className="desktop-chrome">
+            <span className="desktop-dot" />
+            <span className="desktop-dot y" />
+            <span className="desktop-dot g" />
+            <span className="desktop-url">brunchsters.app</span>
+            <span style={{ width: 36 }} />
+          </div>
+          <div className="desktop-body">{children}</div>
+        </div>
+      );
+    };
+
+    // ─── App ──
+    const App = () => {
+      const [sceneId, setSceneId] = useState('dashboard');
+      const [step, setStep] = useState(null); // for in-scene navigation
+      const [quickPrefill, setQuickPrefill] = useState(null); // replan-from-past prefill
+      const [openBrunch, setOpenBrunch] = useState(null); // brunch object the detail screens render
+      const scene = SCENES.find((s) => s.id === sceneId);
+
+      // Reset internal step when scene changes
+      useEffect(() => { setStep(null); setQuickPrefill(null); setOpenBrunch(null); }, [sceneId]);
+
+      const goTo = (id) => { setSceneId(id); };
+
+      // Render the actual screen for the current scene
+      const renderScene = () => {
+        // Map step overrides so flows can chain (e.g. dashboard → host)
+        const overrideId = step || sceneId;
+
+        switch (overrideId) {
+          case 'marketing':
+            return <window.MarketingLanding onSignIn={() => setStep('welcome')} />;
+          case 'welcome':
+            return <window.WelcomeScreen onAuth={() => setStep('dashboard')} />;
+          case 'invite':
+            return <window.InvitePreview onContinue={() => setStep('welcome')} />;
+
+          case 'empty-dash':
+            return <window.EmptyDashboard onCreate={() => setStep('quick')} />;
+
+          case 'dashboard':
+            return <window.DashboardV3
+              theme="light" popMode="surgical"
+              onCreate={() => setStep('quick')}
+              onOpenBrunch={(b, opts) => {
+                setOpenBrunch(b);
+                setStep(opts?.past ? 'past' : (b?.role === 'host' ? 'host' : 'invitee'));
+              }}
+            />;
+          case 'dashboard-mobile':
+            return <window.MobileShell initialView="home" />;
+
+          case 'quick':
+            return <window.QuickBrunch
+              onClose={() => { setQuickPrefill(null); setStep('dashboard'); }}
+              onComplete={() => { setQuickPrefill(null); setStep('host'); }}
+              prefill={quickPrefill}
+              theme="light"
+            />;
+          case 'wizard':
+            return <window.CreateBrunchWizard
+              onClose={() => setStep('dashboard')}
+              onComplete={() => setStep('host')}
+              theme="light"
+            />;
+
+          case 'host':
+            return <window.HostDetailV3
+              onBack={() => setStep('dashboard')}
+              theme="light" popMode="surgical"
+            />;
+          case 'invitee':
+            return <window.InviteeDetailV3
+              onBack={() => setStep('dashboard')}
+              theme="light"
+            />;
+          case 'past':
+            return <window.PastBrunchDetail
+              onBack={() => setStep('dashboard')}
+              brunch={openBrunch}
+              onReplan={(prefill) => { setQuickPrefill(prefill); setStep('quick'); }}
+              theme="light"
+            />;
+
+          case 'me':
+            return <window.MeTab theme="light" />;
+          case 'help':
+            return <window.HelpFAQ onBack={() => setStep('me')} />;
+          case 'inbox':
+            return <window.InboxScreen />;
+
+          // v1.1 surfaces
+          case 'late':         return <window.RunningLateSurfaces />;
+          case 'plusone-edit': return <window.PlusOneEditSurface />;
+          case 'transfer':     return <window.HostTransferSurface />;
+          case 'undo':         return <window.UndoCancelSurface />;
+          case 'timezone':     return <window.TimezoneSurface />;
+          case 'tie':          return <window.InlineTieBreakerSurface />;
+          case 'reduced':      return <window.ReducedDataGallery />;
+
+          default:
+            return <div style={{ padding: 40, color: 'var(--fg-muted)' }}>Pick a scene from the sidebar.</div>;
+        }
+      };
+
+      // Group scenes by their group label
+      const groups = [...new Set(SCENES.map((s) => s.group))];
+
+      return (
+        <div className="proto-shell">
+          <aside className="proto-sidebar">
+            <div className="proto-brand">
+              <h1>Brunchsters</h1>
+              <p>Interactive prototype · click through any flow</p>
+            </div>
+            {groups.map((g) => (
+              <div key={g} className="proto-group">
+                <p className="proto-group-label">{g}</p>
+                {SCENES.filter((s) => s.group === g).map((s) => (
+                  <button key={s.id}
+                          className={`proto-scene${s.id === sceneId ? ' active' : ''}`}
+                          onClick={() => goTo(s.id)}>
+                    <span>
+                      {s.label}
+                      {s.tag === 'new' && <span className="scene-tag new">new</span>}
+                    </span>
+                    <span className="sub">{s.sub}</span>
+                  </button>
+                ))}
+              </div>
+            ))}
+          </aside>
+
+          <main className="proto-stage">
+            <div className="proto-frame-wrap">
+              <Stage viewport={scene.viewport}>
+                {renderScene()}
+              </Stage>
+              <div className="proto-hint">{scene.hint}</div>
+              {step && step !== sceneId && (
+                <div className="proto-controls">
+                  <button className="proto-ctrl" onClick={() => setStep(null)}>
+                    ↺ Reset to "{scene.label}" start
+                  </button>
+                </div>
+              )}
+            </div>
+          </main>
+        </div>
+      );
+    };
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

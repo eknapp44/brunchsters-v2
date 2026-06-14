@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Brunchsters — Engineering Handoff v1</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&family=Fraunces:opsz,wght,SOFT@9..144,400,0;9..144,500,0;9..144,600,0;9..144,500,100;9..144,600,100&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles/tokens.css" />
+  <style>
+    :root {
+      --font-sans: "Nunito", ui-sans-serif, system-ui, sans-serif;
+      --font-display: "Fraunces", Georgia, serif;
+      font-variation-settings: "SOFT" 100;
+    }
+    html, body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-sans); }
+    .page { max-width: 1080px; margin: 0 auto; padding: 56px 48px 80px; }
+    h1.title {
+      font-family: var(--font-display); font-size: 56px; font-weight: 500;
+      letter-spacing: -0.025em; margin: 0 0 8px;
+      font-variation-settings: "SOFT" 100, "opsz" 144;
+    }
+    .eyebrow {
+      font-size: 12px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.12em; color: var(--fg-subtle);
+      margin: 0 0 8px;
+    }
+    .lede {
+      font-family: var(--font-display); font-size: 22px; line-height: 1.45;
+      color: var(--fg-muted); margin: 0 0 48px; max-width: 720px;
+      font-weight: 400; letter-spacing: -0.005em;
+      text-wrap: balance;
+    }
+    h2 {
+      font-family: var(--font-display); font-size: 32px; font-weight: 500;
+      letter-spacing: -0.02em; margin: 64px 0 8px;
+      font-variation-settings: "SOFT" 100, "opsz" 144;
+    }
+    h2 + .sub { color: var(--fg-muted); font-size: 14px; margin: 0 0 24px; max-width: 640px; }
+    h3 {
+      font-size: 16px; font-weight: 600; letter-spacing: -0.01em;
+      margin: 28px 0 12px;
+    }
+    p { line-height: 1.6; }
+    code, .mono {
+      font-family: var(--font-mono); font-size: 12.5px;
+      background: var(--surface-2); padding: 2px 7px; border-radius: 4px;
+    }
+
+    /* Stats row */
+    .stats {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+      margin-bottom: 40px;
+    }
+    .stat {
+      padding: 18px; border-radius: var(--r-3);
+      background: var(--surface); border: 1px solid var(--line-soft);
+    }
+    .stat .n {
+      font-family: var(--font-display); font-size: 36px; font-weight: 500;
+      letter-spacing: -0.015em; margin: 0; line-height: 1;
+      color: var(--accent-fg);
+    }
+    .stat .lbl { font-size: 12.5px; color: var(--fg-muted); margin: 6px 0 0; }
+
+    /* Doc nav */
+    .doclist { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 16px; }
+    .doc {
+      padding: 18px 20px; border-radius: var(--r-3);
+      background: var(--surface); border: 1px solid var(--line-soft);
+      text-decoration: none; color: var(--fg);
+      display: flex; flex-direction: column; gap: 4px;
+      transition: border-color 0.15s var(--ease), transform 0.15s var(--ease);
+    }
+    .doc:hover { border-color: var(--accent-strong); transform: translateY(-1px); }
+    .doc .name {
+      font-family: var(--font-display); font-size: 17px; font-weight: 500;
+      letter-spacing: -0.005em;
+    }
+    .doc .desc { font-size: 12.5px; color: var(--fg-muted); line-height: 1.5; }
+    .doc .file { font-family: var(--font-mono); font-size: 11px; color: var(--fg-subtle); margin-top: 4px; }
+
+    /* Component table */
+    .ctable {
+      width: 100%; border-collapse: collapse;
+      background: var(--surface); border-radius: var(--r-3); overflow: hidden;
+      border: 1px solid var(--line-soft);
+    }
+    .ctable th, .ctable td {
+      padding: 10px 14px; text-align: left;
+      border-bottom: 1px solid var(--line-soft);
+      font-size: 13px; vertical-align: top;
+    }
+    .ctable tr:last-child th, .ctable tr:last-child td { border-bottom: none; }
+    .ctable th {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--fg-subtle); background: var(--surface-2);
+    }
+    .ctable td.file { font-family: var(--font-mono); font-size: 12px; color: var(--fg); }
+    .ctable td.desc { color: var(--fg-muted); }
+    .ctable td.tag { width: 90px; }
+    .ctable .pill-tag {
+      display: inline-block; padding: 2px 8px; border-radius: 999px;
+      font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .pill-tag.screen { background: var(--accent-soft); color: var(--accent-fg); }
+    .pill-tag.system { background: var(--surface-3); color: var(--fg-muted); }
+    .pill-tag.modal  { background: oklch(0.95 0.060 30); color: oklch(0.40 0.140 30); }
+    .pill-tag.state  { background: oklch(0.94 0.060 85); color: oklch(0.36 0.115 70); }
+
+    /* Decision list */
+    .decision {
+      padding: 16px 20px; margin-bottom: 12px;
+      border-radius: var(--r-3); background: var(--surface);
+      border: 1px solid var(--line-soft);
+      display: grid; grid-template-columns: 200px 1fr; gap: 24px;
+    }
+    .decision .area {
+      font-size: 13px; font-weight: 600;
+      color: var(--fg);
+    }
+    .decision .area .ctx {
+      display: block; font-weight: 400; font-size: 11.5px;
+      color: var(--fg-subtle); margin-top: 2px;
+    }
+    .decision .call { font-size: 14px; color: var(--fg-muted); line-height: 1.55; }
+    .decision .call strong { color: var(--fg); font-weight: 600; }
+
+    /* Question list */
+    .q-item {
+      padding: 14px 18px; margin-bottom: 8px;
+      border-left: 3px solid oklch(0.85 0.080 65);
+      background: oklch(0.98 0.025 75);
+      border-radius: 0 var(--r-2) var(--r-2) 0;
+      font-size: 13.5px; line-height: 1.55;
+    }
+    .q-item strong { color: oklch(0.35 0.130 60); }
+
+    /* Token cards */
+    .tokens {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+      margin-bottom: 20px;
+    }
+    .token {
+      padding: 14px; border-radius: var(--r-2);
+      background: var(--surface); border: 1px solid var(--line-soft);
+    }
+    .token .swatch {
+      height: 56px; border-radius: var(--r-1); margin-bottom: 10px;
+      border: 1px solid var(--line-soft);
+    }
+    .token .name { font-family: var(--font-mono); font-size: 11px; color: var(--fg); }
+    .token .val { font-family: var(--font-mono); font-size: 10.5px; color: var(--fg-muted); margin-top: 2px; }
+
+    .next-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .next-item {
+      padding: 16px; border-radius: var(--r-2);
+      background: var(--surface-2); border: 1px solid var(--line-soft);
+    }
+    .next-item h4 { margin: 0 0 6px; font-size: 13px; font-weight: 600; }
+    .next-item p { margin: 0; font-size: 12.5px; color: var(--fg-muted); line-height: 1.5; }
+
+    /* Voice dials — mini */
+    .dial { display: grid; grid-template-columns: 100px 1fr 100px; gap: 12px; align-items: center; margin-bottom: 8px; font-size: 12.5px; color: var(--fg-muted); }
+    .dial .bar { height: 6px; background: var(--surface-2); border-radius: 3px; position: relative; }
+    .dial .bar .dot { position: absolute; width: 12px; height: 12px; border-radius: 50%; top: -3px; background: var(--accent-strong); border: 2px solid var(--bg); transform: translateX(-50%); }
+    .dial .l, .dial .r { color: var(--fg-subtle); }
+    .dial .r { font-weight: 600; color: var(--fg-muted); text-align: left; }
+
+    /* Parity matrix */
+    .parity { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: var(--r-3); overflow: hidden; border: 1px solid var(--line-soft); font-size: 13px; }
+    .parity th, .parity td { padding: 9px 14px; border-bottom: 1px solid var(--line-soft); text-align: left; vertical-align: middle; }
+    .parity th { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-subtle); background: var(--surface-2); }
+    .parity tr:last-child td { border-bottom: none; }
+    .parity td.center { text-align: center; }
+    .parity .yes { color: oklch(0.45 0.12 150); font-weight: 600; }
+    .parity .no  { color: var(--fg-subtle); }
+    .parity .primary { background: var(--accent-soft); color: var(--accent-fg); display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
+    .parity .note { color: var(--fg-muted); font-size: 12px; }
+
+    /* Rule callout (Empty vs Skeleton) */
+    .rule-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+    .rule-card { padding: 18px 20px; background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--r-3); }
+    .rule-card h4 { margin: 0 0 4px; font-family: var(--font-display); font-size: 18px; font-weight: 500; letter-spacing: -0.005em; }
+    .rule-card .when { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-fg); margin: 0 0 10px; }
+    .rule-card p { margin: 0 0 8px; font-size: 13px; line-height: 1.55; color: var(--fg-muted); }
+    .rule-card .ex { font-family: var(--font-mono); font-size: 11.5px; background: var(--surface-2); padding: 8px 10px; border-radius: var(--r-1); color: var(--fg); }
+
+    /* Analytics + copy tables */
+    .data-table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--r-3); overflow: hidden; margin-bottom: 16px; }
+    .data-table th, .data-table td { padding: 9px 14px; border-bottom: 1px solid var(--line-soft); text-align: left; font-size: 12.5px; vertical-align: top; }
+    .data-table th { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-subtle); background: var(--surface-2); }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table td.code { font-family: var(--font-mono); font-size: 11.5px; color: var(--fg); white-space: nowrap; }
+    .data-table td.desc { color: var(--fg-muted); }
+    .group-row td { background: oklch(0.97 0.020 75); font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-subtle); padding: 7px 14px; }
+
+    /* State inventory legend */
+    .legend { display: flex; gap: 14px; margin-bottom: 12px; font-size: 12px; color: var(--fg-muted); flex-wrap: wrap; }
+    .legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+    .state-cell { display: inline-block; width: 18px; height: 18px; line-height: 18px; text-align: center; font-size: 11px; border-radius: 4px; font-weight: 700; }
+    .state-cell.ok { background: oklch(0.93 0.060 150); color: oklch(0.40 0.14 150); }
+    .state-cell.partial { background: oklch(0.93 0.055 75); color: oklch(0.42 0.12 65); }
+    .state-cell.na { background: var(--surface-2); color: var(--fg-subtle); }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <p class="eyebrow">Engineering handoff · v1.1 · revised</p>
+    <h1 class="title">Brunchsters → engineering.<br>Here's what's on the table.</h1>
+    <p class="lede">
+      A navigation map for the engineering team. Every design decision, every deferred call,
+      every place a question still lives. The detail's in the source files — this doc
+      points you there. <strong style="color: var(--fg); font-weight: 600;">v1.1 adds:</strong>
+      late-flow, host transfer, undo-cancel, timezone, parity matrix, analytics, copy variables.
+    </p>
+
+    <div class="stats">
+      <div class="stat"><p class="n">45</p><p class="lbl">screens / states designed</p></div>
+      <div class="stat"><p class="n">22</p><p class="lbl">key product decisions</p></div>
+      <div class="stat"><p class="n">23</p><p class="lbl">components in /components</p></div>
+      <div class="stat"><p class="n">v1.1</p><p class="lbl">feature-complete</p></div>
+    </div>
+
+    <!-- ── What you're building ─────────── -->
+    <h2>What you're building</h2>
+    <p class="sub">One paragraph, north-star clarity.</p>
+    <p style="font-size: 16px; line-height: 1.65; max-width: 720px;">
+      <strong>Brunchsters</strong> helps groups of friends actually do brunch instead of
+      just saying "we should brunch." Hosts pick a spot (or several, with built-in voting),
+      pick a time, invite the crew, and the app handles RSVPs, voting deadlines, nudges,
+      and the inevitable schedule changes. Friend-tone, low-friction, mobile-first, but
+      desktop works. Target: millennials + Gen Z, casual social planning.
+    </p>
+
+    <!-- ── Read these first ─────────────── -->
+    <h2>Read these first</h2>
+    <p class="sub">Five docs that capture every decision. Open in order.</p>
+    <div class="doclist">
+      <a class="doc" href="Brunchsters%20Design%20v3.html">
+        <span class="name">📐 Design v3 — the canvas</span>
+        <span class="desc">Every screen and state. Pan around. Click into artboards.</span>
+        <span class="file">Brunchsters Design v3.html</span>
+      </a>
+      <a class="doc" href="Brand%20Voice.html">
+        <span class="name">🥂 Brand Voice</span>
+        <span class="desc">How we sound. Word lists, tone shifts, do/don't pairs. Reference before writing copy.</span>
+        <span class="file">Brand Voice.html</span>
+      </a>
+      <a class="doc" href="Copy%20Pass.html">
+        <span class="name">✍️ Copy Pass</span>
+        <span class="desc">48 string rewrites with before/after. Voice in practice.</span>
+        <span class="file">Copy Pass.html</span>
+      </a>
+      <a class="doc" href="Accessibility%20Pass.html">
+        <span class="name">♿ Accessibility Pass</span>
+        <span class="desc">14 fixes live, 3 flagged for follow-up. WCAG 2.1 AA baseline.</span>
+        <span class="file">Accessibility Pass.html</span>
+      </a>
+      <a class="doc" href="Engineering%20Handoff.html">
+        <span class="name">🛠 This doc</span>
+        <span class="desc">You are here. Navigation map.</span>
+        <span class="file">Engineering Handoff.html</span>
+      </a>
+    </div>
+
+    <!-- ── Design system ───────────────── -->
+    <h2>Design system</h2>
+    <p class="sub">Tokens, type, motion. Source of truth lives in <code>styles/tokens.css</code>.</p>
+
+    <h3>Type scale</h3>
+    <p style="font-size: 13.5px; color: var(--fg-muted);">
+      Display: <strong>Fraunces</strong> (with soft variant via <code>font-variation-settings: "SOFT" 100</code>) — used for headlines, brunch titles, and the wordmark only.
+      Body: <strong>Nunito</strong> — everywhere else.
+      Mono: <strong>JetBrains Mono</strong> — labels, code, link slugs.
+      Switchable via Tweaks panel; Nunito + Fraunces (Soft) is locked.
+    </p>
+
+    <h3>Color tokens · light theme</h3>
+    <div class="tokens">
+      <div class="token">
+        <div class="swatch" style="background: var(--accent-strong);"></div>
+        <div class="name">--accent-strong</div>
+        <div class="val">butter-yolk · oklch(0.720 0.165 70)</div>
+      </div>
+      <div class="token">
+        <div class="swatch" style="background: var(--accent-soft);"></div>
+        <div class="name">--accent-soft</div>
+        <div class="val">soft butter · backgrounds</div>
+      </div>
+      <div class="token">
+        <div class="swatch" style="background: var(--mint);"></div>
+        <div class="name">--mint</div>
+        <div class="val">success state only</div>
+      </div>
+      <div class="token">
+        <div class="swatch" style="background: var(--bg); border-color: var(--line);"></div>
+        <div class="name">--bg / --surface</div>
+        <div class="val">warm paper, near white</div>
+      </div>
+      <div class="token">
+        <div class="swatch" style="background: var(--fg);"></div>
+        <div class="name">--fg</div>
+        <div class="val">near-black warm</div>
+      </div>
+      <div class="token">
+        <div class="swatch" style="background: oklch(0.78 0.140 30);"></div>
+        <div class="name">destructive</div>
+        <div class="val">oklch(0.78 0.140 30) · inlined</div>
+      </div>
+    </div>
+    <p style="font-size: 12.5px; color: var(--fg-subtle); margin-top: -8px;">
+      Full palette + dark mode + Pop set in <code>styles/tokens.css</code> + <code>components/IconsPop.jsx</code>.
+    </p>
+
+    <h3>Motion</h3>
+    <p style="font-size: 13.5px; color: var(--fg-muted);">
+      Two easings: <code>--ease</code> (standard) and <code>--ease-spring</code> (delight moments).
+      All animations respect <code>prefers-reduced-motion</code> — kills durations down to 0.001ms.
+      Durations: 120ms (state changes), 200–250ms (transitions), 300–400ms (entry).
+    </p>
+
+    <!-- ── Component map ───────────────── -->
+    <h2>Component map</h2>
+    <p class="sub">What's in <code>/components</code>. v3 versions are the canonical ones to wire up first.</p>
+    <table class="ctable">
+      <tr><th>Component</th><th>File</th><th class="tag">Type</th><th>What it is</th></tr>
+
+      <tr><td><strong>Welcome / sign-in</strong></td><td class="file">WelcomeScreen.jsx</td><td><span class="pill-tag screen">Screen</span></td><td class="desc">Sign-up entry. Has a <code>sessionExpired</code> prop for the stale-session variant.</td></tr>
+      <tr><td><strong>Marketing landing</strong></td><td class="file">MarketingLanding.jsx</td><td><span class="pill-tag screen">Screen</span></td><td class="desc">Public face at brunchsters.app. Hero + how-it-works + footer.</td></tr>
+      <tr><td><strong>Invite preview</strong></td><td class="file">InvitePreview.jsx</td><td><span class="pill-tag screen">Screen</span></td><td class="desc">What invited users see before they auth.</td></tr>
+      <tr><td><strong>Dashboard v3</strong></td><td class="file">DashboardV3.jsx</td><td><span class="pill-tag screen">Screen</span></td><td class="desc">Hero "next up" + upcoming list + "Plan another" card + past list. <code>popMode</code> prop toggles icon density.</td></tr>
+      <tr><td><strong>Empty dashboard</strong></td><td class="file">EmptyDashboard.jsx</td><td><span class="pill-tag screen">Screen</span></td><td class="desc">First-run state. Illustrated breakfast scene → primary "Round up the crew" CTA → 3-step "How it works" strip → join-by-link tile. The richer onboarding tiles (curated friends / places / calendar) are parked at <code>EmptyDashboard.v2-reference.jsx</code> for v2.</td></tr>cene + CTA.</td></tr>
+      <tr><td><strong>Host detail v3</strong></td><td class="file">HostDetailV3.jsx</td><td><span class="pill-tag screen">Screen</span></td><td class="desc">Cancel / change / voting / countdown ring / auto-close prompt — all live.</td></tr>
+      <tr><td><strong>Invitee detail v3</strong></td><td class="file">InviteeDetailV3.jsx</td><td><span class="pill-tag screen">Screen</span></td><td class="desc">Rich RSVP states (yes + plus-ones / late / dietary; maybe + decide-by; no + regret note).</td></tr>
+      <tr><td><strong>Past brunch detail</strong></td><td class="file">PastBrunchDetail.jsx</td><td><span class="pill-tag screen">Screen</span></td><td class="desc">Frozen read-only view + "Do this again?" replan CTA. Dashboard routes pass <code>brunch={…}</code> through; <code>onReplan</code> maps attendees → <code>SAMPLE_FRIENDS</code> + location → <code>SAMPLE_LOCATIONS</code> and emits a <code>prefill</code> payload that Quick Brunch consumes.</td></tr>ain?" CTA.</td></tr>
+      <tr><td><strong>Quick brunch</strong></td><td class="file">QuickBrunch.jsx</td><td><span class="pill-tag screen">Screen</span></td><td class="desc">Conversational single-field flow. Default path for one-place, one-time brunches. Accepts <code>prefill</code> prop for replan-from-past entry — seeds title + location + invitees, jumps to the "when" stage, shows a banner with a "Nah, start fresh" reset.</td></tr> for new brunches.</td></tr>
+      <tr><td><strong>Create brunch wizard</strong></td><td class="file">CreateBrunchWizard.jsx</td><td><span class="pill-tag screen">Screen</span></td><td class="desc">4-step wizard for the voting path. Uses PlateProgressBar.</td></tr>
+      <tr><td><strong>Mobile shell</strong></td><td class="file">MobileShell.jsx</td><td><span class="pill-tag screen">Screen</span></td><td class="desc">Bottom tab bar + butter FAB + bottom-sheet wizard. Manages its own routing for home / detail / past views; <code>BottomSheet</code> is <code>role="dialog"</code> with Esc dismissal + focus trap. Mobile-native detail screens (host / invitee / past) reuse the responsive desktop components — bespoke mobile-native detail redesigns are a v2 item.</td></tr>ard. Phone-shaped 420×900.</td></tr>
+      <tr><td><strong>Inbox</strong></td><td class="file">InboxScreen.jsx</td><td><span class="pill-tag screen">Screen</span></td><td class="desc">Grouped by Today / Yesterday / Earlier. Mobile and desktop.</td></tr>
+      <tr><td><strong>Me tab</strong></td><td class="file">MeTab.jsx</td><td><span class="pill-tag screen">Screen</span></td><td class="desc">Profile + accounts + notifications + Help + Danger zone.</td></tr>
+      <tr><td><strong>Help / FAQ</strong></td><td class="file">HelpFAQ.jsx</td><td><span class="pill-tag screen">Screen</span></td><td class="desc">7 questions + contact card + status indicator.</td></tr>
+
+      <tr><td><strong>Cancel + change modals</strong></td><td class="file">CancelChangeModals.jsx</td><td><span class="pill-tag modal">Modal</span></td><td class="desc">Host destructive + edit flows. Exports <code>ModalShell</code> for reuse. Shell now wires <code>useFocusTrap</code> + Esc + scrim-tap, so every consumer (cancel, change, sign-out, delete account ×2, photo upload, share sheet) gets focus trap for free.</td></tr>
+      <tr><td><strong>Delete account</strong></td><td class="file">DeleteAccount.jsx</td><td><span class="pill-tag modal">Modal</span></td><td class="desc">Two-step destructive + GoodbyeScreen + RestorePrompt. 30-day soft delete.</td></tr>
+      <tr><td><strong>Sign-out modal</strong></td><td class="file">SignOutModal.jsx</td><td><span class="pill-tag modal">Modal</span></td><td class="desc">Confirmation before sign-out.</td></tr>
+      <tr><td><strong>Share sheet</strong></td><td class="file">ShareSheet.jsx</td><td><span class="pill-tag modal">Modal</span></td><td class="desc">Invite link + copy + native share + revoke flow.</td></tr>
+      <tr><td><strong>Photo upload</strong></td><td class="file">PhotoUpload.jsx</td><td><span class="pill-tag modal">Modal</span></td><td class="desc">Avatar upload + crop. Brunch photos deferred to v2.</td></tr>
+      <tr><td><strong>First-brunch coach</strong></td><td class="file">FirstBrunchCoach.jsx</td><td><span class="pill-tag modal">Modal</span></td><td class="desc">4-step bottom card. Fires once after first SuccessScreen.</td></tr>
+      <tr><td><strong>Push perm prompt</strong></td><td class="file">PushPermPrompt.jsx</td><td><span class="pill-tag modal">Modal</span></td><td class="desc">Deferred ask after first meaningful action.</td></tr>
+
+      <tr><td><strong>Toast + Inline error + ErrorState</strong></td><td class="file">Toasts.jsx</td><td><span class="pill-tag state">State</span></td><td class="desc">Three error patterns: transient, inline, full-page. 404 / load-fail / gone variants.</td></tr>
+      <tr><td><strong>Skeleton loaders</strong></td><td class="file">SkeletonStates.jsx</td><td><span class="pill-tag state">State</span></td><td class="desc">Dashboard / detail / inbox shimmer placeholders. Reduced-motion safe.</td></tr>
+      <tr><td><strong>Edge states</strong></td><td class="file">EdgeStates.jsx</td><td><span class="pill-tag state">State</span></td><td class="desc">QuietNudge (T-24h no RSVPs) + TieBreaker (closed vote tied).</td></tr>
+      <tr><td><strong>Sending loader</strong></td><td class="file">SendingLoader.jsx</td><td><span class="pill-tag state">State</span></td><td class="desc">Egg → calendar → users → share → sparkle rotation. Use during send-invites.</td></tr>
+
+      <tr><td><strong>Calendar chip</strong></td><td class="file">CalendarChip.jsx</td><td><span class="pill-tag system">Atom</span></td><td class="desc">Google Calendar one-tap-add. Blocks when voting is open.</td></tr>
+      <tr><td><strong>Countdown ring</strong></td><td class="file">CountdownRing.jsx</td><td><span class="pill-tag system">Atom</span></td><td class="desc">SVG ring that fills toward deadline. Amber under 24h.</td></tr>
+      <tr><td><strong>Plate progress bar</strong></td><td class="file">PlateProgressBar.jsx</td><td><span class="pill-tag system">Atom</span></td><td class="desc">Egg → pin → clock → users wizard step indicator.</td></tr>
+      <tr><td><strong>Plus-one setting</strong></td><td class="file">PlusOneSetting.jsx</td><td><span class="pill-tag system">Atom</span></td><td class="desc">Host opt-in toggle with +1 / +2 / +3 picker.</td></tr>
+      <tr><td><strong>Mute control</strong></td><td class="file">MuteBrunchControl.jsx</td><td><span class="pill-tag system">Atom</span></td><td class="desc">Three-state per-brunch notification popover.</td></tr>
+      <tr><td><strong>Pop icons + stroke icons</strong></td><td class="file">IconsPop.jsx, Icons.jsx</td><td><span class="pill-tag system">System</span></td><td class="desc">Two icon sets. Pop carries color, strokes inherit.</td></tr>
+      <tr><td><strong>Open Graph share preview</strong></td><td class="file">OpenGraphPreview.jsx</td><td><span class="pill-tag system">Atom</span></td><td class="desc">1200×630 SVG card for unfurled invite links.</td></tr>
+      <tr><td><strong>useResponsive hook</strong></td><td class="file">useResponsive.jsx</td><td><span class="pill-tag system">Atom</span></td><td class="desc">Container-query hook (<code>{ref, isMobile}</code>). Drives breakpoint behavior on TopBar, host/invitee detail, dashboard.</td></tr>
+      <tr><td><strong>useFocusTrap hook</strong></td><td class="file">useFocusTrap.jsx</td><td><span class="pill-tag system">Atom</span></td><td class="desc"><code>useFocusTrap(ref, isOpen)</code> — snapshots active element, focuses first focusable, wraps Tab/Shift+Tab inside the container, restores focus on close. Wired into <code>ModalShell</code> + <code>BottomSheet</code>.</td></tr>
+    </table>
+
+    <!-- ── Decisions log ─────────────── -->
+    <h2>Key product decisions</h2>
+    <p class="sub">The calls we made along the way. If something seems missing, this is why.</p>
+
+    <div class="decision">
+      <div class="area">Two creation paths<span class="ctx">simple vs. voting</span></div>
+      <div class="call"><strong>Quick brunch</strong> (single-field conversational) is the default. The full 4-step wizard is reserved for when the host adds 2+ places or times.</div>
+    </div>
+    <div class="decision">
+      <div class="area">Auth providers<span class="ctx">no email/SMS</span></div>
+      <div class="call"><strong>Apple + Google only.</strong> Minimal friction. Name auto-grabbed; users drop straight into the dashboard with no profile-setup wall.</div>
+    </div>
+    <div class="decision">
+      <div class="area">Tutorial style<span class="ctx">no walls</span></div>
+      <div class="call"><strong>The UI is the tutorial.</strong> No carousel, no coachmarks on first run. Empty states teach. The only coach is the FirstBrunchCoach fired after the user's first send.</div>
+    </div>
+    <div class="decision">
+      <div class="area">Push permission<span class="ctx">timing matters</span></div>
+      <div class="call"><strong>Deferred.</strong> Never asked at sign-up. Triggers after first RSVP yes or first send-invites — once we've earned it.</div>
+    </div>
+    <div class="decision">
+      <div class="area">Invite link format<span class="ctx">readable + safe</span></div>
+      <div class="call"><code>brunchsters.app/b/{slug}-{token}</code>. Expires 7 days after the brunch (post-event view stays accessible briefly). Hosts can revoke + regenerate.</div>
+    </div>
+    <div class="decision">
+      <div class="area">Replan from past brunch<span class="ctx">"Do this again?"</span></div>
+      <div class="call"><strong>v1 supported.</strong> Past brunch detail surfaces a "Do this again?" CTA that prefills title + location + invitee list into Quick Brunch and drops the user on the "when" step. Time stays blank — the user must pick. Banner ("Bringing back X — round two 🥂") persists across the flow; "Nah, start fresh" wipes prefill. Pure UI-layer plumbing in v1 — no schema changes needed; the create-brunch endpoint just receives a normal payload. The proactive morning-after surface ("How was Tartine?") remains v2.</div>
+    </div>
+
+    <div class="decision">
+      <div class="area">Account deletion<span class="ctx">app-store-grade</span></div>
+      <div class="call"><strong>30-day soft delete.</strong> Cancels upcoming hosted brunches, withdraws pending RSVPs, keeps past brunches as historical ("former Brunchster"). Restore flow on sign-in within window.</div>
+    </div>
+    <div class="decision">
+      <div class="area">RSVP states<span class="ctx">richer than yes/no/maybe</span></div>
+      <div class="call">Yes is the primary state and unlocks <strong>plus-ones, late, leave-early, dietary note</strong>. Maybe has "decide-by". No has an optional regret note + "invite me next time" opt-in.</div>
+    </div>
+    <div class="decision">
+      <div class="area">Plus-ones<span class="ctx">opt-in per brunch</span></div>
+      <div class="call">Off by default. Host opts in with a +1 / +2 / +3 cap. Plus-ones have an optional name (helps with reservations later).</div>
+    </div>
+    <div class="decision">
+      <div class="area">Notifications<span class="ctx">two surfaces</span></div>
+      <div class="call">App-wide preferences in Me tab (3 toggles: RSVPs / votes / reminders). Per-brunch mute in invitee detail footer (All on / Just big stuff / Muted).</div>
+    </div>
+    <div class="decision">
+      <div class="area">Calendar integration<span class="ctx">Google only for v1</span></div>
+      <div class="call">Add-to-calendar chip inline on the time card. <strong>Disabled until time + place are locked</strong> — no tentative events, no ghost meetings. Helper line on the disabled chip: "Locks in once the vote closes." Outlook / Apple / ICS deferred.</div>
+    </div>
+    <div class="decision">
+      <div class="area">Voting closure<span class="ctx">graceful</span></div>
+      <div class="call">Auto-close prompt at ≥66% participation. <strong>Tie at close → inline tie-breaker</strong> on the host's brunch detail (uses <code>TieBreaker</code> in <code>EdgeStates.jsx</code>). Host picks from the tied options in-place — no separate modal. No randomizer in v1.</div>
+    </div>
+    <div class="decision">
+      <div class="area">Running late <span class="pill-tag screen" style="margin-left: 4px; vertical-align: middle;">NEW</span><span class="ctx">two surfaces</span></div>
+      <div class="call"><strong>Planning-ahead</strong> = the existing RSVP "late" state ("I'll arrive 15 min in"). <strong>Day-of</strong> = a one-tap action on the brunch detail screen within T-1h: "Tell the gang I'm running late" → fires a push to the group. Notification-style, no chat layer required.</div>
+    </div>
+    <div class="decision">
+      <div class="area">Plus-one names editable <span class="pill-tag screen" style="margin-left: 4px; vertical-align: middle;">NEW</span><span class="ctx">post-submit</span></div>
+      <div class="call">Invitees can edit plus-one names any time before brunch starts. Same surface as the original input. Edits silent (no notification — these are housekeeping changes).</div>
+    </div>
+    <div class="decision">
+      <div class="area">Host transfer <span class="pill-tag screen" style="margin-left: 4px; vertical-align: middle;">NEW</span><span class="ctx">in v1</span></div>
+      <div class="call">From host detail → overflow menu → "Hand off hosting." Host picks any yes-RSVP'd invitee. New host gets a push + sees the brunch move into the "Hosting" lane on their dashboard. Old host stays as a regular attendee. <strong>One transfer per brunch</strong> — keeps the audit trail simple. New host inherits all permissions including cancellation.</div>
+    </div>
+    <div class="decision">
+      <div class="area">Undo on cancel <span class="pill-tag screen" style="margin-left: 4px; vertical-align: middle;">NEW</span><span class="ctx">5-second window</span></div>
+      <div class="call">Cancellation modal "Call it off" closes → a 5-second undo toast appears <strong>before any notifications fire</strong>. If undone, the brunch returns to its prior state silently. If the 5s elapses, notifications go out and the cancellation is committed. Same pattern for "leave brunch" on invitee side.</div>
+    </div>
+    <div class="decision">
+      <div class="area">Timezones <span class="pill-tag screen" style="margin-left: 4px; vertical-align: middle;">NEW</span><span class="ctx">multi-tz groups</span></div>
+      <div class="call">Brunch time is authored in the <strong>host's local timezone</strong> and stored as UTC + an IANA zone string. Each invitee sees their <strong>local time</strong>, with a "(host's time: 11:00 PT)" subline only when the timezones differ. Voting time options follow the same rule. Calendar export uses the host's timezone.</div>
+    </div>
+    <div class="decision">
+      <div class="area">Reduced-data states <span class="pill-tag screen" style="margin-left: 4px; vertical-align: middle;">NEW</span><span class="ctx">loaded but empty</span></div>
+      <div class="call">When a brunch loads with zero invitees / zero votes / zero RSVPs, show a tiny in-context line — not a full empty state. Voice example: <em>"Nothing on the table yet 🍽"</em>, <em>"Crickets so far — try a nudge?"</em>, <em>"No votes in. Be the first?"</em> See the Copy Variables section for the full set.</div>
+    </div>
+    <div class="decision">
+      <div class="area">Quiet RSVP edge<span class="ctx">T-24h, zero replies</span></div>
+      <div class="call">Surface a <strong>QuietNudge</strong> card to the host: nudge / push the date / call it off. Never auto-cancel.</div>
+    </div>
+    <div class="decision">
+      <div class="area">Cancellation<span class="ctx">human-toned</span></div>
+      <div class="call">Confirm modal with optional reason field. Reason rides along on the cancellation notification — "Sam came down with something — let's reschedule."</div>
+    </div>
+    <div class="decision">
+      <div class="area">Pop icon usage<span class="ctx">curated, not blanket</span></div>
+      <div class="call">Surgical by default — confirmed pills, success states, the "vote waiting" chip, hero metadata row. Toggle in Tweaks for the broad-rollout variant.</div>
+    </div>
+
+    <!-- ── Mobile / desktop parity ────────── -->
+    <h2>Mobile / desktop parity</h2>
+    <p class="sub">Brunchsters is mobile-first, desktop-responsive. Here's the call per screen so engineering doesn't have to guess.</p>
+    <table class="parity">
+      <tr><th>Surface</th><th>Mobile</th><th>Desktop</th><th>Notes</th></tr>
+      <tr><td><strong>Marketing landing</strong></td><td class="center"><span class="yes">✓</span></td><td class="center"><span class="primary">primary</span></td><td class="note">SEO landing. Desktop-first composition; responsive down to 360.</td></tr>
+      <tr><td><strong>Welcome / sign-in</strong></td><td class="center"><span class="primary">primary</span></td><td class="center"><span class="yes">✓</span></td><td class="note">Equal weight. Mobile = full-bleed; desktop = centered card.</td></tr>
+      <tr><td><strong>Invite preview</strong></td><td class="center"><span class="primary">primary</span></td><td class="center"><span class="yes">✓</span></td><td class="note">Most invites are tapped from a text message. Mobile-first.</td></tr>
+      <tr><td><strong>Dashboard</strong></td><td class="center"><span class="primary">primary</span></td><td class="center"><span class="yes">✓</span></td><td class="note">Single-column on mobile; two-column hero+list on desktop ≥1024.</td></tr>
+      <tr><td><strong>Host detail / Invitee detail</strong></td><td class="center"><span class="primary">primary</span></td><td class="center"><span class="yes">✓</span></td><td class="note">Stacks vertically on mobile; side-by-side cards on desktop.</td></tr>
+      <tr><td><strong>Quick brunch + Create wizard</strong></td><td class="center"><span class="primary">primary</span></td><td class="center"><span class="yes">✓</span></td><td class="note">Bottom-sheet on mobile, centered modal on desktop.</td></tr>
+      <tr><td><strong>Inbox / Me / Help</strong></td><td class="center"><span class="primary">primary</span></td><td class="center"><span class="yes">✓</span></td><td class="note">Same content, different chrome.</td></tr>
+      <tr><td><strong>Past brunch detail</strong></td><td class="center"><span class="yes">✓</span></td><td class="center"><span class="yes">✓</span></td><td class="note">Read-only; both responsive.</td></tr>
+      <tr><td><strong>MobileShell (tab bar + FAB)</strong></td><td class="center"><span class="primary">primary</span></td><td class="center"><span class="no">—</span></td><td class="note">Mobile-only chrome. Desktop uses left-rail nav (in DashboardV3).</td></tr>
+      <tr><td><strong>All modals</strong></td><td class="center"><span class="yes">sheet</span></td><td class="center"><span class="yes">modal</span></td><td class="note">Bottom-sheet on mobile, centered modal on desktop. <code>ModalShell</code> handles the switch.</td></tr>
+    </table>
+    <p style="font-size: 12.5px; color: var(--fg-subtle); margin-top: 10px;">
+      Breakpoint: <code>768px</code> mobile / desktop split. Tablet (768–1024) follows mobile layout with wider gutters.
+    </p>
+
+    <!-- ── Empty vs Skeleton ────────────── -->
+    <h2>Empty state vs Skeleton — when to use which</h2>
+    <p class="sub">Engineers were going to ask. Here's the rule.</p>
+    <div class="rule-pair">
+      <div class="rule-card">
+        <p class="when">Use Skeleton when</p>
+        <h4>Data is loading.</h4>
+        <p>We've fired a request and expect data back within ~2s. Shimmer placeholders match the eventual layout. Never shows under <code>prefers-reduced-motion</code>.</p>
+        <p class="ex">// fetchBrunches() pending<br>&lt;DashboardSkeleton /&gt;</p>
+      </div>
+      <div class="rule-card">
+        <p class="when">Use Empty state when</p>
+        <h4>Data loaded — the set is genuinely zero.</h4>
+        <p>Response returned, count is 0. Show <code>EmptyDashboard</code>-style illustrated state with a CTA. Has voice. Has personality.</p>
+        <p class="ex">// brunches.length === 0<br>&lt;EmptyDashboard /&gt;</p>
+      </div>
+    </div>
+    <p style="font-size: 12.5px; color: var(--fg-subtle); margin-top: 4px;">
+      <strong>Reduced-data ≠ Empty.</strong> If a brunch loaded but has zero invitees or zero votes,
+      that's reduced-data: show an inline playful line (see Copy Variables), not a full empty state.
+    </p>
+
+    <!-- ── Brand voice TL;DR ────────── -->
+    <h2>Brand voice · TL;DR</h2>
+    <p class="sub">If you can't open <code>Brand Voice.html</code>, this is the floor.</p>
+    <p style="font-size: 16px; line-height: 1.65; max-width: 720px; font-family: var(--font-display); font-weight: 400; letter-spacing: -0.005em; color: var(--fg);">
+      "We sound like the friend who's already in the group chat, hyping the brunch —
+      wholesomely excited, never overbearing, lightly funny when it earns the moment."
+    </p>
+    <h3 style="margin-top: 20px;">The dials</h3>
+    <div class="dial"><span class="l">Cool</span><div class="bar"><div class="dot" style="left: 82%;"></div></div><span class="r">Warm</span></div>
+    <div class="dial"><span class="l">Corporate</span><div class="bar"><div class="dot" style="left: 88%;"></div></div><span class="r">Conversational</span></div>
+    <div class="dial"><span class="l">Stoic</span><div class="bar"><div class="dot" style="left: 70%;"></div></div><span class="r">A little funny</span></div>
+    <div class="dial"><span class="l">Generic</span><div class="bar"><div class="dot" style="left: 92%;"></div></div><span class="r">Specifically brunch</span></div>
+    <div class="dial"><span class="l">Quiet</span><div class="bar"><div class="dot" style="left: 75%;"></div></div><span class="r">Generous w/ emoji 🥂</span></div>
+    <p style="font-size: 12.5px; color: var(--fg-subtle); margin-top: 12px;">
+      Banned words: <code>event</code>, <code>attendees</code>, <code>engage</code>, <code>community</code>, <code>action required</code>, <code>leverage</code>, <code>reach out</code>.
+      Reach-for: <code>brunch on</code>, <code>round up the crew</code>, <code>the gang</code>, <code>on the table</code>, <code>call it off</code>, <code>Brunchster</code> (canonical noun for an attendee — lean into it).
+    </p>
+
+    <h3 style="margin-top: 24px;">Voice rules that survived the copy pass</h3>
+    <ul style="font-size: 13.5px; color: var(--fg-muted); line-height: 1.7; padding-left: 20px; margin: 0;">
+      <li><strong>Errors stay in voice.</strong> Never <code>An error occurred</code>. Use <em>"Couldn't reach the kitchen — try again?"</em>, <em>"That brunch flew the coop"</em> (404), <em>"Something's burning — give it a sec"</em>. Tone is rueful, not apologetic.</li>
+      <li><strong>"Brunchster" is the user noun.</strong> Use it in flavor copy, account flows, deletion ("former Brunchster"), and welcome states. Avoid in dense UI labels where it adds noise.</li>
+      <li><strong>Pluralization is human.</strong> "1 friend" / "2 friends", "1 yes" / "3 yeses". Never "1 friend(s)". See Copy Variables for the full ICU plural rules.</li>
+      <li><strong>Reduced-data lines are playful, not pitying.</strong> "Crickets so far" beats "No data available."</li>
+    </ul>
+
+    <!-- ── Analytics events ────────── -->
+    <h2>Analytics events</h2>
+    <p class="sub">The minimum event set for v1. Naming: <code>noun_verb</code>, snake_case, past-tense verbs. Properties listed are the minimum payload — add platform/session metadata at the wrapper level.</p>
+    <table class="data-table">
+      <tr><th>Event</th><th>Trigger</th><th>Properties</th></tr>
+      <tr class="group-row"><td colspan="3">Auth</td></tr>
+      <tr><td class="code">sign_up</td><td class="desc">First successful sign-in.</td><td class="code">provider (apple|google)</td></tr>
+      <tr><td class="code">sign_in</td><td class="desc">Returning sign-in.</td><td class="code">provider</td></tr>
+      <tr><td class="code">sign_out</td><td class="desc">User confirms sign-out modal.</td><td class="code">—</td></tr>
+      <tr><td class="code">account_deletion_started</td><td class="desc">Step 1 of delete flow.</td><td class="code">—</td></tr>
+      <tr><td class="code">account_deleted</td><td class="desc">Soft delete committed.</td><td class="code">hosted_count, attended_count</td></tr>
+      <tr><td class="code">account_restored</td><td class="desc">Sign-in within 30-day window.</td><td class="code">days_since_delete</td></tr>
+
+      <tr class="group-row"><td colspan="3">Brunch lifecycle</td></tr>
+      <tr><td class="code">brunch_created</td><td class="desc">Brunch saved (after invites sent).</td><td class="code">path (quick|wizard), places_count, times_count, plus_ones_enabled, invitee_count</td></tr>
+      <tr><td class="code">brunch_quick_started</td><td class="desc">Quick brunch flow opened.</td><td class="code">entry (fab|dashboard)</td></tr>
+      <tr><td class="code">brunch_wizard_started</td><td class="desc">Full wizard opened.</td><td class="code">entry</td></tr>
+      <tr><td class="code">brunch_wizard_step</td><td class="desc">Step advanced.</td><td class="code">step (1-4), step_name</td></tr>
+      <tr><td class="code">brunch_updated</td><td class="desc">Host edits live brunch.</td><td class="code">field, brunch_id</td></tr>
+      <tr><td class="code">brunch_cancel_attempted</td><td class="desc">Cancel modal opened.</td><td class="code">brunch_id, time_to_brunch</td></tr>
+      <tr><td class="code">brunch_cancel_undone</td><td class="desc">User hits undo in 5s window.</td><td class="code">brunch_id</td></tr>
+      <tr><td class="code">brunch_cancelled</td><td class="desc">Cancellation commits past 5s.</td><td class="code">brunch_id, reason_given (bool)</td></tr>
+      <tr><td class="code">brunch_transferred</td><td class="desc">Host hands off hosting.</td><td class="code">brunch_id, from_role, to_role</td></tr>
+
+      <tr class="group-row"><td colspan="3">Invites + RSVP</td></tr>
+      <tr><td class="code">invites_sent</td><td class="desc">Send-invites action.</td><td class="code">brunch_id, count</td></tr>
+      <tr><td class="code">invite_link_copied</td><td class="desc">Share-sheet copy action.</td><td class="code">brunch_id</td></tr>
+      <tr><td class="code">invite_link_revoked</td><td class="desc">Revoke + regenerate.</td><td class="code">brunch_id</td></tr>
+      <tr><td class="code">invite_shared_native</td><td class="desc">Native share API used.</td><td class="code">brunch_id</td></tr>
+      <tr><td class="code">rsvp_submitted</td><td class="desc">Invitee picks a state.</td><td class="code">state (yes|maybe|no), plus_one_count, late, dietary_note (bool), regret_note (bool)</td></tr>
+      <tr><td class="code">rsvp_changed</td><td class="desc">Invitee changes state.</td><td class="code">from_state, to_state</td></tr>
+      <tr><td class="code">plus_one_edited</td><td class="desc">Plus-one name edited.</td><td class="code">brunch_id</td></tr>
+      <tr><td class="code">running_late_sent</td><td class="desc">Day-of "running late" push.</td><td class="code">brunch_id, minutes_to_start</td></tr>
+
+      <tr class="group-row"><td colspan="3">Voting</td></tr>
+      <tr><td class="code">vote_cast</td><td class="desc">First vote on a brunch.</td><td class="code">brunch_id, type (place|time)</td></tr>
+      <tr><td class="code">vote_changed</td><td class="desc">Vote re-cast.</td><td class="code">brunch_id, type</td></tr>
+      <tr><td class="code">voting_auto_closed</td><td class="desc">66%+ threshold hit; prompt shown.</td><td class="code">brunch_id, participation</td></tr>
+      <tr><td class="code">voting_tie_broken</td><td class="desc">Host picks via inline tie-breaker.</td><td class="code">brunch_id, options_tied</td></tr>
+
+      <tr class="group-row"><td colspan="3">Notifications + calendar</td></tr>
+      <tr><td class="code">push_perm_prompted</td><td class="desc">System prompt shown.</td><td class="code">trigger (first_rsvp|first_send)</td></tr>
+      <tr><td class="code">push_perm_granted</td><td class="desc">User allowed.</td><td class="code">—</td></tr>
+      <tr><td class="code">push_perm_denied</td><td class="desc">User denied.</td><td class="code">—</td></tr>
+      <tr><td class="code">brunch_muted</td><td class="desc">Per-brunch mute changed.</td><td class="code">brunch_id, level (all|big|muted)</td></tr>
+      <tr><td class="code">calendar_added</td><td class="desc">Google Calendar chip tapped.</td><td class="code">brunch_id</td></tr>
+
+      <tr class="group-row"><td colspan="3">Engagement + errors</td></tr>
+      <tr><td class="code">screen_viewed</td><td class="desc">Any primary screen mount.</td><td class="code">screen_name</td></tr>
+      <tr><td class="code">help_opened</td><td class="desc">FAQ/Help entered.</td><td class="code">entry</td></tr>
+      <tr><td class="code">error_shown</td><td class="desc">Any user-facing error surface.</td><td class="code">kind (toast|inline|page), code, screen</td></tr>
+    </table>
+
+    <!-- ── Copy variables ────────── -->
+    <h2>Copy variables &amp; pluralization</h2>
+    <p class="sub">Every interpolated string in the product. Pluralization uses ICU-style — never "1 friend(s)."</p>
+    <table class="data-table">
+      <tr><th>Variable</th><th>Example value</th><th>Notes</th></tr>
+      <tr><td class="code">{hostName}</td><td class="desc">"Sam"</td><td class="desc">First name only. From OAuth profile.</td></tr>
+      <tr><td class="code">{friendName}</td><td class="desc">"Maya"</td><td class="desc">First name only.</td></tr>
+      <tr><td class="code">{friendCount}</td><td class="desc">3</td><td class="desc">Integer. Use plural rule below.</td></tr>
+      <tr><td class="code">{plusOneCount}</td><td class="desc">2</td><td class="desc">Integer 0–3.</td></tr>
+      <tr><td class="code">{plusOneName}</td><td class="desc">"Jordan"</td><td class="desc">Optional. Falls back to "Maya's +1."</td></tr>
+      <tr><td class="code">{placeName}</td><td class="desc">"Tartine"</td><td class="desc">Restaurant display name.</td></tr>
+      <tr><td class="code">{brunchTitle}</td><td class="desc">"Sam's brunch"</td><td class="desc">Custom or auto-generated.</td></tr>
+      <tr><td class="code">{dateTime}</td><td class="desc">"Sat, Mar 8 · 11:00 AM"</td><td class="desc">Formatted in invitee's local timezone.</td></tr>
+      <tr><td class="code">{hostTzNote}</td><td class="desc">"(11:00 AM PT for the host)"</td><td class="desc">Only renders when host tz ≠ invitee tz.</td></tr>
+      <tr><td class="code">{timeUntil}</td><td class="desc">"in 3 days" / "tomorrow"</td><td class="desc">Relative. Switches to absolute past 7 days.</td></tr>
+      <tr><td class="code">{votingDeadline}</td><td class="desc">"Fri 6 PM"</td><td class="desc">Local time of invitee.</td></tr>
+      <tr><td class="code">{yesCount} / {noCount} / {maybeCount}</td><td class="desc">5 / 1 / 2</td><td class="desc">Pluralized.</td></tr>
+      <tr><td class="code">{pendingCount}</td><td class="desc">3</td><td class="desc">Invitees who haven't responded.</td></tr>
+    </table>
+
+    <h3>Plural rules</h3>
+    <table class="data-table">
+      <tr><th>Template</th><th>n=0</th><th>n=1</th><th>n≥2</th></tr>
+      <tr><td class="code">{n} friend{s}</td><td class="desc">"no friends"</td><td class="desc">"1 friend"</td><td class="desc">"{n} friends"</td></tr>
+      <tr><td class="code">{n} yes{es}</td><td class="desc">"no yeses"</td><td class="desc">"1 yes"</td><td class="desc">"{n} yeses"</td></tr>
+      <tr><td class="code">{n} vote{s}</td><td class="desc">"no votes"</td><td class="desc">"1 vote"</td><td class="desc">"{n} votes"</td></tr>
+      <tr><td class="code">{n} plus-one{s}</td><td class="desc">"—"</td><td class="desc">"+1 plus-one"</td><td class="desc">"+{n} plus-ones"</td></tr>
+      <tr><td class="code">{n} day{s} ago</td><td class="desc">"today"</td><td class="desc">"yesterday"</td><td class="desc">"{n} days ago"</td></tr>
+    </table>
+
+    <h3>Reduced-data strings</h3>
+    <p style="font-size: 13px; color: var(--fg-muted); margin: 0 0 8px;">For when data loaded but the set is zero. Voice-on, never apologetic.</p>
+    <table class="data-table">
+      <tr><th>Context</th><th>String</th></tr>
+      <tr><td class="desc">Brunch has zero invitees</td><td class="desc">"Nothing on the table yet 🍽 — invite the gang?"</td></tr>
+      <tr><td class="desc">Voting open, zero votes</td><td class="desc">"No votes in. Be the first?"</td></tr>
+      <tr><td class="desc">Invitees sent, zero RSVPs (T-24h+)</td><td class="desc">"Crickets so far — try a nudge?"</td></tr>
+      <tr><td class="desc">Inbox empty</td><td class="desc">"All caught up. ☕"</td></tr>
+      <tr><td class="desc">Past brunches empty</td><td class="desc">"No brunches in the rearview yet."</td></tr>
+      <tr><td class="desc">Search returns nothing (wizard)</td><td class="desc">"No matches. Try a different spot?"</td></tr>
+    </table>
+
+    <h3>Error strings (voice rule applied)</h3>
+    <table class="data-table">
+      <tr><th>Kind</th><th>String</th></tr>
+      <tr><td class="desc">Network failure (toast)</td><td class="desc">"Couldn't reach the kitchen — try again?"</td></tr>
+      <tr><td class="desc">404 / brunch missing (page)</td><td class="desc">"That brunch flew the coop. Want to head home?"</td></tr>
+      <tr><td class="desc">Generic load failure (page)</td><td class="desc">"Something's burning — give it a sec, then retry."</td></tr>
+      <tr><td class="desc">Permission / 403</td><td class="desc">"This brunch is invite-only. Ask the host for a link."</td></tr>
+      <tr><td class="desc">Cancelled brunch viewed</td><td class="desc">"This one got called off."</td></tr>
+      <tr><td class="desc">Voting closed (action attempted)</td><td class="desc">"Voting's wrapped — host's locking it in."</td></tr>
+    </table>
+
+    <!-- ── Error / empty state inventory ─────── -->
+    <h2>Error &amp; state inventory per screen</h2>
+    <p class="sub">Which states each primary screen must handle. <span class="state-cell ok">✓</span> = designed &amp; in components. <span class="state-cell partial">~</span> = inherits from a shared component. <span class="state-cell na">—</span> = N/A.</p>
+    <table class="parity">
+      <tr><th>Screen</th><th>Loading</th><th>Empty</th><th>Reduced</th><th>Error</th><th>Offline</th><th>404 / Gone</th></tr>
+      <tr><td><strong>Dashboard</strong></td><td class="center"><span class="state-cell ok">✓</span></td><td class="center"><span class="state-cell ok">✓</span></td><td class="center"><span class="state-cell ok">✓</span></td><td class="center"><span class="state-cell ok">✓</span></td><td class="center"><span class="state-cell partial">~</span></td><td class="center"><span class="state-cell na">—</span></td></tr>
+      <tr><td><strong>Host detail</strong></td><td class="center"><span class="state-cell ok">✓</span></td><td class="center"><span class="state-cell na">—</span></td><td class="center"><span class="state-cell ok">✓</span></td><td class="center"><span class="state-cell ok">✓</span></td><td class="center"><span class="state-cell partial">~</span></td><td class="center"><span class="state-cell ok">✓</span></td></tr>
+      <tr><td><strong>Invitee detail</strong></td><td class="center"><span class="state-cell ok">✓</span></td><td class="center"><span class="state-cell na">—</span></td><td class="center"><span class="state-cell ok">✓</span></td><td class="center"><span class="state-cell ok">✓</span></td><td class="center"><span class="state-cell partial">~</span></td><td class="center"><span class="state-cell ok">✓</span></td></tr>
+      <tr><td><strong>Past brunch detail</strong></td><td class="center"><span class="state-cell ok">✓</span></td><td class="center"><span class="state-cell na">—</span></td><td class="center"><span class="state-cell na">—</span></td><td class="center"><span class="state-cell ok">✓</span></td><td class="center"><span class="state-cell partial">~</span></td><td class="center"><span class="state-cell ok">✓</span></td></tr>
+      <tr><td><strong>Inbox</strong></td><td class="center"><span class="state-cell ok">✓</span></td><td class="center"><span class="state-cell ok">✓</span></td><td class="center"><span class="state-cell na">—</span></td><td class="center"><span class="state-cell ok">✓</span></td><td class="center"><span class="state-cell partial">~</span></td><td class="center"><span class="state-cell na">—</span></td></tr>
+      <tr><td><strong>Quick brunch / Wizard</strong></td><td class="center"><span class="state-cell na">—</span></td><td class="center"><span class="state-cell na">—</span></td><td class="center"><span class="state-cell ok">✓</span></td><td class="center"><span class="state-cell ok">✓</span></td><td class="center"><span class="state-cell partial">~</span></td><td class="center"><span class="state-cell na">—</span></td></tr>
+      <tr><td><strong>Invite preview</strong></td><td class="center"><span class="state-cell ok">✓</span></td><td class="center"><span class="state-cell na">—</span></td><td class="center"><span class="state-cell na">—</span></td><td class="center"><span class="state-cell ok">✓</span></td><td class="center"><span class="state-cell partial">~</span></td><td class="center"><span class="state-cell ok">✓</span></td></tr>
+      <tr><td><strong>Me tab</strong></td><td class="center"><span class="state-cell ok">✓</span></td><td class="center"><span class="state-cell na">—</span></td><td class="center"><span class="state-cell na">—</span></td><td class="center"><span class="state-cell ok">✓</span></td><td class="center"><span class="state-cell partial">~</span></td><td class="center"><span class="state-cell na">—</span></td></tr>
+    </table>
+    <p style="font-size: 12.5px; color: var(--fg-subtle); margin-top: 10px;">
+      <strong>Offline</strong> is "<code>~</code>" across the board because the toast system handles transient network drops generically — there's no per-screen offline shell. Full offline mode is deferred (see v2 list).
+    </p>
+
+    <!-- ── Open questions for engineering ─────── -->
+    <h2>Things we didn't answer</h2>
+    <p class="sub">The product calls engineering will hit. Don't guess — raise these.</p>
+
+    <div class="q-item">
+      <strong>Live vote updates · realtime mechanism.</strong> Voting cards animate when counts change.
+      Polling vs WebSocket vs Server-Sent Events isn't designed for — design assumes "fast enough to feel live."
+      Backend's call. <code>aria-live</code> regions are flagged in the a11y doc for when this lands.
+    </div>
+    <div class="q-item">
+      <strong>Notification provider.</strong> Push perm prompt is designed but the actual provider
+      (APNs + FCM directly? OneSignal? expo-notifications?) is undecided.
+    </div>
+    <div class="q-item">
+      <strong>Email templates · transactional.</strong> Brand voice doc shows one example invite email.
+      The full set (RSVP confirmation, reminder, cancellation, voting close, etc.) hasn't been written.
+      Recommend a copy pass during email-template implementation, using the brand voice doc as floor.
+    </div>
+    <div class="q-item">
+      <strong>Restaurant data source.</strong> Sample data is hard-coded. Real implementation needs a places API
+      (Google Places? Foursquare? Yelp?). Search affordance is in the wizard but the data shape isn't speced.
+    </div>
+    <div class="q-item">
+      <strong>Privacy: who sees whose RSVP?</strong> Currently invitees can see other invitees' RSVPs.
+      Not yet decided whether "no" RSVPs are visible to the rest of the group, or just to the host.
+    </div>
+
+    <!-- ── Explicitly deferred ────────── -->
+    <h2>Deferred to v2 (do not build)</h2>
+    <p class="sub">Things we considered and explicitly punted. Don't sneak these in.</p>
+    <div class="next-grid">
+      <div class="next-item">
+        <h4>Chat / social layer</h4>
+        <p>Threading, reactions, "Sam liked your message." Deferred — Brunchsters is a planner, not a chat app.</p>
+      </div>
+      <div class="next-item">
+        <h4>Favorite places / friends</h4>
+        <p>User-curated lists. Suggestions in the wizard are sample data for now.</p>
+      </div>
+      <div class="next-item">
+        <h4>Calendar connect</h4>
+        <p>Google / Apple / Outlook OAuth + free-busy overlay on the time picker. Considered for the empty-dashboard onboarding (see <code>EmptyDashboard.v2-reference.jsx</code>) and deferred. v1 has no calendar awareness — host picks times blind, invitees see times in their local TZ but nothing checks conflicts.</p>
+      </div>
+      <div class="next-item">
+        <h4>Reservations</h4>
+        <p>OpenTable / Resy integration. Plus-one head count is designed with this in mind.</p>
+      </div>
+      <div class="next-item">
+        <h4>Recurring brunches</h4>
+        <p>"Every other Sunday with Maya." Not in v1.</p>
+      </div>
+      <div class="next-item">
+        <h4>Brunch photos</h4>
+        <p>Past detail has a placeholder. Avatar upload is in scope; brunch photos aren't.</p>
+      </div>
+      <div class="next-item">
+        <h4>Morning-after loop</h4>
+        <p>"How was Tartine?" prompt + plan-again push. The <strong>"Do this again?"</strong> CTA on past detail IS in v1 (prefills location + invitees into Quick Brunch, time stays blank) — what's deferred is the proactive morning-after surface that asks how it went and nudges replanning.</p>
+      </div>
+      <div class="next-item">
+        <h4>Mobile-native detail screens</h4>
+        <p>v1 mobile shell uses the responsive desktop components for host / invitee / past detail — they re-flow OK at 420px but aren't laid out for the form factor. Mobile dashboard, quick-brunch sheet, and the action bar on past detail ARE bespoke. Full mobile-native detail redesigns (sticky action bar, swipe gestures on attendee list, tap-to-text-host) are v2.</p>
+      </div>
+      <div class="next-item">
+        <h4>i18n / RTL</h4>
+        <p>US-English only. Date / time formats are en-US baked in.</p>
+      </div>
+      <div class="next-item">
+        <h4>Offline / queueing</h4>
+        <p>Action queue when offline. Currently assumes online; the toast system covers transient failures.</p>
+      </div>
+      <div class="next-item">
+        <h4>Group-aware restaurant picks</h4>
+        <p>"Best for this group" algorithmic suggestion. Search UI is generic for v1.</p>
+      </div>
+      <div class="next-item">
+        <h4>Re-invite from "No"</h4>
+        <p>"Maya said no but tagged 'invite me next time' — bring her into the next one?" Host-side surface. Data flag is captured in v1; the UI is v2.</p>
+      </div>
+    </div>
+
+    <p style="margin-top: 80px; font-size: 12px; color: var(--fg-subtle); text-align: center;">
+      brunchsters · engineering handoff v1.1 · 45 screens · 22 decisions · 23 components · brunch on. 💕
+    </p>
+  </div>
+</body>
+</html>

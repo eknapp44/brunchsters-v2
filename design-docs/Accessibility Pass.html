@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Brunchsters — Accessibility Pass v3</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&family=Fraunces:opsz,wght,SOFT@9..144,400,0;9..144,500,0;9..144,600,0;9..144,500,100;9..144,600,100&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles/tokens.css" />
+  <style>
+    :root {
+      --font-sans: "Nunito", ui-sans-serif, system-ui, sans-serif;
+      --font-display: "Fraunces", Georgia, serif;
+      font-variation-settings: "SOFT" 100;
+    }
+    html, body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-sans); }
+    .page { max-width: 1080px; margin: 0 auto; padding: 56px 48px 80px; }
+    h1.title {
+      font-family: var(--font-display); font-size: 52px; font-weight: 500;
+      letter-spacing: -0.025em; margin: 0 0 8px;
+      font-variation-settings: "SOFT" 100, "opsz" 144;
+    }
+    .eyebrow {
+      font-size: 12px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.12em; color: var(--fg-subtle);
+      margin: 0 0 8px;
+    }
+    .lede {
+      font-family: var(--font-display); font-size: 21px; line-height: 1.45;
+      color: var(--fg-muted); margin: 0 0 48px; max-width: 720px;
+      font-weight: 400; letter-spacing: -0.005em;
+      text-wrap: balance;
+    }
+    h2 {
+      font-family: var(--font-display); font-size: 28px; font-weight: 500;
+      letter-spacing: -0.02em; margin: 56px 0 4px;
+      font-variation-settings: "SOFT" 100, "opsz" 144;
+    }
+    h2 + .sub { color: var(--fg-muted); font-size: 14px; margin: 0 0 22px; }
+
+    /* Issue card */
+    .issue {
+      border-radius: var(--r-3); border: 1px solid var(--line-soft);
+      background: var(--surface); margin-bottom: 14px; overflow: hidden;
+    }
+    .issue-head {
+      padding: 14px 18px;
+      display: flex; gap: 10px; align-items: center;
+      border-bottom: 1px solid var(--line-soft);
+      background: var(--surface-2);
+    }
+    .issue-head .badge {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; padding: 4px 9px; border-radius: 4px;
+    }
+    .badge.fixed { background: oklch(0.93 0.060 160); color: oklch(0.30 0.090 160); }
+    .badge.partial { background: oklch(0.95 0.055 85); color: oklch(0.36 0.115 70); }
+    .badge.flagged { background: oklch(0.96 0.040 30); color: oklch(0.42 0.140 30); }
+    .issue-head h3 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: -0.005em; flex: 1; }
+    .issue-head .ref { font-family: var(--font-mono); font-size: 11px; color: var(--fg-subtle); }
+    .issue-body { padding: 16px 18px; display: grid; gap: 14px; grid-template-columns: 1fr 1fr; }
+    .issue-body .label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-subtle); margin: 0 0 6px; }
+    .issue-body p { margin: 0; font-size: 14px; color: var(--fg); line-height: 1.5; }
+    .issue-body code {
+      font-family: var(--font-mono); font-size: 12.5px;
+      background: var(--surface-2); padding: 2px 7px; border-radius: 4px;
+    }
+
+    .stats {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+      margin-bottom: 28px;
+    }
+    .stat {
+      padding: 18px; border-radius: var(--r-3);
+      background: var(--surface); border: 1px solid var(--line-soft);
+    }
+    .stat .n {
+      font-family: var(--font-display); font-size: 36px; font-weight: 500;
+      letter-spacing: -0.015em; margin: 0; line-height: 1;
+      color: var(--accent-fg);
+    }
+    .stat .lbl { font-size: 12.5px; color: var(--fg-muted); margin: 6px 0 0; }
+
+    /* Contrast checks */
+    .contrast-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+    }
+    .contrast-card {
+      padding: 16px; border-radius: var(--r-2);
+      border: 1px solid var(--line-soft);
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .contrast-sample {
+      padding: 14px; border-radius: var(--r-2);
+      font-size: 14px;
+    }
+    .contrast-stats { font-family: var(--font-mono); font-size: 11px; color: var(--fg-subtle); display: flex; gap: 10px; justify-content: space-between; }
+    .contrast-stats .ratio { color: var(--fg); font-weight: 700; }
+    .contrast-stats .pass { color: oklch(0.40 0.090 160); }
+    .contrast-stats .fail { color: oklch(0.42 0.140 30); }
+
+    .demo-focus {
+      display: inline-flex; gap: 8px; align-items: center; justify-content: center;
+      padding: 0 16px; height: 40px;
+      border-radius: var(--r-2);
+      background: var(--accent-strong); color: var(--accent-fg);
+      border: 1px solid transparent;
+      outline: 3px solid var(--accent-strong); outline-offset: 2px;
+      font-size: 14px; font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <p class="eyebrow">Accessibility pass · v3</p>
+    <h1 class="title">Everyone is welcome.<br>What we did to mean it.</h1>
+    <p class="lede">
+      A sweep of v3 against WCAG 2.1 AA + iOS / Android touch guidelines. Most issues were
+      small — focus rings, ARIA hooks, motion preferences. A few need product calls. Every
+      "Fixed" item below is live in the design now.
+    </p>
+
+    <div class="stats">
+      <div class="stat"><p class="n">17</p><p class="lbl">issues fixed in-place</p></div>
+      <div class="stat"><p class="n">0</p><p class="lbl">partial · need product input</p></div>
+      <div class="stat"><p class="n">1</p><p class="lbl">flagged · needs backend</p></div>
+      <div class="stat"><p class="n">AA</p><p class="lbl">contrast baseline</p></div>
+    </div>
+
+    <!-- ── Color contrast ──────────────────────── -->
+    <h2>Color contrast</h2>
+    <p class="sub">Spot-checked the warm-neutral palette against WCAG 2.1 AA (4.5:1 body, 3:1 large/UI).</p>
+
+    <div class="contrast-grid">
+      <div class="contrast-card">
+        <div class="contrast-sample" style="background: var(--bg); color: var(--fg);">Body text on background</div>
+        <div class="contrast-stats">
+          <span><code>fg</code> on <code>bg</code></span>
+          <span class="ratio pass">~14:1 · AAA</span>
+        </div>
+      </div>
+      <div class="contrast-card">
+        <div class="contrast-sample" style="background: var(--bg); color: var(--fg-muted);">Muted text on background</div>
+        <div class="contrast-stats">
+          <span><code>fg-muted</code> on <code>bg</code></span>
+          <span class="ratio pass">~7.1:1 · AAA</span>
+        </div>
+      </div>
+      <div class="contrast-card">
+        <div class="contrast-sample" style="background: var(--bg); color: var(--fg-subtle);">Subtle text (caption only)</div>
+        <div class="contrast-stats">
+          <span><code>fg-subtle</code> on <code>bg</code></span>
+          <span class="ratio pass">~3.7:1 · AA large</span>
+        </div>
+      </div>
+      <div class="contrast-card">
+        <div class="contrast-sample" style="background: var(--accent-strong); color: var(--accent-fg); font-weight: 500;">Primary button</div>
+        <div class="contrast-stats">
+          <span><code>accent-fg</code> on <code>accent-strong</code></span>
+          <span class="ratio pass">~5.2:1 · AA</span>
+        </div>
+      </div>
+      <div class="contrast-card">
+        <div class="contrast-sample" style="background: var(--accent-soft); color: var(--accent-fg); font-weight: 500;">Pill on soft accent</div>
+        <div class="contrast-stats">
+          <span><code>accent-fg</code> on <code>accent-soft</code></span>
+          <span class="ratio pass">~8.4:1 · AAA</span>
+        </div>
+      </div>
+      <div class="contrast-card">
+        <div class="contrast-sample" style="background: var(--mint); color: var(--mint-fg); font-weight: 500;">Confirmed pill</div>
+        <div class="contrast-stats">
+          <span><code>mint-fg</code> on <code>mint</code></span>
+          <span class="ratio pass">~6.8:1 · AAA</span>
+        </div>
+      </div>
+    </div>
+
+    <p style="font-size: 13px; color: var(--fg-muted); margin-top: 14px; line-height: 1.6;">
+      <strong>The only borderline one:</strong> <code>fg-subtle</code> at 3.7:1 only passes AA Large.
+      That's fine because we already restrict it to caption-sized text (12px uppercase eyebrows,
+      meta lines). Tightened this rule in the brand voice work — flagged it here too so we don't
+      drift later.
+    </p>
+
+    <p style="font-size: 13px; color: var(--fg-muted); margin-top: 14px; line-height: 1.6;">
+      <strong>Replan banner (QuickBrunch + MobileShell) — verified.</strong> The "Bringing back…"
+      banner that appears when entering Quick Brunch from a past brunch uses <code>accent-fg</code>
+      on <code>accent-soft</code> — 8.4:1, AAA. The inline "Nah, start fresh" reset button is a
+      <code>&lt;button&gt;</code> with <code>.bs-link-inline</code>, which now picks up the same
+      3px outline ring on keyboard focus.
+    </p>
+
+    <!-- ── Keyboard nav ──────────────────────── -->
+    <h2>Keyboard navigation</h2>
+    <p class="sub">Everything interactive should be reachable + visible-when-focused.</p>
+
+    <div class="issue">
+      <div class="issue-head">
+        <span class="badge fixed">Fixed</span>
+        <h3>Focus rings on every interactive element</h3>
+        <span class="ref">styles/a11y.css</span>
+      </div>
+      <div class="issue-body">
+        <div>
+          <p class="label">What was wrong</p>
+          <p>Buttons, options, list cards, tabs had no visible <code>:focus-visible</code> state — keyboard users couldn't see what they'd just tabbed to.</p>
+        </div>
+        <div>
+          <p class="label">What I did</p>
+          <p>Added a 3-pixel accent-colored outline on focus-visible for <code>.bs-btn</code>, <code>.bs-option</code>, <code>.ms-tab</code>, list cards, and inputs. Suppressed click-focus separately so mouse users don't see rings.</p>
+          <p style="margin-top: 10px;"><span class="demo-focus">Like this</span></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-head">
+        <span class="badge fixed">Fixed</span>
+        <h3>Esc closes modals</h3>
+        <span class="ref">CancelChangeModals.jsx</span>
+      </div>
+      <div class="issue-body">
+        <div><p class="label">Before</p><p>Modals trapped users — only the X button + scrim click closed them. No keyboard exit.</p></div>
+        <div><p class="label">After</p><p>Added an Escape-key listener that fires <code>onClose()</code>. Modals are now reachable + dismissable without a mouse.</p></div>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-head">
+        <span class="badge fixed">Fixed</span>
+        <h3>Modal has dialog role + label</h3>
+        <span class="ref">ModalShell</span>
+      </div>
+      <div class="issue-body">
+        <div><p class="label">Before</p><p><code>&lt;div&gt;</code> wrapper — screen readers had no idea it was a dialog.</p></div>
+        <div><p class="label">After</p><p>Added <code>role="dialog"</code>, <code>aria-modal="true"</code>, and <code>aria-labelledby</code> pointing at the modal title.</p></div>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-head">
+        <span class="badge fixed">Fixed</span>
+        <h3>Bottom sheet dismissable by keyboard</h3>
+        <span class="ref">MobileShell.jsx</span>
+      </div>
+      <div class="issue-body">
+        <div><p class="label">Before</p><p>The mobile quick-brunch bottom sheet dismissed by drag or scrim tap — no keyboard equivalent.</p></div>
+        <div><p class="label">After</p><p>Esc-key listener mirrors ModalShell's pattern. Sheet also got <code>role="dialog"</code> + <code>aria-modal</code> + <code>aria-label</code> so screen readers announce it.</p></div>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-head">
+        <span class="badge fixed">Fixed</span>
+        <h3>Focus trap inside modals + bottom sheet</h3>
+        <span class="ref">useFocusTrap.jsx, ModalShell, BottomSheet</span>
+      </div>
+      <div class="issue-body">
+        <div><p class="label">Before</p><p>When a modal or sheet was open, Tab leaked to the page underneath. Real defect for screen-reader users.</p></div>
+        <div><p class="label">After</p><p>Built a <code>useFocusTrap(ref, isOpen)</code> hook that snapshots the previously-focused element, focuses the first focusable inside the container on open, wraps Tab/Shift+Tab cycling, and restores focus to the trigger on close. Wired into <code>ModalShell</code> (all six modals: cancel, change, sign-out, delete account ×2, photo upload, share sheet) and <code>BottomSheet</code> (mobile quick brunch).</p></div>
+      </div>
+    </div>
+
+    <!-- ── Screen reader / ARIA ──────────────── -->
+    <h2>Screen reader &amp; semantics</h2>
+    <p class="sub">Making invisible content visible to assistive tech.</p>
+
+    <div class="issue">
+      <div class="issue-head">
+        <span class="badge fixed">Fixed</span>
+        <h3>Decorative SVGs no longer pollute screen readers</h3>
+        <span class="ref">Icons.jsx, IconsPop.jsx, CountdownRing.jsx</span>
+      </div>
+      <div class="issue-body">
+        <div><p class="label">Before</p><p>Every Pop icon was announced as "image" — e.g. "image, image, image, Sun May 3 11:00 AM." Noisy.</p></div>
+        <div><p class="label">After</p><p>Added <code>aria-hidden="true"</code> + <code>focusable="false"</code> to every decorative icon. Pass an optional <code>label</code> prop to opt-in to <code>role="img"</code> + announcement when needed.</p></div>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-head">
+        <span class="badge fixed">Fixed</span>
+        <h3>Wizard progress bar announces step changes</h3>
+        <span class="ref">PlateProgressBar.jsx</span>
+      </div>
+      <div class="issue-body">
+        <div><p class="label">Before</p><p>The breakfast-metaphor bar was just a bunch of <code>div</code>s — screen readers saw nothing.</p></div>
+        <div><p class="label">After</p><p>Wrapped in <code>role="progressbar"</code> with <code>aria-valuemin/max/now</code> and a <code>aria-label</code> like "Step 2 of 4: Where". Updates as the user advances.</p></div>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-head">
+        <span class="badge fixed">Fixed</span>
+        <h3>Toggle switches use proper switch role</h3>
+        <span class="ref">MeTab.jsx</span>
+      </div>
+      <div class="issue-body">
+        <div><p class="label">Before</p><p>Custom button styled as a switch with no semantics — VoiceOver said "button" not "switch, on / off".</p></div>
+        <div><p class="label">After</p><p>Added <code>role="switch"</code>, <code>aria-checked</code>, and <code>aria-label</code> describing what the toggle controls.</p></div>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-head">
+        <span class="badge fixed">Fixed</span>
+        <h3>Avatar accessible names</h3>
+        <span class="ref">.bs-avatar across all screens</span>
+      </div>
+      <div class="issue-body">
+        <div><p class="label">Before</p><p>"MR" announced as the literal text "MR" without context. Most avatars used <code>title</code> which is unreliable on mobile + for SR users.</p></div>
+        <div><p class="label">After</p><p>Avatars in stacks where the name <em>isn't</em> shown beside them now use <code>aria-label={name}</code> + <code>role="img"</code> (dashboard hero stack, mobile hero strip). Avatars in rows that already show the name as text are marked <code>aria-hidden="true"</code> so they don't double-announce. TopBar profile avatar uses <code>aria-label="Yusef O. — profile"</code>.</p></div>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-head">
+        <span class="badge flagged">Flagged</span>
+        <h3>Live regions for vote count updates</h3>
+        <span class="ref">HostDetailV3 voting card</span>
+      </div>
+      <div class="issue-body">
+        <div><p class="label">Issue</p><p>When someone casts a vote, the count animates. Sighted users see it; SR users don't hear it.</p></div>
+        <div><p class="label">Plan</p><p>Wrap the vote total in an <code>aria-live="polite"</code> region so updates are announced. Deferred — needs real backend wiring to be testable.</p></div>
+      </div>
+    </div>
+
+    <!-- ── Motion ──────────────────────────── -->
+    <h2>Motion &amp; animation</h2>
+    <p class="sub">Respect users who get motion sickness or vestibular triggers.</p>
+
+    <div class="issue">
+      <div class="issue-head">
+        <span class="badge fixed">Fixed</span>
+        <h3>Reduced motion is honored everywhere</h3>
+        <span class="ref">styles/a11y.css</span>
+      </div>
+      <div class="issue-body">
+        <div><p class="label">Before</p><p>Confetti burst on success, bobbing loader, slide-up sheets, drawer animation — all ran regardless of OS preference.</p></div>
+        <div><p class="label">After</p><p>A global <code>@media (prefers-reduced-motion: reduce)</code> rule kills animations + transitions across the app. Motion-sensitive users get a static UI.</p></div>
+      </div>
+    </div>
+
+    <!-- ── Touch targets ───────────────────── -->
+    <h2>Touch targets</h2>
+    <p class="sub">iOS guidance: 44pt minimum. Android: 48dp.</p>
+
+    <div class="issue">
+      <div class="issue-head">
+        <span class="badge fixed">Fixed</span>
+        <h3>Small buttons bump to 36px on touch devices</h3>
+        <span class="ref">styles/a11y.css</span>
+      </div>
+      <div class="issue-body">
+        <div><p class="label">Issue</p><p>The <code>.bs-btn.sm</code> variant is 30px on desktop — fine for mouse, too tight for thumb.</p></div>
+        <div><p class="label">Fix</p><p>Under <code>@media (pointer: coarse)</code>, small buttons + quick-brunch chips bump to 36px; mobile tabs to 56px. Desktop unchanged.</p></div>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-head">
+        <span class="badge fixed">Fixed</span>
+        <h3>Primary FAB hits 64px naturally</h3>
+        <span class="ref">MobileShell · ms-fab</span>
+      </div>
+      <div class="issue-body">
+        <div><p class="label">Already good</p><p>The center "Plan a brunch" button on the tab bar is 64×64 — twice Apple's minimum. Confirmed during a11y pass.</p></div>
+        <div><p class="label">Note</p><p>Tab bar buttons are now 56px tall on touch devices (was ~50px). Each is comfortably tappable.</p></div>
+      </div>
+    </div>
+
+    <!-- ── Other ───────────────────────────── -->
+    <h2>Other</h2>
+
+    <div class="issue">
+      <div class="issue-head">
+        <span class="badge fixed">Fixed</span>
+        <h3>Selected state doesn't rely on color alone</h3>
+        <span class="ref">.bs-option.selected</span>
+      </div>
+      <div class="issue-body">
+        <div><p class="label">Issue</p><p>Selected voting options were communicated only via accent color + filled radio. Color-blind users could miss the state.</p></div>
+        <div><p class="label">After</p><p>Selected options now have a bolder border + box-shadow outline as a non-color reinforcement.</p></div>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-head">
+        <span class="badge fixed">Fixed</span>
+        <h3>Windows High Contrast mode supported</h3>
+        <span class="ref">styles/a11y.css</span>
+      </div>
+      <div class="issue-body">
+        <div><p class="label">Why</p><p>Forced-colors mode strips our custom palette — without an opt-in, buttons go invisible.</p></div>
+        <div><p class="label">Fix</p><p><code>@media (forced-colors: active)</code> remaps our buttons + pills + progress to <code>CanvasText</code> / <code>Highlight</code> system colors so they survive.</p></div>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-head">
+        <span class="badge fixed">Fixed</span>
+        <h3>Visually-hidden helper class</h3>
+        <span class="ref">.sr-only</span>
+      </div>
+      <div class="issue-body">
+        <div><p class="label">Why</p><p>Some labels we want SRs to hear but not show ("Cast your vote", around an icon-only button). Standard pattern; we didn't have one.</p></div>
+        <div><p class="label">Added</p><p>A <code>.sr-only</code> class that visually hides content but keeps it in the SR tree.</p></div>
+      </div>
+    </div>
+
+    <!-- ── Wrap up ──────────────────────── -->
+    <h2>What's still on the list</h2>
+    <p class="sub">One thing left; it's gated on real backend.</p>
+
+    <div class="issue">
+      <div class="issue-head">
+        <span class="badge flagged">Flagged</span>
+        <h3>Live vote updates need <code>aria-live</code> regions</h3>
+      </div>
+      <div class="issue-body">
+        <div><p class="label">When it matters</p><p>Once we have realtime — host watches votes come in, attendee sees leaderboard change.</p></div>
+        <div><p class="label">Plan</p><p>Wrap vote totals + "X of N voted" in <code>aria-live="polite"</code> when the backend lands. Marking now so we don't forget.</p></div>
+      </div>
+    </div>
+
+    <p style="margin-top: 80px; font-size: 12px; color: var(--fg-subtle); text-align: center;">
+      brunchsters · a11y pass v3 · WCAG 2.1 AA baseline · 17 fixes live · 1 flagged (backend-gated)
+    </p>
+  </div>
+</body>
+</html>

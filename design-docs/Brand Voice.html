@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Brunchsters — Brand Voice</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&family=Fraunces:opsz,wght,SOFT@9..144,400,0;9..144,500,0;9..144,600,0;9..144,500,100;9..144,600,100&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles/tokens.css" />
+  <style>
+    :root {
+      --font-sans: "Nunito", ui-sans-serif, system-ui, sans-serif;
+      --font-display: "Fraunces", Georgia, serif;
+      font-variation-settings: "SOFT" 100;
+    }
+    html, body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-sans); }
+    .page {
+      max-width: 1080px; margin: 0 auto;
+      padding: 64px 56px 96px;
+    }
+    h1.title {
+      font-family: var(--font-display); font-size: 56px; font-weight: 500;
+      letter-spacing: -0.025em; margin: 0 0 8px;
+      font-variation-settings: "SOFT" 100, "opsz" 144;
+    }
+    .eyebrow {
+      font-size: 12px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.12em; color: var(--fg-subtle);
+      margin: 0 0 8px;
+    }
+    .lede {
+      font-family: var(--font-display); font-size: 24px; line-height: 1.4;
+      color: var(--fg-muted); margin: 0 0 60px; max-width: 720px;
+      font-weight: 400; letter-spacing: -0.01em;
+      text-wrap: balance;
+    }
+    h2 {
+      font-family: var(--font-display); font-size: 32px; font-weight: 500;
+      letter-spacing: -0.02em; margin: 56px 0 6px;
+      font-variation-settings: "SOFT" 100, "opsz" 144;
+    }
+    h2 + .sub { color: var(--fg-muted); font-size: 15px; margin: 0 0 28px; max-width: 580px; }
+    h3 { font-size: 15px; font-weight: 600; margin: 0 0 10px; letter-spacing: -0.005em; }
+    p { line-height: 1.55; }
+
+    .pill {
+      display: inline-block; padding: 4px 12px;
+      border-radius: var(--r-pill); background: var(--accent-soft);
+      color: var(--accent-fg); font-size: 12px; font-weight: 500;
+    }
+
+    /* Voice quadrant — the persona, codified */
+    .quadrant {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px;
+      margin-bottom: 32px;
+    }
+    .quad-tile {
+      padding: 22px; border-radius: var(--r-3);
+      background: var(--surface); border: 1px solid var(--line-soft);
+    }
+    .quad-tile h3 {
+      font-family: var(--font-display); font-size: 22px; font-weight: 500;
+      letter-spacing: -0.015em; margin: 0 0 8px;
+    }
+    .quad-tile p { font-size: 14px; color: var(--fg-muted); margin: 0; line-height: 1.5; }
+    .quad-tile .anti { font-size: 12.5px; color: var(--fg-subtle); margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line-soft); }
+    .quad-tile .anti b { color: var(--fg-muted); font-weight: 500; }
+
+    /* Do / don't */
+    .dodont { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .dod-card {
+      padding: 18px 20px; border-radius: var(--r-3);
+      background: var(--surface); border: 1px solid var(--line-soft);
+    }
+    .dod-card .label {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; margin-bottom: 10px;
+      display: inline-flex; gap: 6px; align-items: center;
+    }
+    .dod-card.do .label { color: oklch(0.35 0.090 165); }
+    .dod-card.dont .label { color: oklch(0.40 0.130 30); }
+    .dod-card .quote {
+      font-family: var(--font-display); font-size: 19px; font-weight: 500;
+      letter-spacing: -0.01em; line-height: 1.4; margin: 0;
+      text-wrap: balance;
+    }
+    .dod-card .ctx {
+      font-size: 12px; color: var(--fg-subtle); margin-top: 10px;
+      padding-top: 8px; border-top: 1px solid var(--line-soft);
+    }
+    .dod-card.dont .quote { color: var(--fg-muted); text-decoration: line-through; text-decoration-color: oklch(0.78 0.140 30 / 0.4); text-decoration-thickness: 2px; }
+
+    .pair-label {
+      font-size: 13px; font-weight: 500; color: var(--fg-muted);
+      margin: 20px 0 8px;
+    }
+
+    /* Vocab */
+    .vocab { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .vocab-col {
+      padding: 22px; border-radius: var(--r-3);
+      background: var(--surface); border: 1px solid var(--line-soft);
+    }
+    .vocab-col h4 { font-size: 13px; font-weight: 600; margin: 0 0 14px; text-transform: uppercase; letter-spacing: 0.08em; }
+    .vocab-col.love h4 { color: oklch(0.35 0.090 165); }
+    .vocab-col.ban h4 { color: oklch(0.40 0.130 30); }
+    .word-grid {
+      display: flex; flex-wrap: wrap; gap: 6px;
+    }
+    .word {
+      font-family: var(--font-mono); font-size: 12.5px;
+      padding: 4px 10px; border-radius: var(--r-pill);
+      background: var(--surface-2); color: var(--fg);
+    }
+    .vocab-col.ban .word { color: var(--fg-muted); text-decoration: line-through; }
+
+    /* Tone shifts */
+    .tone-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .tone-card {
+      padding: 18px 20px; border-radius: var(--r-3);
+      background: var(--surface); border: 1px solid var(--line-soft);
+    }
+    .tone-card h4 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--fg-subtle); margin: 0 0 12px; }
+    .tone-card .ex { font-family: var(--font-display); font-size: 17px; font-weight: 500; letter-spacing: -0.01em; line-height: 1.4; margin: 0 0 6px; }
+    .tone-card .meta { font-size: 11.5px; color: var(--fg-subtle); }
+
+    /* Tagline contenders */
+    .tagline-stack { display: flex; flex-direction: column; gap: 10px; }
+    .tag-row {
+      display: flex; align-items: baseline; gap: 16px;
+      padding: 16px 20px; border-radius: var(--r-2);
+      background: var(--surface); border: 1px solid var(--line-soft);
+    }
+    .tag-row.pick {
+      background: var(--accent-soft);
+      border-color: var(--accent-strong);
+    }
+    .tag-row .num {
+      font-family: var(--font-mono); font-size: 12px; color: var(--fg-subtle);
+      width: 28px; flex-shrink: 0;
+    }
+    .tag-row .line {
+      font-family: var(--font-display); font-size: 22px; font-weight: 500;
+      letter-spacing: -0.015em; flex: 1; text-wrap: balance;
+    }
+    .tag-row.pick .line { color: var(--accent-fg); }
+    .tag-row .note { font-size: 12px; color: var(--fg-subtle); flex-shrink: 0; text-align: right; max-width: 240px; }
+    .tag-row.pick .note { color: var(--accent-fg); }
+
+    /* Surface previews — landing + email + push */
+    .surface {
+      padding: 28px; border-radius: var(--r-3);
+      background: var(--surface); border: 1px solid var(--line-soft);
+      margin-bottom: 14px;
+    }
+    .surface-label {
+      font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;
+      color: var(--fg-subtle); margin-bottom: 14px;
+    }
+    .landing-hero {
+      padding: 48px 36px;
+      background: linear-gradient(180deg, var(--accent-soft) 0%, var(--surface) 100%);
+      border-radius: var(--r-3);
+      text-align: center;
+    }
+    .landing-hero h1 {
+      font-family: var(--font-display); font-size: 56px; font-weight: 500;
+      letter-spacing: -0.025em; margin: 0 0 14px;
+      font-variation-settings: "SOFT" 100, "opsz" 144;
+      text-wrap: balance;
+    }
+    .landing-hero p {
+      font-size: 18px; color: var(--fg-muted); margin: 0 0 28px;
+      max-width: 480px; margin-left: auto; margin-right: auto;
+    }
+    .landing-hero .cta {
+      display: inline-flex; gap: 8px; align-items: center;
+      padding: 12px 22px; border-radius: var(--r-pill);
+      background: var(--accent-strong); color: var(--accent-fg);
+      font-size: 15px; font-weight: 500;
+    }
+
+    .email-card {
+      max-width: 520px; margin: 0 auto;
+      border: 1px solid var(--line); border-radius: var(--r-2);
+      overflow: hidden; background: var(--surface);
+    }
+    .email-card .header {
+      padding: 12px 18px; background: var(--surface-2);
+      border-bottom: 1px solid var(--line-soft);
+      font-size: 12px; color: var(--fg-muted);
+    }
+    .email-card .header .subj { color: var(--fg); font-weight: 600; font-size: 14px; }
+    .email-card .body { padding: 28px 24px; font-size: 14px; line-height: 1.6; color: var(--fg); }
+    .email-card .body strong { color: var(--fg); }
+
+    .push-stack { display: flex; flex-direction: column; gap: 8px; max-width: 380px; margin: 0 auto; }
+    .push {
+      background: oklch(0.96 0.005 250); padding: 12px 14px; border-radius: 14px;
+      display: flex; gap: 12px; align-items: flex-start;
+      box-shadow: 0 1px 3px oklch(0.20 0.01 70 / 0.06);
+    }
+    .push-icon {
+      width: 32px; height: 32px; border-radius: 8px;
+      background: var(--accent-strong); color: var(--accent-fg);
+      flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-display); font-weight: 500;
+    }
+    .push-body { flex: 1; font-size: 13px; line-height: 1.4; }
+    .push-body .name { font-weight: 600; }
+    .push-body .time { font-size: 10px; color: oklch(0.55 0.01 250); margin-left: 4px; }
+
+    /* Voice spectrum visualization */
+    .spectrum {
+      display: grid; grid-template-columns: 140px 1fr 140px;
+      gap: 18px; align-items: center;
+      margin-bottom: 14px;
+    }
+    .spectrum .bar {
+      position: relative; height: 8px; background: var(--surface-2);
+      border-radius: 4px; border: 1px solid var(--line-soft);
+    }
+    .spectrum .dot {
+      position: absolute; top: 50%; transform: translate(-50%, -50%);
+      width: 18px; height: 18px; border-radius: 50%;
+      background: var(--accent-strong); border: 3px solid var(--bg);
+    }
+    .spectrum .label-left, .spectrum .label-right {
+      font-size: 13px; color: var(--fg-muted);
+    }
+    .spectrum .label-left  { text-align: right; }
+    .spectrum .label-right { text-align: left; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <p class="eyebrow">Brand voice · v1</p>
+    <h1 class="title">How Brunchsters sounds</h1>
+    <p class="lede">
+      We're the friend you have FOMO for. Unironically pumped that you're hanging out — not
+      pushy, not corporate, not trying too hard. Confident, fun, slightly chaotic, and
+      always rooting for the get-together.
+    </p>
+
+    <!-- ── 1. Voice in one sentence ──────────────── -->
+    <h2>One sentence</h2>
+    <p class="sub">If we forget everything else, remember this.</p>
+    <div style="padding: 28px 32px; background: var(--accent-soft); border-radius: var(--r-3); margin-bottom: 8px;">
+      <p style="font-family: var(--font-display); font-size: 26px; font-weight: 500; letter-spacing: -0.015em; line-height: 1.4; color: var(--accent-fg); margin: 0; text-wrap: balance;">
+        We sound like the friend who's already in the group chat, hyping the brunch — wholesomely excited, never overbearing, lightly funny when it earns the moment.
+      </p>
+    </div>
+
+    <!-- ── 2. The dials ─────────────────────────── -->
+    <h2>The dials</h2>
+    <p class="sub">Where we sit on a few axes. Always more this than that.</p>
+    <div class="spectrum">
+      <div class="label-left">Cool / detached</div>
+      <div class="bar"><div class="dot" style="left: 82%;"></div></div>
+      <div class="label-right"><strong>Warm / hyped</strong></div>
+    </div>
+    <div class="spectrum">
+      <div class="label-left">Corporate / utility</div>
+      <div class="bar"><div class="dot" style="left: 88%;"></div></div>
+      <div class="label-right"><strong>Conversational</strong></div>
+    </div>
+    <div class="spectrum">
+      <div class="label-left">Stoic</div>
+      <div class="bar"><div class="dot" style="left: 70%;"></div></div>
+      <div class="label-right"><strong>A little funny</strong></div>
+    </div>
+    <div class="spectrum">
+      <div class="label-left">Generic</div>
+      <div class="bar"><div class="dot" style="left: 92%;"></div></div>
+      <div class="label-right"><strong>Specifically about brunch</strong></div>
+    </div>
+    <div class="spectrum">
+      <div class="label-left">Quiet</div>
+      <div class="bar"><div class="dot" style="left: 75%;"></div></div>
+      <div class="label-right"><strong>Generous with emoji 🥂</strong></div>
+    </div>
+
+    <!-- ── 3. The persona, with anti-persona ───── -->
+    <h2>Who we are. Who we're not.</h2>
+    <p class="sub">Four traits, each with the thing we're not letting it become.</p>
+    <div class="quadrant">
+      <div class="quad-tile">
+        <h3>Wholesomely hyped</h3>
+        <p>Unironically excited that you're seeing your friends. Like the friend who texts "WAIT YES" instantly to any plan.</p>
+        <div class="anti"><b>Not:</b> cynical, dry, "well, brunch is a construct."</div>
+      </div>
+      <div class="quad-tile">
+        <h3>The fun-FOMO friend</h3>
+        <p>You see our copy and want in. We make the gathering feel like the place to be — without ever begging.</p>
+        <div class="anti"><b>Not:</b> needy, pushy, "you HAVE to come."</div>
+      </div>
+      <div class="quad-tile">
+        <h3>Lightly funny</h3>
+        <p>Earned humor — never punchlines for their own sake. Like the friend who's quietly the wittiest at the table.</p>
+        <div class="anti"><b>Not:</b> joke-density app, "let's gooooo 💯💯💯."</div>
+      </div>
+      <div class="quad-tile">
+        <h3>Tool-aware</h3>
+        <p>We help you do a thing. The thing is brunch. We're useful first, charming second. Notion-style competence.</p>
+        <div class="anti"><b>Not:</b> "let our AI-powered platform leverage your social graph."</div>
+      </div>
+    </div>
+
+    <!-- ── 4. Yes / no examples ───────────────── -->
+    <h2>How it sounds in real copy</h2>
+    <p class="sub">Side-by-side: the way we'd write it vs. ways we wouldn't.</p>
+
+    <p class="pair-label">A confirmed brunch — title</p>
+    <div class="dodont">
+      <div class="dod-card do">
+        <div class="label">✓ Yes</div>
+        <p class="quote">Brunch on. 💕</p>
+        <p class="ctx">Confident. Two words. Lets the action speak.</p>
+      </div>
+      <div class="dod-card dont">
+        <div class="label">✗ Not us</div>
+        <p class="quote">Your event has been successfully scheduled.</p>
+        <p class="ctx">Robot-receipt energy. "Event" is a corporate word.</p>
+      </div>
+    </div>
+
+    <p class="pair-label">Inviting friends — CTA</p>
+    <div class="dodont">
+      <div class="dod-card do">
+        <div class="label">✓ Yes</div>
+        <p class="quote">Round up the crew →</p>
+        <p class="ctx">Verb forward, specific. "Crew" is warm without being twee.</p>
+      </div>
+      <div class="dod-card dont">
+        <div class="label">✗ Not us</div>
+        <p class="quote">Invite Attendees</p>
+        <p class="ctx">Title-case + "attendees" turns it into a calendar.</p>
+      </div>
+    </div>
+
+    <p class="pair-label">Nobody RSVP'd yet — host empty state</p>
+    <div class="dodont">
+      <div class="dod-card do">
+        <div class="label">✓ Yes</div>
+        <p class="quote">It's gone quiet. Send a nudge?</p>
+        <p class="ctx">Observation + question. No blame. Easy out.</p>
+      </div>
+      <div class="dod-card dont">
+        <div class="label">✗ Not us</div>
+        <p class="quote">No responses yet. Engage your community!</p>
+        <p class="ctx">"Engage" and "community" are LinkedIn-speak.</p>
+      </div>
+    </div>
+
+    <p class="pair-label">A cancellation — invitee notification</p>
+    <div class="dodont">
+      <div class="dod-card do">
+        <div class="label">✓ Yes</div>
+        <p class="quote">Sam called it off — said next month for sure.</p>
+        <p class="ctx">Carries the host's reason. Sounds like a friend telling you.</p>
+      </div>
+      <div class="dod-card dont">
+        <div class="label">✗ Not us</div>
+        <p class="quote">EVENT CANCELLED. No further action required.</p>
+        <p class="ctx">Cold + capitalized. Reads like a service outage.</p>
+      </div>
+    </div>
+
+    <p class="pair-label">Bringing back a past brunch — banner copy</p>
+    <div class="dodont">
+      <div class="dod-card do">
+        <div class="label">✓ Yes</div>
+        <p class="quote">Bringing back Easter brunch with Mom — round two 🥂</p>
+        <p class="ctx">Sequel framing, warm, has the original title carried through.</p>
+      </div>
+      <div class="dod-card dont">
+        <div class="label">✗ Not us</div>
+        <p class="quote">Replanning event "Easter brunch with Mom". Please select a new date.</p>
+        <p class="ctx">"Event" + imperative + quoted-string title = receipt voice.</p>
+      </div>
+    </div>
+
+    <p class="pair-label">Voting closing soon — push notif</p>
+    <div class="dodont">
+      <div class="dod-card do">
+        <div class="label">✓ Yes</div>
+        <p class="quote">⏳ Voting closes in 2h. Tartine's leading.</p>
+        <p class="ctx">Specific. The leader gives them a reason to tap.</p>
+      </div>
+      <div class="dod-card dont">
+        <div class="label">✗ Not us</div>
+        <p class="quote">⚡ Action required: Cast your vote!</p>
+        <p class="ctx">"Action required" is enterprise-speak. The ⚡ is fake-urgent.</p>
+      </div>
+    </div>
+
+    <!-- ── 5. Vocab ──────────────────────────── -->
+    <h2>Words we love. Words we don't.</h2>
+    <p class="sub">Reach for the left. Avoid the right.</p>
+    <div class="vocab">
+      <div class="vocab-col love">
+        <h4>Reach for these</h4>
+        <div class="word-grid">
+          <span class="word">brunch</span>
+          <span class="word">crew</span>
+          <span class="word">gang</span>
+          <span class="word">round up</span>
+          <span class="word">round two</span>
+          <span class="word">bringing back</span>
+          <span class="word">hang</span>
+          <span class="word">vibes</span>
+          <span class="word">low-key</span>
+          <span class="word">spot</span>
+          <span class="word">grab</span>
+          <span class="word">hop on</span>
+          <span class="word">in</span>
+          <span class="word">out</span>
+          <span class="word">we'll handle it</span>
+          <span class="word">no stress</span>
+          <span class="word">on the table</span>
+          <span class="word">brunch on</span>
+          <span class="word">eggs</span>
+          <span class="word">coffee</span>
+          <span class="word">Sunday</span>
+        </div>
+      </div>
+      <div class="vocab-col ban">
+        <h4>Don't reach for these</h4>
+        <div class="word-grid">
+          <span class="word">attendees</span>
+          <span class="word">event</span>
+          <span class="word">leverage</span>
+          <span class="word">utilize</span>
+          <span class="word">reach out</span>
+          <span class="word">community</span>
+          <span class="word">engage</span>
+          <span class="word">action required</span>
+          <span class="word">touch base</span>
+          <span class="word">circle back</span>
+          <span class="word">awesome!</span>
+          <span class="word">amazing!</span>
+          <span class="word">epic</span>
+          <span class="word">disrupting</span>
+          <span class="word">delightful</span>
+          <span class="word">connect</span>
+          <span class="word">attendees</span>
+          <span class="word">successfully</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 6. Tone shifts ────────────────────── -->
+    <h2>Tone shifts by moment</h2>
+    <p class="sub">Same voice, slightly different volume.</p>
+    <div class="tone-grid">
+      <div class="tone-card">
+        <h4>Success</h4>
+        <p class="ex">"Brunch on. 💕 Maya & Devon are in."</p>
+        <p class="meta">Hype, warm. Reward the moment.</p>
+      </div>
+      <div class="tone-card">
+        <h4>Gentle nudge</h4>
+        <p class="ex">"Sam still needs your vote — Tartine's leading."</p>
+        <p class="meta">Friend-tap, specific, easy ignore.</p>
+      </div>
+      <div class="tone-card">
+        <h4>Empty state</h4>
+        <p class="ex">"The table's set. Now invite some people."</p>
+        <p class="meta">Inviting, not lonely. Always has a verb out.</p>
+      </div>
+      <div class="tone-card">
+        <h4>Error</h4>
+        <p class="ex">"Couldn't send that just now. We'll try again — your tap stuck."</p>
+        <p class="meta">Plain talk. Take the blame. Reassure.</p>
+      </div>
+      <div class="tone-card">
+        <h4>Cancellation</h4>
+        <p class="ex">"Sam called it off. No worries — these things happen."</p>
+        <p class="meta">Gentle, low-stakes, warm.</p>
+      </div>
+      <div class="tone-card">
+        <h4>Confirmation moment</h4>
+        <p class="ex">"You're in 🥂 — see you Sunday."</p>
+        <p class="meta">Short. Confident. Tiny celebration.</p>
+      </div>
+      <div class="tone-card">
+        <h4>Replan a past brunch</h4>
+        <p class="ex">"Bringing back Easter brunch with Mom — round two 🥂 Just pick a new time."</p>
+        <p class="meta">Carries the memory. Frames it as a sequel, not a copy.</p>
+      </div>
+    </div>
+
+    <!-- ── 7. Tagline ────────────────────────── -->
+    <h2>Tagline</h2>
+    <p class="sub">Your pick (#1) flagged. The rest are alternates by mood.</p>
+    <div class="tagline-stack">
+      <div class="tag-row pick">
+        <span class="num">★</span>
+        <span class="line">"Your friends are hungry. Probably."</span>
+        <span class="note">Your pick. Confident, low-stakes, makes you smile.</span>
+      </div>
+      <div class="tag-row">
+        <span class="num">02</span>
+        <span class="line">"Brunch, but the planning part is fun now."</span>
+        <span class="note">Functional pitch with a wink.</span>
+      </div>
+      <div class="tag-row">
+        <span class="num">03</span>
+        <span class="line">"Get the gang together. We'll handle the rest."</span>
+        <span class="note">Service-y, warm. Good for the App Store.</span>
+      </div>
+      <div class="tag-row">
+        <span class="num">04</span>
+        <span class="line">"Sunday's already booked, somewhere."</span>
+        <span class="note">Slightly mysterious, very brunch-coded.</span>
+      </div>
+      <div class="tag-row">
+        <span class="num">05</span>
+        <span class="line">"For when 'we should brunch' actually happens."</span>
+        <span class="note">For audiences who've sent that text 100 times.</span>
+      </div>
+    </div>
+
+    <!-- ── 8. Surfaces ──────────────────────── -->
+    <h2>The voice on real surfaces</h2>
+    <p class="sub">Landing hero, an invite email, and a push notif — all in voice.</p>
+
+    <div class="surface-label">Landing page hero</div>
+    <div class="landing-hero">
+      <h1>Your friends are hungry. <br/>Probably. 🥂</h1>
+      <p>Plan brunch with the gang in 30 seconds. Pick a spot, pick a time, send it.
+         We'll handle invites, the votes, and the inevitable "what about Tartine?" debate.</p>
+      <span class="cta">Round up the crew →</span>
+    </div>
+
+    <div class="surface-label">Invite email · from a friend</div>
+    <div class="email-card">
+      <div class="header">
+        <div>from <strong>Brunchsters</strong> &lt;hi@brunchsters.app&gt;</div>
+        <div class="subj">Sam wants you at brunch 🥂</div>
+      </div>
+      <div class="body">
+        <p style="margin: 0 0 14px;">Hey Yusef —</p>
+        <p style="margin: 0 0 14px;"><strong>Sam Liu</strong> just put a brunch on the table:</p>
+        <p style="margin: 0 0 14px; padding: 14px 16px; background: var(--accent-soft); border-radius: var(--r-2); color: var(--accent-fg);">
+          <strong>Birthday brunch for Sam</strong><br/>
+          Sun, May 10 · 11:30 AM<br/>
+          Voting between 3 spots (closes Thu)
+        </p>
+        <p style="margin: 0 0 14px;">Tap to RSVP, throw in your vote, and we'll keep you posted on what wins.</p>
+        <p style="margin: 0 0 8px;">
+          <a style="color: var(--accent-strong); text-decoration: none; font-weight: 600;">See the brunch →</a>
+        </p>
+        <p style="margin: 24px 0 0; font-size: 12px; color: var(--fg-muted);">
+          P.S. No app to download. Just tap the link.
+        </p>
+      </div>
+    </div>
+
+    <div class="surface-label" style="margin-top: 28px;">Push notifications · iOS</div>
+    <div class="push-stack">
+      <div class="push">
+        <div class="push-icon">B</div>
+        <div class="push-body">
+          <div><span class="name">Brunchsters</span> <span class="time">now</span></div>
+          <div>Maya's in 🥂 — that's 4 yeses so far for Sunday at Tartine.</div>
+        </div>
+      </div>
+      <div class="push">
+        <div class="push-icon">B</div>
+        <div class="push-body">
+          <div><span class="name">Brunchsters</span> <span class="time">2h ago</span></div>
+          <div>⏳ Voting closes in 2h. Tartine's leading by 2.</div>
+        </div>
+      </div>
+      <div class="push">
+        <div class="push-icon">B</div>
+        <div class="push-body">
+          <div><span class="name">Brunchsters</span> <span class="time">yest</span></div>
+          <div>Sam called off Sunday — said next month for sure 💕</div>
+        </div>
+      </div>
+      <div class="push">
+        <div class="push-icon">B</div>
+        <div class="push-body">
+          <div><span class="name">Brunchsters</span> <span class="time">3d ago</span></div>
+          <div>It's gone quiet on Sunday catch-up. Want to nudge the gang?</div>
+        </div>
+      </div>
+    </div>
+
+    <p style="margin-top: 80px; font-size: 12px; color: var(--fg-subtle); text-align: center;">
+      brunchsters · brand voice v1 · written from the friend who's already in the group chat
+    </p>
+  </div>
+</body>
+</html>

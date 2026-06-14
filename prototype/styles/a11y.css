@@ -1,0 +1,111 @@
+/* Brunchsters — accessibility additions.
+ * Applied across all v3 screens. Adds focus rings, respects reduced motion,
+ * and shores up a few touch targets. Doesn't change layout in normal use.
+ */
+
+/* ───────── Focus rings (visible only on keyboard nav) ───────── */
+.bs-btn:focus-visible,
+.bs-option:focus-visible,
+.bs-input:focus-visible,
+.bs-textarea:focus-visible,
+.bs-brunch-card:focus-visible,
+.ms-tab:focus-visible,
+.ms-fab:focus-visible,
+.ms-list-card:focus-visible,
+.bs-drawer-nav a:focus-visible,
+a:focus-visible,
+[role="switch"]:focus-visible,
+[role="tab"]:focus-visible,
+.bs-link-inline:focus-visible {
+  outline: 3px solid var(--accent-strong);
+  outline-offset: 2px;
+  border-radius: var(--r-2);
+  /* keep box-shadow from inputs when stacking — outline is enough */
+}
+
+/* Default browser focus ring is fine — but we want to suppress click-focus. */
+.bs-btn:focus:not(:focus-visible),
+.bs-option:focus:not(:focus-visible),
+.ms-tab:focus:not(:focus-visible),
+.ms-fab:focus:not(:focus-visible),
+.bs-brunch-card:focus:not(:focus-visible),
+.ms-list-card:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* The selectable radio inside .bs-option already has its own visual; the
+   parent's outline is what we want — don't double-ring. */
+
+/* ───────── Skip-to-content link ───────── */
+.bs-skip {
+  position: absolute;
+  top: -100px; left: 8px;
+  z-index: 1000;
+  background: var(--accent-strong);
+  color: var(--accent-fg);
+  padding: 10px 16px;
+  border-radius: var(--r-2);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: top 0.15s var(--ease);
+}
+.bs-skip:focus,
+.bs-skip:focus-visible {
+  top: 8px;
+  outline: 3px solid var(--fg);
+  outline-offset: 2px;
+}
+
+/* ───────── Reduced motion ───────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  /* keep transforms for layout but kill the bouncy motion */
+  .ms-fab { transform: none !important; }
+}
+
+/* ───────── Touch targets ───────── */
+/* iOS guideline: 44×44pt minimum. Most buttons hit this; the small ".bs-btn.sm"
+   variants are 30px, which is below — bump on touch devices to 36px and keep
+   visual size on hover-capable inputs. */
+@media (pointer: coarse) {
+  .bs-btn.sm { height: 36px; padding: 0 14px; }
+  .ms-tab    { min-height: 56px; }
+  /* Quick-brunch chips */
+  button.qb-chip { min-height: 36px; }
+}
+
+/* ───────── High-contrast outline for selected option ───────── */
+/* Color alone isn't enough for color-blind users — `.bs-option.selected`
+   already changes the border, but the radio fill is the only fill cue.
+   Reinforce with a slightly bolder border so the state survives at-a-glance. */
+.bs-option.selected {
+  border-width: 1.5px;
+  box-shadow: 0 0 0 1px var(--accent-strong);
+}
+
+/* ───────── Forced-colors (Windows High Contrast) ───────── */
+@media (forced-colors: active) {
+  .bs-btn { border: 1px solid CanvasText; }
+  .bs-btn.primary { background: Highlight; color: HighlightText; border-color: Highlight; }
+  .bs-option.selected { border-color: Highlight; }
+  .bs-pill, .bs-card { border: 1px solid CanvasText; }
+  .bs-progress .step.done,
+  .bs-progress .step.active::after { background: Highlight; }
+}
+
+/* ───────── Visually-hidden helper (for SR-only text) ───────── */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
