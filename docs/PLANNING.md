@@ -1252,9 +1252,9 @@ For solo side project: don't split. Premature.
 ## 16. Build Order
 
 1. ✅ Planning (this document)
-2. **Project scaffold** — Next.js + TypeScript + Prisma
-3. **Prisma schema** — codify this data model
-4. **Seed lookup tables**
+2. ✅ **Project scaffold** — Next.js + TypeScript + Prisma (specs/0001-repo-scaffold)
+3. ✅ **Prisma schema** — codify this data model (specs/0001-repo-scaffold M4)
+4. ✅ **Seed lookup tables** (specs/0001-repo-scaffold M5)
 5. **Auth** — NextAuth + Google + Apple + UserAuthProvider
 6. **Core brunch flow** — create → invite → attendee → vote → confirm
 7. **Google Places integration**

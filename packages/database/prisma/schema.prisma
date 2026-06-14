@@ -1,0 +1,682 @@
+// Brunchsters — Prisma Schema
+// Derived directly from PLANNING.md §8. Any deviation must update PLANNING.md.
+//
+// Conventions:
+//   - UUID PKs generated at application layer (@default(uuid()) @db.Uuid)
+//   - Soft delete: deletedAt + deletedBy on major entities
+//   - deletedBy / archivedBy / changedBy stored as String? @db.Uuid (audit
+//     fields; not modelled as Prisma relations to avoid back-relation explosion)
+//   - All FK scalars end in ...Id; the relation field uses the bare name
+//   - [v1 schema + ui]   = build schema AND UI in v1
+//   - [v1 schema only]   = schema now, UI deferred
+//   - [future schema]    = don't create yet
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+// Sanctioned exceptions to the "lookup tables for configurable values" rule.
+// PLANNING.md §8 explicitly calls these out as v1 simplifications.
+
+enum UserRole {
+  user
+  admin
+}
+
+enum DishPreferenceLevel {
+  love
+  like
+  avoid
+}
+
+enum IngredientPreferenceLevel {
+  love
+  like
+  avoid
+  allergic
+}
+
+// ─── Lookup / Reference Tables [v1 schema + ui] ───────────────────────────────
+
+// values: draft, active, confirmed, brunching*, paying*, completed, cancelled, archived
+// * isActive false for v1
+model BrunchStatus {
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique
+  label       String
+  description String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  brunches Brunch[]
+}
+
+// values: host_decides, group_vote
+model BrunchDecisionType {
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique
+  label       String
+  description String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  brunchLocations BrunchLocation[]
+  brunchTimes     BrunchTime[]
+}
+
+// values: invited, yes, no, maybe
+model RsvpStatus {
+  id               String   @id @default(uuid()) @db.Uuid
+  code             String   @unique
+  label            String
+  description      String?
+  isActive         Boolean  @default(true)
+  sortOrder        Int
+  countsAsAttendee Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  brunchAttendees BrunchAttendee[]
+}
+
+// values: pending, approved, declined
+model BrunchInviteSuggestionStatus {
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique
+  label       String
+  description String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  suggestions BrunchInviteSuggestion[]
+}
+
+model NotificationType {
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique
+  label       String
+  description String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  notifications               Notification[]
+  userNotificationPreferences UserNotificationPreference[]
+}
+
+// values: email, in_app, push* (* isActive false for v1)
+model NotificationChannel {
+  id        String   @id @default(uuid()) @db.Uuid
+  code      String   @unique
+  label     String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  notifications               Notification[]
+  userNotificationPreferences UserNotificationPreference[]
+}
+
+// ─── User & Auth [v1 schema + ui] ─────────────────────────────────────────────
+
+model User {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String
+  email     String    @unique
+  avatarUrl String?
+  role      UserRole  @default(user)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  deletedBy String?   @db.Uuid // FK → User.id — audit field, not a Prisma relation
+  archivedAt DateTime?
+  archivedBy String?  @db.Uuid // FK → User.id — audit field
+
+  authProviders                    UserAuthProvider[]
+  notificationPreferences          UserNotificationPreference[]
+  featureFlags                     UserFeatureFlag[]
+  hostedBrunches                   Brunch[]                    @relation("BrunchHost")
+  hostTransferSourceBrunches       Brunch[]                    @relation("BrunchHostTransferredFrom")
+  invitesSent                      BrunchInvite[]              @relation("BrunchInviteInvitedBy")
+  receivedInvites                  BrunchInvite[]              @relation("BrunchInviteInvitedUser")
+  attendeeRecords                  BrunchAttendee[]
+  inviteSuggestionsMade            BrunchInviteSuggestion[]    @relation("SuggestionSuggestedBy")
+  inviteSuggestionsAsSubject       BrunchInviteSuggestion[]    @relation("SuggestionSuggestedUser")
+  inviteSuggestionsReviewed        BrunchInviteSuggestion[]    @relation("SuggestionReviewedBy")
+  proposedLocations                BrunchLocation[]            @relation("BrunchLocationProposedBy")
+  proposedTimes                    BrunchTime[]                @relation("BrunchTimeProposedBy")
+  locationVotes                    BrunchLocationVote[]
+  timeVotes                        BrunchTimeVote[]
+  messages                         Message[]
+  notifications                    Notification[]
+  friendshipsRequested             Friendship[]                @relation("FriendshipRequester")
+  friendshipsReceived              Friendship[]                @relation("FriendshipRecipient")
+  friendshipsBlocked               Friendship[]                @relation("FriendshipBlockedBy")
+  ownedFriendGroups                FriendGroup[]
+  friendGroupMemberships           FriendGroupMember[]         @relation("FriendGroupMemberUser")
+  friendGroupMembersAdded          FriendGroupMember[]         @relation("FriendGroupMemberAddedBy")
+  favoritePlaces                   UserFavoritePlace[]
+  dishPreferences                  UserDishPreference[]
+  ingredientPreferences            UserIngredientPreference[]
+
+  @@index([email])
+  @@index([deletedAt])
+}
+
+model UserAuthProvider {
+  id             String    @id @default(uuid()) @db.Uuid
+  userId         String    @db.Uuid
+  provider       String    // google | apple | magic_link (v2)
+  providerUserId String
+  email          String
+  lastLoginAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([provider, providerUserId])
+  @@index([userId])
+  @@index([providerUserId])
+}
+
+model UserNotificationPreference {
+  id                 String   @id @default(uuid()) @db.Uuid
+  userId             String   @db.Uuid
+  notificationTypeId String   @db.Uuid
+  channelId          String   @db.Uuid
+  isEnabled          Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user             User                @relation(fields: [userId], references: [id])
+  notificationType NotificationType    @relation(fields: [notificationTypeId], references: [id])
+  channel          NotificationChannel @relation(fields: [channelId], references: [id])
+
+  @@unique([userId, notificationTypeId, channelId])
+  @@index([userId])
+}
+
+model UserFeatureFlag {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @db.Uuid
+  featureFlagId String   @db.Uuid
+  isEnabled     Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user        User        @relation(fields: [userId], references: [id])
+  featureFlag FeatureFlag @relation(fields: [featureFlagId], references: [id])
+
+  @@unique([userId, featureFlagId])
+  @@index([userId])
+}
+
+// ─── Audit & Security [v1 schema + ui] ────────────────────────────────────────
+
+// Immutable rows — no updatedAt per PLANNING.md §9.8
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  entityType String   // 'brunch' | 'user' | 'invite' | 'vote'
+  entityId   String   @db.Uuid
+  action     String   // 'created' | 'updated' | 'deleted' | 'archived'
+  changedBy  String   @db.Uuid // FK → User.id — audit field, not a Prisma relation
+  oldValue   Json?
+  newValue   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([changedBy])
+}
+
+// ─── Feature Flags & App Settings [v1 schema + ui] ────────────────────────────
+
+// initial values: chat, bill_splitting, friend_groups, favorites, photos, ratings, calendar (all off)
+model FeatureFlag {
+  id                String   @id @default(uuid()) @db.Uuid
+  code              String   @unique
+  label             String
+  description       String?
+  isEnabled         Boolean  @default(false)
+  isUserOverridable Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  userFeatureFlags UserFeatureFlag[]
+}
+
+model AppSetting {
+  id          String   @id @default(uuid()) @db.Uuid
+  key         String   @unique
+  value       String
+  description String?
+  updatedBy   String   @db.Uuid // FK → User.id — audit field, not a Prisma relation
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ─── Notifications [v1 schema + ui] ───────────────────────────────────────────
+
+model Notification {
+  id                 String    @id @default(uuid()) @db.Uuid
+  userId             String    @db.Uuid
+  notificationTypeId String    @db.Uuid
+  channelId          String    @db.Uuid
+  brunchId           String?   @db.Uuid
+  title              String
+  body               String
+  readAt             DateTime?
+  sentAt             DateTime
+  createdAt          DateTime  @default(now())
+
+  user             User                @relation(fields: [userId], references: [id])
+  notificationType NotificationType    @relation(fields: [notificationTypeId], references: [id])
+  channel          NotificationChannel @relation(fields: [channelId], references: [id])
+  brunch           Brunch?             @relation(fields: [brunchId], references: [id])
+
+  @@index([userId])
+  @@index([brunchId])
+}
+
+// ─── Brunch [v1 schema + ui] ──────────────────────────────────────────────────
+
+model Brunch {
+  id          String  @id @default(uuid()) @db.Uuid
+  title       String
+  description String?
+  hostId      String  @db.Uuid
+  statusId    String  @db.Uuid
+
+  votingDeadline DateTime?
+
+  // Permissions — stored on Brunch per PLANNING.md §6 (not a separate table)
+  allowInviteSuggestions      Boolean @default(true)
+  requireHostApprovalToInvite Boolean @default(true)
+  allowLocationSuggestions    Boolean @default(true)
+  allowTimeSuggestions        Boolean @default(true)
+
+  // Host transfer — one transfer per brunch, kept for audit trail
+  hostTransferredAt     DateTime?
+  hostTransferredFromId String?   @db.Uuid
+
+  // Inngest job ID for the pending cancellation notification (5-second undo window)
+  cancellationJobId String?
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+  deletedBy  String?   @db.Uuid // audit field
+  archivedAt DateTime?
+  archivedBy String?   @db.Uuid // audit field
+
+  host                User                   @relation("BrunchHost", fields: [hostId], references: [id])
+  status              BrunchStatus           @relation(fields: [statusId], references: [id])
+  hostTransferredFrom User?                  @relation("BrunchHostTransferredFrom", fields: [hostTransferredFromId], references: [id])
+  invites             BrunchInvite[]
+  attendees           BrunchAttendee[]
+  inviteSuggestions   BrunchInviteSuggestion[]
+  locations           BrunchLocation[]
+  times               BrunchTime[]
+  messages            Message[]
+  notifications       Notification[]
+
+  @@index([hostId])
+  @@index([statusId])
+  @@index([deletedAt])
+}
+
+// ─── Invites & Attendees [v1 schema + ui] ─────────────────────────────────────
+
+model BrunchInvite {
+  id             String    @id @default(uuid()) @db.Uuid
+  brunchId       String    @db.Uuid
+  invitedUserId  String?   @db.Uuid // null until user signs up via token
+  invitedEmail   String
+  invitedById    String    @db.Uuid
+  token          String    @unique
+  tokenExpiresAt DateTime
+  lastResentAt   DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+  deletedBy      String?   @db.Uuid // audit field
+
+  brunch      Brunch          @relation(fields: [brunchId], references: [id])
+  invitedUser User?           @relation("BrunchInviteInvitedUser", fields: [invitedUserId], references: [id])
+  invitedBy   User            @relation("BrunchInviteInvitedBy", fields: [invitedById], references: [id])
+  attendee    BrunchAttendee?
+
+  @@index([brunchId])
+  @@index([token])
+  @@index([invitedUserId])
+}
+
+model BrunchAttendee {
+  id           String    @id @default(uuid()) @db.Uuid
+  brunchId     String    @db.Uuid
+  userId       String    @db.Uuid
+  inviteId     String    @unique @db.Uuid // 1:1 with BrunchInvite
+  rsvpStatusId String    @db.Uuid
+  respondedAt  DateTime?
+
+  // Rich RSVP state — fields are only relevant for their matching rsvpStatus
+  arrivingLate   Boolean  @default(false) // yes RSVPs
+  leavingEarly   Boolean  @default(false) // yes RSVPs
+  dietaryNote    String?                  // yes RSVPs
+  decideBy       DateTime?                // maybe RSVPs
+  regretNote     String?                  // no RSVPs
+  inviteNextTime Boolean  @default(false) // no RSVPs
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  deletedBy String?   @db.Uuid // audit field
+
+  brunch     Brunch       @relation(fields: [brunchId], references: [id])
+  user       User         @relation(fields: [userId], references: [id])
+  invite     BrunchInvite @relation(fields: [inviteId], references: [id])
+  rsvpStatus RsvpStatus   @relation(fields: [rsvpStatusId], references: [id])
+
+  @@unique([brunchId, userId])
+  @@index([brunchId])
+  @@index([userId])
+  @@index([rsvpStatusId])
+}
+
+model BrunchInviteSuggestion {
+  id              String    @id @default(uuid()) @db.Uuid
+  brunchId        String    @db.Uuid
+  suggestedById   String    @db.Uuid
+  suggestedEmail  String
+  suggestedUserId String?   @db.Uuid
+  statusId        String    @db.Uuid
+  reviewedById    String?   @db.Uuid
+  reviewedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  brunch        Brunch                      @relation(fields: [brunchId], references: [id])
+  suggestedBy   User                        @relation("SuggestionSuggestedBy", fields: [suggestedById], references: [id])
+  suggestedUser User?                       @relation("SuggestionSuggestedUser", fields: [suggestedUserId], references: [id])
+  status        BrunchInviteSuggestionStatus @relation(fields: [statusId], references: [id])
+  reviewedBy    User?                       @relation("SuggestionReviewedBy", fields: [reviewedById], references: [id])
+
+  @@unique([brunchId, suggestedEmail])
+  @@index([brunchId])
+}
+
+// ─── Location & Time [v1 schema + ui] ─────────────────────────────────────────
+
+model BrunchLocation {
+  id             String    @id @default(uuid()) @db.Uuid
+  brunchId       String    @db.Uuid
+  decisionTypeId String    @db.Uuid
+  placeId        String
+  placeName      String
+  placeAddress   String
+  placeUrl       String
+  timezone       String    // IANA timezone e.g. 'America/Chicago'
+  isConfirmed    Boolean   @default(false)
+  confirmedAt    DateTime?
+  proposedById   String    @db.Uuid
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+  deletedBy      String?   @db.Uuid // audit field
+
+  brunch       Brunch             @relation(fields: [brunchId], references: [id])
+  decisionType BrunchDecisionType @relation(fields: [decisionTypeId], references: [id])
+  proposedBy   User               @relation("BrunchLocationProposedBy", fields: [proposedById], references: [id])
+  votes        BrunchLocationVote[]
+
+  @@index([brunchId])
+  @@index([isConfirmed])
+}
+
+// scheduledAt stored as UTC per PLANNING.md §9.3
+// Display rule: convert to BrunchLocation.timezone post-confirmation (UI only, no schema impact)
+model BrunchTime {
+  id             String    @id @default(uuid()) @db.Uuid
+  brunchId       String    @db.Uuid
+  decisionTypeId String    @db.Uuid
+  scheduledAt    DateTime
+  isConfirmed    Boolean   @default(false)
+  confirmedAt    DateTime?
+  proposedById   String    @db.Uuid
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+  deletedBy      String?   @db.Uuid // audit field
+
+  brunch       Brunch             @relation(fields: [brunchId], references: [id])
+  decisionType BrunchDecisionType @relation(fields: [decisionTypeId], references: [id])
+  proposedBy   User               @relation("BrunchTimeProposedBy", fields: [proposedById], references: [id])
+  votes        BrunchTimeVote[]
+
+  @@index([brunchId])
+  @@index([scheduledAt])
+  @@index([isConfirmed])
+}
+
+// ─── Votes [v1 schema + ui] ───────────────────────────────────────────────────
+
+model BrunchLocationVote {
+  id               String   @id @default(uuid()) @db.Uuid
+  brunchLocationId String   @db.Uuid
+  userId           String   @db.Uuid
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  brunchLocation BrunchLocation @relation(fields: [brunchLocationId], references: [id])
+  user           User           @relation(fields: [userId], references: [id])
+
+  @@unique([brunchLocationId, userId])
+  @@index([brunchLocationId])
+  @@index([userId])
+}
+
+model BrunchTimeVote {
+  id           String   @id @default(uuid()) @db.Uuid
+  brunchTimeId String   @db.Uuid
+  userId       String   @db.Uuid
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  brunchTime BrunchTime @relation(fields: [brunchTimeId], references: [id])
+  user       User       @relation(fields: [userId], references: [id])
+
+  @@unique([brunchTimeId, userId])
+  @@index([brunchTimeId])
+  @@index([userId])
+}
+
+// ─── Group Chat [v1 schema only — ui deferred] ────────────────────────────────
+
+model Message {
+  id        String    @id @default(uuid()) @db.Uuid
+  brunchId  String    @db.Uuid
+  userId    String    @db.Uuid
+  body      String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  deletedBy String?   @db.Uuid // audit field
+
+  brunch Brunch @relation(fields: [brunchId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([brunchId])
+  @@index([userId])
+}
+
+// ─── Friends & Social Graph [v1 schema only — ui deferred] ───────────────────
+
+// values: pending, accepted, declined, blocked
+model FriendshipStatus {
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique
+  label       String
+  description String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  friendships Friendship[]
+}
+
+model Friendship {
+  id          String    @id @default(uuid()) @db.Uuid
+  requesterId String    @db.Uuid
+  recipientId String    @db.Uuid
+  statusId    String    @db.Uuid
+  acceptedAt  DateTime?
+  blockedAt   DateTime?
+  blockedById String?   @db.Uuid
+
+  requester User             @relation("FriendshipRequester", fields: [requesterId], references: [id])
+  recipient User             @relation("FriendshipRecipient", fields: [recipientId], references: [id])
+  status    FriendshipStatus @relation(fields: [statusId], references: [id])
+  blockedBy User?            @relation("FriendshipBlockedBy", fields: [blockedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([requesterId, recipientId])
+  @@index([requesterId])
+  @@index([recipientId])
+  @@index([statusId])
+}
+
+model FriendGroup {
+  id          String    @id @default(uuid()) @db.Uuid
+  ownerId     String    @db.Uuid
+  name        String
+  description String?
+  emoji       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+  deletedBy   String?   @db.Uuid // audit field
+
+  owner   User                @relation(fields: [ownerId], references: [id])
+  members FriendGroupMember[]
+
+  @@index([ownerId])
+}
+
+model FriendGroupMember {
+  id            String    @id @default(uuid()) @db.Uuid
+  friendGroupId String    @db.Uuid
+  userId        String    @db.Uuid
+  addedById     String    @db.Uuid
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+  deletedBy     String?   @db.Uuid // audit field
+
+  friendGroup FriendGroup @relation(fields: [friendGroupId], references: [id])
+  user        User        @relation("FriendGroupMemberUser", fields: [userId], references: [id])
+  addedBy     User        @relation("FriendGroupMemberAddedBy", fields: [addedById], references: [id])
+
+  @@unique([friendGroupId, userId])
+  @@index([friendGroupId])
+  @@index([userId])
+}
+
+// ─── Favorite Places [v1 schema only — ui deferred] ───────────────────────────
+
+model UserFavoritePlace {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @db.Uuid
+  placeId      String
+  placeName    String
+  placeAddress String
+  placeUrl     String
+  timezone     String    // IANA
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+  deletedBy    String?   @db.Uuid // audit field
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, placeId])
+  @@index([userId])
+  @@index([placeId])
+}
+
+// ─── Dish & Ingredient Preferences [v1 schema only — ui deferred] ─────────────
+
+// Curated initial set — see PLANNING.md §12 for seed values
+model Dish {
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique
+  label       String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userPreferences UserDishPreference[]
+}
+
+// Dietary needs + common ingredients — see PLANNING.md §12 for seed values
+model Ingredient {
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique
+  label       String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userPreferences UserIngredientPreference[]
+}
+
+model UserDishPreference {
+  id         String              @id @default(uuid()) @db.Uuid
+  userId     String              @db.Uuid
+  dishId     String              @db.Uuid
+  preference DishPreferenceLevel
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+  dish Dish @relation(fields: [dishId], references: [id])
+
+  @@unique([userId, dishId])
+  @@index([userId])
+}
+
+model UserIngredientPreference {
+  id           String                    @id @default(uuid()) @db.Uuid
+  userId       String                    @db.Uuid
+  ingredientId String                    @db.Uuid
+  preference   IngredientPreferenceLevel
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+
+  user       User       @relation(fields: [userId], references: [id])
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id])
+
+  @@unique([userId, ingredientId])
+  @@index([userId])
+}

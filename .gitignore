@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+.next/
+dist/
+out/
+
+# Turbo cache
+.turbo/
+
+# Environment variables (never commit secrets)
+.env
+.env.local
+.env.*.local
+
+# Prisma generated client
+packages/database/node_modules/.prisma/
+
+# Supabase local state
+supabase/.temp/
+supabase/.branches/
+
+# Test outputs
+coverage/
+
+# Editor
+.DS_Store
+*.pem
+.vscode/settings.json
+
+# pnpm
+.pnp
+.pnp.js
