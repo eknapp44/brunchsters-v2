@@ -1,0 +1,26 @@
+{
+  "name": "brunchsters",
+  "private": true,
+  "packageManager": "pnpm@11.3.0",
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  },
+  "scripts": {
+    "build": "turbo build",
+    "typecheck": "turbo typecheck",
+    "lint": "eslint . --max-warnings 0",
+    "test": "turbo test",
+    "dev": "turbo dev",
+    "db:migrate": "pnpm --filter @brunchsters/database prisma migrate dev",
+    "db:generate": "pnpm --filter @brunchsters/database prisma generate",
+    "db:seed": "pnpm --filter @brunchsters/database seed",
+    "db:validate": "pnpm --filter @brunchsters/database prisma validate"
+  },
+  "devDependencies": {
+    "eslint": "^9.15.0",
+    "prettier": "^3.4.0",
+    "turbo": "^2.3.0",
+    "typescript-eslint": "^8.16.0"
+  }
+}
