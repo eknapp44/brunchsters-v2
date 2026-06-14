@@ -12,10 +12,10 @@
     "lint": "eslint . --max-warnings 0",
     "test": "turbo test",
     "dev": "turbo dev",
-    "db:migrate": "pnpm --filter @brunchsters/database prisma migrate dev",
-    "db:generate": "pnpm --filter @brunchsters/database prisma generate",
-    "db:seed": "pnpm --filter @brunchsters/database seed",
-    "db:validate": "pnpm --filter @brunchsters/database prisma validate"
+    "db:migrate": "pnpm --filter @brunchsters/database exec prisma migrate dev",
+    "db:generate": "pnpm --filter @brunchsters/database exec prisma generate",
+    "db:seed": "pnpm --filter @brunchsters/database run seed",
+    "db:validate": "pnpm --filter @brunchsters/database exec prisma validate"
   },
   "devDependencies": {
     "eslint": "^9.15.0",

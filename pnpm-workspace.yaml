@@ -4,4 +4,6 @@ packages:
 
 # pnpm 11: explicit allowlist for packages that may run install scripts
 allowBuilds:
+  '@prisma/engines': true
+  prisma: true
   sharp: true
