@@ -18,7 +18,7 @@ Trivial decisions (naming, minor refactors, version bumps) do not need ADRs.
 
 **Date:** YYYY-MM-DD  
 **Status:** Accepted | Superseded by [NNNN](./NNNN-title.md)  
-**Deciders:** Evan Knapp  
+**Deciders:** Evan Knapp
 
 ## Context
 
@@ -39,8 +39,9 @@ What else was evaluated and why was it not chosen?
 
 ## Index
 
-| # | Title | Status |
-|---|-------|--------|
-| [0001](./0001-monorepo-structure.md) | Monorepo structure with pnpm + Turborepo | Accepted |
-| [0002](./0002-hosting-vercel-supabase.md) | Hosting: Vercel + Supabase | Accepted |
-| [0003](./0003-no-email-password-auth.md) | No email/password authentication | Accepted |
+| #                                                           | Title                                     | Status   |
+| ----------------------------------------------------------- | ----------------------------------------- | -------- |
+| [0001](./0001-monorepo-structure.md)                        | Monorepo structure with pnpm + Turborepo  | Accepted |
+| [0002](./0002-hosting-vercel-supabase.md)                   | Hosting: Vercel + Supabase                | Accepted |
+| [0003](./0003-no-email-password-auth.md)                    | No email/password authentication          | Accepted |
+| [0004](./0004-semantic-release-and-conventional-commits.md) | Semantic release and conventional commits | Accepted |
