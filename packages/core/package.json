@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@brunchsters/database": "workspace:*",
     "@brunchsters/shared": "workspace:*",
     "neverthrow": "^6.0.0"
   },
