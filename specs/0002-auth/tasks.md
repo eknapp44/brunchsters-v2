@@ -62,11 +62,16 @@
 
 ## Testing Notes
 
-_Filled in as milestones complete._
-
 ### M2
 
-- **What was tested:**
-- **How:**
-- **What's deferred:**
+- **What was tested:** All three sign-in paths (new user, repeat sign-in, existing email + new provider) and db error handling
+- **How:** Unit tests with mocked DbClient in `packages/core/src/auth/signInWithProvider.test.ts`
+- **What's deferred:** Full OAuth E2E (browser) — verified manually in M4
 - **How to run:** `pnpm test --filter @brunchsters/core`
+
+### M4
+
+- **What was tested:** Full Google OAuth flow end-to-end in the browser — sign in, avatar in nav, sign out, callbackUrl redirect
+- **How:** Manual browser test with local Supabase + `pnpm dev`
+- **What's deferred:** Invite link redirect flow (tested when invite feature is built); Apple Sign-In (deferred to near launch)
+- **How to run:** `supabase start && pnpm dev` — navigate to `http://localhost:3000`, click sign in, complete Google OAuth
