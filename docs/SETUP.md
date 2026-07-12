@@ -18,20 +18,20 @@ This guide gets a developer (today, that's you; later, future-you) from a fresh 
 
 Install these before anything else.
 
-| Tool | Version | Why | Install |
-|------|---------|-----|---------|
-| **Node.js** | 20 LTS or newer (22 LTS recommended) | Runtime for Next.js + tooling | [nodejs.org](https://nodejs.org) or `nvm install 22` |
-| **pnpm** | 11+ | Monorepo package manager (workspaces) | `npm install -g pnpm` or `corepack enable pnpm` |
-| **Git** | latest | Source control | [git-scm.com](https://git-scm.com) |
-| **Docker Desktop** | latest | Runs local Postgres + the local Supabase stack | [docker.com](https://www.docker.com/products/docker-desktop) |
-| **Supabase CLI** | latest | Spins up Postgres + Realtime + Auth locally in Docker | `npm install -g supabase` |
-| **A code editor** | — | VS Code recommended (good TS + Prisma extensions) | [code.visualstudio.com](https://code.visualstudio.com) |
+| Tool               | Version                              | Why                                                   | Install                                                      |
+| ------------------ | ------------------------------------ | ----------------------------------------------------- | ------------------------------------------------------------ |
+| **Node.js**        | 20 LTS or newer (22 LTS recommended) | Runtime for Next.js + tooling                         | [nodejs.org](https://nodejs.org) or `nvm install 22`         |
+| **pnpm**           | 11+                                  | Monorepo package manager (workspaces)                 | `npm install -g pnpm` or `corepack enable pnpm`              |
+| **Git**            | latest                               | Source control                                        | [git-scm.com](https://git-scm.com)                           |
+| **Docker Desktop** | latest                               | Runs local Postgres + the local Supabase stack        | [docker.com](https://www.docker.com/products/docker-desktop) |
+| **Supabase CLI**   | latest                               | Spins up Postgres + Realtime + Auth locally in Docker | `npm install -g supabase`                                    |
+| **A code editor**  | —                                    | VS Code recommended (good TS + Prisma extensions)     | [code.visualstudio.com](https://code.visualstudio.com)       |
 
 **Recommended editor extensions:** Prisma, ESLint, Prettier, Vitest.
 
 **Windows note:** Docker Desktop uses the WSL 2 backend on Windows 11. Ensure Docker Desktop is fully started (whale icon steady in system tray) before running `supabase start`.
 
-**Why Docker if we're not containerizing the app?** We decided against containerizing the *application* (Vercel handles deploys). Docker here is only for **local infrastructure** — Postgres and the Supabase stack — so local dev mirrors production behavior (especially Supabase Realtime) without touching the cloud.
+**Why Docker if we're not containerizing the app?** We decided against containerizing the _application_ (Vercel handles deploys). Docker here is only for **local infrastructure** — Postgres and the Supabase stack — so local dev mirrors production behavior (especially Supabase Realtime) without touching the cloud.
 
 ---
 
@@ -39,15 +39,15 @@ Install these before anything else.
 
 You don't need all of these on day one. The "When" column tells you when each becomes necessary.
 
-| Service | Purpose | Free tier? | When you need it |
-|---------|---------|-----------|------------------|
-| **GitHub** | Source control + CI/CD (Actions) | Yes | Now — already done |
-| **Supabase** | Postgres + Realtime (prod/shared) | Yes, generous | When you want a shared/cloud DB. **Local dev needs none of this** — the CLI runs it locally. Create a cloud project when you deploy. |
-| **Vercel** | App hosting + preview deploys | Yes (hobby) | When you first deploy. Not needed for local dev. |
-| **Resend** | Transactional email | Yes (limited sends) | When building/testing email flows for real. Locally, use the mock email service. |
-| **Google Cloud Platform** | Maps **Places API** + **Google OAuth** credentials | Places API needs billing enabled (has free monthly credit); OAuth is free | OAuth: when wiring Google sign-in. Places: when wiring the location picker. Until then, mock both. |
-| **Apple Developer** | Sign in with Apple | **No — $99/year** | Deferred. Build with Google sign-in first; add Apple closer to launch. |
-| **Inngest** | Async job queue (running-late, undo-cancel, vote auto-close) | Yes | When building queued side effects. Has a **local dev server** — no cloud account needed for local work. |
+| Service                   | Purpose                                                      | Free tier?                                                                | When you need it                                                                                                                     |
+| ------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| **GitHub**                | Source control + CI/CD (Actions)                             | Yes                                                                       | Now — already done                                                                                                                   |
+| **Supabase**              | Postgres + Realtime (prod/shared)                            | Yes, generous                                                             | When you want a shared/cloud DB. **Local dev needs none of this** — the CLI runs it locally. Create a cloud project when you deploy. |
+| **Vercel**                | App hosting + preview deploys                                | Yes (hobby)                                                               | When you first deploy. Not needed for local dev.                                                                                     |
+| **Resend**                | Transactional email                                          | Yes (limited sends)                                                       | When building/testing email flows for real. Locally, use the mock email service.                                                     |
+| **Google Cloud Platform** | Maps **Places API** + **Google OAuth** credentials           | Places API needs billing enabled (has free monthly credit); OAuth is free | OAuth: when wiring Google sign-in. Places: when wiring the location picker. Until then, mock both.                                   |
+| **Apple Developer**       | Sign in with Apple                                           | **No — $99/year**                                                         | Deferred. Build with Google sign-in first; add Apple closer to launch.                                                               |
+| **Inngest**               | Async job queue (running-late, undo-cancel, vote auto-close) | Yes                                                                       | When building queued side effects. Has a **local dev server** — no cloud account needed for local work.                              |
 
 ### Recommended account order
 
@@ -71,13 +71,14 @@ cd brunchsters
 # 2. Install all workspace dependencies
 pnpm install
 
-# 3. Copy the environment template and fill in local values from step 4
-cp .env.example .env.local
+# 3. Copy the environment template — Next.js reads from apps/web/.env.local
+cp .env.example apps/web/.env.local
 
 # 4. Start local infrastructure (Postgres + Realtime + Auth) in Docker
 supabase start
-#    -> prints local URLs + keys; copy DB_URL into .env.local as DATABASE_URL
-#    -> and DIRECT_URL. Copy API_URL, ANON_KEY, SERVICE_ROLE_KEY too.
+#    -> prints local URLs + keys; fill DATABASE_URL + DIRECT_URL in apps/web/.env.local
+#    -> and in packages/database/.env (Prisma CLI reads from there for migrations).
+#    -> Copy API_URL, ANON_KEY, SERVICE_ROLE_KEY into apps/web/.env.local too.
 #    -> Local ports: DB on :54322, API on :54321, Studio on :54323
 
 # 5. Apply the database schema
@@ -106,23 +107,28 @@ When everything's up you should have: the Next.js app on `:3000`, local Supabase
 
 ## 5. Environment Variables
 
-Maintain a committed `.env.example` (no secrets) as the canonical list; keep real values in `.env.local` (git-ignored). Update `.env.example` whenever a new var is introduced.
+Maintain a committed `.env.example` at the repo root (no secrets) as the canonical list. Real values live in two git-ignored files:
 
-| Variable | Purpose | Where to get it (local) |
-|----------|---------|------------------------|
-| `DATABASE_URL` | Pooled Postgres connection (app runtime) | `DB_URL` from `supabase start` output |
-| `DIRECT_URL` | Direct Postgres connection (Prisma migrations) | same as `DATABASE_URL` for local dev |
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase URL for the Realtime client | `API_URL` from `supabase start` output |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public anon key for client-side Realtime | `ANON_KEY` from `supabase start` output |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server-side privileged key | `SERVICE_ROLE_KEY` from `supabase start` output |
-| `AUTH_SECRET` | NextAuth/Auth.js session encryption | `openssl rand -base64 32` |
-| `AUTH_URL` | Base URL for auth callbacks | `http://localhost:3000` locally |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth | Google Cloud Console → Credentials (when you reach auth) |
-| `APPLE_CLIENT_ID` / `APPLE_CLIENT_SECRET` | Apple Sign-In | Deferred — leave unset until Apple work begins |
-| `RESEND_API_KEY` | Email sending | Resend dashboard (mock locally until then) |
-| `GOOGLE_PLACES_API_KEY` | Location search | Google Cloud Console (mock locally until then) |
-| `INNGEST_EVENT_KEY` / `INNGEST_SIGNING_KEY` | Job queue auth | Inngest dashboard; local dev server runs without them |
-| `TOKEN_ENCRYPTION_KEY` | AES-256-GCM key for OAuth token encryption | `openssl rand -base64 32` — 32 bytes. **Never commit. Rotating it invalidates stored tokens.** |
+- **`apps/web/.env.local`** — all variables consumed by Next.js (runtime + auth + third-party APIs). This is the primary file to fill in.
+- **`packages/database/.env`** — only `DATABASE_URL` and `DIRECT_URL`, read by Prisma CLI for migrations (`pnpm db:migrate`, `pnpm db:generate`). Keep in sync with `apps/web/.env.local`.
+
+Update `.env.example` whenever a new var is introduced.
+
+| Variable                                    | Purpose                                        | Where to get it (local)                                                                        |
+| ------------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                              | Pooled Postgres connection (app runtime)       | `DB_URL` from `supabase start` output                                                          |
+| `DIRECT_URL`                                | Direct Postgres connection (Prisma migrations) | same as `DATABASE_URL` for local dev                                                           |
+| `NEXT_PUBLIC_SUPABASE_URL`                  | Supabase URL for the Realtime client           | `API_URL` from `supabase start` output                                                         |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY`             | Public anon key for client-side Realtime       | `ANON_KEY` from `supabase start` output                                                        |
+| `SUPABASE_SERVICE_ROLE_KEY`                 | Server-side privileged key                     | `SERVICE_ROLE_KEY` from `supabase start` output                                                |
+| `AUTH_SECRET`                               | NextAuth/Auth.js session encryption            | `openssl rand -base64 32`                                                                      |
+| `AUTH_URL`                                  | Base URL for auth callbacks                    | `http://localhost:3000` locally                                                                |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth                                   | Google Cloud Console → Credentials (when you reach auth)                                       |
+| `APPLE_CLIENT_ID` / `APPLE_CLIENT_SECRET`   | Apple Sign-In                                  | Deferred — leave unset until Apple work begins                                                 |
+| `RESEND_API_KEY`                            | Email sending                                  | Resend dashboard (mock locally until then)                                                     |
+| `GOOGLE_PLACES_API_KEY`                     | Location search                                | Google Cloud Console (mock locally until then)                                                 |
+| `INNGEST_EVENT_KEY` / `INNGEST_SIGNING_KEY` | Job queue auth                                 | Inngest dashboard; local dev server runs without them                                          |
+| `TOKEN_ENCRYPTION_KEY`                      | AES-256-GCM key for OAuth token encryption     | `openssl rand -base64 32` — 32 bytes. **Never commit. Rotating it invalidates stored tokens.** |
 
 **Rule:** every var above must exist in `.env.example` with a placeholder/empty value and a one-line comment. The app should fail fast on startup with a clear message if a required var is missing (validate env with Zod at boot).
 
@@ -178,11 +184,11 @@ The whole point: **fast, deterministic tests that run offline.**
 
 ### Test types
 
-| Type | What it covers | Runner | DB | External APIs |
-|------|----------------|--------|----|--------------| 
-| **Unit** | `packages/core` services, pure logic, validation | Vitest | none | mocked (`MockEmailService`, mock providers) |
-| **Integration** | DB interactions, Prisma queries, transactions | Vitest | **local Postgres (test DB)** | mocked |
-| **E2E** | Critical user flows end-to-end | Playwright | local stack | mocked or sandbox |
+| Type            | What it covers                                   | Runner     | DB                           | External APIs                               |
+| --------------- | ------------------------------------------------ | ---------- | ---------------------------- | ------------------------------------------- |
+| **Unit**        | `packages/core` services, pure logic, validation | Vitest     | none                         | mocked (`MockEmailService`, mock providers) |
+| **Integration** | DB interactions, Prisma queries, transactions    | Vitest     | **local Postgres (test DB)** | mocked                                      |
+| **E2E**         | Critical user flows end-to-end                   | Playwright | local stack                  | mocked or sandbox                           |
 
 ### Running tests
 
@@ -197,24 +203,28 @@ pnpm test:e2e       # Playwright (added when E2E tests exist)
 Integration tests run against a **dedicated local test database**, separate from your dev DB, so tests can wipe and reseed freely. Setup TBD when the first feature spec adds integration tests — the local Supabase Postgres can host a `postgres_test` database alongside the dev database.
 
 Conventions:
+
 - Each integration test starts from a known seeded state and cleans up after itself (transaction rollback per test, or truncate-and-reseed).
 - External boundaries (Resend, Google Places) are **always** mocked in tests via the interface + mock-implementation pattern from `CLAUDE.md`. Tests never hit a real third-party API.
 - Tests are co-located: `createBrunch.test.ts` next to `createBrunch.ts`.
 
 ### Testing notes
 
-Per the workflow in `CLAUDE.md`, every milestone records a short testing note (what was tested, how, what's deferred, how to run). These live in the spec's `tasks.md` or a `TESTING-NOTES.md`. This doc describes *how to run* tests; the per-feature notes describe *what is covered*.
+Per the workflow in `CLAUDE.md`, every milestone records a short testing note (what was tested, how, what's deferred, how to run). These live in the spec's `tasks.md` or a `TESTING-NOTES.md`. This doc describes _how to run_ tests; the per-feature notes describe _what is covered_.
 
 ---
 
 ## 9. Troubleshooting
 
-| Symptom | Likely cause | Fix |
-|---------|--------------|-----|
-| `supabase start` fails with pipe error | Docker Desktop not running (Windows) | Open Docker Desktop, wait for whale icon to be steady, retry |
-| `supabase start` fails with port conflict | Stale containers or another process on :54322 | `supabase stop`, check for other processes, retry |
-| Prisma can't connect | `DATABASE_URL` / `DIRECT_URL` not matching `supabase start` output | Re-copy `DB_URL` from the CLI output into `.env.local` |
-| `pnpm install` blocked by build scripts | pnpm 11 requires explicit allowBuilds approval | Run `pnpm approve-builds` and set new entries to `true` in `pnpm-workspace.yaml` |
-| Migration drift errors | Schema changed without a migration | `pnpm db:migrate` to generate a migration; never edit the DB by hand |
-| App boots then crashes on a missing key | Required env var unset | Check `.env.local` against `.env.example`; the boot-time Zod validation message names the missing var |
-| Tests pass locally, fail in CI | CI test DB not seeded the same way | Ensure `test:setup` runs in CI before `test`; keep seed deterministic |
+| Symptom                                                      | Likely cause                                                                                                                                                   | Fix                                                                                                   |
+| ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `supabase start` fails with pipe error                       | Docker Desktop not running (Windows)                                                                                                                           | Open Docker Desktop, wait for whale icon to be steady, retry                                          |
+| `supabase start` fails with port conflict                    | Stale containers or another process on :54322                                                                                                                  | `supabase stop`, check for other processes, retry                                                     |
+| Prisma can't connect                                         | `DATABASE_URL` / `DIRECT_URL` not matching `supabase start` output                                                                                             | Re-copy `DB_URL` from the CLI output into `apps/web/.env.local` and `packages/database/.env`          |
+| Auth.js `MissingSecret` error at runtime                     | `AUTH_SECRET` not found — Next.js reads `.env.local` from the app directory, not the monorepo root                                                             | Ensure `apps/web/.env.local` exists and contains `AUTH_SECRET`                                        |
+| Turbopack `@prisma/client can't be external`                 | `@prisma/client` not installed as a direct dep of `apps/web`                                                                                                   | `pnpm add --filter @brunchsters/web @prisma/client`                                                   |
+| Google OAuth `invalid_client` / "OAuth client was not found" | App sends `client_id=undefined` — a bare Auth.js v5 provider reads `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET`, but we use `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` | Credentials are wired explicitly in `auth.ts`; ensure both vars are set in `apps/web/.env.local`      |
+| `pnpm install` blocked by build scripts                      | pnpm 11 requires explicit allowBuilds approval                                                                                                                 | Run `pnpm approve-builds` and set new entries to `true` in `pnpm-workspace.yaml`                      |
+| Migration drift errors                                       | Schema changed without a migration                                                                                                                             | `pnpm db:migrate` to generate a migration; never edit the DB by hand                                  |
+| App boots then crashes on a missing key                      | Required env var unset                                                                                                                                         | Check `.env.local` against `.env.example`; the boot-time Zod validation message names the missing var |
+| Tests pass locally, fail in CI                               | CI test DB not seeded the same way                                                                                                                             | Ensure `test:setup` runs in CI before `test`; keep seed deterministic                                 |
