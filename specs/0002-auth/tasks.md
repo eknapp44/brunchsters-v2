@@ -71,7 +71,8 @@
 
 ### M4
 
-- **What was tested:** Full Google OAuth flow end-to-end in the browser — sign in, avatar in nav, sign out, callbackUrl redirect
-- **How:** Manual browser test with local Supabase + `pnpm dev`
+- **What was tested:** Full Google OAuth flow end-to-end in the browser — sign in, avatar in nav, sign out, callbackUrl redirect. Verified `/dashboard` → 307 redirect to `/sign-in?callbackUrl=%2Fdashboard` while unauthenticated, and successful sign-in landing on `/dashboard`.
+- **How:** Manual browser test with local Supabase + `pnpm dev`. Also captured the raw Auth.js authorization redirect via curl to confirm the correct `client_id` is transmitted to Google.
 - **What's deferred:** Invite link redirect flow (tested when invite feature is built); Apple Sign-In (deferred to near launch)
 - **How to run:** `supabase start && pnpm dev` — navigate to `http://localhost:3000`, click sign in, complete Google OAuth
+- **Gotcha fixed during verification:** A bare Auth.js v5 `Google` provider auto-infers `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET`, not our `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` — which sent `client_id=undefined` and produced a misleading `invalid_client` error. Credentials are now wired explicitly in `auth.ts`.

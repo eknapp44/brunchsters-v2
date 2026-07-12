@@ -3,8 +3,22 @@ import Google from 'next-auth/providers/google';
 import { signInWithProvider } from '@brunchsters/core';
 import { db } from '@/lib/db';
 
+// Auth.js v5 auto-infers credentials from AUTH_GOOGLE_ID / AUTH_GOOGLE_SECRET.
+// We use GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET (see .env.example), so wire them
+// explicitly. Fail fast with a clear message if either is missing at boot.
+const googleClientId = process.env.GOOGLE_CLIENT_ID;
+const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+if (
+  googleClientId === undefined ||
+  googleClientId === '' ||
+  googleClientSecret === undefined ||
+  googleClientSecret === ''
+) {
+  throw new Error('Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET in apps/web/.env.local');
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  providers: [Google],
+  providers: [Google({ clientId: googleClientId, clientSecret: googleClientSecret })],
   session: { strategy: 'jwt' },
   pages: {
     signIn: '/sign-in',
