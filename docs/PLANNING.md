@@ -9,6 +9,7 @@
 > **Working with this doc across chats:** This document lives in the project's GitHub repo (`docs/PLANNING.md`) as the single source of truth. When starting a new chat (UI design, code review, etc.), upload or paste this doc to give that chat context. Decisions made in any chat should be committed back to the doc via PR — git history becomes the audit trail of design evolution. Don't rely on Claude's memory across chats; rely on the repo.
 >
 > **Documentation hierarchy:**
+>
 > - **`constitution.md`** — non-negotiable principles. Every decision must be consistent with these.
 > - **`PLANNING.md`** (this doc) — what we're building. Product spec, data model, architecture.
 > - **`docs/adrs/`** — why specific decisions were made. Alternatives, tradeoffs, history.
@@ -21,6 +22,7 @@
 Brunchsters fills the gap between Google Maps and Google Calendar — making it easy to socially plan brunch with friends. Maps finds the place, Calendar holds the event, but neither helps you actually plan it together. That's the sweet spot Brunchsters owns.
 
 **Design principles (Google-inspired):**
+
 - Progressive disclosure — show only what's needed at each step
 - Smart defaults — app makes reasonable assumptions, user overrides if needed
 - Minimal chrome — content first, UI gets out of the way
@@ -31,6 +33,7 @@ Brunchsters fills the gap between Google Maps and Google Calendar — making it 
 ## 2. Scope
 
 ### v1 (Launch) — Schema + UI
+
 - User accounts (Google + Apple sign-in)
 - Create a brunch event
 - Invite friends via email or shareable link
@@ -46,12 +49,14 @@ Brunchsters fills the gap between Google Maps and Google Calendar — making it 
 - Timezone-aware display — times stored as UTC, displayed in each viewer's local timezone; "(at [Location]'s time: X)" subline shown when timezones differ; voting times follow same rule
 
 ### v1 (Launch) — Schema Only, UI Deferred
+
 - Group chat (Message table present, realtime UI deferred)
 - Friends & friend groups (tables present, social UI deferred)
 - Favorite places (table present, favorites UI deferred)
 - Dish & ingredient preferences (tables + seed data present, prefs UI deferred)
 
 ### v2 (First Post-Launch)
+
 - Group chat UI + realtime
 - Friends & friend groups UI
 - Favorite places UI
@@ -60,6 +65,7 @@ Brunchsters fills the gap between Google Maps and Google Calendar — making it 
 - Push notifications (upgrade path for running-late and other in-app-only v1 notifications)
 
 ### v3 (Growth Phase)
+
 - Mobile app (iOS + Android — API-first makes this clean)
 - Photos + ratings (post-brunch engagement)
 - Push notifications
@@ -67,6 +73,7 @@ Brunchsters fills the gap between Google Maps and Google Calendar — making it 
 - Dish & ingredient preference UI + location suggestions
 
 ### Future / Stretch
+
 - Restaurant feed / discovery
 - Recommendations engine
 - External sharing (Google Maps deep links, native share sheets)
@@ -79,26 +86,29 @@ Brunchsters fills the gap between Google Maps and Google Calendar — making it 
 
 ## 3. Tech Stack
 
-| Layer | Decision |
-|-------|----------|
-| Framework | Next.js + TypeScript |
-| State Management | Redux |
-| ORM | Prisma |
-| Database | PostgreSQL (Supabase) |
-| Auth | NextAuth.js (Google + Apple) |
-| Realtime | Supabase Realtime (v2) |
-| Job Queue | Inngest |
-| Email | Resend + React Email |
-| Hosting | Vercel + Supabase |
-| Maps | Google Maps Places API (abstracted via `PlaceProvider` interface) |
+| Layer            | Decision                                                          |
+| ---------------- | ----------------------------------------------------------------- |
+| Framework        | Next.js + TypeScript                                              |
+| State Management | Redux                                                             |
+| ORM              | Prisma                                                            |
+| Database         | PostgreSQL (Supabase)                                             |
+| Auth             | NextAuth.js (Google + Apple)                                      |
+| Realtime         | Supabase Realtime (v2)                                            |
+| Job Queue        | Inngest                                                           |
+| Email            | Resend + React Email                                              |
+| Hosting          | Vercel + Supabase                                                 |
+| Maps             | Google Maps Places API (abstracted via `PlaceProvider` interface) |
 
 ### Architectural Principles
+
 - **API-first** — web is one client, mobile will be another. Business logic lives in API/service layers, not page components.
 - **Provider abstraction** — auth, place provider, realtime, notifications all behind interfaces we control. Swappable later.
 - **Optimize for change, not perfection** — design for easy migration, not initial perfection.
 
 ### Hosting Decision Rationale
+
 Vercel + Supabase chosen over AWS for v1 despite developer's AWS familiarity. Reasoning:
+
 - **Side project optimized for learning + shipping.** Vercel/Supabase gets to actual app development faster; AWS would mean significant infrastructure learning before any feature work.
 - **Most likely outcome of any side project is modest scale.** Vercel + Supabase free/Pro tiers handle that comfortably.
 - **AWS migration as a future learning opportunity.** If Brunchsters takes off, migrating to AWS is itself a great engineering exercise — by then there's a real app with real data and real reasons for the move. Many engineers never get to do a real production migration; this is a feature, not a bug.
@@ -129,6 +139,7 @@ If the project grows to need AWS, expected migration mapping:
 ## 5. User Flows
 
 ### Host Journey
+
 1. **Landing** → Sign in with Google/Apple
 2. **Dashboard** — Upcoming brunches, past brunches, prominent "Plan a Brunch" CTA
 3. **Create Brunch** (multi-step, progressive disclosure):
@@ -140,24 +151,30 @@ If the project grows to need AWS, expected migration mapping:
 5. **Mode emerges from behavior** — host doesn't toggle "host decides vs vote" upfront; it's inferred from whether they add one option or multiple.
 
 ### Invitee Journey (three entry points)
+
 1. **Existing user** — clicks invite link → already authed → lands on Brunch detail page
 2. **New user (has Google)** — clicks link → signs in with Google → account auto-created → lands on Brunch detail page
 3. **Unregistered user** — clicks link → sees brunch preview → sign in with Google → account created → joins as attendee
 
 ### Critical UX Moment
+
 The handoff from invite link → auth → brunch detail page must feel invisible. No spinners, no forms, no extra steps. Click → in.
 
 ### Edge Cases
+
 - **Expired token:** Friendly message, "Ask [host] to resend". Tokens expire 7 days after the scheduled brunch date — hosts can revoke and regenerate at any time.
 - **Brunch already confirmed:** Read-only view, still allow late RSVPs
 - **Declined invitee:** Allow them to change mind until confirmed
 
 ### Confirmation Lock Rules
+
 After a brunch is confirmed:
+
 - **Locked:** Location, time, planning mode
 - **Still editable:** Title, description, invitee list
 
 ### Minimum Brunch Size
+
 2 people including host (1-on-1s are valid brunches).
 
 ---
@@ -165,6 +182,7 @@ After a brunch is confirmed:
 ## 6. Permissions Model
 
 Host controls per-brunch:
+
 - `allowInviteSuggestions` — can invitees suggest new people?
 - `requireHostApprovalToInvite` — must host approve suggestions?
 - `allowLocationSuggestions` — can invitees suggest places?
@@ -179,12 +197,14 @@ Stored as fields directly on `Brunch` (not a separate `BrunchSettings` table —
 ## 7. Notifications
 
 Two layers:
+
 - **Real-time in-app** — Supabase Realtime, presence-aware (don't notify someone watching the page)
 - **External notifications** — email via Resend. Push deferred to v2; v1 features that conceptually want push (running late, host transfer) use in-app + email instead.
 
 User can configure per-type preferences via `UserNotificationPreference`. Per-brunch mute is a separate UI control (All / Just big stuff / Muted) surfaced on the invitee detail screen.
 
 ### Notification Types (v1)
+
 - `rsvp.received` — someone responded to invite
 - `vote.cast` — someone voted
 - `vote.deadline.approaching` — pre-deadline reminder
@@ -204,13 +224,14 @@ User can configure per-type preferences via `UserNotificationPreference`. Per-br
 
 ### Schema Release Legend
 
-| Tag | Meaning |
-|-----|---------|
-| `[v1 schema + ui]` | Build table AND feature UI in v1 |
+| Tag                | Meaning                                                                                                   |
+| ------------------ | --------------------------------------------------------------------------------------------------------- |
+| `[v1 schema + ui]` | Build table AND feature UI in v1                                                                          |
 | `[v1 schema only]` | Include in Prisma schema now, UI deferred — enables passive data collection or is referenced by v1 tables |
-| `[future schema]` | Don't create table yet — needs infrastructure decisions or UI before it's useful |
+| `[future schema]`  | Don't create table yet — needs infrastructure decisions or UI before it's useful                          |
 
 **Principle:**
+
 - Tables other v1 tables reference → `v1 schema only` minimum
 - Tables that enable passive data collection → `v1 schema only`
 - Tables that need UI or infrastructure to be useful → `future schema`
@@ -218,6 +239,7 @@ User can configure per-type preferences via `UserNotificationPreference`. Per-br
 ---
 
 ### Conventions Applied Throughout
+
 - UUIDs for primary keys
 - Soft delete (`deletedAt` / `deletedBy`) on major entities
 - Archiving (`archivedAt` / `archivedBy`) on User and Brunch
@@ -651,58 +673,71 @@ Deferred — requires OAuth scope decisions, token encryption strategy, and per-
 ## 9. Critical Architectural Decisions
 
 ### 9.1 Soft Delete Enforcement
+
 Use Prisma middleware to auto-filter `deletedAt IS NULL` on all queries unless explicitly bypassed. Don't rely on every developer remembering.
 
 ### 9.2 Soft-Delete Email Collision
+
 Soft-deleted users still hold their email. New signup with same email = unique constraint violation.
 
 **Solution:** On account deletion, append suffix to email: `user@example.com.deleted.{timestamp}`. Preserves audit trail, frees email for reuse. Also helps with GDPR right-to-deletion compliance.
 
 ### 9.3 Timezone Handling
+
 - Store `BrunchTime.scheduledAt` in UTC always
 - `BrunchLocation.timezone` stores IANA zone (e.g., 'America/Chicago')
 - Display logic: brunch time = UTC converted to location's timezone
 - Each user sees the brunch in the location's local time
 
 ### 9.4 Vote Tables — No Redundant brunchId
+
 Originally suggested keeping `brunchId` denormalized on vote tables for query performance. **Reverted** — premature optimization. Add back when actual scale demands it.
 
 ### 9.5 Token Lifecycle
+
 ```
 Invite created → invitedEmail set, invitedUserId null
 User signs up via token → invitedUserId populated, invitedEmail kept for record
 ```
 
 ### 9.6 Synthetic Invite for Host
+
 When `Brunch` is created, create a synthetic `BrunchInvite` for the host AND a `BrunchAttendee` (rsvp = yes, respondedAt = now). Keeps `BrunchAttendee.inviteId` non-null and uniform.
 
 ### 9.7 Voting Close Rule
+
 Single rule: voting closes on `votingDeadline`. Host can manually close early. No quorum-based auto-close. Simpler, predictable, no footguns.
 
 ### 9.8 Audit Log Scaling Plan
+
 - v1: Postgres, partition by month
 - Year 1: archive old rows to S3 / cold storage
 - At scale: dedicated DB or ClickHouse
 - Build behind an interface so the backend is swappable.
 
 ### 9.9 Notification Table TTL
+
 Auto-delete read notifications older than 60 days. Keep unread indefinitely. Move to cold storage if needed.
 
 ### 9.10 Realtime Strategy
+
 - v1: Supabase Realtime (in-stack, sufficient for early scale)
 - Plan for swappable interface — Pusher, Ably, or self-hosted Redis pub/sub at larger scale
 
 ### 9.11 Rate Limiting
+
 Don't use a DB table. Use Upstash Redis with TTL keys when needed. Defer until abuse appears.
 
 ### 9.12 Internationalization Groundwork
-Use `next-intl` from day one even with English-only content. Avoids painful refactor later if you go international.
+
+~~Use `next-intl` from day one even with English-only content.~~ **Amended by [ADR 0005](adrs/0005-defer-next-intl.md):** `next-intl` is deferred to the pre-launch checklist. UI copy is plain string literals until then; the string-extraction pass is accepted future work.
 
 ---
 
 ## 10. Async Event Architecture
 
 ### Principle
+
 **API handles the transaction, queue handles the consequences.**
 
 ```
@@ -715,6 +750,7 @@ POST /brunch/:id/invite
 ```
 
 ### Events (v1)
+
 - `brunch/created`, `brunch/confirmed`, `brunch/cancelled`
 - `invite/sent`, `invite/resent`, `invite/expired`
 - `attendee/rsvp.received`, `attendee/rsvp.changed`
@@ -723,6 +759,7 @@ POST /brunch/:id/invite
 - `notification/email.send`
 
 ### Why Inngest, not Kafka
+
 Brunchsters needs job queues, not event streaming. Kafka is overkill for the foreseeable future. Inngest is TypeScript-native, serverless, and integrates beautifully with Next.js.
 
 ---
@@ -730,25 +767,31 @@ Brunchsters needs job queues, not event streaming. Kafka is overkill for the for
 ## 11. Google Maps Integration
 
 ### Two APIs Used
+
 - **Places API** — autocomplete search + place details
 - **Maps JavaScript API** — display maps (optional v1, fine to defer)
 
 ### What's Stored
+
 Four fields per location: `placeId`, `placeName`, `placeAddress`, `placeUrl`. Google not called again after place is selected.
 
 ### Cost Optimization
+
 Only call Place Details on user selection, not on every keystroke. Autocomplete is cheap (~$2.83/1K), Details is more (~$17/1K). Google's $200/month free credit covers significant usage.
 
 ### Provider Abstraction
+
 ```typescript
 interface PlaceProvider {
-  search(query: string): Promise<PlaceResult[]>
-  getDetails(placeId: string): Promise<PlaceDetails>
+  search(query: string): Promise<PlaceResult[]>;
+  getDetails(placeId: string): Promise<PlaceDetails>;
 }
 ```
+
 App talks to interface, never directly to Google. Swap or add (Yelp, Foursquare) later without touching app code.
 
 ### API Key Setup
+
 - Two keys: dev and prod
 - HTTP referrer restriction (localhost / brunchsters.com)
 - API restriction (Places + Maps JS only)
@@ -761,6 +804,7 @@ App talks to interface, never directly to Google. Swap or add (Yelp, Foursquare)
 ## 12. Seed Data Required on Deploy
 
 ### v1 Schema Seeds (required at launch)
+
 ```
 BrunchStatus:                  draft, active, confirmed, brunching*, paying*,
                                completed, cancelled, archived
@@ -780,6 +824,7 @@ FeatureFlag:                   chat (off), bill_splitting (off),
 ```
 
 ### v1 Schema Only Seeds (seed now, UI later)
+
 ```
 FriendshipStatus:              pending, accepted, declined, blocked
 Dish:                          eggs_benedict, avocado_toast, pancakes,
@@ -799,32 +844,32 @@ Ingredient:                    eggs, avocado, bacon, sausage, gluten_free,
 
 These tables exist in your Prisma schema from day one but have no UI built around them. They either collect data passively or are referenced structurally by v1 tables.
 
-| Item | Tables | Why schema now | Why UI later |
-|------|--------|----------------|--------------|
-| Group chat | `Message` | Placeholder in UI, structurally complete | Realtime complexity — planning loop valuable on its own |
-| Friends & groups | `Friendship`, `FriendGroup`, `FriendGroupMember`, `FriendshipStatus` | Brunch history passively builds social graph | Social features need critical mass of users first |
-| Favorite places | `UserFavoritePlace` | Brunch creation can surface placeholder | Not blocking v1 flow |
-| Dish & ingredient prefs | `Dish`, `Ingredient`, `UserDishPreference`, `UserIngredientPreference` | Optional onboarding collection from day one | Recommendations engine needs data before UI is valuable |
+| Item                    | Tables                                                                 | Why schema now                               | Why UI later                                            |
+| ----------------------- | ---------------------------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------- |
+| Group chat              | `Message`                                                              | Placeholder in UI, structurally complete     | Realtime complexity — planning loop valuable on its own |
+| Friends & groups        | `Friendship`, `FriendGroup`, `FriendGroupMember`, `FriendshipStatus`   | Brunch history passively builds social graph | Social features need critical mass of users first       |
+| Favorite places         | `UserFavoritePlace`                                                    | Brunch creation can surface placeholder      | Not blocking v1 flow                                    |
+| Dish & ingredient prefs | `Dish`, `Ingredient`, `UserDishPreference`, `UserIngredientPreference` | Optional onboarding collection from day one  | Recommendations engine needs data before UI is valuable |
 
 ### Deferred Schema (don't create tables yet)
 
 These have no tables in v1. Infrastructure decisions or UI designs need to be made first.
 
-| Item | Reason for full deferral |
-|------|--------------------------|
-| Photos + ratings | Needs storage infrastructure + photo moderation policy + post-brunch status activation |
-| Calendar integration | OAuth scope + token encryption strategy decisions needed first |
-| External sharing | Deep-link only approach for now — no tables needed short term |
-| Recommendations engine | No schema until approach decided + enough data exists |
-| Bill splitting | Out of brunch-planning scope entirely |
-| Mid-brunch features | Out of brunch-planning scope entirely |
-| Push notifications | Email sufficient for web v1 |
-| `RateLimitLog` | Use Upstash Redis with TTL keys — not a DB table |
-| `LegalDocument` / `UserLegalAcceptance` | No legal docs written yet |
-| `Role` / `UserRole` tables | Simple `User.role` enum sufficient for v1 |
-| Embedded map display | Place details + address sufficient for v1 |
-| Yelp / Foursquare | Provider abstraction makes this a clean add later |
-| Mobile app | API-first architecture ensures it's possible — build web first |
+| Item                                    | Reason for full deferral                                                               |
+| --------------------------------------- | -------------------------------------------------------------------------------------- |
+| Photos + ratings                        | Needs storage infrastructure + photo moderation policy + post-brunch status activation |
+| Calendar integration                    | OAuth scope + token encryption strategy decisions needed first                         |
+| External sharing                        | Deep-link only approach for now — no tables needed short term                          |
+| Recommendations engine                  | No schema until approach decided + enough data exists                                  |
+| Bill splitting                          | Out of brunch-planning scope entirely                                                  |
+| Mid-brunch features                     | Out of brunch-planning scope entirely                                                  |
+| Push notifications                      | Email sufficient for web v1                                                            |
+| `RateLimitLog`                          | Use Upstash Redis with TTL keys — not a DB table                                       |
+| `LegalDocument` / `UserLegalAcceptance` | No legal docs written yet                                                              |
+| `Role` / `UserRole` tables              | Simple `User.role` enum sufficient for v1                                              |
+| Embedded map display                    | Place details + address sufficient for v1                                              |
+| Yelp / Foursquare                       | Provider abstraction makes this a clean add later                                      |
+| Mobile app                              | API-first architecture ensures it's possible — build web first                         |
 
 ---
 
@@ -853,6 +898,7 @@ UserFavoritePlace {
 ```
 
 **Design notes:**
+
 - Store our own table — never depend on Google to hold favorites. Your data, your control.
 - Mirror fields from `BrunchLocation` for consistency
 - Surfaces in: brunch creation ("Pick from favorites"), suggestions, profile page
@@ -890,6 +936,7 @@ UserIngredientPreference {
 ```
 
 **Design notes:**
+
 - Tag-based over free-text — enables matching/recommendations
 - `allergic` for ingredients matters for safety surfacing in group brunches
 - Lookup tables curated initially, possibly user-extensible later
@@ -946,6 +993,7 @@ FriendGroupMember {
 ```
 
 **Design notes:**
+
 - Friend groups are owned by one user — not collaborative groups
 - Inviting a group = shortcut that generates individual `BrunchInvite` rows for each member
 - Friendship required before adding to a group (or relax this if too restrictive)
@@ -1011,18 +1059,21 @@ UserPlaceRating {
 ```
 
 **Design notes:**
+
 - Separate experience rating (the brunch with friends) from location rating (the restaurant) — they're different things
 - `UserPlaceRating` is portable — you can rate a place without it being tied to a brunch
 - Multiple ratings per place over time allowed (`visitedAt` discriminates)
 - This data becomes powerful for personalized suggestions later
 
 **Storage requirements:**
+
 - Add **Supabase Storage** (or S3) for photo uploads
 - Image processing — resize/compress on upload via Inngest function
 - CDN delivery for photos (Supabase Storage has this built-in)
 - Photo moderation policy needs thought before launch
 
 **Status flow updates required:**
+
 - The `brunching`, `paying`, `completed` statuses (already defined as inactive in v1) become active when post-brunch features ship
 - Photos and ratings only allowed in `brunching` and later statuses
 
@@ -1070,6 +1121,7 @@ BrunchCalendarEvent {
 **Calendar Availability Reading (Medium effort)**
 
 OAuth scope `calendar.readonly` lets you read free/busy times. Useful for:
+
 - Suggesting brunch times when everyone's free
 - Warning host about scheduling conflicts
 
@@ -1077,14 +1129,15 @@ OAuth scope `calendar.readonly` lets you read free/busy times. Useful for:
 
 **Posting Reviews to External Services (Hard — partial possible)**
 
-| Service | Programmatic Posting | Workaround |
-|---------|---------------------|------------|
-| Google Maps reviews | ❌ No public API | Deep-link to review form |
-| Yelp reviews | ❌ Partnership only | Deep-link to Yelp |
-| Foursquare | ❌ Limited | Deep-link |
-| Instagram | ❌ Closed off | Share image to user's device |
+| Service             | Programmatic Posting | Workaround                   |
+| ------------------- | -------------------- | ---------------------------- |
+| Google Maps reviews | ❌ No public API     | Deep-link to review form     |
+| Yelp reviews        | ❌ Partnership only  | Deep-link to Yelp            |
+| Foursquare          | ❌ Limited           | Deep-link                    |
+| Instagram           | ❌ Closed off        | Share image to user's device |
 
 **Reality check:** Posting reviews programmatically to most platforms isn't supported. The realistic feature is:
+
 - **Deep links** — "Share to Google Maps" opens the review form pre-populated
 - **Image sharing** — generate a shareable photo card the user can post manually
 - **Native share sheets** — on mobile, the OS handles cross-app sharing
@@ -1126,6 +1179,7 @@ UserExternalIntegration {
 ```
 
 **Critical security notes:**
+
 - All tokens encrypted at rest (Postgres `pgcrypto` or app-level encryption)
 - Never expose tokens to frontend — all API calls go through backend
 - Track scopes granted — re-prompt user if scope expansion needed
@@ -1138,6 +1192,7 @@ UserExternalIntegration {
 This isn't a feature itself but the system that makes preferences valuable.
 
 **What it consumes:**
+
 - `UserFavoritePlace` — places user already loves
 - `UserDishPreference` / `UserIngredientPreference` — taste profile
 - `UserPlaceRating` — what user actually liked vs. didn't
@@ -1147,11 +1202,13 @@ This isn't a feature itself but the system that makes preferences valuable.
 - Time of day, neighborhood, dietary needs
 
 **What it produces:**
+
 - Suggestions during brunch creation ("3 places your crew might love")
 - Personalized homepage feed (deferred from v1, comes back here)
 - "Surprise me" feature — let the app pick
 
 **Architecture:**
+
 - Likely starts as Postgres queries + simple scoring
 - Graduates to a separate recommendations service when complexity warrants
 - Don't build until you have data — recommendations without data are random
@@ -1162,18 +1219,18 @@ This isn't a feature itself but the system that makes preferences valuable.
 
 If implemented in this order, each unlocks value for the next:
 
-| Order | Theme | Why this order |
-|-------|-------|----------------|
-| 1 | **Friends + Friend Groups** | Foundation for everything social. Removes invite friction immediately. |
-| 2 | **Calendar Export (.ics)** | Easy win, no OAuth needed, completes the planning loop. |
-| 3 | **Favorite Locations** | Builds quickly on existing place data. Reduces brunch creation friction. |
-| 4 | **Group Chat (already deferred)** | Best added once social graph exists. |
-| 5 | **Photos + Ratings** | Activates `brunching`/`completed` statuses. Requires storage infrastructure. |
-| 6 | **Favorite Dishes/Ingredients** | Data collection layer for recommendations. |
-| 7 | **Calendar Availability (OAuth)** | Sensitive data, builds on calendar export trust. |
-| 8 | **Recommendations Engine** | Needs all the above as input. |
-| 9 | **External sharing** | Polish layer once core experience is solid. |
-| 10 | **Bill splitting (already deferred)** | Mid-brunch feature, lowest planning-loop value. |
+| Order | Theme                                 | Why this order                                                               |
+| ----- | ------------------------------------- | ---------------------------------------------------------------------------- |
+| 1     | **Friends + Friend Groups**           | Foundation for everything social. Removes invite friction immediately.       |
+| 2     | **Calendar Export (.ics)**            | Easy win, no OAuth needed, completes the planning loop.                      |
+| 3     | **Favorite Locations**                | Builds quickly on existing place data. Reduces brunch creation friction.     |
+| 4     | **Group Chat (already deferred)**     | Best added once social graph exists.                                         |
+| 5     | **Photos + Ratings**                  | Activates `brunching`/`completed` statuses. Requires storage infrastructure. |
+| 6     | **Favorite Dishes/Ingredients**       | Data collection layer for recommendations.                                   |
+| 7     | **Calendar Availability (OAuth)**     | Sensitive data, builds on calendar export trust.                             |
+| 8     | **Recommendations Engine**            | Needs all the above as input.                                                |
+| 9     | **External sharing**                  | Polish layer once core experience is solid.                                  |
+| 10    | **Bill splitting (already deferred)** | Mid-brunch feature, lowest planning-loop value.                              |
 
 ---
 
@@ -1189,6 +1246,7 @@ SharePlatform:           google_maps, yelp, instagram, twitter, native_share
 ```
 
 Already-defined inactive statuses become active:
+
 ```
 BrunchStatus:  brunching → active when photos/ratings ship
                paying → active when bill splitting ships
@@ -1229,6 +1287,7 @@ brunchsters/
 ```
 
 ### Rationale
+
 - **One repo to start** — no cross-repo coordination, faster to ship
 - **`packages/core` is framework-agnostic** — when mobile app eventually exists, it imports this package directly. No business logic rewrite.
 - **`packages/database` is the schema source** — Prisma schema, migrations, seed scripts all live together. No separate "data" repo (migrations are tightly coupled to the model — splitting them creates sync headaches).
@@ -1236,6 +1295,7 @@ brunchsters/
 - **`docs/PLANNING.md` lives in the repo** — git history is the design audit trail; PRs are how decisions get committed.
 
 ### When to split into multiple repos
+
 - Mobile app with different release cycle → mobile gets own repo
 - Team with ownership boundaries
 - API needs independent deploy from frontend
@@ -1243,6 +1303,7 @@ brunchsters/
 For solo side project: don't split. Premature.
 
 ### Tools to consider
+
 - **Turborepo** — handles the monorepo build caching well, popular with Next.js
 - **pnpm workspaces** — package management for the monorepo
 - Both are optional for v1 — npm workspaces work fine to start
@@ -1262,6 +1323,7 @@ For solo side project: don't split. Premature.
 9. **UI** — host flow, invitee flow, dashboard
 
 ### Setup tasks parallel to development
+
 - GitHub repo + branch protection
 - CI pipeline (lint, typecheck, test on every PR)
 - Vercel project linked to GitHub (auto-deploy)
@@ -1276,6 +1338,7 @@ For solo side project: don't split. Premature.
 ## 17. Open Questions / Future Decisions
 
 ### Resolved
+
 - **Invite token expiry** — 7 days after the scheduled brunch date. Hosts can revoke and regenerate at any time.
 - **Calendar integration** — Google Calendar add-to-calendar chip is v1 (one-tap, no OAuth, disabled until location + time locked). Full calendar export (.ics) and availability reading are v2.
 - **Realtime mechanism** — Supabase Realtime for v1. Sufficient for early scale; re-evaluate if vote-animation latency becomes a UX issue.
@@ -1283,6 +1346,7 @@ For solo side project: don't split. Premature.
 - **Push notification provider** — Deferred to v2 ADR. Candidates: OneSignal (easiest multi-platform) vs. native APNs/FCM. Decide when push scope is specced.
 
 ### Still Open
+
 - Pricing/monetization model (reservations affiliate? premium features? restaurant partnerships?)
 - ToS and Privacy Policy (will need before public launch)
 - Email digest vs. immediate per-event email

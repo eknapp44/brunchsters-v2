@@ -7,19 +7,19 @@
 
 ## M1 — `createBrunch` service + integration test
 
-- [ ] Update `packages/database/src/seed.ts` — add 4 missing `NotificationType` codes:
+- [x] Update `packages/database/src/seed.ts` — add 4 missing `NotificationType` codes:
   - `brunch.cancelled` ("Brunch Cancelled", sortOrder 9)
   - `vote.autoclose.prompted` ("Vote Auto-Close Prompted", sortOrder 10)
   - `running.late` ("Running Late", sortOrder 11)
   - `host.transferred` ("Host Transferred", sortOrder 12)
-- [ ] Run `pnpm db:seed` and verify `NotificationType` row count is 12; run again to confirm idempotency
-- [ ] Write `docs/adrs/0005-defer-next-intl.md` — defer i18n plumbing to pre-launch; amend PLANNING.md §9.12 with a pointer to the ADR
-- [ ] Update `packages/core/src/places/PlaceProvider.ts`:
+- [x] Run `pnpm db:seed` and verify `NotificationType` row count is 12; run again to confirm idempotency
+- [x] Write `docs/adrs/0005-defer-next-intl.md` — defer i18n plumbing to pre-launch; amend PLANNING.md §9.12 with a pointer to the ADR
+- [x] Update `packages/core/src/places/PlaceProvider.ts`:
   - `search(params: { query: string; sessionToken?: string })` / `getDetails(params: { placeId: string; sessionToken?: string })`
   - `PlaceResult` slims to `{ placeId, name, address }`; `placeUrl` moves to `PlaceDetails`
-- [ ] Add `packages/core/src/events/NoopEventBus.ts` — implements `EventBus`, `emit` resolves immediately; export from index
-- [ ] Add `zod` as a dependency of `packages/core`
-- [ ] Implement `packages/core/src/brunch/createBrunch.ts`:
+- [x] Add `packages/core/src/events/NoopEventBus.ts` — implements `EventBus`, `emit` resolves immediately; export from index
+- [x] Add `zod` as a dependency of `packages/core`
+- [x] Implement `packages/core/src/brunch/createBrunch.ts`:
   - `createBrunchRequestSchema` (Zod) — title 1–100, description ≤500 optional, locations/times arrays defaulting to `[]`, `votingDeadline` optional ISO datetime with future-only `.refine`
   - `CreateBrunchRequest = z.infer<...>`; `CreateBrunchInput = CreateBrunchRequest & { hostId: UserId }`
   - Wrap all DB writes in `prisma.$transaction`:
@@ -32,11 +32,11 @@
     - Times: same rule on `times.length`, independent of locations
   - After commit: `ctx.eventBus.emit('brunch/created', { brunchId, hostId })` in try/catch — emit failure logged, never fails the create
   - Return `Ok({ id })`; `Err({ kind: 'db_error' | 'lookup_not_found', ... })` on failure
-- [ ] Implement `packages/core/src/brunch/getBrunchById.ts`:
+- [x] Implement `packages/core/src/brunch/getBrunchById.ts`:
   - `getBrunchById(input: { brunchId: BrunchId; viewerId: UserId }, ctx)` → `BrunchDetail | undefined`
   - Returns `undefined` unless brunch exists, `deletedAt IS NULL`, **and viewer is host or non-deleted attendee**
-- [ ] Export `createBrunch`, `getBrunchById`, `createBrunchRequestSchema`, `NoopEventBus`, and types from `packages/core/src/index.ts`
-- [ ] Write `packages/core/src/brunch/createBrunch.test.ts` — unit tests (mock `DbClient` + mock `EventBus`):
+- [x] Export `createBrunch`, `getBrunchById`, `createBrunchRequestSchema`, `NoopEventBus`, and types from `packages/core/src/index.ts`
+- [x] Write `packages/core/src/brunch/createBrunch.test.ts` — unit tests (mock `DbClient` + mock `EventBus`):
   - No locations + no times
   - 1 location → `host_decides`; 2 locations → `group_vote`
   - 1 time → `host_decides`; 2 times → `group_vote`
@@ -47,14 +47,14 @@
   - Emit throwing does **not** fail the create (still `Ok`)
   - `Err({ kind: 'db_error' })` on transaction failure
   - `Err({ kind: 'lookup_not_found' })` on missing lookup row
-- [ ] Write `packages/core/src/brunch/createBrunch.integration.test.ts` — against local Postgres:
+- [x] Write `packages/core/src/brunch/createBrunch.integration.test.ts` — against local Postgres:
   - 0 locations + 0 times: `Brunch`, `BrunchInvite`, `BrunchAttendee` rows created; invite already expired
   - 1 location → `host_decides`; 2 locations → both rows `group_vote`
   - Same for times
   - `afterAll` cleanup by brunchId; requires `supabase start` + seeded lookups
-- [ ] Write `packages/core/src/brunch/getBrunchById.test.ts` — found as host, found as attendee, not found, soft-deleted → undefined, **non-member viewer → undefined**
-- [ ] `pnpm typecheck && pnpm lint && pnpm test --filter @brunchsters/core` pass
-- [ ] Commit: `feat: createBrunch and getBrunchById services with unit and integration tests (M1)`
+- [x] Write `packages/core/src/brunch/getBrunchById.test.ts` — found as host, found as attendee, not found, soft-deleted → undefined, **non-member viewer → undefined**
+- [x] `pnpm typecheck && pnpm lint && pnpm test --filter @brunchsters/core` pass
+- [x] Commit: `feat: createBrunch and getBrunchById services with unit and integration tests (M1)`
 
 ---
 
@@ -201,10 +201,10 @@ _(Filled in after each milestone completes)_
 
 ### M1 — Unit + integration tests for `createBrunch` / `getBrunchById`
 
-- **What was tested:** TBD
-- **How:** TBD
-- **What's deferred:** TBD
-- **How to run:** `pnpm --filter @brunchsters/core test` (unit); `supabase start && pnpm --filter @brunchsters/core test:integration` (integration)
+- **What was tested:** All `createBrunch` paths — 0/1/2+ locations and times with independent decision-type inference, votingDeadline storage, born-expired synthetic invite, host attendee with yes RSVP, `brunch/created` emission (including emit-failure-still-Ok and no-emit-on-tx-failure), `db_error` and `lookup_not_found` errors. Schema rejection cases (missing/oversized title, past votingDeadline, invalid IANA timezone). `getBrunchById` authorization: host sees it, non-member gets `undefined`. Seed idempotency verified (12 `NotificationType` rows after two runs).
+- **How:** 18 unit tests (mock `DbClient` + mock `EventBus`) + 4 `getBrunchById` unit tests; 7 integration tests against local Supabase Postgres including a cross-user access check with two real users. Mocked nothing in integration.
+- **What's deferred:** `getBrunchById` "found as attendee (not host)" only covered at the query-shape level in unit tests — real-DB attendee-access case lands with the invite flow (spec 0004) when non-host attendees can exist.
+- **How to run:** `pnpm --filter @brunchsters/core test` (unit); `supabase start && pnpm db:seed && pnpm --filter @brunchsters/core test:integration` (integration)
 
 ### M2 — Unit tests for `getBrunchesForUser`
 
