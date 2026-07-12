@@ -1,3 +1,17 @@
+# [1.1.0](https://github.com/eknapp44/brunchsters-v2/compare/v1.0.0...v1.1.0) (2026-07-12)
+
+### Bug Fixes
+
+- resolve monorepo env and Prisma externals issues blocking auth ([cdafa87](https://github.com/eknapp44/brunchsters-v2/commit/cdafa87ebafa9799aa2286d6d7ad3cb2ff159b12))
+- wire Google OAuth credentials explicitly in auth.ts ([e1ec957](https://github.com/eknapp44/brunchsters-v2/commit/e1ec9572094d9fa417239eff01ce70e69fa15e7f))
+
+### Features
+
+- add middleware for route protection with callbackUrl redirect (M3) ([f66e43f](https://github.com/eknapp44/brunchsters-v2/commit/f66e43f367f7b7776a0e0edf2a724205daa3e12d))
+- install Auth.js v5 and wire Google OAuth route handler (M1) ([bd2769c](https://github.com/eknapp44/brunchsters-v2/commit/bd2769cda5a1ed1dea67724bc431eedf155e538e))
+- persist User and UserAuthProvider on sign-in (M2) ([327703d](https://github.com/eknapp44/brunchsters-v2/commit/327703dbc204f0f9b0686495f41ab958e9528400))
+- sign-in page, nav avatar, and sign-out action (M4) ([e6913ef](https://github.com/eknapp44/brunchsters-v2/commit/e6913ef0777cc077163344c16add263d86882c6c))
+
 # 1.0.0 (2026-06-14)
 
 ### Bug Fixes
