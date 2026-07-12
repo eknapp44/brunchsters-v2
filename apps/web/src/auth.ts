@@ -52,6 +52,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return token;
     },
     async session({ session, token }) {
+      // TODO: replace cast with JWT interface augmentation once Auth.js v5 types stabilise.
+      // Augmenting next-auth/jwt conflicted with internal Auth.js v5 type references.
       const userId = (token as Record<string, unknown>)['userId'];
       if (typeof userId === 'string') {
         session.user.id = userId;
