@@ -54,7 +54,7 @@ Auth.js calls our `signIn` callback with the Google profile. We:
    - If yes → link this provider to the existing user (same person, new provider)
    - If no → create `User` + `UserAuthProvider` (brand new user)
 
-This logic lives in `packages/core/src/auth/signInCallback.ts` — not in the route handler.
+This logic lives in `packages/core/src/auth/signInWithProvider.ts` — not in the route handler.
 
 ### Route protection via middleware
 
@@ -75,13 +75,13 @@ Auth.js v5 supports `callbackUrl` natively. When an unauthenticated user hits a 
 
 ### M1 — Auth.js v5 install + Google provider + route handler
 
-Install `next-auth@beta` and `@auth/prisma-adapter`. Configure `auth.ts` with Google provider and database session strategy. Wire `[...nextauth]/route.ts`. Verify Google OAuth flow completes end-to-end with a working session — no DB persistence yet (use Auth.js's built-in session table temporarily).
+Install `next-auth@beta`. Configure `auth.ts` with Google provider and JWT session strategy (Prisma adapter not used — see session strategy note above). Wire `[...nextauth]/route.ts`. Verify Google OAuth flow completes end-to-end with a working session.
 
 **Done when:** You can sign in with Google and `auth()` returns a session in a server component.
 
 ### M2 — User upsert + UserAuthProvider persistence
 
-Implement `signInCallback` in `packages/core/src/auth/`. On sign-in: look up by `providerUserId`, create or link `User` + `UserAuthProvider`. Write unit tests for the upsert logic (mock Prisma). Hook callback into `auth.ts`.
+Implement `signInWithProvider` in `packages/core/src/auth/`. On sign-in: look up by `providerUserId`, create or link `User` + `UserAuthProvider`. Write unit + integration tests. Hook into `auth.ts` `jwt` callback.
 
 **Done when:** First sign-in creates DB rows; repeat sign-in reuses them. Tests pass.
 
@@ -103,16 +103,17 @@ Build `/sign-in` page with "Sign in with Google" button. Add user avatar + name 
 
 ```
 next-auth@beta
-@auth/prisma-adapter
+@prisma/client (direct dep of apps/web — required for Turbopack externals resolution)
 ```
 
-No other new dependencies. `@prisma/client` already available via `@brunchsters/database`.
+`@auth/prisma-adapter` is **not used** — see JWT session decision above.  
+`@brunchsters/database` added as a direct dep of both `apps/web` and `packages/core`.
 
 ---
 
 ## Testing Strategy
 
-- **Unit:** `signInCallback` logic in `packages/core` — new user, existing user (repeat sign-in), existing email different provider. Mock Prisma client.
-- **Integration:** Not in this spec — full invite flow is tested when the invite feature is built.
+- **Unit:** `signInWithProvider` logic in `packages/core` — new user, existing user (repeat sign-in), existing email different provider, db error. Mock Prisma client. (`pnpm test --filter @brunchsters/core`)
+- **Integration:** `signInWithProvider` against real local Postgres — all three paths verified including DB row creation and `lastLoginAt` update. Requires `supabase start`. (`pnpm --filter @brunchsters/core test:integration`)
 - **Manual:** Google OAuth end-to-end in the browser at M4.
 - **Not tested:** Middleware redirect logic (Next.js framework guarantee), Auth.js internals.
