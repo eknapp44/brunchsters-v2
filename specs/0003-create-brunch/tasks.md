@@ -60,21 +60,21 @@
 
 ## M2 — `getBrunchesForUser` service + unit tests
 
-- [ ] Implement `packages/core/src/brunch/getBrunchesForUser.ts`:
+- [x] Implement `packages/core/src/brunch/getBrunchesForUser.ts`:
   - Query `BrunchAttendee` where `userId = input.userId AND deletedAt IS NULL`
   - Include `Brunch` (`deletedAt IS NULL`) + `BrunchStatus`
   - `goingCount`: `_count` of attendees where `deletedAt: null` **and** `rsvpStatus.countsAsAttendee = true`
   - Sort by `brunch.createdAt DESC`
   - Map to `BrunchSummary[]`; `isHost = brunch.hostId === input.userId`
-- [ ] Export `getBrunchesForUser` + `BrunchSummary` from `packages/core/src/index.ts`
-- [ ] Write `packages/core/src/brunch/getBrunchesForUser.test.ts` — mock DbClient:
+- [x] Export `getBrunchesForUser` + `BrunchSummary` from `packages/core/src/index.ts`
+- [x] Write `packages/core/src/brunch/getBrunchesForUser.test.ts` — mock DbClient:
   - No attendee records → `[]`
   - Host of one brunch → `isHost = true`
   - Attendee (not host) → `isHost = false`
   - Soft-deleted `BrunchAttendee` / `Brunch` rows excluded
   - `goingCount` excludes `invited`/`no`/`maybe` RSVPs (only `countsAsAttendee = true`)
-- [ ] `pnpm typecheck && pnpm lint && pnpm test --filter @brunchsters/core` pass
-- [ ] Commit: `feat: getBrunchesForUser service with unit tests (M2)`
+- [x] `pnpm typecheck && pnpm lint && pnpm test --filter @brunchsters/core` pass
+- [x] Commit: `feat: getBrunchesForUser service with unit tests (M2)`
 
 ---
 
@@ -208,9 +208,9 @@ _(Filled in after each milestone completes)_
 
 ### M2 — Unit tests for `getBrunchesForUser`
 
-- **What was tested:** TBD
-- **How:** TBD
-- **What's deferred:** TBD
+- **What was tested:** Empty result for users with no brunches; `isHost` mapping for hosted vs attended brunches; `goingCount` taken from the filtered relation count; query-shape assertion verifying the joined brunch filters `deletedAt: null` explicitly and the count is restricted to live attendees with `countsAsAttendee = true`.
+- **How:** 5 unit tests with a mocked `DbClient`. Soft-delete exclusion is covered at the query-shape level — the top-level `BrunchAttendee` filter comes from the database package's soft-delete extension (tested there), the join filter is asserted here.
+- **What's deferred:** Real-DB verification of the filtered `_count` behavior — rides along free once the dashboard is exercised in M5/M6 browser tests; no separate integration test since the query is a single read with no branching.
 - **How to run:** `pnpm --filter @brunchsters/core test`
 
 ### M3 — Route handler unit tests + middleware 401

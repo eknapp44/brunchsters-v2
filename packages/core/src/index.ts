@@ -16,3 +16,5 @@ export type {
 } from './brunch/createBrunch';
 export { getBrunchById } from './brunch/getBrunchById';
 export type { BrunchDetail } from './brunch/getBrunchById';
+export { getBrunchesForUser } from './brunch/getBrunchesForUser';
+export type { BrunchSummary } from './brunch/getBrunchesForUser';
