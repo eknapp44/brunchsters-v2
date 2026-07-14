@@ -11,6 +11,11 @@ export default auth((req) => {
     PUBLIC_ROUTES.has(pathname) || PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 
   if (!req.auth && !isPublic) {
+    // API clients get a 401, not a 307 to an HTML sign-in page —
+    // fetch follows redirects silently and the failure becomes confusing.
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     const signInUrl = new URL('/sign-in', req.url);
     signInUrl.searchParams.set('callbackUrl', pathname);
     return NextResponse.redirect(signInUrl);
