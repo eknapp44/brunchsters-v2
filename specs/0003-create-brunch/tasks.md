@@ -80,26 +80,26 @@
 
 ## M3 — Brunch API routes + middleware fix
 
-- [ ] Update `apps/web/src/middleware.ts` — unauthenticated request to a path starting with `/api/` returns `NextResponse.json({ error: 'Unauthorized' }, { status: 401 })`; page routes keep the `/sign-in?callbackUrl=` redirect
-- [ ] Verify manually: unauthenticated `curl http://localhost:3000/api/v1/brunches` → 401 JSON (not 307)
-- [ ] Create `apps/web/src/app/api/v1/brunches/route.ts`:
+- [x] Update `apps/web/src/middleware.ts` — unauthenticated request to a path starting with `/api/` returns `NextResponse.json({ error: 'Unauthorized' }, { status: 401 })`; page routes keep the `/sign-in?callbackUrl=` redirect
+- [x] Verify manually: unauthenticated `curl http://localhost:3000/api/v1/brunches` → 401 JSON (not 307)
+- [x] Create `apps/web/src/app/api/v1/brunches/route.ts`:
   - **POST:**
     - `auth()` → 401 if no session
     - Parse body with `createBrunchRequestSchema` **imported from `@brunchsters/core`** (no local schema)
-    - 422 on validation failure with `{ errors: zodError.flatten() }`
+    - 422 on validation failure with `{ errors: zodError.issues }` (zod v4 — `.flatten()` deprecated)
     - `createBrunch({ ...parsed, hostId: session.user.id as UserId }, { db, eventBus: new NoopEventBus() })`
     - `Err` → 500; `Ok` → 201 `{ id, title, status: 'draft' }`
   - **GET:**
     - `auth()` → 401 if no session
     - `getBrunchesForUser({ userId }, { db })` → 200 `{ brunches: BrunchSummary[] }`
-- [ ] Write `apps/web/src/app/api/v1/brunches/route.test.ts` — mock services via `vi.mock`:
+- [x] Write `apps/web/src/app/api/v1/brunches/route.test.ts` — mock services via `vi.mock`:
   - POST 201 on valid input
   - POST 422 on missing title
   - POST 401 on no session
   - GET 200 returns brunch list
   - GET 401 on no session
-- [ ] `pnpm typecheck && pnpm lint && pnpm test` pass
-- [ ] Commit: `feat: brunch API routes and 401 middleware handling for API paths (M3)`
+- [x] `pnpm typecheck && pnpm lint && pnpm test` pass
+- [x] Commit: `feat: brunch API routes and 401 middleware handling for API paths (M3)`
 
 ---
 
@@ -215,10 +215,10 @@ _(Filled in after each milestone completes)_
 
 ### M3 — Route handler unit tests + middleware 401
 
-- **What was tested:** TBD
-- **How:** TBD
-- **What's deferred:** TBD
-- **How to run:** `pnpm test`
+- **What was tested:** POST — 401 without session, 422 on missing title (real schema, only services mocked), 400 on non-JSON body, 201 with correct response shape, 500 on service `Err`, and a hostId-smuggling check confirming the session identity always wins over anything in the body. GET — 401 without session, 200 with the list scoped to the session user. Middleware — unauthenticated `/api/v1/brunches` returns 401 JSON while `/dashboard` still 307-redirects with `callbackUrl`.
+- **How:** 8 route handler unit tests with `vi.mock` on `@/auth`, `@/lib/db`, and the core services — `createBrunchRequestSchema` deliberately kept real so validation is exercised. Middleware verified manually via curl against `pnpm dev` (both the API 401 and page redirect cases).
+- **What's deferred:** No automated middleware test (framework redirect mechanics, per testing policy). Authenticated end-to-end POST through a real session lands in the M6 browser flow.
+- **How to run:** `pnpm --filter @brunchsters/web test`; middleware check: `pnpm dev` then `curl -i http://localhost:3000/api/v1/brunches`
 
 ### M4 — Manual verification of places routes
 
