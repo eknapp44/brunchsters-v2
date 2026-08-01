@@ -1,3 +1,20 @@
+# [1.2.0](https://github.com/eknapp44/brunchsters-v2/compare/v1.1.0...v1.2.0) (2026-08-01)
+
+### Bug Fixes
+
+- add placeholder Google OAuth env vars to CI build job ([902d764](https://github.com/eknapp44/brunchsters-v2/commit/902d7646fbd49a45787f50aa985231ce2c4b8a60))
+- address code review findings on error handling and API hardening ([c7d6bf1](https://github.com/eknapp44/brunchsters-v2/commit/c7d6bf1938c72fc9b35b0701e81f33aa007eafda))
+- set Turborepo envMode to loose so CI build actually sees its env vars ([6c2f251](https://github.com/eknapp44/brunchsters-v2/commit/6c2f251cb9bbfceb1fe0083133848868af691455))
+
+### Features
+
+- brunch API routes and 401 middleware handling for API paths (M3) ([878da69](https://github.com/eknapp44/brunchsters-v2/commit/878da69af7da32d31411386916006781cd831b62))
+- Create Brunch wizard and brunch detail page stub (M6) ([dd9e98b](https://github.com/eknapp44/brunchsters-v2/commit/dd9e98b1b293234c960a63d2996a9c1e98460291))
+- createBrunch and getBrunchById services with unit and integration tests (M1) ([d5ba696](https://github.com/eknapp44/brunchsters-v2/commit/d5ba69669a66489188209573e33b863188068281))
+- dashboard with brunch list empty state and Plan a Brunch CTA (M5) ([eccdd1b](https://github.com/eknapp44/brunchsters-v2/commit/eccdd1bb5bc53b2329ef02a8b577a3129c72868a))
+- getBrunchesForUser service with unit tests (M2) ([ba3b89f](https://github.com/eknapp44/brunchsters-v2/commit/ba3b89fca0c70d88d5cdc5c87708cf2a61f2fee6))
+- GooglePlacesProvider with Autocomplete sessions and places proxy routes (M4) ([292dbd1](https://github.com/eknapp44/brunchsters-v2/commit/292dbd1a67bbc6f97e8464ebdab1b4395ef25d78))
+
 # [1.1.0](https://github.com/eknapp44/brunchsters-v2/compare/v1.0.0...v1.1.0) (2026-07-12)
 
 ### Bug Fixes
