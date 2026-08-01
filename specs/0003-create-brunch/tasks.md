@@ -105,28 +105,28 @@
 
 ## M4 — `GooglePlacesProvider` + places API routes
 
-- [ ] Create a Maps API key in Google Cloud Console; enable **Places API (New)** and **Time Zone API**; restrict the key to those APIs
-- [ ] Add `GOOGLE_PLACES_API_KEY=` to `apps/web/.env.local`
-- [ ] Add `GOOGLE_PLACES_API_KEY=your_maps_api_key_here` to `.env.example` with comment: `# Google Maps API key (Places API (New) + Time Zone API) — NOT the OAuth client credentials`
-- [ ] Implement `apps/web/src/adapters/GooglePlacesProvider.ts` (`implements PlaceProvider`, constructor takes `apiKey`):
+- [x] Create a Maps API key in Google Cloud Console; enable **Places API (New)** and **Time Zone API**; restrict the key to those APIs
+- [x] Add `GOOGLE_PLACES_API_KEY=` to `apps/web/.env.local`
+- [x] Add `GOOGLE_PLACES_API_KEY=your_maps_api_key_here` to `.env.example` with comment: `# Google Maps API key (Places API (New) + Time Zone API) — NOT the OAuth client credentials`
+- [x] Implement `apps/web/src/adapters/GooglePlacesProvider.ts` (`implements PlaceProvider`, constructor takes `apiKey`):
   - `search({ query, sessionToken })`: POST `https://places.googleapis.com/v1/places:autocomplete`, body `{ input: query, sessionToken, languageCode: 'en' }`; map `suggestions[].placePrediction` → `PlaceResult` (name = `structuredFormat.mainText.text`, address = `structuredFormat.secondaryText.text`)
   - `getDetails({ placeId, sessionToken })`:
     - GET `https://places.googleapis.com/v1/places/${placeId}?sessionToken=...`, field mask `id,displayName,formattedAddress,googleMapsUri,location` (token closes the billing session)
     - GET Time Zone API with `location.latitude,longitude` + current unix timestamp → `timeZoneId`
     - Return `PlaceDetails` (incl. `placeUrl = googleMapsUri`, `timezone = timeZoneId as IanaTimezone`)
     - `undefined` on 404 from Place Details; throw on other non-2xx
-- [ ] Create `apps/web/src/app/api/v1/places/search/route.ts`:
+- [x] Create `apps/web/src/app/api/v1/places/search/route.ts`:
   - GET: `q` required and ≥3 chars → 400 otherwise; `sessionToken` optional pass-through
-  - `new GooglePlacesProvider(process.env.GOOGLE_PLACES_API_KEY!)` → `search()` → 200 `{ places }`
+  - `new GooglePlacesProvider(<validated GOOGLE_PLACES_API_KEY>)` → `search()` → 200 `{ places }`
   - Catch → 502 `{ error: 'Place search unavailable' }`
-- [ ] Create `apps/web/src/app/api/v1/places/[placeId]/route.ts`:
+- [x] Create `apps/web/src/app/api/v1/places/[placeId]/route.ts`:
   - GET: `getDetails()`; 404 if `undefined`; 200 `PlaceDetails`; catch → 502
-- [ ] Manual verification (curl or browser dev tools):
+- [x] Manual verification (browser, signed in — routes sit behind the auth middleware):
   - `GET /api/v1/places/search?q=brunch+chicago` returns predictions
-  - `GET /api/v1/places/[placeId]` returns details with `timezone: 'America/Chicago'`
+  - `GET /api/v1/places/[placeId]` returns details with correct `timezone`
   - `q=ab` (2 chars) returns 400
-- [ ] `pnpm typecheck && pnpm lint` pass
-- [ ] Commit: `feat: GooglePlacesProvider with Autocomplete sessions and places proxy routes (M4)`
+- [x] `pnpm typecheck && pnpm lint` pass
+- [x] Commit: `feat: GooglePlacesProvider with Autocomplete sessions and places proxy routes (M4)`
 
 ---
 
@@ -222,10 +222,10 @@ _(Filled in after each milestone completes)_
 
 ### M4 — Manual verification of places routes
 
-- **What was tested:** TBD
-- **How:** TBD
-- **What's deferred:** TBD
-- **How to run:** `pnpm dev` → curl or browser dev tools
+- **What was tested:** Live Google Places API (New) autocomplete, Place Details, and Time Zone API calls (verified directly via curl against Google before the routes existed, including diagnosing and fixing two real API-key setup issues — project-level `SERVICE_DISABLED` for Places API (New), then `API_KEY_SERVICE_BLOCKED` from the key's restriction list pointing at the legacy `places-backend.googleapis.com` instead of `places.googleapis.com`, fixed via `gcloud services api-keys update`). Then, with the routes built: `GET /api/v1/places/search?q=brunch+chicago` returns predictions, `GET /api/v1/places/[placeId]` returns details with the correct `timezone`, and `q=ab` (below the 3-char minimum) returns 400. Confirmed both routes correctly sit behind the existing auth middleware (401 without a session) since they proxy a paid, rate-limited external API.
+- **How:** Manual browser verification signed in as a real user (routes require a session, so a plain unauthenticated curl can't exercise the 200 paths — the underlying Google API calls were already curl-verified independently). No automated tests — `GooglePlacesProvider` wraps live HTTP per the plan's deferred-testing note.
+- **What's deferred:** `GooglePlacesProvider` has no unit tests (wraps live HTTP; a `MockPlaceProvider` can substitute for consumers that need one — see Deferred/Known Gaps). No rate limiting or response caching on the search route yet.
+- **How to run:** `pnpm dev`, sign in in the browser, then hit the routes directly (GET requests carry the session cookie automatically).
 
 ### M6 — Full browser flow
 
