@@ -39,15 +39,15 @@ Install these before anything else.
 
 You don't need all of these on day one. The "When" column tells you when each becomes necessary.
 
-| Service                   | Purpose                                                      | Free tier?                                                                | When you need it                                                                                                                     |
-| ------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| **GitHub**                | Source control + CI/CD (Actions)                             | Yes                                                                       | Now — already done                                                                                                                   |
-| **Supabase**              | Postgres + Realtime (prod/shared)                            | Yes, generous                                                             | When you want a shared/cloud DB. **Local dev needs none of this** — the CLI runs it locally. Create a cloud project when you deploy. |
-| **Vercel**                | App hosting + preview deploys                                | Yes (hobby)                                                               | When you first deploy. Not needed for local dev.                                                                                     |
-| **Resend**                | Transactional email                                          | Yes (limited sends)                                                       | When building/testing email flows for real. Locally, use the mock email service.                                                     |
-| **Google Cloud Platform** | Maps **Places API** + **Google OAuth** credentials           | Places API needs billing enabled (has free monthly credit); OAuth is free | OAuth: when wiring Google sign-in. Places: when wiring the location picker. Until then, mock both.                                   |
-| **Apple Developer**       | Sign in with Apple                                           | **No — $99/year**                                                         | Deferred. Build with Google sign-in first; add Apple closer to launch.                                                               |
-| **Inngest**               | Async job queue (running-late, undo-cancel, vote auto-close) | Yes                                                                       | When building queued side effects. Has a **local dev server** — no cloud account needed for local work.                              |
+| Service                   | Purpose                                                                 | Free tier?                                                                     | When you need it                                                                                                                     |
+| ------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| **GitHub**                | Source control + CI/CD (Actions)                                        | Yes                                                                            | Now — already done                                                                                                                   |
+| **Supabase**              | Postgres + Realtime (prod/shared)                                       | Yes, generous                                                                  | When you want a shared/cloud DB. **Local dev needs none of this** — the CLI runs it locally. Create a cloud project when you deploy. |
+| **Vercel**                | App hosting + preview deploys                                           | Yes (hobby)                                                                    | When you first deploy. Not needed for local dev.                                                                                     |
+| **Resend**                | Transactional email                                                     | Yes (limited sends)                                                            | When building/testing email flows for real. Locally, use the mock email service.                                                     |
+| **Google Cloud Platform** | **Places API (New)** + **Time Zone API** + **Google OAuth** credentials | Places/Time Zone need billing enabled (has free monthly credit); OAuth is free | OAuth: when wiring Google sign-in. Places/Time Zone: when wiring the location picker. Until then, mock both.                         |
+| **Apple Developer**       | Sign in with Apple                                                      | **No — $99/year**                                                              | Deferred. Build with Google sign-in first; add Apple closer to launch.                                                               |
+| **Inngest**               | Async job queue (running-late, undo-cancel, vote auto-close)            | Yes                                                                            | When building queued side effects. Has a **local dev server** — no cloud account needed for local work.                              |
 
 ### Recommended account order
 
@@ -55,9 +55,33 @@ You don't need all of these on day one. The "When" column tells you when each be
 2. **Nothing else** until the scaffold runs locally — local Supabase + mocks cover early work.
 3. **Google OAuth** when you reach the auth spec.
 4. **Resend** when you reach the email/notifications spec.
-5. **Google Places** when you reach the location-picker spec.
+5. **Google Places (New) + Time Zone API** when you reach the location-picker spec.
 6. **Vercel + cloud Supabase** when you're ready for the first deploy.
 7. **Apple Developer** last, near launch.
+
+### Troubleshooting: Google Places API key setup
+
+Two separate gates have to both be satisfied, and mixing them up produces different errors:
+
+1. **Enable the API on the project** (Cloud Console → APIs & Services → Library). Enabling the
+   legacy "Places API" does **not** enable "Places API (New)" — they're separate toggles. Using
+   the new one without enabling it fails with `SERVICE_DISABLED`.
+2. **Restrict the key to the right API** (Cloud Console → Credentials → the key → API
+   restrictions). The dropdown lists "Places API" and "Places API (New)" as separate entries with
+   different underlying service identifiers (`places-backend.googleapis.com` vs.
+   `places.googleapis.com`). Restricting to the legacy entry while calling the new API's endpoint
+   fails with `API_KEY_SERVICE_BLOCKED`, even though the API itself is enabled and the key is
+   otherwise valid.
+
+If you have the `gcloud` CLI installed, you can inspect and fix a key's restrictions directly
+instead of clicking through the console:
+
+```bash
+gcloud services api-keys list --project=<your-project-id>
+gcloud services api-keys update projects/<project-number>/locations/global/keys/<key-id> \
+  --api-target=service=places.googleapis.com \
+  --api-target=service=timezone-backend.googleapis.com
+```
 
 ---
 
@@ -126,7 +150,7 @@ Update `.env.example` whenever a new var is introduced.
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth                                   | Google Cloud Console → Credentials (when you reach auth)                                       |
 | `APPLE_CLIENT_ID` / `APPLE_CLIENT_SECRET`   | Apple Sign-In                                  | Deferred — leave unset until Apple work begins                                                 |
 | `RESEND_API_KEY`                            | Email sending                                  | Resend dashboard (mock locally until then)                                                     |
-| `GOOGLE_PLACES_API_KEY`                     | Location search                                | Google Cloud Console (mock locally until then)                                                 |
+| `GOOGLE_PLACES_API_KEY`                     | Location search + timezone lookup              | Google Cloud Console (mock locally until then) — server-only, never exposed to the client      |
 | `INNGEST_EVENT_KEY` / `INNGEST_SIGNING_KEY` | Job queue auth                                 | Inngest dashboard; local dev server runs without them                                          |
 | `TOKEN_ENCRYPTION_KEY`                      | AES-256-GCM key for OAuth token encryption     | `openssl rand -base64 32` — 32 bytes. **Never commit. Rotating it invalidates stored tokens.** |
 

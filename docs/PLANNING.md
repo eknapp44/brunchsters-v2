@@ -86,18 +86,18 @@ Brunchsters fills the gap between Google Maps and Google Calendar — making it 
 
 ## 3. Tech Stack
 
-| Layer            | Decision                                                          |
-| ---------------- | ----------------------------------------------------------------- |
-| Framework        | Next.js + TypeScript                                              |
-| State Management | Redux                                                             |
-| ORM              | Prisma                                                            |
-| Database         | PostgreSQL (Supabase)                                             |
-| Auth             | NextAuth.js (Google + Apple)                                      |
-| Realtime         | Supabase Realtime (v2)                                            |
-| Job Queue        | Inngest                                                           |
-| Email            | Resend + React Email                                              |
-| Hosting          | Vercel + Supabase                                                 |
-| Maps             | Google Maps Places API (abstracted via `PlaceProvider` interface) |
+| Layer            | Decision                                                                           |
+| ---------------- | ---------------------------------------------------------------------------------- |
+| Framework        | Next.js + TypeScript                                                               |
+| State Management | Redux                                                                              |
+| ORM              | Prisma                                                                             |
+| Database         | PostgreSQL (Supabase)                                                              |
+| Auth             | NextAuth.js (Google + Apple)                                                       |
+| Realtime         | Supabase Realtime (v2)                                                             |
+| Job Queue        | Inngest                                                                            |
+| Email            | Resend + React Email                                                               |
+| Hosting          | Vercel + Supabase                                                                  |
+| Maps             | Google Places API (New) + Time Zone API (abstracted via `PlaceProvider` interface) |
 
 ### Architectural Principles
 
@@ -766,37 +766,57 @@ Brunchsters needs job queues, not event streaming. Kafka is overkill for the for
 
 ## 11. Google Maps Integration
 
-### Two APIs Used
+### Three APIs Used
 
-- **Places API** — autocomplete search + place details
+- **Places API (New)** — autocomplete search + place details. Not the legacy "Places API" — a
+  distinct product with a different service identifier (`places.googleapis.com` vs.
+  `places-backend.googleapis.com`), enabled and key-restricted separately in Cloud Console.
+- **Time Zone API** — resolves a selected place's IANA timezone (`timeZoneId`) from its lat/lng.
+  Called once per place selection, alongside Place Details.
 - **Maps JavaScript API** — display maps (optional v1, fine to defer)
 
 ### What's Stored
 
-Four fields per location: `placeId`, `placeName`, `placeAddress`, `placeUrl`. Google not called again after place is selected.
+Five fields per location: `placeId`, `placeName`, `placeAddress`, `placeUrl`, `timezone` (IANA,
+e.g. `America/Chicago`). Google not called again after place is selected.
 
 ### Cost Optimization
 
-Only call Place Details on user selection, not on every keystroke. Autocomplete is cheap (~$2.83/1K), Details is more (~$17/1K). Google's $200/month free credit covers significant usage.
+Only call Place Details (+ Time Zone) on user selection, not on every keystroke. A **session
+token** (`crypto.randomUUID()`, generated client-side when the user starts typing) is passed on
+every autocomplete request and the final Place Details call, then discarded after selection — this
+groups a whole search-as-you-type sequence plus the details call into one Google billing session
+instead of billing each keystroke separately. Autocomplete is cheap (~$2.83/1K), Details is more
+(~$17/1K). Google's $200/month free credit covers significant usage.
 
 ### Provider Abstraction
 
 ```typescript
 interface PlaceProvider {
-  search(query: string): Promise<PlaceResult[]>;
-  getDetails(placeId: string): Promise<PlaceDetails>;
+  search(params: { query: string; sessionToken?: string }): Promise<readonly PlaceResult[]>;
+  getDetails(params: { placeId: string; sessionToken?: string }): Promise<PlaceDetails | undefined>; // undefined on 404 — place no longer exists
 }
 ```
 
-App talks to interface, never directly to Google. Swap or add (Yelp, Foursquare) later without touching app code.
+App talks to interface, never directly to Google. Swap or add (Yelp, Foursquare) later without
+touching app code. `GooglePlacesProvider` (the only implementation so far) lives in
+`apps/web/src/adapters/`, not `packages/core` — it wraps live HTTP and is unit-tested with a
+mocked `fetch` rather than the real API.
 
 ### API Key Setup
 
-- Two keys: dev and prod
-- HTTP referrer restriction (localhost / brunchsters.com)
-- API restriction (Places + Maps JS only)
-- Stored in `.env.local` (dev) and Vercel env vars (prod)
-- `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` prefix for client-side access (referrer restriction protects it)
+- **Server-only key, never sent to the browser.** `GOOGLE_PLACES_API_KEY` (no `NEXT_PUBLIC_`
+  prefix) is read only in Next.js route handlers (`/api/v1/places/*`), which the wizard calls
+  instead of hitting Google directly. This is a deviation from the original plan below — no
+  client-side Maps usage exists yet, so there's nothing to referrer-restrict; if the Maps
+  JavaScript API is ever added client-side, _that_ key should get its own
+  `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` with an HTTP referrer restriction, kept separate from this one.
+- API restriction: the key must explicitly list **Places API (New)** and **Time Zone API** in
+  Cloud Console → Credentials → API restrictions. The legacy "Places API" restriction entry is a
+  different service and won't work even when the API itself is enabled — this exact mismatch cost
+  real debugging time (see `docs/SETUP.md` §3 troubleshooting note).
+- Stored in `apps/web/.env.local` (dev) and Vercel env vars (prod)
+- Two keys eventually (dev and prod); one key for now
 - Set Google Cloud budget alert
 
 ---
