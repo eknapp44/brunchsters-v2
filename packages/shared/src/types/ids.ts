@@ -3,6 +3,7 @@ import type { Brand } from './brand';
 export type UserId = Brand<string, 'UserId'>;
 export type BrunchId = Brand<string, 'BrunchId'>;
 export type InviteId = Brand<string, 'InviteId'>;
+export type InviteSuggestionId = Brand<string, 'InviteSuggestionId'>;
 export type BrunchLocationId = Brand<string, 'BrunchLocationId'>;
 export type BrunchTimeId = Brand<string, 'BrunchTimeId'>;
 

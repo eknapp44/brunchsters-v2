@@ -46,12 +46,14 @@
 
 ## M3 — Invite suggestions: `suggestInvitee`, `reviewInviteSuggestion`
 
-- [ ] Implement `suggestInvitee.ts`: reject if `Brunch.allowInviteSuggestions` is false; create `BrunchInviteSuggestion` (`status = pending`); if `requireHostApprovalToInvite` is false, immediately run the approve path (calls `sendInvites`, sets `status = approved`) in the same call
-- [ ] Implement `reviewInviteSuggestion.ts`: host-only; `decision: 'approve' | 'decline'`; approve calls `sendInvites` for the suggested email and sets `status = approved`, `reviewedById`/`reviewedAt`; decline just sets `status = declined` + review fields
-- [ ] Export both from `packages/core/src/index.ts`
-- [ ] Unit tests: suggestions disabled → rejected, auto-approve path creates a real invite, host-only review enforced, decline creates no invite, double-review of an already-reviewed suggestion is rejected (`kind: 'already_reviewed'`)
-- [ ] `pnpm typecheck && pnpm lint && pnpm test` pass
-- [ ] Commit: `feat: invite suggestion services with auto-approve and host review (M3)`
+- [x] Added `InviteSuggestionId` branded type to `packages/shared` (consistent with `InviteId`/`BrunchId`)
+- [x] Implement `reviewInviteSuggestion.ts` first (built before `suggestInvitee` since auto-approve calls into it): host-only; `decision: 'approve' | 'decline'`; rejects a suggestion that isn't currently `pending` (`kind: 'already_reviewed'`); approve calls `sendInvites` for the suggested email and sets `status = approved`, `reviewedById`/`reviewedAt`; decline just sets `status = declined` + review fields
+- [x] Implement `suggestInvitee.ts`: reject if `Brunch.allowInviteSuggestions` is false (`kind: 'suggestions_disabled'`); reject if the suggester is neither the host nor a current attendee (`kind: 'not_attendee'`); reject a duplicate suggestion for the same `(brunchId, email)` (`kind: 'already_suggested'`, matches the model's existing `@@unique`); look up `User` by email to populate `suggestedUserId` when known; create `BrunchInviteSuggestion` (`status = pending`); if `requireHostApprovalToInvite` is false, calls `reviewInviteSuggestion` internally with `decision: 'approve'` — auto-approve is not a separate code path, it's the same review logic invoked with the host as reviewer; falls back to reporting `pending` (suggestion still created) if that internal call fails, rather than propagating an error for a side-effect that isn't the caller's fault
+- [x] Export both (+ types) from `packages/core/src/index.ts`
+- [x] Unit tests: suggestions disabled → rejected, non-attendee/non-host rejected, host can suggest without an attendee row, duplicate suggestion rejected, missing-lookup-row and db-error mapping, `suggestedUserId` populated when the email matches an existing user, auto-approve path creates a real invite via a mocked `reviewInviteSuggestion`, auto-approve-fails-still-reports-pending, host-only review enforced, decline creates no invite, double-review of an already-reviewed suggestion rejected
+- [x] Integration test against local Postgres: full attendee-suggests → host-approves → real-invite-created flow; host-declines → no invite; `requireHostApprovalToInvite = false` → immediate real invite; duplicate suggestion rejected by the real unique constraint; non-attendee rejected; double-review rejected
+- [x] `pnpm typecheck && pnpm lint && pnpm test` pass
+- [x] Commit: `feat: invite suggestion services with auto-approve and host review (M3)`
 
 ---
 
@@ -146,7 +148,12 @@ _(Filled in after each milestone completes)_
 - **What's deferred:** No test exercises what happens when the same viewer somehow already has a `BrunchAttendee` for the brunch via a _different_ invite — not reachable under the current invite model (one invite per email per brunch, one attendee per invite) so not worth a defensive test.
 - **How to run:** `pnpm --filter @brunchsters/core test` (unit); `supabase start && pnpm db:seed && pnpm --filter @brunchsters/core test:integration` (integration)
 
-### M3 — TBD
+### M3 — Invite suggestions
+
+- **What was tested:** `reviewInviteSuggestion` — approve sends a real invite and marks `approved`, decline never touches `sendInvites` and marks `declined`, non-host rejected, already-reviewed (not `pending`) rejected, `sendInvites` failure on approve propagates as `db_error`. `suggestInvitee` — permission gating (`allowInviteSuggestions`), authorization (host or attendee only), duplicate-suggestion rejection, `suggestedUserId` backfill when the email matches an existing user, the auto-approve path (calls `reviewInviteSuggestion` internally with the host as reviewer) creating a real invite, and the auto-approve-fails-still-reports-pending fallback (the suggestion row isn't lost even if the internal approve call errors).
+- **How:** 6 unit tests on `reviewInviteSuggestion` (mocked `DbClient`, `sendInvites` mocked via `vi.mock`) + 12 unit tests on `suggestInvitee` (mocked `DbClient`, `reviewInviteSuggestion` mocked via `vi.mock`) + 6 integration tests against local Supabase Postgres covering the full suggest → approve → real-invite, suggest → decline → no-invite, auto-approve, duplicate-rejection, non-attendee-rejection, and double-review-rejection paths with real rows. Mocked nothing in integration.
+- **What's deferred:** No test covers a suggestion for an email that already has an active `BrunchInvite` (only the suggestion-level duplicate, via `@@unique([brunchId, suggestedEmail])`, is covered) — `sendInvites`'s own duplicate/resend handling (tested in M1) covers that case downstream regardless, so it's not a real gap, just not re-asserted here.
+- **How to run:** `pnpm --filter @brunchsters/core test` (unit); `supabase start && pnpm db:seed && pnpm --filter @brunchsters/core test:integration` (integration)
 
 ### M4 — TBD
 

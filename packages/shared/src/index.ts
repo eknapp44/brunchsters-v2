@@ -3,6 +3,7 @@ export type {
   UserId,
   BrunchId,
   InviteId,
+  InviteSuggestionId,
   BrunchLocationId,
   BrunchTimeId,
   Email,

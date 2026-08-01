@@ -44,3 +44,19 @@ export type {
   RespondToInviteInput,
   RespondToInviteRequest,
 } from './invite/respondToInvite';
+export { suggestInvitee, suggestInviteeRequestSchema } from './invite/suggestInvitee';
+export type {
+  SuggestInviteeError,
+  SuggestInviteeInput,
+  SuggestInviteeRequest,
+  SuggestInviteeResult,
+} from './invite/suggestInvitee';
+export {
+  reviewInviteSuggestion,
+  reviewInviteSuggestionRequestSchema,
+} from './invite/reviewInviteSuggestion';
+export type {
+  ReviewInviteSuggestionError,
+  ReviewInviteSuggestionInput,
+  ReviewInviteSuggestionRequest,
+} from './invite/reviewInviteSuggestion';
