@@ -146,7 +146,7 @@
 
 ## M6 — Create Brunch wizard + brunch detail stub
 
-- [ ] Create `apps/web/src/app/(authenticated)/brunch/new/page.tsx` (client component):
+- [x] Create `apps/web/src/app/(authenticated)/brunch/new/page.tsx` (client component):
   - `useReducer` wizard state: `{ step: 1|2|3, title, description, locations: PlaceDetails[], times: Date[], votingDeadline?: Date }`
   - **Step 1:** title input (required) + description textarea. "Next" disabled until title non-empty.
   - **Step 2:**
@@ -163,12 +163,12 @@
     - **"Voting closes by" optional datetime field appears when `locations.length > 1 || times.length > 1`**
     - Step optional; "Create Brunch" button with loading state during POST
   - Submit: `POST /api/v1/brunches` with dates as UTC ISO strings (`.toISOString()`); on 201 → `router.push('/brunch/${id}')`; on error → inline message, state preserved
-- [ ] Create `apps/web/src/app/(authenticated)/brunch/[id]/page.tsx` (server component):
+- [x] Create `apps/web/src/app/(authenticated)/brunch/[id]/page.tsx` (server component):
   - Validate `params.id` is a UUID (Zod) → `notFound()` if malformed (no Prisma error on garbage input)
   - `getBrunchById({ brunchId, viewerId }, { db })` → `notFound()` if `undefined` (covers non-existent, soft-deleted, **and non-member**)
   - Render `<h1>{title}</h1>` + status label + "← Back to Dashboard" link
-- [ ] `pnpm typecheck && pnpm lint` pass
-- [ ] Full flow browser test:
+- [x] `pnpm typecheck && pnpm lint` pass
+- [x] Full flow browser test:
   - Sign in → dashboard empty state → "Plan a Brunch"
   - Step 1: title "Weekend Brunch" → Next
   - Step 2: search a place → select → appears in list → Next
@@ -177,7 +177,7 @@
   - Dashboard shows the brunch card ("1 going", Host badge)
   - Add a second location on a new brunch → voting hint + "Voting closes by" field appear
   - **Second account visits the first brunch's URL → 404**
-- [ ] Commit: `feat: Create Brunch wizard and brunch detail page stub (M6)`
+- [x] Commit: `feat: Create Brunch wizard and brunch detail page stub (M6)`
 
 ---
 
@@ -236,7 +236,7 @@ _(Filled in after each milestone completes)_
 
 ### M6 — Full browser flow
 
-- **What was tested:** TBD
-- **How:** TBD
-- **What's deferred:** TBD
-- **How to run:** `supabase start && pnpm dev` → http://localhost:3000
+- **What was tested:** End-to-end create-brunch flow signed in as a real user: dashboard empty state → "Plan a Brunch" → Step 1 (title required, "Next" disabled until non-empty) → Step 2 (debounced place search, selecting a prediction adds it to the locations list with a working Remove button) → Step 3 (adding a datetime, "Create Brunch" with loading state) → 201 redirect to `/brunch/[id]` showing the title and status → dashboard now shows the brunch card with "(Host)" badge and "1 going". Also verified: adding a second location on a separate brunch shows both the "Multiple locations will be put to a vote" hint and the "Voting closes by" field in Step 3 (the `locations.length > 1 || times.length > 1` condition). Cross-account access: a second signed-in account visiting the first brunch's `/brunch/[id]` URL gets a 404, confirming `getBrunchById`'s non-member handling reaches all the way through the UI.
+- **How:** Manual browser walkthrough of the full wizard and detail page, signed in with real Google accounts (two accounts for the cross-account check). No automated tests for this milestone — it's framework rendering + client-side wizard state wired to already-tested services and routes (`createBrunch` unit/integration tested in M1, `getBrunchById` in M1, the places routes in M4); per CLAUDE.md, framework/page rendering itself isn't unit tested, and Playwright E2E is deferred (no harness yet — see Deferred/Known Gaps).
+- **What's deferred:** Playwright E2E coverage of this flow (no harness in the repo yet). Wizard state is not persisted across navigation. Invitations (step 4) are out of scope for this spec.
+- **How to run:** `supabase start && pnpm dev` → http://localhost:3000, sign in, then "Plan a Brunch" from the dashboard.
