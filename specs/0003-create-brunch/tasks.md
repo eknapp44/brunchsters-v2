@@ -1,0 +1,243 @@
+# Tasks 0003 — Create Brunch
+
+**Spec:** [spec.md](./spec.md) | **Plan:** [plan.md](./plan.md)  
+**Branch:** `feat/0003-create-brunch`
+
+---
+
+## M1 — `createBrunch` service + integration test
+
+- [x] Update `packages/database/src/seed.ts` — add 4 missing `NotificationType` codes:
+  - `brunch.cancelled` ("Brunch Cancelled", sortOrder 9)
+  - `vote.autoclose.prompted` ("Vote Auto-Close Prompted", sortOrder 10)
+  - `running.late` ("Running Late", sortOrder 11)
+  - `host.transferred` ("Host Transferred", sortOrder 12)
+- [x] Run `pnpm db:seed` and verify `NotificationType` row count is 12; run again to confirm idempotency
+- [x] Write `docs/adrs/0005-defer-next-intl.md` — defer i18n plumbing to pre-launch; amend PLANNING.md §9.12 with a pointer to the ADR
+- [x] Update `packages/core/src/places/PlaceProvider.ts`:
+  - `search(params: { query: string; sessionToken?: string })` / `getDetails(params: { placeId: string; sessionToken?: string })`
+  - `PlaceResult` slims to `{ placeId, name, address }`; `placeUrl` moves to `PlaceDetails`
+- [x] Add `packages/core/src/events/NoopEventBus.ts` — implements `EventBus`, `emit` resolves immediately; export from index
+- [x] Add `zod` as a dependency of `packages/core`
+- [x] Implement `packages/core/src/brunch/createBrunch.ts`:
+  - `createBrunchRequestSchema` (Zod) — title 1–100, description ≤500 optional, locations/times arrays defaulting to `[]`, `votingDeadline` optional ISO datetime with future-only `.refine`
+  - `CreateBrunchRequest = z.infer<...>`; `CreateBrunchInput = CreateBrunchRequest & { hostId: UserId }`
+  - Wrap all DB writes in `prisma.$transaction`:
+    - Look up `BrunchStatus(draft)`, `RsvpStatus(yes)`, `BrunchDecisionType(host_decides, group_vote)` by code
+    - Look up host `User` (email needed for synthetic invite) — `lookup_not_found` error if any missing
+    - Create `Brunch` (incl. `votingDeadline` when provided)
+    - Create synthetic `BrunchInvite` for host: `token = crypto.randomUUID()`, **`tokenExpiresAt = now` (born expired)**, `invitedEmail = host.email`, `invitedById = hostId`
+    - Create `BrunchAttendee` for host (`rsvpStatusId = yes.id`, `respondedAt = now`)
+    - Locations: `decisionTypeId` = `host_decides` if exactly 1 else `group_vote`
+    - Times: same rule on `times.length`, independent of locations
+  - After commit: `ctx.eventBus.emit('brunch/created', { brunchId, hostId })` in try/catch — emit failure logged, never fails the create
+  - Return `Ok({ id })`; `Err({ kind: 'db_error' | 'lookup_not_found', ... })` on failure
+- [x] Implement `packages/core/src/brunch/getBrunchById.ts`:
+  - `getBrunchById(input: { brunchId: BrunchId; viewerId: UserId }, ctx)` → `BrunchDetail | undefined`
+  - Returns `undefined` unless brunch exists, `deletedAt IS NULL`, **and viewer is host or non-deleted attendee**
+- [x] Export `createBrunch`, `getBrunchById`, `createBrunchRequestSchema`, `NoopEventBus`, and types from `packages/core/src/index.ts`
+- [x] Write `packages/core/src/brunch/createBrunch.test.ts` — unit tests (mock `DbClient` + mock `EventBus`):
+  - No locations + no times
+  - 1 location → `host_decides`; 2 locations → `group_vote`
+  - 1 time → `host_decides`; 2 times → `group_vote`
+  - Locations and times inferred independently
+  - `votingDeadline` stored when provided; past deadline rejected by schema
+  - Synthetic invite `tokenExpiresAt` is not in the future
+  - `brunch/created` emitted with `{ brunchId, hostId }` on success
+  - Emit throwing does **not** fail the create (still `Ok`)
+  - `Err({ kind: 'db_error' })` on transaction failure
+  - `Err({ kind: 'lookup_not_found' })` on missing lookup row
+- [x] Write `packages/core/src/brunch/createBrunch.integration.test.ts` — against local Postgres:
+  - 0 locations + 0 times: `Brunch`, `BrunchInvite`, `BrunchAttendee` rows created; invite already expired
+  - 1 location → `host_decides`; 2 locations → both rows `group_vote`
+  - Same for times
+  - `afterAll` cleanup by brunchId; requires `supabase start` + seeded lookups
+- [x] Write `packages/core/src/brunch/getBrunchById.test.ts` — found as host, found as attendee, not found, soft-deleted → undefined, **non-member viewer → undefined**
+- [x] `pnpm typecheck && pnpm lint && pnpm test --filter @brunchsters/core` pass
+- [x] Commit: `feat: createBrunch and getBrunchById services with unit and integration tests (M1)`
+
+---
+
+## M2 — `getBrunchesForUser` service + unit tests
+
+- [x] Implement `packages/core/src/brunch/getBrunchesForUser.ts`:
+  - Query `BrunchAttendee` where `userId = input.userId AND deletedAt IS NULL`
+  - Include `Brunch` (`deletedAt IS NULL`) + `BrunchStatus`
+  - `goingCount`: `_count` of attendees where `deletedAt: null` **and** `rsvpStatus.countsAsAttendee = true`
+  - Sort by `brunch.createdAt DESC`
+  - Map to `BrunchSummary[]`; `isHost = brunch.hostId === input.userId`
+- [x] Export `getBrunchesForUser` + `BrunchSummary` from `packages/core/src/index.ts`
+- [x] Write `packages/core/src/brunch/getBrunchesForUser.test.ts` — mock DbClient:
+  - No attendee records → `[]`
+  - Host of one brunch → `isHost = true`
+  - Attendee (not host) → `isHost = false`
+  - Soft-deleted `BrunchAttendee` / `Brunch` rows excluded
+  - `goingCount` excludes `invited`/`no`/`maybe` RSVPs (only `countsAsAttendee = true`)
+- [x] `pnpm typecheck && pnpm lint && pnpm test --filter @brunchsters/core` pass
+- [x] Commit: `feat: getBrunchesForUser service with unit tests (M2)`
+
+---
+
+## M3 — Brunch API routes + middleware fix
+
+- [x] Update `apps/web/src/middleware.ts` — unauthenticated request to a path starting with `/api/` returns `NextResponse.json({ error: 'Unauthorized' }, { status: 401 })`; page routes keep the `/sign-in?callbackUrl=` redirect
+- [x] Verify manually: unauthenticated `curl http://localhost:3000/api/v1/brunches` → 401 JSON (not 307)
+- [x] Create `apps/web/src/app/api/v1/brunches/route.ts`:
+  - **POST:**
+    - `auth()` → 401 if no session
+    - Parse body with `createBrunchRequestSchema` **imported from `@brunchsters/core`** (no local schema)
+    - 422 on validation failure with `{ errors: zodError.issues }` (zod v4 — `.flatten()` deprecated)
+    - `createBrunch({ ...parsed, hostId: session.user.id as UserId }, { db, eventBus: new NoopEventBus() })`
+    - `Err` → 500; `Ok` → 201 `{ id, title, status: 'draft' }`
+  - **GET:**
+    - `auth()` → 401 if no session
+    - `getBrunchesForUser({ userId }, { db })` → 200 `{ brunches: BrunchSummary[] }`
+- [x] Write `apps/web/src/app/api/v1/brunches/route.test.ts` — mock services via `vi.mock`:
+  - POST 201 on valid input
+  - POST 422 on missing title
+  - POST 401 on no session
+  - GET 200 returns brunch list
+  - GET 401 on no session
+- [x] `pnpm typecheck && pnpm lint && pnpm test` pass
+- [x] Commit: `feat: brunch API routes and 401 middleware handling for API paths (M3)`
+
+---
+
+## M4 — `GooglePlacesProvider` + places API routes
+
+- [x] Create a Maps API key in Google Cloud Console; enable **Places API (New)** and **Time Zone API**; restrict the key to those APIs
+- [x] Add `GOOGLE_PLACES_API_KEY=` to `apps/web/.env.local`
+- [x] Add `GOOGLE_PLACES_API_KEY=your_maps_api_key_here` to `.env.example` with comment: `# Google Maps API key (Places API (New) + Time Zone API) — NOT the OAuth client credentials`
+- [x] Implement `apps/web/src/adapters/GooglePlacesProvider.ts` (`implements PlaceProvider`, constructor takes `apiKey`):
+  - `search({ query, sessionToken })`: POST `https://places.googleapis.com/v1/places:autocomplete`, body `{ input: query, sessionToken, languageCode: 'en' }`; map `suggestions[].placePrediction` → `PlaceResult` (name = `structuredFormat.mainText.text`, address = `structuredFormat.secondaryText.text`)
+  - `getDetails({ placeId, sessionToken })`:
+    - GET `https://places.googleapis.com/v1/places/${placeId}?sessionToken=...`, field mask `id,displayName,formattedAddress,googleMapsUri,location` (token closes the billing session)
+    - GET Time Zone API with `location.latitude,longitude` + current unix timestamp → `timeZoneId`
+    - Return `PlaceDetails` (incl. `placeUrl = googleMapsUri`, `timezone = timeZoneId as IanaTimezone`)
+    - `undefined` on 404 from Place Details; throw on other non-2xx
+- [x] Create `apps/web/src/app/api/v1/places/search/route.ts`:
+  - GET: `q` required and ≥3 chars → 400 otherwise; `sessionToken` optional pass-through
+  - `new GooglePlacesProvider(<validated GOOGLE_PLACES_API_KEY>)` → `search()` → 200 `{ places }`
+  - Catch → 502 `{ error: 'Place search unavailable' }`
+- [x] Create `apps/web/src/app/api/v1/places/[placeId]/route.ts`:
+  - GET: `getDetails()`; 404 if `undefined`; 200 `PlaceDetails`; catch → 502
+- [x] Manual verification (browser, signed in — routes sit behind the auth middleware):
+  - `GET /api/v1/places/search?q=brunch+chicago` returns predictions
+  - `GET /api/v1/places/[placeId]` returns details with correct `timezone`
+  - `q=ab` (2 chars) returns 400
+- [x] `pnpm typecheck && pnpm lint` pass
+- [x] Commit: `feat: GooglePlacesProvider with Autocomplete sessions and places proxy routes (M4)`
+
+---
+
+## M5 — Dashboard UI
+
+- [x] Update `apps/web/src/app/(authenticated)/dashboard/page.tsx` (server component):
+  - `auth()` for session; call `getBrunchesForUser({ userId }, { db })` directly (no fetch hop)
+  - Split into `upcoming` (draft, active, confirmed) and `past` (completed, cancelled, archived)
+  - Empty state when both lists empty: "No brunches yet" + "Plan a Brunch" button → `/brunch/new`
+  - Brunch cards: title, status label, going count, "(Host)" badge when `isHost`
+  - Past brunches in a secondary section below
+- [x] `pnpm typecheck && pnpm lint` pass
+- [x] Browser test (manual): fresh account sees empty state with CTA; populated state verified after M6
+- [x] Commit: `feat: dashboard with brunch list empty state and Plan a Brunch CTA (M5)`
+
+---
+
+## M6 — Create Brunch wizard + brunch detail stub
+
+- [x] Create `apps/web/src/app/(authenticated)/brunch/new/page.tsx` (client component):
+  - `useReducer` wizard state: `{ step: 1|2|3, title, description, locations: PlaceDetails[], times: Date[], votingDeadline?: Date }`
+  - **Step 1:** title input (required) + description textarea. "Next" disabled until title non-empty.
+  - **Step 2:**
+    - Session token: `crypto.randomUUID()` generated when user starts typing into an empty search box; passed on search + details calls; discarded after selection; regenerated on next search
+    - Search box, 300ms debounce, min 3 chars → `GET /api/v1/places/search?q=...&sessionToken=...` → predictions dropdown
+    - On select: `GET /api/v1/places/[placeId]?sessionToken=...` → add `PlaceDetails` to `locations`
+    - Selected-locations list with remove buttons
+    - Hint "Multiple locations will be put to a vote" when `locations.length > 1`
+    - Step optional (can proceed with no locations)
+  - **Step 3:**
+    - `<input type="datetime-local">` + "Add Time" → adds `new Date(inputValue)` to `times`
+    - Selected-times list with remove buttons
+    - Hint "Multiple times will be put to a vote" when `times.length > 1`
+    - **"Voting closes by" optional datetime field appears when `locations.length > 1 || times.length > 1`**
+    - Step optional; "Create Brunch" button with loading state during POST
+  - Submit: `POST /api/v1/brunches` with dates as UTC ISO strings (`.toISOString()`); on 201 → `router.push('/brunch/${id}')`; on error → inline message, state preserved
+- [x] Create `apps/web/src/app/(authenticated)/brunch/[id]/page.tsx` (server component):
+  - Validate `params.id` is a UUID (Zod) → `notFound()` if malformed (no Prisma error on garbage input)
+  - `getBrunchById({ brunchId, viewerId }, { db })` → `notFound()` if `undefined` (covers non-existent, soft-deleted, **and non-member**)
+  - Render `<h1>{title}</h1>` + status label + "← Back to Dashboard" link
+- [x] `pnpm typecheck && pnpm lint` pass
+- [x] Full flow browser test:
+  - Sign in → dashboard empty state → "Plan a Brunch"
+  - Step 1: title "Weekend Brunch" → Next
+  - Step 2: search a place → select → appears in list → Next
+  - Step 3: add a datetime → "Create Brunch"
+  - Redirect to `/brunch/[id]` showing "Weekend Brunch"
+  - Dashboard shows the brunch card ("1 going", Host badge)
+  - Add a second location on a new brunch → voting hint + "Voting closes by" field appear
+  - **Second account visits the first brunch's URL → 404**
+- [x] Commit: `feat: Create Brunch wizard and brunch detail page stub (M6)`
+
+---
+
+## Deferred / Known Gaps
+
+- **Wizard state is not persisted.** Navigating away mid-wizard loses progress. Acceptable for v1.
+- **Place search has no rate limiting or response caching.** Debounce + min-length + session tokens keep costs sane; add caching/rate limiting if usage warrants (PLANNING §9.11 says defer until abuse appears).
+- **`GooglePlacesProvider` is unit tested with a mocked `fetch`, not the live API.** A `MockPlaceProvider` can still substitute in tests for other consumers (e.g. the wizard) that need one.
+- **Playwright E2E deferred.** Create-brunch is the critical flow and should get E2E coverage, but no Playwright harness exists in the repo yet. Manual browser verification covers this spec; E2E harness is its own future setup task.
+- **`NoopEventBus` is a placeholder.** `brunch/created` is emitted into the void until the Inngest spec ships a real `EventBus` implementation. The injection point exists so that spec is a swap, not a refactor. AuditLog rows for brunch creation ride on that same event (Constitution 12 — side effects via queue), so they're deferred with it.
+- **`votingDeadline` semantics enforcement.** The service stores it even if no voting was triggered (host may add options later). Deadline-driven vote closing is the voting spec's job.
+- **Invitations (step 4) deferred** to spec 0004. The wizard ends after step 3.
+- **Brunch created with status `draft`.** Transitions to `active` when invites are sent (spec 0004). Dashboard shows `draft` brunches.
+- **i18n (next-intl) deferred** per `docs/adrs/0005-defer-next-intl.md` — revisit at pre-launch.
+- **Proposed times are interpreted in the host's browser timezone, not the venue's.** Each location independently resolves its own IANA `timezone` (via the Time Zone API), but the wizard's `datetime-local` inputs are read via `new Date(inputValue)`, which uses the browser's local timezone before converting to UTC for storage. If a host is in a different timezone than a proposed venue, the stored UTC instant may not match what the host actually intended for that location. Not a regression — the times still round-trip correctly as UTC — but timezone-aware time entry (picking a time relative to the venue's, not the host's, timezone) is unaddressed and should be revisited once cross-timezone brunches come up in practice.
+
+---
+
+## Testing Notes
+
+_(Filled in after each milestone completes)_
+
+### M1 — Unit + integration tests for `createBrunch` / `getBrunchById`
+
+- **What was tested:** All `createBrunch` paths — 0/1/2+ locations and times with independent decision-type inference, votingDeadline storage, born-expired synthetic invite, host attendee with yes RSVP, `brunch/created` emission (including emit-failure-still-Ok and no-emit-on-tx-failure), `db_error` and `lookup_not_found` errors. Schema rejection cases (missing/oversized title, past votingDeadline, invalid IANA timezone). `getBrunchById` authorization: host sees it, non-member gets `undefined`. Seed idempotency verified (12 `NotificationType` rows after two runs).
+- **How:** 18 unit tests (mock `DbClient` + mock `EventBus`) + 4 `getBrunchById` unit tests; 7 integration tests against local Supabase Postgres including a cross-user access check with two real users. Mocked nothing in integration.
+- **What's deferred:** `getBrunchById` "found as attendee (not host)" only covered at the query-shape level in unit tests — real-DB attendee-access case lands with the invite flow (spec 0004) when non-host attendees can exist.
+- **How to run:** `pnpm --filter @brunchsters/core test` (unit); `supabase start && pnpm db:seed && pnpm --filter @brunchsters/core test:integration` (integration)
+
+### M2 — Unit tests for `getBrunchesForUser`
+
+- **What was tested:** Empty result for users with no brunches; `isHost` mapping for hosted vs attended brunches; `goingCount` taken from the filtered relation count; query-shape assertion verifying the joined brunch filters `deletedAt: null` explicitly and the count is restricted to live attendees with `countsAsAttendee = true`.
+- **How:** 5 unit tests with a mocked `DbClient`. Soft-delete exclusion is covered at the query-shape level — the top-level `BrunchAttendee` filter comes from the database package's soft-delete extension (tested there), the join filter is asserted here.
+- **What's deferred:** Real-DB verification of the filtered `_count` behavior — rides along free once the dashboard is exercised in M5/M6 browser tests; no separate integration test since the query is a single read with no branching.
+- **How to run:** `pnpm --filter @brunchsters/core test`
+
+### M3 — Route handler unit tests + middleware 401
+
+- **What was tested:** POST — 401 without session, 422 on missing title (real schema, only services mocked), 400 on non-JSON body, 201 with correct response shape, 500 on service `Err`, and a hostId-smuggling check confirming the session identity always wins over anything in the body. GET — 401 without session, 200 with the list scoped to the session user. Middleware — unauthenticated `/api/v1/brunches` returns 401 JSON while `/dashboard` still 307-redirects with `callbackUrl`.
+- **How:** 8 route handler unit tests with `vi.mock` on `@/auth`, `@/lib/db`, and the core services — `createBrunchRequestSchema` deliberately kept real so validation is exercised. Middleware verified manually via curl against `pnpm dev` (both the API 401 and page redirect cases).
+- **What's deferred:** No automated middleware test (framework redirect mechanics, per testing policy). Authenticated end-to-end POST through a real session lands in the M6 browser flow.
+- **How to run:** `pnpm --filter @brunchsters/web test`; middleware check: `pnpm dev` then `curl -i http://localhost:3000/api/v1/brunches`
+
+### M4 — `GooglePlacesProvider` + places routes: unit tests and manual verification
+
+- **What was tested:** `GooglePlacesProvider` — request shape for `search` (POST body, `X-Goog-Api-Key` header) and `getDetails` (field mask header, sessionToken query param included/omitted), response mapping to `PlaceResult`/`PlaceDetails` (including graceful defaults when `structuredFormat` fields are missing), 404→`undefined` for Place Details, thrown errors on non-2xx from autocomplete/details/timezone, missing-location guard, and the Time Zone API's `status !== 'OK'` case. Route handlers — 400 on missing/short `q`, 200 with mapped places, `sessionToken` pass-through, 502 on provider throw for search; 200/404/502 plus `sessionToken` pass-through for the `[placeId]` route. Separately, live Google API calls (autocomplete, Place Details, Time Zone) were verified directly via curl against the real API before the routes existed, and both routes were exercised end-to-end in the browser signed in as a real user (valid search, valid details with correct `timezone`, `q=ab` → 400), including confirming they sit behind the auth middleware (401 without a session) since they proxy a paid, rate-limited external API.
+- **How:** 11 unit tests on `GooglePlacesProvider` with global `fetch` mocked (`vi.stubGlobal`) — no live network calls, so no flakiness or API cost. 9 unit tests on the two route handlers with `GooglePlacesProvider` itself mocked via `vi.mock`, matching the pattern used for the `brunches` route in M3. Plus the manual browser verification described above, which is the only place the real Google API is exercised.
+- **What's deferred:** No rate limiting or response caching on the search route yet (PLANNING §9.11 — defer until abuse appears). Session-token billing-grouping behavior (that autocomplete keystrokes + the final details call land in one Google billing session) isn't verified in tests — it's just a pass-through parameter; correctness would only be visible in Google's billing console.
+- **How to run:** `pnpm --filter @brunchsters/web test` (unit); `pnpm dev`, sign in in the browser, then hit the routes directly for the live-API check (GET requests carry the session cookie automatically).
+
+### M5 — Dashboard empty state
+
+- **What was tested:** Fresh account (zero brunches) sees "No brunches yet" and a "Plan a Brunch" link to `/brunch/new`. Upcoming/past split logic (`draft`/`active`/`confirmed` vs. `completed`/`cancelled`/`archived`) and the populated brunch-card rendering (title link, "(Host)" badge, status label, going count) are implemented but not yet exercisable — no brunch exists to view yet, so full visual coverage of the populated state lands with M6 once the wizard can actually create one.
+- **How:** Manual browser check signed in with a real, brunch-less account. No unit tests — this is a server component doing a direct `getBrunchesForUser` call already covered by M2's service-level tests; per CLAUDE.md, framework rendering itself isn't tested.
+- **What's deferred:** Populated-state verification (upcoming/past split, card fields, Host badge) — deferred to the M6 full-flow browser test once brunches can be created through the UI.
+- **How to run:** `pnpm dev` → sign in → `http://localhost:3000/dashboard`
+
+### M6 — Full browser flow
+
+- **What was tested:** End-to-end create-brunch flow signed in as a real user: dashboard empty state → "Plan a Brunch" → Step 1 (title required, "Next" disabled until non-empty) → Step 2 (debounced place search, selecting a prediction adds it to the locations list with a working Remove button) → Step 3 (adding a datetime, "Create Brunch" with loading state) → 201 redirect to `/brunch/[id]` showing the title and status → dashboard now shows the brunch card with "(Host)" badge and "1 going". Also verified: adding a second location on a separate brunch shows both the "Multiple locations will be put to a vote" hint and the "Voting closes by" field in Step 3 (the `locations.length > 1 || times.length > 1` condition). Cross-account access: a second signed-in account visiting the first brunch's `/brunch/[id]` URL gets a 404, confirming `getBrunchById`'s non-member handling reaches all the way through the UI.
+- **How:** Manual browser walkthrough of the full wizard and detail page, signed in with real Google accounts (two accounts for the cross-account check). No automated tests for this milestone — it's framework rendering + client-side wizard state wired to already-tested services and routes (`createBrunch` unit/integration tested in M1, `getBrunchById` in M1, the places routes in M4); per CLAUDE.md, framework/page rendering itself isn't unit tested, and Playwright E2E is deferred (no harness yet — see Deferred/Known Gaps).
+- **What's deferred:** Playwright E2E coverage of this flow (no harness in the repo yet). Wizard state is not persisted across navigation. Invitations (step 4) are out of scope for this spec.
+- **How to run:** `supabase start && pnpm dev` → http://localhost:3000, sign in, then "Plan a Brunch" from the dashboard.

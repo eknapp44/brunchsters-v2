@@ -45,3 +45,4 @@ What else was evaluated and why was it not chosen?
 | [0002](./0002-hosting-vercel-supabase.md)                   | Hosting: Vercel + Supabase                | Accepted |
 | [0003](./0003-no-email-password-auth.md)                    | No email/password authentication          | Accepted |
 | [0004](./0004-semantic-release-and-conventional-commits.md) | Semantic release and conventional commits | Accepted |
+| [0005](./0005-defer-next-intl.md)                           | Defer next-intl until pre-launch          | Accepted |

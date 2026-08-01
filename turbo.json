@@ -1,5 +1,11 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  // Strict mode (the default) only forwards env vars a task explicitly declares,
+  // which silently breaks anything reading process.env that wasn't listed —
+  // e.g. auth.ts's fail-fast GOOGLE_CLIENT_ID/SECRET check during `next build`.
+  // Loose mode matches plain-shell behavior; this is a solo project with no
+  // remote cache to protect from env-driven cache poisoning.
+  "envMode": "loose",
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

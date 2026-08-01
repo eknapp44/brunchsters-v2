@@ -74,6 +74,11 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
       DIRECT_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      # next build imports auth.ts while collecting page data (no real OAuth call
+      # happens), and it fails fast if these are unset. Placeholder values only —
+      # real credentials live in Vercel env vars for actual deploys.
+      GOOGLE_CLIENT_ID: ci-placeholder-client-id
+      GOOGLE_CLIENT_SECRET: ci-placeholder-client-secret
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

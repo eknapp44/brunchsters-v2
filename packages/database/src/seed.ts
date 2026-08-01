@@ -19,61 +19,188 @@ async function main(): Promise<void> {
 
   // ── BrunchStatus ─────────────────────────────────────────────────────────
   const brunchStatuses = [
-    { code: 'draft', label: 'Draft', description: 'Brunch is being planned', isActive: true, sortOrder: 1 },
-    { code: 'active', label: 'Active', description: 'Invites sent, awaiting RSVPs and votes', isActive: true, sortOrder: 2 },
-    { code: 'confirmed', label: 'Confirmed', description: 'Host has confirmed location and time', isActive: true, sortOrder: 3 },
-    { code: 'brunching', label: 'Brunching', description: 'Brunch is happening right now', isActive: false, sortOrder: 4 }, // v2
-    { code: 'paying', label: 'Paying', description: 'Bill splitting in progress', isActive: false, sortOrder: 5 }, // v2
-    { code: 'completed', label: 'Completed', description: 'Brunch is done', isActive: true, sortOrder: 6 },
-    { code: 'cancelled', label: 'Cancelled', description: 'Brunch was cancelled', isActive: true, sortOrder: 7 },
-    { code: 'archived', label: 'Archived', description: 'Brunch archived by host', isActive: true, sortOrder: 8 },
+    {
+      code: 'draft',
+      label: 'Draft',
+      description: 'Brunch is being planned',
+      isActive: true,
+      sortOrder: 1,
+    },
+    {
+      code: 'active',
+      label: 'Active',
+      description: 'Invites sent, awaiting RSVPs and votes',
+      isActive: true,
+      sortOrder: 2,
+    },
+    {
+      code: 'confirmed',
+      label: 'Confirmed',
+      description: 'Host has confirmed location and time',
+      isActive: true,
+      sortOrder: 3,
+    },
+    {
+      code: 'brunching',
+      label: 'Brunching',
+      description: 'Brunch is happening right now',
+      isActive: false,
+      sortOrder: 4,
+    }, // v2
+    {
+      code: 'paying',
+      label: 'Paying',
+      description: 'Bill splitting in progress',
+      isActive: false,
+      sortOrder: 5,
+    }, // v2
+    {
+      code: 'completed',
+      label: 'Completed',
+      description: 'Brunch is done',
+      isActive: true,
+      sortOrder: 6,
+    },
+    {
+      code: 'cancelled',
+      label: 'Cancelled',
+      description: 'Brunch was cancelled',
+      isActive: true,
+      sortOrder: 7,
+    },
+    {
+      code: 'archived',
+      label: 'Archived',
+      description: 'Brunch archived by host',
+      isActive: true,
+      sortOrder: 8,
+    },
   ];
   for (const s of brunchStatuses) {
     await prisma.brunchStatus.upsert({
       where: { code: s.code },
-      update: { label: s.label, description: s.description, isActive: s.isActive, sortOrder: s.sortOrder },
+      update: {
+        label: s.label,
+        description: s.description,
+        isActive: s.isActive,
+        sortOrder: s.sortOrder,
+      },
       create: s,
     });
   }
 
   // ── BrunchDecisionType ───────────────────────────────────────────────────
   const decisionTypes = [
-    { code: 'host_decides', label: 'Host Decides', description: 'Host picks location or time', isActive: true, sortOrder: 1 },
-    { code: 'group_vote', label: 'Group Vote', description: 'Attendees vote on options', isActive: true, sortOrder: 2 },
+    {
+      code: 'host_decides',
+      label: 'Host Decides',
+      description: 'Host picks location or time',
+      isActive: true,
+      sortOrder: 1,
+    },
+    {
+      code: 'group_vote',
+      label: 'Group Vote',
+      description: 'Attendees vote on options',
+      isActive: true,
+      sortOrder: 2,
+    },
   ];
   for (const dt of decisionTypes) {
     await prisma.brunchDecisionType.upsert({
       where: { code: dt.code },
-      update: { label: dt.label, description: dt.description, isActive: dt.isActive, sortOrder: dt.sortOrder },
+      update: {
+        label: dt.label,
+        description: dt.description,
+        isActive: dt.isActive,
+        sortOrder: dt.sortOrder,
+      },
       create: dt,
     });
   }
 
   // ── RsvpStatus ───────────────────────────────────────────────────────────
   const rsvpStatuses = [
-    { code: 'invited', label: 'Invited', description: 'Invite sent, no response yet', isActive: true, sortOrder: 1, countsAsAttendee: false },
-    { code: 'yes', label: 'Yes', description: 'Attending', isActive: true, sortOrder: 2, countsAsAttendee: true },
-    { code: 'no', label: 'No', description: 'Not attending', isActive: true, sortOrder: 3, countsAsAttendee: false },
-    { code: 'maybe', label: 'Maybe', description: 'Tentatively attending', isActive: true, sortOrder: 4, countsAsAttendee: false },
+    {
+      code: 'invited',
+      label: 'Invited',
+      description: 'Invite sent, no response yet',
+      isActive: true,
+      sortOrder: 1,
+      countsAsAttendee: false,
+    },
+    {
+      code: 'yes',
+      label: 'Yes',
+      description: 'Attending',
+      isActive: true,
+      sortOrder: 2,
+      countsAsAttendee: true,
+    },
+    {
+      code: 'no',
+      label: 'No',
+      description: 'Not attending',
+      isActive: true,
+      sortOrder: 3,
+      countsAsAttendee: false,
+    },
+    {
+      code: 'maybe',
+      label: 'Maybe',
+      description: 'Tentatively attending',
+      isActive: true,
+      sortOrder: 4,
+      countsAsAttendee: false,
+    },
   ];
   for (const rs of rsvpStatuses) {
     await prisma.rsvpStatus.upsert({
       where: { code: rs.code },
-      update: { label: rs.label, description: rs.description, isActive: rs.isActive, sortOrder: rs.sortOrder, countsAsAttendee: rs.countsAsAttendee },
+      update: {
+        label: rs.label,
+        description: rs.description,
+        isActive: rs.isActive,
+        sortOrder: rs.sortOrder,
+        countsAsAttendee: rs.countsAsAttendee,
+      },
       create: rs,
     });
   }
 
   // ── BrunchInviteSuggestionStatus ─────────────────────────────────────────
   const suggestionStatuses = [
-    { code: 'pending', label: 'Pending', description: 'Suggestion awaiting host review', isActive: true, sortOrder: 1 },
-    { code: 'approved', label: 'Approved', description: 'Host approved the suggestion', isActive: true, sortOrder: 2 },
-    { code: 'declined', label: 'Declined', description: 'Host declined the suggestion', isActive: true, sortOrder: 3 },
+    {
+      code: 'pending',
+      label: 'Pending',
+      description: 'Suggestion awaiting host review',
+      isActive: true,
+      sortOrder: 1,
+    },
+    {
+      code: 'approved',
+      label: 'Approved',
+      description: 'Host approved the suggestion',
+      isActive: true,
+      sortOrder: 2,
+    },
+    {
+      code: 'declined',
+      label: 'Declined',
+      description: 'Host declined the suggestion',
+      isActive: true,
+      sortOrder: 3,
+    },
   ];
   for (const ss of suggestionStatuses) {
     await prisma.brunchInviteSuggestionStatus.upsert({
       where: { code: ss.code },
-      update: { label: ss.label, description: ss.description, isActive: ss.isActive, sortOrder: ss.sortOrder },
+      update: {
+        label: ss.label,
+        description: ss.description,
+        isActive: ss.isActive,
+        sortOrder: ss.sortOrder,
+      },
       create: ss,
     });
   }
@@ -88,6 +215,10 @@ async function main(): Promise<void> {
     { code: 'brunch.confirmed', label: 'Brunch Confirmed', sortOrder: 6 },
     { code: 'vote.deadline.approaching', label: 'Vote Deadline Approaching', sortOrder: 7 },
     { code: 'invite.received', label: 'Invite Received', sortOrder: 8 },
+    { code: 'brunch.cancelled', label: 'Brunch Cancelled', sortOrder: 9 },
+    { code: 'vote.autoclose.prompted', label: 'Vote Auto-Close Prompted', sortOrder: 10 },
+    { code: 'running.late', label: 'Running Late', sortOrder: 11 },
+    { code: 'host.transferred', label: 'Host Transferred', sortOrder: 12 },
   ];
   for (const nt of notificationTypes) {
     await prisma.notificationType.upsert({
@@ -100,12 +231,32 @@ async function main(): Promise<void> {
   // ── FeatureFlag ──────────────────────────────────────────────────────────
   const featureFlags = [
     { code: 'chat', label: 'Chat', description: 'Group chat in brunch view', isEnabled: false },
-    { code: 'bill_splitting', label: 'Bill Splitting', description: 'Split the bill after brunch', isEnabled: false },
-    { code: 'friend_groups', label: 'Friend Groups', description: 'Organize friends into groups', isEnabled: false },
-    { code: 'favorites', label: 'Favourites', description: 'Save favourite places', isEnabled: false },
+    {
+      code: 'bill_splitting',
+      label: 'Bill Splitting',
+      description: 'Split the bill after brunch',
+      isEnabled: false,
+    },
+    {
+      code: 'friend_groups',
+      label: 'Friend Groups',
+      description: 'Organize friends into groups',
+      isEnabled: false,
+    },
+    {
+      code: 'favorites',
+      label: 'Favourites',
+      description: 'Save favourite places',
+      isEnabled: false,
+    },
     { code: 'photos', label: 'Photos', description: 'Upload brunch photos', isEnabled: false },
     { code: 'ratings', label: 'Ratings', description: 'Rate brunch spots', isEnabled: false },
-    { code: 'calendar', label: 'Calendar', description: 'Google Calendar add-to-calendar chip', isEnabled: false },
+    {
+      code: 'calendar',
+      label: 'Calendar',
+      description: 'Google Calendar add-to-calendar chip',
+      isEnabled: false,
+    },
   ];
   for (const ff of featureFlags) {
     await prisma.featureFlag.upsert({

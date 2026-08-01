@@ -13,9 +13,11 @@
   "dependencies": {
     "@brunchsters/database": "workspace:*",
     "@brunchsters/shared": "workspace:*",
-    "neverthrow": "^6.0.0"
+    "neverthrow": "^6.0.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@types/node": "^22.19.21",
     "typescript": "^5.6.0",
     "vitest": "^2.0.0"
   }
