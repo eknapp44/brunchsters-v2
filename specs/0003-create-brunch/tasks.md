@@ -132,15 +132,15 @@
 
 ## M5 — Dashboard UI
 
-- [ ] Update `apps/web/src/app/(authenticated)/dashboard/page.tsx` (server component):
+- [x] Update `apps/web/src/app/(authenticated)/dashboard/page.tsx` (server component):
   - `auth()` for session; call `getBrunchesForUser({ userId }, { db })` directly (no fetch hop)
   - Split into `upcoming` (draft, active, confirmed) and `past` (completed, cancelled, archived)
   - Empty state when both lists empty: "No brunches yet" + "Plan a Brunch" button → `/brunch/new`
   - Brunch cards: title, status label, going count, "(Host)" badge when `isHost`
   - Past brunches in a secondary section below
-- [ ] `pnpm typecheck && pnpm lint` pass
-- [ ] Browser test (manual): fresh account sees empty state with CTA; populated state verified after M6
-- [ ] Commit: `feat: dashboard with brunch list empty state and Plan a Brunch CTA (M5)`
+- [x] `pnpm typecheck && pnpm lint` pass
+- [x] Browser test (manual): fresh account sees empty state with CTA; populated state verified after M6
+- [x] Commit: `feat: dashboard with brunch list empty state and Plan a Brunch CTA (M5)`
 
 ---
 
@@ -226,6 +226,13 @@ _(Filled in after each milestone completes)_
 - **How:** 11 unit tests on `GooglePlacesProvider` with global `fetch` mocked (`vi.stubGlobal`) — no live network calls, so no flakiness or API cost. 9 unit tests on the two route handlers with `GooglePlacesProvider` itself mocked via `vi.mock`, matching the pattern used for the `brunches` route in M3. Plus the manual browser verification described above, which is the only place the real Google API is exercised.
 - **What's deferred:** No rate limiting or response caching on the search route yet (PLANNING §9.11 — defer until abuse appears). Session-token billing-grouping behavior (that autocomplete keystrokes + the final details call land in one Google billing session) isn't verified in tests — it's just a pass-through parameter; correctness would only be visible in Google's billing console.
 - **How to run:** `pnpm --filter @brunchsters/web test` (unit); `pnpm dev`, sign in in the browser, then hit the routes directly for the live-API check (GET requests carry the session cookie automatically).
+
+### M5 — Dashboard empty state
+
+- **What was tested:** Fresh account (zero brunches) sees "No brunches yet" and a "Plan a Brunch" link to `/brunch/new`. Upcoming/past split logic (`draft`/`active`/`confirmed` vs. `completed`/`cancelled`/`archived`) and the populated brunch-card rendering (title link, "(Host)" badge, status label, going count) are implemented but not yet exercisable — no brunch exists to view yet, so full visual coverage of the populated state lands with M6 once the wizard can actually create one.
+- **How:** Manual browser check signed in with a real, brunch-less account. No unit tests — this is a server component doing a direct `getBrunchesForUser` call already covered by M2's service-level tests; per CLAUDE.md, framework rendering itself isn't tested.
+- **What's deferred:** Populated-state verification (upcoming/past split, card fields, Host badge) — deferred to the M6 full-flow browser test once brunches can be created through the UI.
+- **How to run:** `pnpm dev` → sign in → `http://localhost:3000/dashboard`
 
 ### M6 — Full browser flow
 
