@@ -20,7 +20,8 @@ export async function POST(request: Request): Promise<NextResponse> {
   let body: unknown;
   try {
     body = await request.json();
-  } catch {
+  } catch (cause) {
+    console.error('Failed to parse brunch creation request body', cause);
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
@@ -35,6 +36,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   );
 
   if (result.isErr()) {
+    console.error('createBrunch failed', result.error);
     return NextResponse.json({ error: 'Failed to create brunch' }, { status: 500 });
   }
 

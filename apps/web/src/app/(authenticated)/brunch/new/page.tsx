@@ -32,6 +32,34 @@ const initialState: WizardState = {
   votingDeadline: '',
 };
 
+const TITLE_MAX_LENGTH = 100;
+const DESCRIPTION_MAX_LENGTH = 500;
+
+// For the "Voting closes by" datetime-local input's min attribute — matches
+// the server's future-only requirement so the browser blocks past dates too.
+function nowAsDatetimeLocalValue(): string {
+  const now = new Date();
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+}
+
+type ApiErrorBody = {
+  readonly error?: string;
+  readonly errors?: ReadonlyArray<{ readonly message?: string }>;
+};
+
+async function extractErrorMessage(response: Response): Promise<string> {
+  const body = (await response.json().catch(() => undefined)) as ApiErrorBody | undefined;
+  if (body?.error !== undefined) return body.error;
+  if (body?.errors !== undefined && body.errors.length > 0) {
+    const messages = body.errors
+      .map((issue) => issue.message)
+      .filter((message): message is string => message !== undefined);
+    if (messages.length > 0) return messages.join('; ');
+  }
+  return 'Failed to create brunch';
+}
+
 function wizardReducer(state: WizardState, action: WizardAction): WizardState {
   switch (action.type) {
     case 'SET_TITLE':
@@ -74,6 +102,7 @@ function StepOne({
         <input
           type="text"
           value={state.title}
+          maxLength={TITLE_MAX_LENGTH}
           onChange={(event) => dispatch({ type: 'SET_TITLE', title: event.target.value })}
         />
       </label>
@@ -81,6 +110,7 @@ function StepOne({
         Description
         <textarea
           value={state.description}
+          maxLength={DESCRIPTION_MAX_LENGTH}
           onChange={(event) =>
             dispatch({ type: 'SET_DESCRIPTION', description: event.target.value })
           }
@@ -249,6 +279,7 @@ function StepThree({
           <input
             type="datetime-local"
             value={state.votingDeadline}
+            min={nowAsDatetimeLocalValue()}
             onChange={(event) =>
               dispatch({ type: 'SET_VOTING_DEADLINE', value: event.target.value })
             }
@@ -300,10 +331,7 @@ export default function NewBrunchPage() {
       });
 
       if (!response.ok) {
-        const body = (await response.json().catch(() => undefined)) as
-          | { error?: string }
-          | undefined;
-        setSubmitError(body?.error ?? 'Failed to create brunch');
+        setSubmitError(await extractErrorMessage(response));
         setSubmitting(false);
         return;
       }

@@ -4,6 +4,7 @@ import type { IanaTimezone } from '@brunchsters/shared';
 const PLACES_BASE_URL = 'https://places.googleapis.com/v1';
 const TIMEZONE_BASE_URL = 'https://maps.googleapis.com/maps/api/timezone/json';
 const PLACE_DETAILS_FIELD_MASK = 'id,displayName,formattedAddress,googleMapsUri,location';
+const REQUEST_TIMEOUT_MS = 5000;
 
 type AutocompleteResponse = {
   readonly suggestions?: ReadonlyArray<{
@@ -33,11 +34,21 @@ type TimeZoneResponse = {
 export class GooglePlacesProvider implements PlaceProvider {
   constructor(private readonly apiKey: string) {}
 
+  private async fetchWithTimeout(url: string | URL, init?: RequestInit): Promise<Response> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      return await fetch(url, { ...init, signal: controller.signal });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
   async search(params: {
     readonly query: string;
     readonly sessionToken?: string;
   }): Promise<readonly PlaceResult[]> {
-    const response = await fetch(`${PLACES_BASE_URL}/places:autocomplete`, {
+    const response = await this.fetchWithTimeout(`${PLACES_BASE_URL}/places:autocomplete`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -77,7 +88,7 @@ export class GooglePlacesProvider implements PlaceProvider {
       detailsUrl.searchParams.set('sessionToken', params.sessionToken);
     }
 
-    const detailsResponse = await fetch(detailsUrl, {
+    const detailsResponse = await this.fetchWithTimeout(detailsUrl, {
       headers: {
         'X-Goog-Api-Key': this.apiKey,
         'X-Goog-FieldMask': PLACE_DETAILS_FIELD_MASK,
@@ -118,7 +129,7 @@ export class GooglePlacesProvider implements PlaceProvider {
     timezoneUrl.searchParams.set('timestamp', String(Math.floor(Date.now() / 1000)));
     timezoneUrl.searchParams.set('key', this.apiKey);
 
-    const response = await fetch(timezoneUrl);
+    const response = await this.fetchWithTimeout(timezoneUrl);
     if (!response.ok) {
       throw new Error(`Time zone lookup failed: ${response.status}`);
     }

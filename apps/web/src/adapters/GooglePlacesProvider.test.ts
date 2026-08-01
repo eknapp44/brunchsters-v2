@@ -50,6 +50,9 @@ describe('GooglePlacesProvider.search', () => {
       sessionToken: 'sess-1',
       languageCode: 'en',
     });
+    // A hanging Google request must not hang the route forever — every call
+    // is wired to an abortable timeout.
+    expect(init.signal).toBeInstanceOf(AbortSignal);
   });
 
   it('defaults name and address to empty strings when structuredFormat is missing', async () => {
@@ -116,10 +119,12 @@ describe('GooglePlacesProvider.getDetails', () => {
     expect((detailsInit.headers as Record<string, string>)['X-Goog-FieldMask']).toBe(
       'id,displayName,formattedAddress,googleMapsUri,location',
     );
+    expect(detailsInit.signal).toBeInstanceOf(AbortSignal);
 
-    const [timezoneUrl] = mockFetch.mock.calls[1] as [URL];
+    const [timezoneUrl, timezoneInit] = mockFetch.mock.calls[1] as [URL, RequestInit];
     expect(timezoneUrl.searchParams.get('location')).toBe('36.08,-86.76');
     expect(timezoneUrl.searchParams.get('key')).toBe('test-key');
+    expect(timezoneInit.signal).toBeInstanceOf(AbortSignal);
   });
 
   it('omits the sessionToken query param when none is given', async () => {

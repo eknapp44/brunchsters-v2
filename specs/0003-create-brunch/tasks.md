@@ -192,6 +192,7 @@
 - **Invitations (step 4) deferred** to spec 0004. The wizard ends after step 3.
 - **Brunch created with status `draft`.** Transitions to `active` when invites are sent (spec 0004). Dashboard shows `draft` brunches.
 - **i18n (next-intl) deferred** per `docs/adrs/0005-defer-next-intl.md` — revisit at pre-launch.
+- **Proposed times are interpreted in the host's browser timezone, not the venue's.** Each location independently resolves its own IANA `timezone` (via the Time Zone API), but the wizard's `datetime-local` inputs are read via `new Date(inputValue)`, which uses the browser's local timezone before converting to UTC for storage. If a host is in a different timezone than a proposed venue, the stored UTC instant may not match what the host actually intended for that location. Not a regression — the times still round-trip correctly as UTC — but timezone-aware time entry (picking a time relative to the venue's, not the host's, timezone) is unaddressed and should be revisited once cross-timezone brunches come up in practice.
 
 ---
 

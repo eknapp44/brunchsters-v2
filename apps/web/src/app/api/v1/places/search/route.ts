@@ -1,13 +1,6 @@
 import { NextResponse } from 'next/server';
 import { GooglePlacesProvider } from '@/adapters/GooglePlacesProvider';
-
-function requireGooglePlacesApiKey(): string {
-  const key = process.env.GOOGLE_PLACES_API_KEY;
-  if (key === undefined || key === '') {
-    throw new Error('Missing GOOGLE_PLACES_API_KEY in apps/web/.env.local');
-  }
-  return key;
-}
+import { requireGooglePlacesApiKey } from '@/lib/googlePlacesApiKey';
 
 export async function GET(request: Request): Promise<NextResponse> {
   const { searchParams } = new URL(request.url);
@@ -25,7 +18,8 @@ export async function GET(request: Request): Promise<NextResponse> {
       ...(sessionToken !== null ? { sessionToken } : {}),
     });
     return NextResponse.json({ places });
-  } catch {
+  } catch (cause) {
+    console.error('Place search failed', cause);
     return NextResponse.json({ error: 'Place search unavailable' }, { status: 502 });
   }
 }

@@ -1,13 +1,6 @@
 import { NextResponse } from 'next/server';
 import { GooglePlacesProvider } from '@/adapters/GooglePlacesProvider';
-
-function requireGooglePlacesApiKey(): string {
-  const key = process.env.GOOGLE_PLACES_API_KEY;
-  if (key === undefined || key === '') {
-    throw new Error('Missing GOOGLE_PLACES_API_KEY in apps/web/.env.local');
-  }
-  return key;
-}
+import { requireGooglePlacesApiKey } from '@/lib/googlePlacesApiKey';
 
 export async function GET(
   request: Request,
@@ -29,7 +22,8 @@ export async function GET(
     }
 
     return NextResponse.json(details);
-  } catch {
+  } catch (cause) {
+    console.error('Place details lookup failed', cause);
     return NextResponse.json({ error: 'Place search unavailable' }, { status: 502 });
   }
 }
