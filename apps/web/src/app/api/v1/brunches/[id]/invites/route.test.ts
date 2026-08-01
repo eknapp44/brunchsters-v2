@@ -112,17 +112,6 @@ describe('POST /api/v1/brunches/[id]/invites', () => {
     expect(response.status).toBe(404);
   });
 
-  it("returns 422 when inviting the host's own email", async () => {
-    mockAuth.mockResolvedValue(SESSION);
-    mockSendInvites.mockResolvedValue(err({ kind: 'cannot_invite_self' }));
-
-    const response = await POST(postRequest({ emails: ['host@example.com'] }), {
-      params: params(VALID_BRUNCH_ID),
-    });
-
-    expect(response.status).toBe(422);
-  });
-
   it('returns 500 on an unexpected service error', async () => {
     mockAuth.mockResolvedValue(SESSION);
     mockSendInvites.mockResolvedValue(err({ kind: 'db_error', cause: new Error('boom') }));

@@ -26,7 +26,6 @@ export type InviteSummary = {
 export type SendInvitesError =
   | { readonly kind: 'brunch_not_found' }
   | { readonly kind: 'not_host' }
-  | { readonly kind: 'cannot_invite_self' }
   | { readonly kind: 'lookup_not_found'; readonly code: string }
   | { readonly kind: 'db_error'; readonly cause: unknown };
 
@@ -51,7 +50,13 @@ export async function sendInvites(
   });
   if (brunch === null) return err({ kind: 'brunch_not_found' });
   if (brunch.hostId !== input.invitedById) return err({ kind: 'not_host' });
-  if (input.emails.includes(brunch.host.email)) return err({ kind: 'cannot_invite_self' });
+
+  // Inviting yourself is a no-op, not an error — the host already has the
+  // synthetic invite. Filtering it out (rather than rejecting the whole
+  // batch) means the rest of a multi-email submission still goes through
+  // even if the host absent-mindedly included their own address.
+  const emails = input.emails.filter((email) => email !== brunch.host.email);
+  if (emails.length === 0) return ok([]);
 
   let summaries: readonly InviteSummary[];
   try {
@@ -61,7 +66,7 @@ export async function sendInvites(
 
       const results: InviteSummary[] = [];
 
-      for (const email of input.emails) {
+      for (const email of emails) {
         // findUnique bypasses the soft-delete extension (only findMany/findFirst
         // are intercepted) — we need to see revoked invites here to revive them.
         const existing = await tx.brunchInvite.findUnique({

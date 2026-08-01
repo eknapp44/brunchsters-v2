@@ -202,7 +202,23 @@ describe('sendInvites', () => {
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'not_host' });
   });
 
-  it('returns cannot_invite_self when an email matches the host', async () => {
+  it("filters out the host's own email rather than rejecting the whole batch", async () => {
+    const tx = makeMockTx();
+    const db = makeMockDb(tx, DRAFT_BRUNCH);
+
+    const result = await sendInvites(
+      { ...BASE_INPUT, emails: ['host@example.com', 'alice@example.com'] },
+      { db, eventBus: makeMockEventBus() },
+    );
+
+    expect(result.isOk()).toBe(true);
+    expect(result._unsafeUnwrap()).toEqual([
+      { id: 'new-invite-uuid', invitedEmail: 'alice@example.com' },
+    ]);
+    expect(tx.brunchInvite.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns Ok with no invites when every email is the host's own", async () => {
     const tx = makeMockTx();
     const db = makeMockDb(tx, DRAFT_BRUNCH);
 
@@ -211,8 +227,9 @@ describe('sendInvites', () => {
       { db, eventBus: makeMockEventBus() },
     );
 
-    expect(result.isErr()).toBe(true);
-    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'cannot_invite_self' });
+    expect(result.isOk()).toBe(true);
+    expect(result._unsafeUnwrap()).toEqual([]);
+    expect(tx.brunchInvite.create).not.toHaveBeenCalled();
   });
 
   it('returns lookup_not_found when the invited RsvpStatus row is missing', async () => {

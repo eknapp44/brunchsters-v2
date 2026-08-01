@@ -51,8 +51,6 @@ export async function POST(
         return NextResponse.json({ error: 'Brunch not found' }, { status: 404 });
       case 'not_host':
         return NextResponse.json({ error: 'Only the host can send invites' }, { status: 403 });
-      case 'cannot_invite_self':
-        return NextResponse.json({ error: 'Cannot invite yourself' }, { status: 422 });
       default:
         console.error('sendInvites failed', result.error);
         return NextResponse.json({ error: 'Failed to send invites' }, { status: 500 });

@@ -5,23 +5,26 @@ import { useRouter } from 'next/navigation';
 import { type Dispatch, useEffect, useReducer, useState } from 'react';
 
 type WizardState = {
-  readonly step: 1 | 2 | 3;
+  readonly step: 1 | 2 | 3 | 4;
   readonly title: string;
   readonly description: string;
   readonly locations: readonly PlaceDetails[];
   readonly times: readonly Date[];
   readonly votingDeadline: string;
+  readonly emails: readonly string[];
 };
 
 type WizardAction =
   | { readonly type: 'SET_TITLE'; readonly title: string }
   | { readonly type: 'SET_DESCRIPTION'; readonly description: string }
-  | { readonly type: 'GO_TO_STEP'; readonly step: 1 | 2 | 3 }
+  | { readonly type: 'GO_TO_STEP'; readonly step: 1 | 2 | 3 | 4 }
   | { readonly type: 'ADD_LOCATION'; readonly location: PlaceDetails }
   | { readonly type: 'REMOVE_LOCATION'; readonly placeId: string }
   | { readonly type: 'ADD_TIME'; readonly time: Date }
   | { readonly type: 'REMOVE_TIME'; readonly index: number }
-  | { readonly type: 'SET_VOTING_DEADLINE'; readonly value: string };
+  | { readonly type: 'SET_VOTING_DEADLINE'; readonly value: string }
+  | { readonly type: 'ADD_EMAIL'; readonly email: string }
+  | { readonly type: 'REMOVE_EMAIL'; readonly email: string };
 
 const initialState: WizardState = {
   step: 1,
@@ -30,6 +33,7 @@ const initialState: WizardState = {
   locations: [],
   times: [],
   votingDeadline: '',
+  emails: [],
 };
 
 const TITLE_MAX_LENGTH = 100;
@@ -81,6 +85,12 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
       return { ...state, times: state.times.filter((_, index) => index !== action.index) };
     case 'SET_VOTING_DEADLINE':
       return { ...state, votingDeadline: action.value };
+    case 'ADD_EMAIL':
+      return state.emails.includes(action.email)
+        ? state
+        : { ...state, emails: [...state.emails, action.email] };
+    case 'REMOVE_EMAIL':
+      return { ...state, emails: state.emails.filter((email) => email !== action.email) };
     default: {
       const exhaustiveCheck: never = action;
       return exhaustiveCheck;
@@ -228,15 +238,9 @@ function StepTwo({
 function StepThree({
   state,
   dispatch,
-  onSubmit,
-  submitting,
-  submitError,
 }: {
   readonly state: WizardState;
   readonly dispatch: Dispatch<WizardAction>;
-  readonly onSubmit: () => void;
-  readonly submitting: boolean;
-  readonly submitError: string | undefined;
 }) {
   const [timeInput, setTimeInput] = useState('');
   const showVotingDeadline = state.locations.length > 1 || state.times.length > 1;
@@ -287,9 +291,66 @@ function StepThree({
         </label>
       )}
 
+      <button type="button" onClick={() => dispatch({ type: 'GO_TO_STEP', step: 2 })}>
+        Back
+      </button>
+      <button type="button" onClick={() => dispatch({ type: 'GO_TO_STEP', step: 4 })}>
+        Next
+      </button>
+    </section>
+  );
+}
+
+function StepFour({
+  state,
+  dispatch,
+  onSubmit,
+  submitting,
+  submitError,
+}: {
+  readonly state: WizardState;
+  readonly dispatch: Dispatch<WizardAction>;
+  readonly onSubmit: () => void;
+  readonly submitting: boolean;
+  readonly submitError: string | undefined;
+}) {
+  const [emailInput, setEmailInput] = useState('');
+
+  function addEmail(): void {
+    const trimmed = emailInput.trim();
+    if (trimmed === '') return;
+    dispatch({ type: 'ADD_EMAIL', email: trimmed });
+    setEmailInput('');
+  }
+
+  return (
+    <section>
+      <input
+        type="email"
+        value={emailInput}
+        onChange={(event) => setEmailInput(event.target.value)}
+        placeholder="Email address"
+      />
+      <button type="button" onClick={addEmail}>
+        Add
+      </button>
+
+      {state.emails.length > 0 && (
+        <ul>
+          {state.emails.map((email) => (
+            <li key={email}>
+              {email}
+              <button type="button" onClick={() => dispatch({ type: 'REMOVE_EMAIL', email })}>
+                Remove
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
       {submitError !== undefined && <p role="alert">{submitError}</p>}
 
-      <button type="button" onClick={() => dispatch({ type: 'GO_TO_STEP', step: 2 })}>
+      <button type="button" onClick={() => dispatch({ type: 'GO_TO_STEP', step: 3 })}>
         Back
       </button>
       <button type="button" onClick={onSubmit} disabled={submitting}>
@@ -337,6 +398,22 @@ export default function NewBrunchPage() {
       }
 
       const created = (await response.json()) as { id: string };
+
+      if (state.emails.length > 0) {
+        // Best-effort — the brunch already exists at this point, and a failed
+        // send here can be retried from the detail page's invite panel, so it
+        // shouldn't block the redirect the way a failed brunch creation does.
+        try {
+          await fetch(`/api/v1/brunches/${created.id}/invites`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ emails: state.emails }),
+          });
+        } catch {
+          // Ignored — see comment above.
+        }
+      }
+
       router.push(`/brunch/${created.id}`);
     } catch {
       setSubmitError('Failed to create brunch');
@@ -349,8 +426,9 @@ export default function NewBrunchPage() {
       <h1>Plan a Brunch</h1>
       {state.step === 1 && <StepOne state={state} dispatch={dispatch} />}
       {state.step === 2 && <StepTwo state={state} dispatch={dispatch} />}
-      {state.step === 3 && (
-        <StepThree
+      {state.step === 3 && <StepThree state={state} dispatch={dispatch} />}
+      {state.step === 4 && (
+        <StepFour
           state={state}
           dispatch={dispatch}
           onSubmit={() => void handleSubmit()}

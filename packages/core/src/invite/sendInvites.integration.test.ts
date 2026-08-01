@@ -195,14 +195,23 @@ describe('sendInvites integration', () => {
     expect(after.deletedAt).toBeNull();
   });
 
-  it("rejects inviting the host's own email", async () => {
+  it("filters out the host's own email instead of rejecting the whole batch", async () => {
+    const anotherNewEmail = `integration-invite-self-filter-${RUN_ID}@example.com`;
+
     const result = await sendInvites(
-      { brunchId, invitedById: hostId, emails: [HOST_EMAIL] },
+      { brunchId, invitedById: hostId, emails: [HOST_EMAIL, anotherNewEmail] },
       { db, eventBus },
     );
 
-    expect(result.isErr()).toBe(true);
-    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'cannot_invite_self' });
+    expect(result.isOk()).toBe(true);
+    expect(result._unsafeUnwrap()).toEqual([
+      { id: expect.any(String), invitedEmail: anotherNewEmail },
+    ]);
+
+    await db.brunchAttendee.deleteMany({
+      where: { brunchId, invite: { invitedEmail: anotherNewEmail } },
+    });
+    await db.brunchInvite.deleteMany({ where: { brunchId, invitedEmail: anotherNewEmail } });
   });
 
   it('rejects a non-host sender', async () => {
