@@ -59,18 +59,19 @@
 
 ## M4 — API routes
 
-- [ ] `POST /api/v1/brunches/[id]/invites` — body `{ emails: string[] }`; 201 with invite summaries; 403 non-host; 422 invalid emails
-- [ ] `POST /api/v1/invites/[id]/resend` — host-only; 200; 403 non-host; 404 unknown invite
-- [ ] `DELETE /api/v1/invites/[id]` — host-only; 204; 403 non-host
-- [ ] `GET /api/v1/invites/token/[token]` — **public**; 200 with brunch preview; 404 invalid/expired/revoked
-- [ ] `POST /api/v1/invites/token/[token]/respond` — body `{ response }`; requires auth; 200; 401 unauthenticated; 404 invalid token
-- [ ] `POST /api/v1/brunches/[id]/suggestions` — body `{ email }`; any attendee; 201; 403 suggestions disabled
-- [ ] `POST /api/v1/suggestions/[id]/review` — body `{ decision }`; host-only; 200; 403 non-host
-- [ ] **Add `/api/v1/invites/token/` to `middleware.ts`'s `PUBLIC_PREFIXES`** — without this, the one route meant to be reachable while signed out gets 401'd by the existing `/api/` auth branch
-- [ ] Route handler unit tests for all 7 routes (auth/host checks, validation, success/error shapes) — same `vi.mock`-the-service pattern as `brunches`/`places` routes
-- [ ] Manual middleware check: `curl` the public token route unauthenticated → 200/404 (not 401); the respond route unauthenticated → 401
-- [ ] `pnpm typecheck && pnpm lint && pnpm test` pass
-- [ ] Commit: `feat: invite and suggestion API routes (M4)`
+- [x] `POST /api/v1/brunches/[id]/invites` — body `{ emails: string[] }`; 201 with invite summaries; 403 non-host; 422 invalid emails; 404 malformed/unknown brunch id
+- [x] `POST /api/v1/invites/[id]/resend` — host-only; 200; 403 non-host; 404 malformed/unknown invite id
+- [x] `DELETE /api/v1/invites/[id]` — host-only; 204; 403 non-host; 404 malformed/unknown invite id
+- [x] `GET /api/v1/invites/token/[token]` — **public**; 200 with brunch preview; 404 invalid/expired/revoked
+- [x] `POST /api/v1/invites/token/[token]/respond` — body `{ response }`; requires auth; 200; 401 unauthenticated; 404 invalid token
+- [x] `POST /api/v1/brunches/[id]/suggestions` — body `{ email }`; any attendee; 201; 403 suggestions disabled/non-attendee; 409 duplicate; 404 malformed/unknown brunch id
+- [x] `POST /api/v1/suggestions/[id]/review` — body `{ decision }`; host-only; 200; 403 non-host; 409 already reviewed; 404 malformed/unknown suggestion id
+- [x] Every `id`-shaped path param (`brunchId`, `inviteId`, `suggestionId`) is validated with `z.uuid()` before hitting the service — these columns are `@db.Uuid`, and an unvalidated garbage string reaches Postgres as an invalid UUID literal and throws, rather than returning a clean 404 (same rationale as the brunch detail page's UUID guard from spec 0003); `token` needs no such guard since it's a plain `String` column
+- [x] Added `/api/v1/invites/token/` to `middleware.ts`'s `PUBLIC_PREFIXES` — the respond sub-route still enforces its own `auth()` check internally, so nesting it under the same public prefix as the preview route doesn't weaken it
+- [x] Route handler unit tests for all 7 routes (auth/host checks, validation, success/error shapes) — same `vi.mock`-the-service pattern as `brunches`/`places` routes
+- [x] Manual middleware check: `curl` the public token route unauthenticated → 404 for a bogus token (not 401); the respond route unauthenticated → 401; a still-gated route (send-invites) unauthenticated → 401
+- [x] `pnpm typecheck && pnpm lint && pnpm test` pass
+- [x] Commit: `feat: invite and suggestion API routes (M4)`
 
 ---
 
@@ -155,7 +156,12 @@ _(Filled in after each milestone completes)_
 - **What's deferred:** No test covers a suggestion for an email that already has an active `BrunchInvite` (only the suggestion-level duplicate, via `@@unique([brunchId, suggestedEmail])`, is covered) — `sendInvites`'s own duplicate/resend handling (tested in M1) covers that case downstream regardless, so it's not a real gap, just not re-asserted here.
 - **How to run:** `pnpm --filter @brunchsters/core test` (unit); `supabase start && pnpm db:seed && pnpm --filter @brunchsters/core test:integration` (integration)
 
-### M4 — TBD
+### M4 — API routes
+
+- **What was tested:** All 7 routes' auth gating (401 unauthenticated where required), UUID-param validation (malformed `id` → 404 without ever calling the service), request-body validation (real Zod schemas, only the services mocked), and the full success/error-kind-to-HTTP-status mapping for each route (403 for ownership failures, 404 for not-found, 409 for conflict states, 422 for validation, 500 for unexpected errors, with the underlying error logged before the 500 response per the M4-review-fix pattern from spec 0003). Manually verified against a running dev server: the public token-preview route returns 404 (not 401) for a bogus token while unauthenticated, the respond route on that same public prefix still independently 401s when unauthenticated, and an unrelated invite route stays gated by the blanket `/api/` 401.
+- **How:** 39 new route handler unit tests across 7 files, `vi.mock`-ing only the core service being called per route (schemas kept real via `importOriginal` where a body is validated). `curl` against `pnpm dev` for the middleware/public-prefix behavior, since framework middleware routing isn't unit tested per policy.
+- **What's deferred:** No test exercises a real authenticated end-to-end request through these routes (session cookie + real DB) — that lands with the M5/M6 browser flow once there's UI to drive it.
+- **How to run:** `pnpm --filter @brunchsters/web test`; middleware check via curl against `pnpm dev`
 
 ### M5 — TBD
 
