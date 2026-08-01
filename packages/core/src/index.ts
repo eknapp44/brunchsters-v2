@@ -38,3 +38,9 @@ export type {
   InviteListItem,
   InviteStatus,
 } from './invite/getInvitesForBrunch';
+export { respondToInvite, respondToInviteRequestSchema } from './invite/respondToInvite';
+export type {
+  RespondToInviteError,
+  RespondToInviteInput,
+  RespondToInviteRequest,
+} from './invite/respondToInvite';

@@ -28,19 +28,19 @@
 
 ## M2 — `respondToInvite` + `getBrunchById` extension
 
-- [ ] Implement `packages/core/src/invite/respondToInvite.ts`:
+- [x] Implement `packages/core/src/invite/respondToInvite.ts`:
   - Input: `token`, `viewerId`, `response: 'yes' | 'no' | 'maybe'`
   - Validates token (not expired/revoked) → `kind: 'invalid_token'` otherwise
   - If a `BrunchAttendee` row already exists for this invite, update `rsvpStatusId`/`respondedAt`; otherwise create it (backfilling `BrunchInvite.invitedUserId` if it was null)
   - Always allowed — no "already responded" lock
   - Emit `attendee/rsvp.received` (first response) or `attendee/rsvp.changed` (subsequent)
-- [ ] Extend `BrunchDetail` (`getBrunchById.ts`) with `isHost: boolean` and `viewerRsvpStatus: string | undefined`
-- [ ] Export `respondToInvite` from `packages/core/src/index.ts`
-- [ ] Unit tests: create-branch (no prior attendee) vs. update-branch, invalid token rejected, correct event name on first vs. subsequent response
-- [ ] Update `getBrunchById.test.ts` for the two new fields
-- [ ] Integration test: unregistered invitee responds for the first time → `BrunchAttendee` created and `BrunchInvite.invitedUserId` backfilled
-- [ ] `pnpm typecheck && pnpm lint && pnpm test` pass
-- [ ] Commit: `feat: respondToInvite service and getBrunchById viewer fields (M2)`
+- [x] Extend `BrunchDetail` (`getBrunchById.ts`) with `isHost: boolean` and `viewerRsvpStatus: string | undefined` (scoped `attendees` include filtered to the viewer, not a full attendee list)
+- [x] Export `respondToInvite` (+ types) from `packages/core/src/index.ts`
+- [x] Unit tests: create-branch (no prior attendee) vs. update-branch, invitedUserId backfill only when null, invalid token rejected, lookup-not-found and db-error mapping, emit-failure-still-Ok, correct event name on first vs. subsequent response
+- [x] Updated `getBrunchById.test.ts` for the two new fields, plus a query-shape assertion for the viewer-scoped `attendees` include
+- [x] Integration test: known invitee's eagerly-created attendee row gets updated; unregistered invitee's attendee row gets created on first response with `invitedUserId` backfilled; response can be changed with no lock; invalid token rejected
+- [x] `pnpm typecheck && pnpm lint && pnpm test` pass
+- [x] Commit: `feat: respondToInvite service and getBrunchById viewer fields (M2)`
 
 ---
 
@@ -139,7 +139,12 @@ _(Filled in after each milestone completes)_
 - **What's deferred:** No test exercises the actual token-expiry boundary (a real invite expiring after 30 days) — not practical to test without manipulating the clock; the expiry _value_ is asserted (`tokenExpiresAt: expect.any(Date)`) but not the boundary behavior itself. Real email delivery isn't tested since it isn't implemented (`invite/sent` fires into `NoopEventBus`).
 - **How to run:** `pnpm --filter @brunchsters/core test` (unit); `supabase start && pnpm db:seed && pnpm --filter @brunchsters/core test:integration` (integration)
 
-### M2 — TBD
+### M2 — `respondToInvite` + `getBrunchById` viewer fields
+
+- **What was tested:** `respondToInvite` — first-response create path (with `invitedUserId` backfill only when it was null), subsequent-response update path (no lock — a decline can become an accept and vice versa), invalid/expired/revoked token rejection, missing-`RsvpStatus`-row and unexpected-DB-error mapping, emit-failure-still-Ok, and the correct event name (`rsvp.received` vs. `rsvp.changed`) on first vs. later responses. `getBrunchById`'s new `isHost`/`viewerRsvpStatus` fields — correct for host, attendee-with-a-response, and attendee-with-no-response-yet cases, plus a query-shape assertion confirming the `attendees` include is scoped to the viewer only (not a full attendee list — that stays `getInvitesForBrunch`'s, host-only, job).
+- **How:** 11 unit tests on `respondToInvite` (mocked `DbClient`/`EventBus`) + 3 new/updated `getBrunchById` unit tests. 4 integration tests against local Supabase Postgres: updating a known invitee's eagerly-created attendee row, creating an unregistered invitee's attendee row for the first time (real second `User` row created mid-test to simulate signing up via the token, then responding) with `invitedUserId` backfill verified against a real row, changing a response, and an invalid-token rejection. Mocked nothing in integration.
+- **What's deferred:** No test exercises what happens when the same viewer somehow already has a `BrunchAttendee` for the brunch via a _different_ invite — not reachable under the current invite model (one invite per email per brunch, one attendee per invite) so not worth a defensive test.
+- **How to run:** `pnpm --filter @brunchsters/core test` (unit); `supabase start && pnpm db:seed && pnpm --filter @brunchsters/core test:integration` (integration)
 
 ### M3 — TBD
 

@@ -7,6 +7,8 @@ export type BrunchDetail = {
   readonly description: string | undefined;
   readonly statusCode: string;
   readonly statusLabel: string;
+  readonly isHost: boolean;
+  readonly viewerRsvpStatus: string | undefined;
 };
 
 type GetBrunchByIdInput = {
@@ -30,7 +32,16 @@ export async function getBrunchById(
         { attendees: { some: { userId: input.viewerId, deletedAt: null } } },
       ],
     },
-    include: { status: true },
+    include: {
+      status: true,
+      // Scoped to the viewer only — this is an authorized single-viewer read,
+      // never a full attendee list (that's getInvitesForBrunch, host-only).
+      attendees: {
+        where: { userId: input.viewerId, deletedAt: null },
+        include: { rsvpStatus: true },
+        take: 1,
+      },
+    },
   });
 
   if (brunch === null) return undefined;
@@ -41,5 +52,7 @@ export async function getBrunchById(
     description: brunch.description ?? undefined,
     statusCode: brunch.status.code,
     statusLabel: brunch.status.label,
+    isHost: brunch.hostId === input.viewerId,
+    viewerRsvpStatus: brunch.attendees[0]?.rsvpStatus.code,
   };
 }
