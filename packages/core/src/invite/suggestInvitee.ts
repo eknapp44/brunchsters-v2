@@ -25,6 +25,7 @@ export type SuggestInviteeError =
   | { readonly kind: 'brunch_not_found' }
   | { readonly kind: 'suggestions_disabled' }
   | { readonly kind: 'not_attendee' }
+  | { readonly kind: 'cannot_suggest_host' }
   | { readonly kind: 'already_suggested' }
   | { readonly kind: 'lookup_not_found'; readonly code: string }
   | { readonly kind: 'db_error'; readonly cause: unknown };
@@ -40,9 +41,13 @@ export async function suggestInvitee(
 ): Promise<Result<SuggestInviteeResult, SuggestInviteeError>> {
   const { db } = ctx;
 
-  const brunch = await db.brunch.findFirst({ where: { id: input.brunchId } });
+  const brunch = await db.brunch.findFirst({
+    where: { id: input.brunchId },
+    include: { host: true },
+  });
   if (brunch === null) return err({ kind: 'brunch_not_found' });
   if (!brunch.allowInviteSuggestions) return err({ kind: 'suggestions_disabled' });
+  if (input.email === brunch.host.email) return err({ kind: 'cannot_suggest_host' });
 
   const isHost = brunch.hostId === input.suggestedById;
   if (!isHost) {

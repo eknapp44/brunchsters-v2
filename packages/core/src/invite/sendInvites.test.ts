@@ -218,6 +218,23 @@ describe('sendInvites', () => {
     expect(tx.brunchInvite.create).toHaveBeenCalledTimes(1);
   });
 
+  it('de-duplicates the same email appearing twice in one batch', async () => {
+    const tx = makeMockTx();
+    const db = makeMockDb(tx, DRAFT_BRUNCH);
+
+    const result = await sendInvites(
+      { ...BASE_INPUT, emails: ['alice@example.com', 'alice@example.com'] },
+      { db, eventBus: makeMockEventBus() },
+    );
+
+    expect(result.isOk()).toBe(true);
+    expect(result._unsafeUnwrap()).toEqual([
+      { id: 'new-invite-uuid', invitedEmail: 'alice@example.com' },
+    ]);
+    expect(tx.brunchInvite.create).toHaveBeenCalledTimes(1);
+    expect(tx.brunchInvite.findUnique).toHaveBeenCalledTimes(1);
+  });
+
   it("returns Ok with no invites when every email is the host's own", async () => {
     const tx = makeMockTx();
     const db = makeMockDb(tx, DRAFT_BRUNCH);

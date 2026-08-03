@@ -55,7 +55,13 @@ export async function sendInvites(
   // synthetic invite. Filtering it out (rather than rejecting the whole
   // batch) means the rest of a multi-email submission still goes through
   // even if the host absent-mindedly included their own address.
-  const emails = input.emails.filter((email) => email !== brunch.host.email);
+  //
+  // Also de-duplicate: the same email appearing twice in one batch would
+  // otherwise create the invite on the first pass and then "revive" that
+  // same just-created row on the second (findUnique sees uncommitted writes
+  // within the same transaction), producing a duplicate entry in the
+  // returned summaries for a single underlying row.
+  const emails = [...new Set(input.emails.filter((email) => email !== brunch.host.email))];
   if (emails.length === 0) return ok([]);
 
   let summaries: readonly InviteSummary[];

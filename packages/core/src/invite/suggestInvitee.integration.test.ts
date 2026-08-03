@@ -14,6 +14,7 @@ const ATTENDEE_EMAIL = `integration-suggest-attendee-${RUN_ID}@example.com`;
 const SUGGESTED_EMAIL_1 = `integration-suggested-1-${RUN_ID}@example.com`;
 const SUGGESTED_EMAIL_2 = `integration-suggested-2-${RUN_ID}@example.com`;
 const SUGGESTED_EMAIL_3 = `integration-suggested-3-${RUN_ID}@example.com`;
+const ALREADY_INVITED_EMAIL = `integration-already-invited-${RUN_ID}@example.com`;
 
 const db = createDb();
 const eventBus = new NoopEventBus();
@@ -190,5 +191,50 @@ describe('suggestInvitee + reviewInviteSuggestion integration', () => {
 
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'already_reviewed' });
+  });
+
+  it('suggesting an already-invited email is not rejected, and approval resends the existing invite rather than erroring', async () => {
+    const sent = await sendInvites(
+      { brunchId, invitedById: hostId, emails: [ALREADY_INVITED_EMAIL] },
+      { db, eventBus },
+    );
+    expect(sent.isOk()).toBe(true);
+    const inviteBefore = await db.brunchInvite.findFirstOrThrow({
+      where: { brunchId, invitedEmail: ALREADY_INVITED_EMAIL },
+    });
+
+    const suggestion = await suggestInvitee(
+      { brunchId, suggestedById: attendeeId, email: ALREADY_INVITED_EMAIL },
+      { db, eventBus },
+    );
+    expect(suggestion.isOk()).toBe(true);
+
+    const review = await reviewInviteSuggestion(
+      {
+        suggestionId: suggestion._unsafeUnwrap().suggestionId,
+        reviewedById: hostId,
+        decision: 'approve',
+      },
+      { db, eventBus },
+    );
+    expect(review.isOk()).toBe(true);
+
+    // Same underlying row, just resent (new token) — not a duplicate.
+    const matchingInvites = await db.brunchInvite.findMany({
+      where: { brunchId, invitedEmail: ALREADY_INVITED_EMAIL },
+    });
+    expect(matchingInvites).toHaveLength(1);
+    expect(matchingInvites[0]?.id).toBe(inviteBefore.id);
+    expect(matchingInvites[0]?.token).not.toBe(inviteBefore.token);
+  });
+
+  it("rejects suggesting the host's own email", async () => {
+    const result = await suggestInvitee(
+      { brunchId, suggestedById: attendeeId, email: HOST_EMAIL },
+      { db, eventBus },
+    );
+
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'cannot_suggest_host' });
   });
 });

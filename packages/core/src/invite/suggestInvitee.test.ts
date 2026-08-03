@@ -17,6 +17,7 @@ const OPEN_BRUNCH = {
   hostId: HOST_ID,
   allowInviteSuggestions: true,
   requireHostApprovalToInvite: true,
+  host: { email: 'host@example.com' },
 };
 
 function makeMockDb(
@@ -150,6 +151,18 @@ describe('suggestInvitee', () => {
 
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'not_attendee' });
+  });
+
+  it("returns cannot_suggest_host when the suggested email is the host's own", async () => {
+    const db = makeMockDb();
+
+    const result = await suggestInvitee(
+      { ...BASE_INPUT, email: 'host@example.com' },
+      { db, eventBus: { emit: vi.fn() } },
+    );
+
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'cannot_suggest_host' });
   });
 
   it('returns already_suggested when the email was already suggested for this brunch', async () => {

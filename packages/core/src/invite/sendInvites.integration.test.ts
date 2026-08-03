@@ -176,6 +176,27 @@ describe('sendInvites integration', () => {
     expect(revoked.deletedAt).not.toBeNull();
   });
 
+  it('resendInvite and revokeInvite both report invite_not_found for an already-revoked invite (real soft-delete filtering, not just a mock)', async () => {
+    const invite = await db.brunchInvite.findUniqueOrThrow({
+      where: { brunchId_invitedEmail: { brunchId, invitedEmail: UNREGISTERED_INVITEE_EMAIL } },
+    });
+    expect(invite.deletedAt).not.toBeNull(); // revoked by the previous test
+
+    const resendResult = await resendInvite(
+      { inviteId: invite.id as InviteId, requestedById: hostId },
+      { db, eventBus },
+    );
+    expect(resendResult.isErr()).toBe(true);
+    expect(resendResult._unsafeUnwrapErr()).toEqual({ kind: 'invite_not_found' });
+
+    const revokeResult = await revokeInvite(
+      { inviteId: invite.id as InviteId, requestedById: hostId },
+      { db },
+    );
+    expect(revokeResult.isErr()).toBe(true);
+    expect(revokeResult._unsafeUnwrapErr()).toEqual({ kind: 'invite_not_found' });
+  });
+
   it('re-inviting the revoked email revives the same row instead of violating the unique constraint', async () => {
     const before = await db.brunchInvite.findUniqueOrThrow({
       where: { brunchId_invitedEmail: { brunchId, invitedEmail: UNREGISTERED_INVITEE_EMAIL } },

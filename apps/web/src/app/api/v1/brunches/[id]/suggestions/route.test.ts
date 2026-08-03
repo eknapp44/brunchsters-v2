@@ -107,6 +107,17 @@ describe('POST /api/v1/brunches/[id]/suggestions', () => {
     expect(response.status).toBe(403);
   });
 
+  it("returns 422 when suggesting the host's own email", async () => {
+    mockAuth.mockResolvedValue(SESSION);
+    mockSuggestInvitee.mockResolvedValue(err({ kind: 'cannot_suggest_host' }));
+
+    const response = await POST(postRequest({ email: 'host@example.com' }), {
+      params: params(VALID_BRUNCH_ID),
+    });
+
+    expect(response.status).toBe(422);
+  });
+
   it('returns 409 for a duplicate suggestion', async () => {
     mockAuth.mockResolvedValue(SESSION);
     mockSuggestInvitee.mockResolvedValue(err({ kind: 'already_suggested' }));

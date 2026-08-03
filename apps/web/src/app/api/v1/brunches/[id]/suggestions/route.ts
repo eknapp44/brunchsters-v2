@@ -56,6 +56,8 @@ export async function POST(
         );
       case 'not_attendee':
         return NextResponse.json({ error: 'Only attendees can suggest invitees' }, { status: 403 });
+      case 'cannot_suggest_host':
+        return NextResponse.json({ error: 'Cannot suggest the host' }, { status: 422 });
       case 'already_suggested':
         return NextResponse.json({ error: 'This email was already suggested' }, { status: 409 });
       default:

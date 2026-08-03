@@ -104,6 +104,29 @@
 
 ---
 
+## Testing audit (between M6 and M7)
+
+Two real bugs slipping through ~130 existing tests (found by manual testing in M5/M6) prompted a deliberate audit pass before continuing, rather than just moving on. The pattern behind both bugs was the same: every test asked "does this work for the expected caller," never "what if a _different_ actor — one who already has some relationship to this data — is the one calling this." Re-read every M1–M3 service line-by-line specifically looking for that blind spot, plus confirmed the route layer has no identity-smuggling surface (every `invitedById`/`suggestedById`/`requestedById`/`viewerId`/`reviewedById` comes from the session; none of the Zod request schemas even have an identity field to smuggle through).
+
+**Two more real bugs found by this audit (not manual testing) and fixed:**
+
+- [x] `sendInvites`: the same email appearing twice in one batch created the invite on the first pass, then "revived" that same just-created row on the second (`findUnique` sees uncommitted writes within the same transaction) — producing a duplicate entry in the returned summaries for one underlying row. Fixed by de-duplicating the email list before the loop.
+- [x] `suggestInvitee`: suggesting the host's own email wasn't rejected — it created a suggestion that, on approval, called `sendInvites` with the host's email, which silently filters host-self-invites (per the M5 fix) and returns `ok([])`. The suggestion still got marked `approved` even though zero invites were actually created — a confusing inconsistent state. Fixed by rejecting `cannot_suggest_host` upfront, mirroring `sendInvites`'s own self-invite handling.
+
+**Test additions (no code bug, closing missing multi-actor coverage):**
+
+- [x] `sendInvites`: duplicate email within one batch → single result, single `create` call (unit)
+- [x] `suggestInvitee`: rejects suggesting the host's own email (unit + integration); suggesting an _already-invited_ email is allowed and approval just resends the existing invite rather than erroring (integration — documents intended behavior, not a bug)
+- [x] `respondToInvite`: the `already_member` fix generalized to a genuinely different setup path — a non-host attendee (membership via their own real invite, not the synthetic host one) clicking a different pending invite link (integration; the unit-level code path was already generic and didn't need a redundant mock-level test)
+- [x] `resendInvite` + `revokeInvite`: explicit test confirming both report `invite_not_found` for an already-revoked invite against the _real_ soft-delete extension, not just a mock that can't distinguish "revoked" from "never existed" (integration)
+- [x] Suggestions route: `cannot_suggest_host` → 422 (unit)
+
+**Result:** 103 unit + 34 integration tests in `packages/core` (up from ~85/30), 68 unit tests in `apps/web` (up from 67). `pnpm typecheck && pnpm lint && pnpm test` and `pnpm --filter @brunchsters/core test:integration` all green.
+
+- [ ] Commit: `test: audit for missing cross-actor scenarios, fix two real bugs found (sendInvites duplicate email, suggestInvitee self-suggestion)`
+
+---
+
 ## M7 — Suggestion UI + RSVP control
 
 - [ ] `brunch/[id]`: RSVP control (yes/no/maybe buttons) for any attendee, calling `respondToInvite` via the same public respond route (works for authenticated re-visits too, not just first click)

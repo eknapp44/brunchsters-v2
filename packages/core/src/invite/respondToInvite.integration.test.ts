@@ -179,4 +179,38 @@ describe('respondToInvite integration', () => {
     });
     expect(thirdPartyAttendee).toBeNull();
   });
+
+  it("generalizes to a non-host attendee (membership via their own invite, not the synthetic host one) clicking someone else's pending link", async () => {
+    // knownInviteeId's membership here comes from a real invite through
+    // sendInvites, not the synthetic host invite from brunch creation —
+    // a genuinely different setup path than the host case above, even
+    // though respondToInvite's own logic doesn't distinguish them.
+    const fourthPartyEmail = `integration-respond-fourth-${RUN_ID}@example.com`;
+    const sent = await sendInvites(
+      { brunchId, invitedById: hostId, emails: [fourthPartyEmail] },
+      { db, eventBus },
+    );
+    expect(sent.isOk()).toBe(true);
+    const invite = await db.brunchInvite.findFirstOrThrow({
+      where: { brunchId, invitedEmail: fourthPartyEmail },
+    });
+
+    const result = await respondToInvite(
+      { token: invite.token, viewerId: knownInviteeId, response: 'yes' },
+      { db, eventBus },
+    );
+
+    expect(result.isOk()).toBe(true);
+    expect(result._unsafeUnwrap()).toEqual({ brunchId });
+
+    const knownInviteeAttendees = await db.brunchAttendee.findMany({
+      where: { brunchId, userId: knownInviteeId },
+    });
+    expect(knownInviteeAttendees).toHaveLength(1);
+
+    const fourthPartyAttendee = await db.brunchAttendee.findFirst({
+      where: { inviteId: invite.id },
+    });
+    expect(fourthPartyAttendee).toBeNull();
+  });
 });
