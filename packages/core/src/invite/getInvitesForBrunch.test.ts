@@ -46,12 +46,13 @@ describe('getInvitesForBrunch', () => {
     );
   });
 
-  it('maps a responded invite to its rsvp status code', async () => {
+  it('maps a responded invite to its rsvp status code, including the token', async () => {
     const inviteFindMany = vi.fn().mockResolvedValue([
       {
         id: 'invite-1',
         invitedEmail: 'alice@example.com',
         lastResentAt: null,
+        token: 'token-1',
         attendee: { rsvpStatus: { code: 'yes' } },
       },
     ]);
@@ -63,17 +64,30 @@ describe('getInvitesForBrunch', () => {
     );
 
     expect(result._unsafeUnwrap()).toEqual([
-      { id: 'invite-1', invitedEmail: 'alice@example.com', status: 'yes', lastResentAt: undefined },
+      {
+        id: 'invite-1',
+        invitedEmail: 'alice@example.com',
+        status: 'yes',
+        lastResentAt: undefined,
+        token: 'token-1',
+      },
     ]);
   });
 
   it('maps a not-yet-responded invite (no attendee, or attendee with "invited") to pending', async () => {
     const inviteFindMany = vi.fn().mockResolvedValue([
-      { id: 'invite-1', invitedEmail: 'alice@example.com', lastResentAt: null, attendee: null },
+      {
+        id: 'invite-1',
+        invitedEmail: 'alice@example.com',
+        lastResentAt: null,
+        token: 'token-1',
+        attendee: null,
+      },
       {
         id: 'invite-2',
         invitedEmail: 'bob@example.com',
         lastResentAt: null,
+        token: 'token-2',
         attendee: { rsvpStatus: { code: 'invited' } },
       },
     ]);
@@ -90,12 +104,14 @@ describe('getInvitesForBrunch', () => {
         invitedEmail: 'alice@example.com',
         status: 'pending',
         lastResentAt: undefined,
+        token: 'token-1',
       },
       {
         id: 'invite-2',
         invitedEmail: 'bob@example.com',
         status: 'pending',
         lastResentAt: undefined,
+        token: 'token-2',
       },
     ]);
   });

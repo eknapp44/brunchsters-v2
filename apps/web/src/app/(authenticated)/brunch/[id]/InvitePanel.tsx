@@ -7,7 +7,28 @@ type InviteListItem = {
   readonly id: string;
   readonly invitedEmail: string;
   readonly status: 'pending' | 'yes' | 'no' | 'maybe';
+  readonly token: string;
 };
+
+function inviteLink(token: string): string {
+  return `${window.location.origin}/invite/${token}`;
+}
+
+function CopyLinkButton({ token }: { readonly token: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy(): Promise<void> {
+    await navigator.clipboard.writeText(inviteLink(token));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  return (
+    <button type="button" onClick={() => void copy()}>
+      {copied ? 'Copied!' : 'Copy link'}
+    </button>
+  );
+}
 
 export function InvitePanel({
   brunchId,
@@ -67,6 +88,7 @@ export function InvitePanel({
           {invites.map((invite) => (
             <li key={invite.id}>
               {invite.invitedEmail} — {invite.status}
+              <CopyLinkButton token={invite.token} />
               <button type="button" onClick={() => void resend(invite.id)}>
                 Resend
               </button>

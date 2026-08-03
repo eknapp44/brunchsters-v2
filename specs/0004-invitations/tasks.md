@@ -89,16 +89,18 @@
 
 ## M6 — Invitee-facing `/invite/[token]` page
 
-- [ ] `apps/web/src/app/invite/[token]/page.tsx` (server component, public):
+- [x] `apps/web/src/app/invite/[token]/page.tsx` (server component, public — `/invite/` was already in `middleware.ts`'s `PUBLIC_PREFIXES` from spec 0003, no middleware change needed):
   - `getInviteByToken(token)` → `undefined` → render "This invite has expired or is invalid. Ask the host to resend it." (no brunch details)
-  - Valid token + no session → render brunch preview (title, host name, status label) + "Sign in with Google" (`callbackUrl=/invite/${token}`)
-  - Valid token + session → call `respondToInvite(token, viewerId, 'yes')`, redirect to `/brunch/[id]`
-- [ ] `pnpm typecheck && pnpm lint` pass
-- [ ] Manual browser test across all three entry points:
+  - Valid token + no session → render brunch preview (title, host name, status label) + "Sign in with Google" (`callbackUrl=/invite/${token}`, reusing `/sign-in`'s existing mechanism — no new auth plumbing)
+  - Valid token + session → call `respondToInvite(token, viewerId, 'yes')`, redirect to `/brunch/[id]`; on failure, show a generic error rather than the sign-in prompt (they're already authenticated, so that prompt would be confusing)
+- [x] **Fix found before testing began:** `spec.md` calls for "each entry's copyable link" on the invite panel, but M5's `InvitePanel` only showed email + status — no way to actually get the link to share. Added `token` to `InviteListItem`/`getInvitesForBrunch`, and a "Copy link" button (clipboard write + brief "Copied!" feedback) per row.
+- [x] `pnpm typecheck && pnpm lint` pass
+- [x] Manual browser test across all three entry points:
   - Existing signed-in user clicks link → lands on brunch detail immediately
-  - Signed-out new user clicks link → sees preview → signs in with Google → account created → auto-accepted → lands on brunch detail
-  - Expired/revoked token → friendly message, no brunch details leaked
-- [ ] Commit: `feat: public invite landing page with auto-accept on auth (M6)`
+  - Signed-out new user clicks link (second Google account, added as an OAuth consent screen test user) → sees preview → signs in with Google → auto-accepted → lands on brunch detail
+  - Expired/invalid token → friendly message, no brunch details leaked
+- [x] **Real bug found during testing, fixed in this milestone:** clicking a still-pending invite link while already signed in as a _different_ user who already belongs to the brunch (most naturally: the host, testing their own invite links) crashed with a generic error. `respondToInvite` only checked for an existing attendee row _for that invite_, then tried to create a new one — colliding with `BrunchAttendee`'s `@@unique([brunchId, userId])` since the viewer already had a row from being the host. Fixed by checking brunch-level membership before creating a row; if the viewer already belongs to the brunch some other way, it's now a no-op (redirect them in, don't touch their existing RSVP or emit an event) instead of an error.
+- [x] Commit: `feat: public invite landing page with auto-accept on auth (M6)`
 
 ---
 
@@ -148,7 +150,7 @@ _(Filled in after each milestone completes)_
 
 - **What was tested:** `respondToInvite` — first-response create path (with `invitedUserId` backfill only when it was null), subsequent-response update path (no lock — a decline can become an accept and vice versa), invalid/expired/revoked token rejection, missing-`RsvpStatus`-row and unexpected-DB-error mapping, emit-failure-still-Ok, and the correct event name (`rsvp.received` vs. `rsvp.changed`) on first vs. later responses. `getBrunchById`'s new `isHost`/`viewerRsvpStatus` fields — correct for host, attendee-with-a-response, and attendee-with-no-response-yet cases, plus a query-shape assertion confirming the `attendees` include is scoped to the viewer only (not a full attendee list — that stays `getInvitesForBrunch`'s, host-only, job).
 - **How:** 11 unit tests on `respondToInvite` (mocked `DbClient`/`EventBus`) + 3 new/updated `getBrunchById` unit tests. 4 integration tests against local Supabase Postgres: updating a known invitee's eagerly-created attendee row, creating an unregistered invitee's attendee row for the first time (real second `User` row created mid-test to simulate signing up via the token, then responding) with `invitedUserId` backfill verified against a real row, changing a response, and an invalid-token rejection. Mocked nothing in integration.
-- **What's deferred:** No test exercises what happens when the same viewer somehow already has a `BrunchAttendee` for the brunch via a _different_ invite — not reachable under the current invite model (one invite per email per brunch, one attendee per invite) so not worth a defensive test.
+- **Correction from M6:** this note originally claimed the "viewer already has a `BrunchAttendee` via a different invite" case was unreachable and not worth testing — that was wrong. It's exactly what happens when an already-signed-in user (most commonly the host) clicks an invite link that isn't theirs, and it crashed in manual testing. See M6's notes for the fix and the tests that now cover it.
 - **How to run:** `pnpm --filter @brunchsters/core test` (unit); `supabase start && pnpm db:seed && pnpm --filter @brunchsters/core test:integration` (integration)
 
 ### M3 — Invite suggestions
@@ -167,6 +169,16 @@ _(Filled in after each milestone completes)_
 
 ### M5 — TBD
 
-### M6 — TBD
+### M6 — Public invite landing page
+
+- **What was tested:** All three Invitee Journey entry points from `spec.md`, manually in the browser with two real Google accounts: (1) an already-authenticated user clicking a valid invite link redirects straight to the brunch detail page with no intermediate screen; (2) a signed-out visitor sees the minimal brunch preview and a "Sign in with Google" link, and after signing in with a second account (added as a Google OAuth consent-screen test user, since the app is still in Testing publishing status) lands on the brunch detail page auto-accepted; (3) an invalid/nonexistent token shows a generic "expired or invalid" message with no brunch details leaked. Also manually verified the new "Copy link" button on the host's invite panel.
+- **How:** Manual browser walkthrough only — no automated tests for this page beyond typecheck/lint, consistent with the rest of this spec's UI milestones (framework rendering isn't unit tested per CLAUDE.md; Playwright E2E remains deferred). The two real bugs this walkthrough caught were fixed with proper automated coverage in `packages/core` (see below), since the bugs were in service logic, not framework rendering.
+- **What's deferred:** Playwright E2E for the full multi-account flow (no harness yet). No test for a token that becomes invalid _between_ the preview fetch and the `respondToInvite` call (a race too narrow to be worth manufacturing).
+- **How to run:** `supabase start && pnpm dev` → sign in, get an invite link from a brunch's invite panel, open it in a second browser/incognito session
+
+**Two real bugs found and fixed during this milestone's manual testing** (both now have unit + integration coverage):
+
+1. **Missing invite link.** `spec.md` calls for "each entry's copyable link" on the invite panel; M5 only rendered email + status. Fixed by adding `token` to `getInvitesForBrunch`'s `InviteListItem` and a "Copy link" button.
+2. **Crash when an already-signed-in brunch member clicks someone else's pending invite link.** `respondToInvite` only checked for an attendee row tied to _that invite_; if none existed yet, it tried to create one for the viewer — colliding with `BrunchAttendee`'s `(brunchId, userId)` unique constraint when the viewer (typically the host) already had a row from a different relationship. Fixed by checking brunch-level membership first and treating an existing membership as a no-op (redirect in, don't touch their RSVP or emit an event) rather than an error. This also corrects a wrong claim in M2's testing notes that called this case unreachable.
 
 ### M7 — TBD

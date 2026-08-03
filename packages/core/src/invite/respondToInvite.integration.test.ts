@@ -143,4 +143,40 @@ describe('respondToInvite integration', () => {
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'invalid_token' });
   });
+
+  it("lets the host click someone else's still-pending invite link while already signed in, without erroring or duplicating their attendee row", async () => {
+    // A fresh, never-responded-to invite — this is the exact scenario that
+    // broke: no attendee row exists for THIS invite yet, so the naive path
+    // tries to create one for the host, colliding with the host's existing
+    // attendee row (from brunch creation) on the (brunchId, userId) unique
+    // constraint.
+    const thirdPartyEmail = `integration-respond-third-${RUN_ID}@example.com`;
+    const sent = await sendInvites(
+      { brunchId, invitedById: hostId, emails: [thirdPartyEmail] },
+      { db, eventBus },
+    );
+    expect(sent.isOk()).toBe(true);
+    const invite = await db.brunchInvite.findFirstOrThrow({
+      where: { brunchId, invitedEmail: thirdPartyEmail },
+    });
+
+    const result = await respondToInvite(
+      { token: invite.token, viewerId: hostId, response: 'yes' },
+      { db, eventBus },
+    );
+
+    expect(result.isOk()).toBe(true);
+    expect(result._unsafeUnwrap()).toEqual({ brunchId });
+
+    // Host still has exactly one attendee row for this brunch (their own,
+    // from brunch creation) — no duplicate was created.
+    const hostAttendees = await db.brunchAttendee.findMany({ where: { brunchId, userId: hostId } });
+    expect(hostAttendees).toHaveLength(1);
+
+    // The invite meant for the third party is untouched — still no attendee.
+    const thirdPartyAttendee = await db.brunchAttendee.findFirst({
+      where: { inviteId: invite.id },
+    });
+    expect(thirdPartyAttendee).toBeNull();
+  });
 });

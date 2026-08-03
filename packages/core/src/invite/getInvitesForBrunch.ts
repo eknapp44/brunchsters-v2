@@ -9,6 +9,10 @@ export type InviteListItem = {
   readonly invitedEmail: string;
   readonly status: InviteStatus;
   readonly lastResentAt: Date | undefined;
+  // Host-only surface — this is the capability the host copies and shares
+  // themselves (no real email delivery yet; see spec 0004's "What This Spec
+  // Does Not Cover"). Never expose this list to anyone but the host.
+  readonly token: string;
 };
 
 export type GetInvitesForBrunchInput = {
@@ -52,6 +56,7 @@ export async function getInvitesForBrunch(
       invitedEmail: invite.invitedEmail,
       status: toInviteStatus(invite.attendee?.rsvpStatus.code),
       lastResentAt: invite.lastResentAt ?? undefined,
+      token: invite.token,
     })),
   );
 }

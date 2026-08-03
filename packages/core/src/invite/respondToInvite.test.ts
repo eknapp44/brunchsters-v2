@@ -107,6 +107,37 @@ describe('respondToInvite', () => {
     );
   });
 
+  it("treats an already-member viewer (e.g. the host clicking someone else's link) as a no-op, not a duplicate-row error", async () => {
+    const create = vi.fn();
+    const update = vi.fn();
+    const tx = makeMockTx({
+      brunchAttendee: {
+        // First call checks by inviteId (no attendee for THIS invite yet);
+        // second call checks by brunchId+userId (viewer already belongs
+        // to the brunch some other way, e.g. as host).
+        findFirst: vi
+          .fn()
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce({ id: 'existing-membership-uuid' }),
+        update,
+        create,
+      },
+    });
+    const db = makeMockDb(tx);
+    const emit = vi.fn().mockResolvedValue(undefined);
+
+    const result = await respondToInvite(
+      { token: TOKEN, viewerId: VIEWER_ID, response: 'yes' },
+      { db, eventBus: makeMockEventBus(emit) },
+    );
+
+    expect(result.isOk()).toBe(true);
+    expect(result._unsafeUnwrap()).toEqual({ brunchId: 'brunch-uuid' });
+    expect(create).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+    expect(emit).not.toHaveBeenCalled();
+  });
+
   it('returns invalid_token for an expired, revoked, or nonexistent token', async () => {
     const tx = makeMockTx();
     const db = makeMockDb(tx, null);

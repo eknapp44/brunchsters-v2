@@ -39,9 +39,11 @@ export async function respondToInvite(
   });
   if (invite === null) return err({ kind: 'invalid_token' });
 
-  let isFirstResponse: boolean;
+  type ResponseOutcome = 'created' | 'updated' | 'already_member';
+
+  let outcome: ResponseOutcome;
   try {
-    isFirstResponse = await db.$transaction(async (tx) => {
+    outcome = await db.$transaction(async (tx) => {
       const rsvpStatus = await tx.rsvpStatus.findFirst({ where: { code: input.response } });
       if (rsvpStatus === null) throw new LookupNotFoundError(`RsvpStatus:${input.response}`);
 
@@ -54,7 +56,20 @@ export async function respondToInvite(
           where: { id: existingAttendee.id },
           data: { rsvpStatusId: rsvpStatus.id, respondedAt: new Date() },
         });
-        return false;
+        return 'updated';
+      }
+
+      // The viewer may already belong to this brunch through a different
+      // relationship — most commonly, they're the host (or another attendee)
+      // clicking an invite link that wasn't sent to them while already signed
+      // in. BrunchAttendee has a unique (brunchId, userId) constraint, so a
+      // second row can't be created for them. Treat it as a no-op: they
+      // already have access to the brunch, just let them through.
+      const existingMembership = await tx.brunchAttendee.findFirst({
+        where: { brunchId: invite.brunchId, userId: input.viewerId },
+      });
+      if (existingMembership !== null) {
+        return 'already_member';
       }
 
       await tx.brunchAttendee.create({
@@ -75,7 +90,7 @@ export async function respondToInvite(
         });
       }
 
-      return true;
+      return 'created';
     });
   } catch (cause) {
     if (cause instanceof LookupNotFoundError) {
@@ -84,15 +99,20 @@ export async function respondToInvite(
     return err({ kind: 'db_error', cause });
   }
 
-  try {
-    await eventBus.emit(isFirstResponse ? 'attendee/rsvp.received' : 'attendee/rsvp.changed', {
-      brunchId: invite.brunchId,
-      inviteId: invite.id,
-      viewerId: input.viewerId,
-      response: input.response,
-    });
-  } catch {
-    // Side effects must never fail the response (Constitution 12).
+  if (outcome !== 'already_member') {
+    try {
+      await eventBus.emit(
+        outcome === 'created' ? 'attendee/rsvp.received' : 'attendee/rsvp.changed',
+        {
+          brunchId: invite.brunchId,
+          inviteId: invite.id,
+          viewerId: input.viewerId,
+          response: input.response,
+        },
+      );
+    } catch {
+      // Side effects must never fail the response (Constitution 12).
+    }
   }
 
   return ok({ brunchId: invite.brunchId as BrunchId });
