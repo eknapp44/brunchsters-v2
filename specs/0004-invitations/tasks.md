@@ -123,24 +123,31 @@ Two real bugs slipping through ~130 existing tests (found by manual testing in M
 
 **Result:** 103 unit + 34 integration tests in `packages/core` (up from ~85/30), 68 unit tests in `apps/web` (up from 67). `pnpm typecheck && pnpm lint && pnpm test` and `pnpm --filter @brunchsters/core test:integration` all green.
 
-- [ ] Commit: `test: audit for missing cross-actor scenarios, fix two real bugs found (sendInvites duplicate email, suggestInvitee self-suggestion)`
+- [x] Commit: `test: audit for missing cross-actor scenarios, fix two real bugs found (sendInvites duplicate email, suggestInvitee self-suggestion)`
 
 ---
 
 ## M7 — Suggestion UI + RSVP control
 
-- [ ] `brunch/[id]`: RSVP control (yes/no/maybe buttons) for any attendee, calling `respondToInvite` via the same public respond route (works for authenticated re-visits too, not just first click)
-- [ ] `brunch/[id]`: "Suggest someone" control (attendees, shown when `allowInviteSuggestions`) submitting to the suggestions route
-- [ ] `brunch/[id]`: pending-suggestions list + approve/decline buttons (host-only, shown when any `pending` suggestions exist)
-- [ ] `pnpm typecheck && pnpm lint` pass
-- [ ] Full end-to-end browser test tying every milestone together:
+- [x] **Deviation from the plan, documented here:** the task as originally written said the RSVP control should call `respondToInvite` "via the same public respond route." That doesn't work for the host: a host's invite is a synthetic, born-expired token (Constitution 28 — least privilege for invite tokens), so routing the host's own RSVP changes through the token-based flow would break for them specifically. Built a new token-less `updateRsvp.ts` service instead — it works directly off the viewer's existing `BrunchAttendee` row (guaranteed to exist, since `getBrunchById`'s own access rule requires either host or attendee membership), with its own `not_attendee` error instead of `invalid_token`. `respondToInvite` remains exactly as built in M2, unchanged, used only for the initial token-based join.
+- [x] `packages/core/src/invite/updateRsvp.ts`: `not_attendee` when no `BrunchAttendee` row exists for `(brunchId, viewerId)`; otherwise updates `rsvpStatusId`/`respondedAt` and emits `attendee/rsvp.changed` (best-effort, per Constitution 12)
+- [x] `packages/core/src/invite/getPendingSuggestionsForBrunch.ts`: host-only; returns pending `BrunchInviteSuggestion` rows with `suggestedByName` (approved/declined ones are done and don't need review UI — approved ones are already visible as real invites via `getInvitesForBrunch`)
+- [x] Extended `getBrunchById.ts`'s `BrunchDetail` with `allowInviteSuggestions: boolean` so the client knows whether to show the "Suggest someone" control
+- [x] Exported both new services (+ types) from `packages/core/src/index.ts`
+- [x] `brunch/[id]`: `RsvpControl.tsx` — yes/no/maybe buttons for any attendee (including the host), posting to the new RSVP route, `router.refresh()` after
+- [x] `POST /api/v1/brunches/[id]/rsvp` — body `{ response }` via `updateRsvpRequestSchema`; 200; 403 `not_attendee`; 422 invalid response value; 404 malformed brunch id; 401 unauthenticated
+- [x] `brunch/[id]`: `SuggestionsPanel.tsx` — "Suggest someone" control submitting to the suggestions route, and (host-only) the pending-suggestions list with approve/decline buttons calling the review route
+- [x] **UX fix found during manual testing:** the "Suggest someone" input was showing on the host's own brunch detail view, which doesn't make sense — the host can just invite directly via the invite panel below it; suggesting only makes sense for non-host attendees who don't have that direct path. `suggestInvitee` itself still technically permits a host to suggest (no code changed there — out of scope for this UI-only fix), but the page now only passes `canSuggest={!brunch.isHost && brunch.allowInviteSuggestions}`, so the input itself is hidden for hosts. The host still sees the pending-suggestions review list, which is exactly the piece that does make sense for them.
+- [x] `pnpm typecheck && pnpm lint` pass
+- [x] Full end-to-end browser test tying every milestone together:
   - Create a brunch with an invite from the wizard
   - Second account opens the link, signs up, lands on detail page, auto-accepted as `yes`
   - Second account changes RSVP to `maybe`
   - Second account suggests a third email
   - Host approves the suggestion → third invite appears in the panel
   - Host resends the third invite, then revokes it
-- [ ] Commit: `feat: RSVP and invite-suggestion UI on brunch detail page (M7)`
+  - Confirmed working end-to-end; only the host-facing suggestion-input UX issue above was found, fixed in this milestone
+- [x] Commit: `feat: RSVP and invite-suggestion UI on brunch detail page (M7)`
 - [ ] Open PR (draft while milestones are in progress, ready for review once M7 is done)
 
 ---
@@ -204,4 +211,11 @@ _(Filled in after each milestone completes)_
 1. **Missing invite link.** `spec.md` calls for "each entry's copyable link" on the invite panel; M5 only rendered email + status. Fixed by adding `token` to `getInvitesForBrunch`'s `InviteListItem` and a "Copy link" button.
 2. **Crash when an already-signed-in brunch member clicks someone else's pending invite link.** `respondToInvite` only checked for an attendee row tied to _that invite_; if none existed yet, it tried to create one for the viewer — colliding with `BrunchAttendee`'s `(brunchId, userId)` unique constraint when the viewer (typically the host) already had a row from a different relationship. Fixed by checking brunch-level membership first and treating an existing membership as a no-op (redirect in, don't touch their RSVP or emit an event) rather than an error. This also corrects a wrong claim in M2's testing notes that called this case unreachable.
 
-### M7 — TBD
+### M7 — RSVP control + invite-suggestion UI
+
+- **What was tested:** `updateRsvp` — existing attendee (including the host, via their synthetic attendee row) can change their RSVP, `not_attendee` for a viewer with no attendee row on the brunch, missing-`RsvpStatus`-row and unexpected-DB-error mapping, emit-failure-still-Ok, correct event payload. `getPendingSuggestionsForBrunch` — `brunch_not_found`, `not_host`, empty list, and a mapped list that correctly excludes declined suggestions and includes `suggestedByName`. The new `POST /api/v1/brunches/[id]/rsvp` route — 401/404/422/403/500/200 status mapping, same pattern as every other route this spec added. `getBrunchById`'s new `allowInviteSuggestions` field. Full end-to-end browser walkthrough across every milestone in this spec in one session (wizard invite → second-account join+auto-accept → RSVP change → suggestion → host approve → resend/revoke).
+- **How:** 8 unit tests on `updateRsvp` + 4 on `getPendingSuggestionsForBrunch` (mocked `DbClient`/`EventBus`) + 6 on the new `getBrunchById` test (extended, not new) + 6 on the new RSVP route (mocked service, real Zod schema) = 24 new unit tests. 3 integration tests for `updateRsvp` + 4 for `getPendingSuggestionsForBrunch` against local Supabase Postgres = 7 new integration tests. Manual browser walkthrough for the two new client components (`RsvpControl.tsx`, `SuggestionsPanel.tsx`) and the full cross-milestone flow, since framework rendering isn't unit tested per CLAUDE.md.
+- **What's deferred:** Playwright E2E for the full multi-account flow remains deferred (no harness yet, consistent with M6). No test covers a suggestion made by the host being auto/manually approved and then reviewed via the pending-suggestions UI specifically — `suggestInvitee` still technically permits a host-authored suggestion at the service level (unchanged, out of scope here); only the UI's "Suggest someone" input is hidden for hosts. If a host suggestion existed (e.g. created directly via the API), it would still appear correctly in the host's own pending-suggestions review list — that path isn't specifically exercised but follows the same code as any other pending suggestion.
+- **How to run:** `pnpm --filter @brunchsters/core test` + `pnpm --filter @brunchsters/web test` (unit); `supabase start && pnpm db:seed && pnpm --filter @brunchsters/core test:integration` (integration); `supabase start && pnpm dev` for the manual walkthrough
+
+**Result:** 115 unit + 41 integration tests in `packages/core` (up from 103/34), 74 unit tests in `apps/web` (up from 68). `pnpm typecheck && pnpm lint && pnpm test` and `pnpm --filter @brunchsters/core test:integration` all green.

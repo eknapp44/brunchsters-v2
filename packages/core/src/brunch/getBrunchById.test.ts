@@ -15,6 +15,7 @@ const DB_ROW = {
   hostId: HOST_ID,
   status: { code: 'draft', label: 'Draft' },
   attendees: [{ rsvpStatus: { code: 'yes' } }],
+  allowInviteSuggestions: true,
 };
 
 function makeMockDb(findFirst: ReturnType<typeof vi.fn>): DbClient {
@@ -38,6 +39,7 @@ describe('getBrunchById', () => {
       statusLabel: 'Draft',
       isHost: false,
       viewerRsvpStatus: 'yes',
+      allowInviteSuggestions: true,
     });
   });
 

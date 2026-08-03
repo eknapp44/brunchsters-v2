@@ -60,3 +60,11 @@ export type {
   ReviewInviteSuggestionInput,
   ReviewInviteSuggestionRequest,
 } from './invite/reviewInviteSuggestion';
+export { updateRsvp, updateRsvpRequestSchema } from './invite/updateRsvp';
+export type { UpdateRsvpError, UpdateRsvpInput, UpdateRsvpRequest } from './invite/updateRsvp';
+export { getPendingSuggestionsForBrunch } from './invite/getPendingSuggestionsForBrunch';
+export type {
+  GetPendingSuggestionsForBrunchError,
+  GetPendingSuggestionsForBrunchInput,
+  SuggestionListItem,
+} from './invite/getPendingSuggestionsForBrunch';

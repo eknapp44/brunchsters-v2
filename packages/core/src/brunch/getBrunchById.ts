@@ -9,6 +9,7 @@ export type BrunchDetail = {
   readonly statusLabel: string;
   readonly isHost: boolean;
   readonly viewerRsvpStatus: string | undefined;
+  readonly allowInviteSuggestions: boolean;
 };
 
 type GetBrunchByIdInput = {
@@ -54,5 +55,6 @@ export async function getBrunchById(
     statusLabel: brunch.status.label,
     isHost: brunch.hostId === input.viewerId,
     viewerRsvpStatus: brunch.attendees[0]?.rsvpStatus.code,
+    allowInviteSuggestions: brunch.allowInviteSuggestions,
   };
 }
