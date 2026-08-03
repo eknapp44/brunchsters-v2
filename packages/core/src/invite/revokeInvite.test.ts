@@ -12,31 +12,57 @@ const BASE_INVITE = {
   brunch: { id: 'brunch-uuid', hostId: HOST_ID },
 };
 
+type MockTx = {
+  brunchInvite: { update: ReturnType<typeof vi.fn> };
+  brunchAttendee: { updateMany: ReturnType<typeof vi.fn> };
+};
+
+function makeMockTx(overrides: Partial<MockTx> = {}): MockTx {
+  return {
+    brunchInvite: { update: vi.fn().mockResolvedValue({ id: INVITE_ID }) },
+    brunchAttendee: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+    ...overrides,
+  };
+}
+
 function makeMockDb(
   overrides: {
     findFirst?: ReturnType<typeof vi.fn>;
-    update?: ReturnType<typeof vi.fn>;
+    tx?: MockTx;
   } = {},
 ): DbClient {
+  const tx = overrides.tx ?? makeMockTx();
   return {
     brunchInvite: {
       findFirst: overrides.findFirst ?? vi.fn().mockResolvedValue(BASE_INVITE),
-      update: overrides.update ?? vi.fn().mockResolvedValue({ id: INVITE_ID }),
     },
+    $transaction: vi.fn().mockImplementation((fn: (tx: MockTx) => Promise<unknown>) => fn(tx)),
   } as unknown as DbClient;
 }
 
 describe('revokeInvite', () => {
   it('soft-deletes the invite', async () => {
-    const update = vi.fn().mockResolvedValue({ id: INVITE_ID });
-    const db = makeMockDb({ update });
+    const tx = makeMockTx();
+    const db = makeMockDb({ tx });
 
     const result = await revokeInvite({ inviteId: INVITE_ID, requestedById: HOST_ID }, { db });
 
     expect(result.isOk()).toBe(true);
     expect(result._unsafeUnwrap()).toEqual({ id: INVITE_ID });
-    expect(update).toHaveBeenCalledWith({
+    expect(tx.brunchInvite.update).toHaveBeenCalledWith({
       where: { id: INVITE_ID },
+      data: { deletedAt: expect.any(Date), deletedBy: HOST_ID },
+    });
+  });
+
+  it('also soft-deletes the linked BrunchAttendee row, so a known-user invitee loses brunch access too', async () => {
+    const tx = makeMockTx();
+    const db = makeMockDb({ tx });
+
+    await revokeInvite({ inviteId: INVITE_ID, requestedById: HOST_ID }, { db });
+
+    expect(tx.brunchAttendee.updateMany).toHaveBeenCalledWith({
+      where: { inviteId: INVITE_ID },
       data: { deletedAt: expect.any(Date), deletedBy: HOST_ID },
     });
   });
@@ -62,8 +88,11 @@ describe('revokeInvite', () => {
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'not_host' });
   });
 
-  it('returns db_error when the update fails', async () => {
-    const db = makeMockDb({ update: vi.fn().mockRejectedValue(new Error('boom')) });
+  it('returns db_error when the transaction fails', async () => {
+    const db = makeMockDb();
+    db.$transaction = vi
+      .fn()
+      .mockRejectedValue(new Error('boom')) as unknown as typeof db.$transaction;
 
     const result = await revokeInvite({ inviteId: INVITE_ID, requestedById: HOST_ID }, { db });
 

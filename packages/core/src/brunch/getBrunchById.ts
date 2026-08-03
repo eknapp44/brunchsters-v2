@@ -47,6 +47,12 @@ export async function getBrunchById(
 
   if (brunch === null) return undefined;
 
+  // 'invited' is sendInvites's eager placeholder status for a known-user
+  // invitee who hasn't visited their link yet — it's not one of yes/no/maybe,
+  // so surface it the same as "no attendee row at all" rather than as a real
+  // response the RSVP control would otherwise print verbatim.
+  const rsvpStatusCode = brunch.attendees[0]?.rsvpStatus.code;
+
   return {
     id: brunch.id as BrunchId,
     title: brunch.title,
@@ -54,7 +60,7 @@ export async function getBrunchById(
     statusCode: brunch.status.code,
     statusLabel: brunch.status.label,
     isHost: brunch.hostId === input.viewerId,
-    viewerRsvpStatus: brunch.attendees[0]?.rsvpStatus.code,
+    viewerRsvpStatus: rsvpStatusCode === 'invited' ? undefined : rsvpStatusCode,
     allowInviteSuggestions: brunch.allowInviteSuggestions,
   };
 }

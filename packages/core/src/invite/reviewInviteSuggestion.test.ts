@@ -1,15 +1,14 @@
 import type { DbClient } from '@brunchsters/database';
 import type { InviteSuggestionId, UserId } from '@brunchsters/shared';
-import { err, ok } from 'neverthrow';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('./sendInvites', () => ({ sendInvites: vi.fn() }));
+vi.mock('./sendInvites', () => ({ sendInvitesInTransaction: vi.fn() }));
 
-import { sendInvites } from './sendInvites';
+import { sendInvitesInTransaction } from './sendInvites';
 import { reviewInviteSuggestion } from './reviewInviteSuggestion';
 
 beforeEach(() => {
-  vi.mocked(sendInvites).mockReset();
+  vi.mocked(sendInvitesInTransaction).mockReset();
 });
 
 const HOST_ID = 'host-uuid' as UserId;
@@ -19,35 +18,40 @@ const PENDING_SUGGESTION = {
   id: SUGGESTION_ID,
   brunchId: 'brunch-uuid',
   suggestedEmail: 'carol@example.com',
-  brunch: { id: 'brunch-uuid', hostId: HOST_ID },
+  brunch: { id: 'brunch-uuid', hostId: HOST_ID, status: { code: 'active' } },
   status: { code: 'pending' },
 };
+
+type MockTx = { brunchInviteSuggestion: { update: ReturnType<typeof vi.fn> } };
 
 function makeMockDb(
   overrides: {
     findFirst?: ReturnType<typeof vi.fn>;
     statusFindFirst?: ReturnType<typeof vi.fn>;
-    update?: ReturnType<typeof vi.fn>;
+    txUpdate?: ReturnType<typeof vi.fn>;
   } = {},
 ): DbClient {
+  const txUpdate = overrides.txUpdate ?? vi.fn().mockResolvedValue({});
+  const tx: MockTx = { brunchInviteSuggestion: { update: txUpdate } };
+
   return {
     brunchInviteSuggestion: {
       findFirst: overrides.findFirst ?? vi.fn().mockResolvedValue(PENDING_SUGGESTION),
-      update: overrides.update ?? vi.fn().mockResolvedValue({}),
     },
     brunchInviteSuggestionStatus: {
       findFirst: overrides.statusFindFirst ?? vi.fn().mockResolvedValue({ id: 'status-approved' }),
     },
+    $transaction: vi.fn().mockImplementation((fn: (tx: MockTx) => Promise<unknown>) => fn(tx)),
   } as unknown as DbClient;
 }
 
 describe('reviewInviteSuggestion', () => {
-  it('approving sends the invite and marks the suggestion approved', async () => {
-    vi.mocked(sendInvites).mockResolvedValue(
-      ok([{ id: 'new-invite' as never, invitedEmail: 'carol@example.com' }]),
-    );
-    const update = vi.fn().mockResolvedValue({});
-    const db = makeMockDb({ update });
+  it('approving sends the invite and marks the suggestion approved, in one transaction', async () => {
+    vi.mocked(sendInvitesInTransaction).mockResolvedValue([
+      { id: 'new-invite' as never, invitedEmail: 'carol@example.com' },
+    ]);
+    const txUpdate = vi.fn().mockResolvedValue({});
+    const db = makeMockDb({ txUpdate });
 
     const result = await reviewInviteSuggestion(
       { suggestionId: SUGGESTION_ID, reviewedById: HOST_ID, decision: 'approve' },
@@ -55,11 +59,11 @@ describe('reviewInviteSuggestion', () => {
     );
 
     expect(result.isOk()).toBe(true);
-    expect(sendInvites).toHaveBeenCalledWith(
-      expect.objectContaining({ emails: ['carol@example.com'], invitedById: HOST_ID }),
+    expect(sendInvitesInTransaction).toHaveBeenCalledWith(
       expect.anything(),
+      expect.objectContaining({ emails: ['carol@example.com'], invitedById: HOST_ID }),
     );
-    expect(update).toHaveBeenCalledWith(
+    expect(txUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           statusId: 'status-approved',
@@ -70,10 +74,28 @@ describe('reviewInviteSuggestion', () => {
     );
   });
 
+  it('emits invite/sent for the invite created on approve', async () => {
+    vi.mocked(sendInvitesInTransaction).mockResolvedValue([
+      { id: 'new-invite' as never, invitedEmail: 'carol@example.com' },
+    ]);
+    const emit = vi.fn();
+    const db = makeMockDb();
+
+    await reviewInviteSuggestion(
+      { suggestionId: SUGGESTION_ID, reviewedById: HOST_ID, decision: 'approve' },
+      { db, eventBus: { emit } },
+    );
+
+    expect(emit).toHaveBeenCalledWith(
+      'invite/sent',
+      expect.objectContaining({ invitedEmail: 'carol@example.com' }),
+    );
+  });
+
   it('declining does not send an invite and marks the suggestion declined', async () => {
     const statusFindFirst = vi.fn().mockResolvedValue({ id: 'status-declined' });
-    const update = vi.fn().mockResolvedValue({});
-    const db = makeMockDb({ statusFindFirst, update });
+    const txUpdate = vi.fn().mockResolvedValue({});
+    const db = makeMockDb({ statusFindFirst, txUpdate });
 
     const result = await reviewInviteSuggestion(
       { suggestionId: SUGGESTION_ID, reviewedById: HOST_ID, decision: 'decline' },
@@ -81,8 +103,8 @@ describe('reviewInviteSuggestion', () => {
     );
 
     expect(result.isOk()).toBe(true);
-    expect(sendInvites).not.toHaveBeenCalled();
-    expect(update).toHaveBeenCalledWith(
+    expect(sendInvitesInTransaction).not.toHaveBeenCalled();
+    expect(txUpdate).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ statusId: 'status-declined' }) }),
     );
   });
@@ -129,9 +151,10 @@ describe('reviewInviteSuggestion', () => {
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'already_reviewed' });
   });
 
-  it('returns db_error when sendInvites fails on approve', async () => {
-    vi.mocked(sendInvites).mockResolvedValue(err({ kind: 'db_error', cause: new Error('boom') }));
-    const db = makeMockDb();
+  it('returns db_error and leaves the suggestion untouched when invite creation fails on approve', async () => {
+    vi.mocked(sendInvitesInTransaction).mockRejectedValue(new Error('boom'));
+    const txUpdate = vi.fn().mockResolvedValue({});
+    const db = makeMockDb({ txUpdate });
 
     const result = await reviewInviteSuggestion(
       { suggestionId: SUGGESTION_ID, reviewedById: HOST_ID, decision: 'approve' },
@@ -139,6 +162,8 @@ describe('reviewInviteSuggestion', () => {
     );
 
     expect(result.isErr()).toBe(true);
-    expect(result._unsafeUnwrapErr().kind).toBe('db_error');
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'db_error', cause: expect.any(Error) });
+    // Same transaction as the failed invite creation — must not have committed.
+    expect(txUpdate).not.toHaveBeenCalled();
   });
 });

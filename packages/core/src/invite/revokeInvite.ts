@@ -24,9 +24,21 @@ export async function revokeInvite(
   if (invite.brunch.hostId !== input.requestedById) return err({ kind: 'not_host' });
 
   try {
-    await ctx.db.brunchInvite.update({
-      where: { id: input.inviteId },
-      data: { deletedAt: new Date(), deletedBy: input.requestedById },
+    await ctx.db.$transaction(async (tx) => {
+      await tx.brunchInvite.update({
+        where: { id: input.inviteId },
+        data: { deletedAt: new Date(), deletedBy: input.requestedById },
+      });
+
+      // A known-user invitee gets a BrunchAttendee row eagerly at send time
+      // (before they ever click the link) — without also revoking that row,
+      // they'd keep full brunch access via getBrunchById's attendee check
+      // despite the invite itself being revoked. updateMany is a safe no-op
+      // for unregistered invitees, who have no attendee row yet.
+      await tx.brunchAttendee.updateMany({
+        where: { inviteId: input.inviteId },
+        data: { deletedAt: new Date(), deletedBy: input.requestedById },
+      });
     });
   } catch (cause) {
     return err({ kind: 'db_error', cause });

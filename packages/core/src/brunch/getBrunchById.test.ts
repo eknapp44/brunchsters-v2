@@ -65,6 +65,19 @@ describe('getBrunchById', () => {
     expect(result?.viewerRsvpStatus).toBeUndefined();
   });
 
+  it("folds the eager 'invited' placeholder status into undefined, not a real response", async () => {
+    const findFirst = vi
+      .fn()
+      .mockResolvedValue({ ...DB_ROW, attendees: [{ rsvpStatus: { code: 'invited' } }] });
+
+    const result = await getBrunchById(
+      { brunchId: BRUNCH_ID, viewerId: VIEWER_ID },
+      { db: makeMockDb(findFirst) },
+    );
+
+    expect(result?.viewerRsvpStatus).toBeUndefined();
+  });
+
   it('scopes the query to the viewer as host or live attendee', async () => {
     const findFirst = vi.fn().mockResolvedValue(DB_ROW);
 

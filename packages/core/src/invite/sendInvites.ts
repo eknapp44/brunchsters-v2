@@ -34,8 +34,95 @@ type SendInvitesContext = {
   readonly eventBus: EventBus;
 };
 
+// The interactive-transaction client Prisma passes into db.$transaction's
+// callback, derived from DbClient itself so it stays correct for the
+// soft-delete extension DbClient applies.
+export type SendInvitesTxClient = Parameters<Parameters<DbClient['$transaction']>[0]>[0];
+
+export type SendInvitesTxInput = {
+  readonly brunchId: BrunchId;
+  readonly invitedById: UserId;
+  readonly emails: readonly string[]; // already deduped/self-filtered by the caller
+  readonly brunchStatusCode: string;
+};
+
 function expiresIn30Days(): Date {
   return new Date(Date.now() + INVITE_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
+}
+
+// Core per-email create-or-revive loop, runnable inside any already-open
+// transaction. Shared by sendInvites (opens its own transaction) and
+// reviewInviteSuggestion (needs invite creation and the suggestion's status
+// update to commit atomically together, so a real invite can never be sent
+// while the suggestion is left stuck at 'pending', or vice versa).
+export async function sendInvitesInTransaction(
+  tx: SendInvitesTxClient,
+  input: SendInvitesTxInput,
+): Promise<InviteSummary[]> {
+  const invitedStatus = await tx.rsvpStatus.findFirst({ where: { code: 'invited' } });
+  if (invitedStatus === null) throw new LookupNotFoundError('RsvpStatus:invited');
+
+  const results: InviteSummary[] = [];
+
+  for (const email of input.emails) {
+    // findUnique bypasses the soft-delete extension (only findMany/findFirst
+    // are intercepted) — we need to see revoked invites here to revive them.
+    const existing = await tx.brunchInvite.findUnique({
+      where: { brunchId_invitedEmail: { brunchId: input.brunchId, invitedEmail: email } },
+    });
+
+    if (existing !== null) {
+      const revived = await tx.brunchInvite.update({
+        where: { id: existing.id },
+        data: {
+          token: crypto.randomUUID(),
+          tokenExpiresAt: expiresIn30Days(),
+          lastResentAt: new Date(),
+          deletedAt: null,
+          deletedBy: null,
+        },
+      });
+      results.push({ id: revived.id as InviteId, invitedEmail: revived.invitedEmail });
+      continue;
+    }
+
+    const existingUser = await tx.user.findFirst({ where: { email } });
+
+    const newInvite = await tx.brunchInvite.create({
+      data: {
+        brunchId: input.brunchId,
+        invitedUserId: existingUser?.id ?? null,
+        invitedEmail: email,
+        invitedById: input.invitedById,
+        token: crypto.randomUUID(),
+        tokenExpiresAt: expiresIn30Days(),
+      },
+    });
+
+    if (existingUser !== null) {
+      await tx.brunchAttendee.create({
+        data: {
+          brunchId: input.brunchId,
+          userId: existingUser.id,
+          inviteId: newInvite.id,
+          rsvpStatusId: invitedStatus.id,
+        },
+      });
+    }
+
+    results.push({ id: newInvite.id as InviteId, invitedEmail: newInvite.invitedEmail });
+  }
+
+  if (input.brunchStatusCode === 'draft') {
+    const activeStatus = await tx.brunchStatus.findFirst({ where: { code: 'active' } });
+    if (activeStatus === null) throw new LookupNotFoundError('BrunchStatus:active');
+    await tx.brunch.update({
+      where: { id: input.brunchId },
+      data: { statusId: activeStatus.id },
+    });
+  }
+
+  return results;
 }
 
 export async function sendInvites(
@@ -66,72 +153,14 @@ export async function sendInvites(
 
   let summaries: readonly InviteSummary[];
   try {
-    summaries = await db.$transaction(async (tx) => {
-      const invitedStatus = await tx.rsvpStatus.findFirst({ where: { code: 'invited' } });
-      if (invitedStatus === null) throw new LookupNotFoundError('RsvpStatus:invited');
-
-      const results: InviteSummary[] = [];
-
-      for (const email of emails) {
-        // findUnique bypasses the soft-delete extension (only findMany/findFirst
-        // are intercepted) — we need to see revoked invites here to revive them.
-        const existing = await tx.brunchInvite.findUnique({
-          where: { brunchId_invitedEmail: { brunchId: input.brunchId, invitedEmail: email } },
-        });
-
-        if (existing !== null) {
-          const revived = await tx.brunchInvite.update({
-            where: { id: existing.id },
-            data: {
-              token: crypto.randomUUID(),
-              tokenExpiresAt: expiresIn30Days(),
-              lastResentAt: new Date(),
-              deletedAt: null,
-              deletedBy: null,
-            },
-          });
-          results.push({ id: revived.id as InviteId, invitedEmail: revived.invitedEmail });
-          continue;
-        }
-
-        const existingUser = await tx.user.findFirst({ where: { email } });
-
-        const newInvite = await tx.brunchInvite.create({
-          data: {
-            brunchId: input.brunchId,
-            invitedUserId: existingUser?.id ?? null,
-            invitedEmail: email,
-            invitedById: input.invitedById,
-            token: crypto.randomUUID(),
-            tokenExpiresAt: expiresIn30Days(),
-          },
-        });
-
-        if (existingUser !== null) {
-          await tx.brunchAttendee.create({
-            data: {
-              brunchId: input.brunchId,
-              userId: existingUser.id,
-              inviteId: newInvite.id,
-              rsvpStatusId: invitedStatus.id,
-            },
-          });
-        }
-
-        results.push({ id: newInvite.id as InviteId, invitedEmail: newInvite.invitedEmail });
-      }
-
-      if (brunch.status.code === 'draft') {
-        const activeStatus = await tx.brunchStatus.findFirst({ where: { code: 'active' } });
-        if (activeStatus === null) throw new LookupNotFoundError('BrunchStatus:active');
-        await tx.brunch.update({
-          where: { id: input.brunchId },
-          data: { statusId: activeStatus.id },
-        });
-      }
-
-      return results;
-    });
+    summaries = await db.$transaction((tx) =>
+      sendInvitesInTransaction(tx, {
+        brunchId: input.brunchId,
+        invitedById: input.invitedById,
+        emails,
+        brunchStatusCode: brunch.status.code,
+      }),
+    );
   } catch (cause) {
     if (cause instanceof LookupNotFoundError) {
       return err({ kind: 'lookup_not_found', code: cause.code });

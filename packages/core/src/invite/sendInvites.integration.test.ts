@@ -176,6 +176,34 @@ describe('sendInvites integration', () => {
     expect(revoked.deletedAt).not.toBeNull();
   });
 
+  it("revokeInvite also soft-deletes a known-user invitee's eagerly-created attendee row, so they lose brunch access too", async () => {
+    const invite = await db.brunchInvite.findFirstOrThrow({
+      where: { brunchId, invitedEmail: KNOWN_INVITEE_EMAIL },
+    });
+    const attendeeBefore = await db.brunchAttendee.findUniqueOrThrow({
+      where: { inviteId: invite.id },
+    });
+    expect(attendeeBefore.deletedAt).toBeNull();
+
+    const result = await revokeInvite(
+      { inviteId: invite.id as InviteId, requestedById: hostId },
+      { db },
+    );
+
+    expect(result.isOk()).toBe(true);
+    const attendeeAfter = await db.brunchAttendee.findUniqueOrThrow({
+      where: { inviteId: invite.id },
+    });
+    expect(attendeeAfter.deletedAt).not.toBeNull();
+
+    // Access-check queries use findFirst, which the soft-delete extension
+    // filters — the revoked invitee's attendee row must no longer surface.
+    const liveAttendee = await db.brunchAttendee.findFirst({
+      where: { brunchId, userId: knownInviteeId },
+    });
+    expect(liveAttendee).toBeNull();
+  });
+
   it('resendInvite and revokeInvite both report invite_not_found for an already-revoked invite (real soft-delete filtering, not just a mock)', async () => {
     const invite = await db.brunchInvite.findUniqueOrThrow({
       where: { brunchId_invitedEmail: { brunchId, invitedEmail: UNREGISTERED_INVITEE_EMAIL } },
