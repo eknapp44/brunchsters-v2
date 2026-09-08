@@ -1371,6 +1371,7 @@ For solo side project: don't split. Premature.
 
 ### Still Open
 
+- **E2E testing infrastructure (testcontainers + test-auth bypass + Playwright).** Proposed after spec 0004: an ephemeral Postgres via `@testcontainers/postgresql` for integration tests (no dependency on a locally running Supabase instance), a test-only NextAuth `Credentials` provider gated behind an env flag (never reachable in production) so headless tests can log in as fixture users without real Google OAuth, and Playwright driving full multi-actor flows (invite → second account joins → RSVP → suggestion → approve) as automated regression coverage. Motivated by spec 0004's M5/M6 bugs (self-invite batch rejection, already-member collision) — both were only caught by manual two-account browser testing, never by unit/integration tests, because the bug required two different signed-in identities interacting with the same data. Candidate for CI (GitHub Actions runners have Docker by default, so both testcontainers and headless Playwright run there naturally). Author wants to push for including this before the initial release but is open to sequencing it after if it doesn't fit. Needs its own ADR (new libraries, new auth code path) and spec before implementation — not a milestone of any single feature spec.
 - Pricing/monetization model (reservations affiliate? premium features? restaurant partnerships?)
 - ToS and Privacy Policy (will need before public launch)
 - Email digest vs. immediate per-event email
