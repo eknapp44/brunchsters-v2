@@ -208,11 +208,11 @@ The whole point: **fast, deterministic tests that run offline.**
 
 ### Test types
 
-| Type            | What it covers                                   | Runner     | DB                           | External APIs                               |
-| --------------- | ------------------------------------------------ | ---------- | ---------------------------- | ------------------------------------------- |
-| **Unit**        | `packages/core` services, pure logic, validation | Vitest     | none                         | mocked (`MockEmailService`, mock providers) |
-| **Integration** | DB interactions, Prisma queries, transactions    | Vitest     | **local Postgres (test DB)** | mocked                                      |
-| **E2E**         | Critical user flows end-to-end                   | Playwright | local stack                  | mocked or sandbox                           |
+| Type            | What it covers                                   | Runner     | DB                 | External APIs                               |
+| --------------- | ------------------------------------------------ | ---------- | ------------------ | ------------------------------------------- |
+| **Unit**        | `packages/core` services, pure logic, validation | Vitest     | none               | mocked (`MockEmailService`, mock providers) |
+| **Integration** | DB interactions, Prisma queries, transactions    | Vitest     | **local Postgres** | mocked                                      |
+| **E2E**         | Critical user flows end-to-end                   | Playwright | local stack        | mocked or sandbox                           |
 
 ### Running tests
 

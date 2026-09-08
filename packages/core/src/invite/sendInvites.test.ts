@@ -347,6 +347,27 @@ describe('sendInvites', () => {
     expect(tx.brunchInvite.findUnique).toHaveBeenCalledTimes(1);
   });
 
+  it('de-duplicates the same email appearing twice with different casing, keeping the first casing seen', async () => {
+    const tx = makeMockTx();
+    const db = makeMockDb(tx, DRAFT_BRUNCH);
+
+    const result = await sendInvites(
+      { ...BASE_INPUT, emails: ['Alice@Example.com', 'alice@example.com'] },
+      { db, eventBus: makeMockEventBus() },
+    );
+
+    expect(result.isOk()).toBe(true);
+    expect(tx.brunchInvite.create).toHaveBeenCalledTimes(1);
+    expect(tx.brunchInvite.findUnique).toHaveBeenCalledTimes(1);
+    expect(tx.brunchInvite.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          brunchId_invitedEmail: expect.objectContaining({ invitedEmail: 'Alice@Example.com' }),
+        },
+      }),
+    );
+  });
+
   it("returns Ok with no invites when every email is the host's own", async () => {
     const tx = makeMockTx();
     const db = makeMockDb(tx, DRAFT_BRUNCH);

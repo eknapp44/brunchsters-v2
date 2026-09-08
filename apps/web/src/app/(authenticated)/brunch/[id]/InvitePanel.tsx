@@ -69,6 +69,8 @@ export function InvitePanel({
   }
 
   async function resend(inviteId: string): Promise<void> {
+    if (pendingInviteId !== undefined) return;
+
     setPendingInviteId(inviteId);
     setError(undefined);
     try {
@@ -86,6 +88,8 @@ export function InvitePanel({
   }
 
   async function revoke(inviteId: string): Promise<void> {
+    if (pendingInviteId !== undefined) return;
+
     setPendingInviteId(inviteId);
     setError(undefined);
     try {

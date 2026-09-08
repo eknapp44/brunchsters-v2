@@ -176,9 +176,19 @@ export async function sendInvites(
   // otherwise create the invite on the first pass and then "revive" that
   // same just-created row on the second (findUnique sees uncommitted writes
   // within the same transaction), producing a duplicate entry in the
-  // returned summaries for a single underlying row.
+  // returned summaries for a single underlying row. Both checks are
+  // case-insensitive — invitedEmail has no case-insensitive DB constraint
+  // (no citext, default collation), so two entries differing only in case
+  // would otherwise both survive as separate rows for the same address.
   const hostEmail = brunch.host.email.toLowerCase();
-  const emails = [...new Set(input.emails.filter((email) => email.toLowerCase() !== hostEmail))];
+  const seenEmails = new Set<string>();
+  const emails: string[] = [];
+  for (const email of input.emails) {
+    const normalized = email.toLowerCase();
+    if (normalized === hostEmail || seenEmails.has(normalized)) continue;
+    seenEmails.add(normalized);
+    emails.push(email);
+  }
   if (emails.length === 0) return ok([]);
 
   let summaries: readonly InviteSummary[];
