@@ -165,6 +165,18 @@ describe('suggestInvitee', () => {
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'cannot_suggest_host' });
   });
 
+  it('returns cannot_suggest_host case-insensitively', async () => {
+    const db = makeMockDb();
+
+    const result = await suggestInvitee(
+      { ...BASE_INPUT, email: 'Host@Example.com' },
+      { db, eventBus: { emit: vi.fn() } },
+    );
+
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'cannot_suggest_host' });
+  });
+
   it('returns already_suggested when the email was already suggested for this brunch', async () => {
     const db = makeMockDb({
       suggestionFindUnique: vi.fn().mockResolvedValue({ id: 'existing-suggestion' }),

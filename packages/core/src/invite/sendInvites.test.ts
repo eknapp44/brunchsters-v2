@@ -27,7 +27,11 @@ type MockTx = {
     create: ReturnType<typeof vi.fn>;
   };
   user: { findFirst: ReturnType<typeof vi.fn> };
-  brunchAttendee: { create: ReturnType<typeof vi.fn> };
+  brunchAttendee: {
+    create: ReturnType<typeof vi.fn>;
+    findUnique: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof vi.fn>;
+  };
   brunchStatus: { findFirst: ReturnType<typeof vi.fn> };
   brunch: { update: ReturnType<typeof vi.fn> };
 };
@@ -50,7 +54,11 @@ function makeMockTx(overrides: Partial<MockTx> = {}): MockTx {
         ),
     },
     user: { findFirst: vi.fn().mockResolvedValue(null) },
-    brunchAttendee: { create: vi.fn().mockResolvedValue({}) },
+    brunchAttendee: {
+      create: vi.fn().mockResolvedValue({}),
+      findUnique: vi.fn().mockResolvedValue(null),
+      update: vi.fn().mockResolvedValue({}),
+    },
     brunchStatus: { findFirst: vi.fn().mockResolvedValue({ id: 'status-active' }) },
     brunch: { update: vi.fn().mockResolvedValue({}) },
     ...overrides,
@@ -159,6 +167,94 @@ describe('sendInvites', () => {
     expect(updateArgs.data.deletedAt).toBeNull();
   });
 
+  it('also revives a soft-deleted attendee row left behind by a prior revoke, instead of leaving it deleted', async () => {
+    const tx = makeMockTx({
+      brunchInvite: {
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({ id: 'revoked-invite-uuid', deletedAt: new Date('2026-01-01') }),
+        update: vi
+          .fn()
+          .mockResolvedValue({ id: 'revoked-invite-uuid', invitedEmail: 'alice@example.com' }),
+        create: vi.fn(),
+      },
+      brunchAttendee: {
+        create: vi.fn(),
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'attendee-uuid',
+          deletedAt: new Date('2026-01-01'),
+        }),
+        update: vi.fn().mockResolvedValue({}),
+      },
+    });
+    const db = makeMockDb(tx);
+
+    const result = await sendInvites(BASE_INPUT, { db, eventBus: makeMockEventBus() });
+
+    expect(result.isOk()).toBe(true);
+    expect(tx.brunchAttendee.findUnique).toHaveBeenCalledWith({
+      where: { inviteId: 'revoked-invite-uuid' },
+    });
+    expect(tx.brunchAttendee.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'attendee-uuid' },
+        data: expect.objectContaining({
+          deletedAt: null,
+          deletedBy: null,
+          rsvpStatusId: 'rsvp-invited',
+          respondedAt: null,
+        }),
+      }),
+    );
+    expect(tx.brunchAttendee.create).not.toHaveBeenCalled();
+  });
+
+  it('does not touch the attendee row when reviving an invite that never had one (unregistered invitee)', async () => {
+    const tx = makeMockTx({
+      brunchInvite: {
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({ id: 'revoked-invite-uuid', deletedAt: new Date('2026-01-01') }),
+        update: vi
+          .fn()
+          .mockResolvedValue({ id: 'revoked-invite-uuid', invitedEmail: 'alice@example.com' }),
+        create: vi.fn(),
+      },
+    });
+    const db = makeMockDb(tx);
+
+    const result = await sendInvites(BASE_INPUT, { db, eventBus: makeMockEventBus() });
+
+    expect(result.isOk()).toBe(true);
+    expect(tx.brunchAttendee.findUnique).toHaveBeenCalledWith({
+      where: { inviteId: 'revoked-invite-uuid' },
+    });
+    expect(tx.brunchAttendee.update).not.toHaveBeenCalled();
+  });
+
+  it('does not re-revive an attendee row that is already live when resending an active (non-revoked) invite', async () => {
+    const tx = makeMockTx({
+      brunchInvite: {
+        findUnique: vi.fn().mockResolvedValue({ id: 'existing-invite-uuid', deletedAt: null }),
+        update: vi
+          .fn()
+          .mockResolvedValue({ id: 'existing-invite-uuid', invitedEmail: 'alice@example.com' }),
+        create: vi.fn(),
+      },
+      brunchAttendee: {
+        create: vi.fn(),
+        findUnique: vi.fn().mockResolvedValue({ id: 'attendee-uuid', deletedAt: null }),
+        update: vi.fn(),
+      },
+    });
+    const db = makeMockDb(tx);
+
+    const result = await sendInvites(BASE_INPUT, { db, eventBus: makeMockEventBus() });
+
+    expect(result.isOk()).toBe(true);
+    expect(tx.brunchAttendee.update).not.toHaveBeenCalled();
+  });
+
   it('transitions the brunch from draft to active on send', async () => {
     const tx = makeMockTx();
     const db = makeMockDb(tx, DRAFT_BRUNCH);
@@ -208,6 +304,22 @@ describe('sendInvites', () => {
 
     const result = await sendInvites(
       { ...BASE_INPUT, emails: ['host@example.com', 'alice@example.com'] },
+      { db, eventBus: makeMockEventBus() },
+    );
+
+    expect(result.isOk()).toBe(true);
+    expect(result._unsafeUnwrap()).toEqual([
+      { id: 'new-invite-uuid', invitedEmail: 'alice@example.com' },
+    ]);
+    expect(tx.brunchInvite.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("filters out the host's own email case-insensitively", async () => {
+    const tx = makeMockTx();
+    const db = makeMockDb(tx, DRAFT_BRUNCH); // host email is 'host@example.com'
+
+    const result = await sendInvites(
+      { ...BASE_INPUT, emails: ['Host@Example.com', 'alice@example.com'] },
       { db, eventBus: makeMockEventBus() },
     );
 

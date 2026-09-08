@@ -48,7 +48,7 @@ function makeMockDb(
 describe('reviewInviteSuggestion', () => {
   it('approving sends the invite and marks the suggestion approved, in one transaction', async () => {
     vi.mocked(sendInvitesInTransaction).mockResolvedValue([
-      { id: 'new-invite' as never, invitedEmail: 'carol@example.com' },
+      { id: 'new-invite' as never, invitedEmail: 'carol@example.com' as never },
     ]);
     const txUpdate = vi.fn().mockResolvedValue({});
     const db = makeMockDb({ txUpdate });
@@ -76,7 +76,7 @@ describe('reviewInviteSuggestion', () => {
 
   it('emits invite/sent for the invite created on approve', async () => {
     vi.mocked(sendInvitesInTransaction).mockResolvedValue([
-      { id: 'new-invite' as never, invitedEmail: 'carol@example.com' },
+      { id: 'new-invite' as never, invitedEmail: 'carol@example.com' as never },
     ]);
     const emit = vi.fn();
     const db = makeMockDb();

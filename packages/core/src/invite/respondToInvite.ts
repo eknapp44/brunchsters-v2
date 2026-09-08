@@ -1,5 +1,5 @@
 import type { DbClient } from '@brunchsters/database';
-import type { BrunchId, UserId } from '@brunchsters/shared';
+import type { BrunchId, InviteToken, UserId } from '@brunchsters/shared';
 import { err, ok, type Result } from 'neverthrow';
 import { z } from 'zod';
 import { LookupNotFoundError } from '../errors/LookupNotFoundError';
@@ -12,7 +12,7 @@ export const respondToInviteRequestSchema = z.object({
 export type RespondToInviteRequest = z.infer<typeof respondToInviteRequestSchema>;
 
 export type RespondToInviteInput = RespondToInviteRequest & {
-  readonly token: string;
+  readonly token: InviteToken;
   readonly viewerId: UserId;
 };
 

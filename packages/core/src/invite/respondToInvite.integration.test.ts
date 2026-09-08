@@ -1,5 +1,5 @@
 import { createDb } from '@brunchsters/database';
-import type { BrunchId, UserId } from '@brunchsters/shared';
+import type { BrunchId, InviteToken, UserId } from '@brunchsters/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createBrunch } from '../brunch/createBrunch';
 import { NoopEventBus } from '../events/NoopEventBus';
@@ -65,7 +65,7 @@ describe('respondToInvite integration', () => {
     expect(before.userId).toBe(knownInviteeId);
 
     const result = await respondToInvite(
-      { token: invite.token, viewerId: knownInviteeId, response: 'yes' },
+      { token: invite.token as InviteToken, viewerId: knownInviteeId, response: 'yes' },
       { db, eventBus },
     );
 
@@ -99,7 +99,7 @@ describe('respondToInvite integration', () => {
     newInviteeId = newUser.id as UserId;
 
     const result = await respondToInvite(
-      { token: inviteBefore.token, viewerId: newInviteeId, response: 'maybe' },
+      { token: inviteBefore.token as InviteToken, viewerId: newInviteeId, response: 'maybe' },
       { db, eventBus },
     );
 
@@ -122,7 +122,7 @@ describe('respondToInvite integration', () => {
     });
 
     const result = await respondToInvite(
-      { token: invite.token, viewerId: newInviteeId, response: 'no' },
+      { token: invite.token as InviteToken, viewerId: newInviteeId, response: 'no' },
       { db, eventBus },
     );
 
@@ -136,7 +136,7 @@ describe('respondToInvite integration', () => {
 
   it('returns invalid_token for a nonexistent token', async () => {
     const result = await respondToInvite(
-      { token: 'not-a-real-token', viewerId: knownInviteeId, response: 'yes' },
+      { token: 'not-a-real-token' as InviteToken, viewerId: knownInviteeId, response: 'yes' },
       { db, eventBus },
     );
 
@@ -161,7 +161,7 @@ describe('respondToInvite integration', () => {
     });
 
     const result = await respondToInvite(
-      { token: invite.token, viewerId: hostId, response: 'yes' },
+      { token: invite.token as InviteToken, viewerId: hostId, response: 'yes' },
       { db, eventBus },
     );
 
@@ -196,7 +196,7 @@ describe('respondToInvite integration', () => {
     });
 
     const result = await respondToInvite(
-      { token: invite.token, viewerId: knownInviteeId, response: 'yes' },
+      { token: invite.token as InviteToken, viewerId: knownInviteeId, response: 'yes' },
       { db, eventBus },
     );
 

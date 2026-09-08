@@ -1,10 +1,10 @@
 import type { DbClient } from '@brunchsters/database';
-import type { BrunchId, InviteSuggestionId, UserId } from '@brunchsters/shared';
+import type { BrunchId, Email, InviteSuggestionId, UserId } from '@brunchsters/shared';
 import { err, ok, type Result } from 'neverthrow';
 
 export type SuggestionListItem = {
   readonly id: InviteSuggestionId;
-  readonly suggestedEmail: string;
+  readonly suggestedEmail: Email;
   readonly suggestedByName: string;
 };
 
@@ -37,7 +37,7 @@ export async function getPendingSuggestionsForBrunch(
   return ok(
     suggestions.map((suggestion) => ({
       id: suggestion.id as InviteSuggestionId,
-      suggestedEmail: suggestion.suggestedEmail,
+      suggestedEmail: suggestion.suggestedEmail as Email,
       suggestedByName: suggestion.suggestedBy.name,
     })),
   );

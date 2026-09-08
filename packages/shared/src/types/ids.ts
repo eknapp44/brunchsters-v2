@@ -10,3 +10,4 @@ export type BrunchTimeId = Brand<string, 'BrunchTimeId'>;
 // Not a domain entity ID — a branded primitive for type safety at API boundaries
 export type Email = Brand<string, 'Email'>;
 export type IanaTimezone = Brand<string, 'IanaTimezone'>;
+export type InviteToken = Brand<string, 'InviteToken'>;

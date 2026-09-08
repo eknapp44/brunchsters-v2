@@ -41,7 +41,10 @@ describe('getInvitesForBrunch', () => {
 
     expect(inviteFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { brunchId: BRUNCH_ID, invitedEmail: { not: 'host@example.com' } },
+        where: {
+          brunchId: BRUNCH_ID,
+          NOT: { invitedEmail: { equals: 'host@example.com', mode: 'insensitive' } },
+        },
       }),
     );
   });

@@ -1,6 +1,8 @@
 import type { DbClient } from '@brunchsters/database';
 import type { BrunchId, UserId } from '@brunchsters/shared';
 
+export type ViewerRsvpStatus = 'yes' | 'no' | 'maybe';
+
 export type BrunchDetail = {
   readonly id: BrunchId;
   readonly title: string;
@@ -8,9 +10,15 @@ export type BrunchDetail = {
   readonly statusCode: string;
   readonly statusLabel: string;
   readonly isHost: boolean;
-  readonly viewerRsvpStatus: string | undefined;
+  readonly viewerRsvpStatus: ViewerRsvpStatus | undefined;
   readonly allowInviteSuggestions: boolean;
 };
+
+function toViewerRsvpStatus(rsvpStatusCode: string | undefined): ViewerRsvpStatus | undefined {
+  return rsvpStatusCode === 'yes' || rsvpStatusCode === 'no' || rsvpStatusCode === 'maybe'
+    ? rsvpStatusCode
+    : undefined;
+}
 
 type GetBrunchByIdInput = {
   readonly brunchId: BrunchId;
@@ -60,7 +68,7 @@ export async function getBrunchById(
     statusCode: brunch.status.code,
     statusLabel: brunch.status.label,
     isHost: brunch.hostId === input.viewerId,
-    viewerRsvpStatus: rsvpStatusCode === 'invited' ? undefined : rsvpStatusCode,
+    viewerRsvpStatus: toViewerRsvpStatus(rsvpStatusCode),
     allowInviteSuggestions: brunch.allowInviteSuggestions,
   };
 }

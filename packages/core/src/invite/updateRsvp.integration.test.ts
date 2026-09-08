@@ -1,5 +1,5 @@
 import { createDb } from '@brunchsters/database';
-import type { BrunchId, UserId } from '@brunchsters/shared';
+import type { BrunchId, InviteToken, UserId } from '@brunchsters/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createBrunch } from '../brunch/createBrunch';
 import { NoopEventBus } from '../events/NoopEventBus';
@@ -56,7 +56,7 @@ beforeAll(async () => {
     where: { brunchId, invitedEmail: ATTENDEE_EMAIL },
   });
   const joined = await respondToInvite(
-    { token: invite.token, viewerId: attendeeId, response: 'yes' },
+    { token: invite.token as InviteToken, viewerId: attendeeId, response: 'yes' },
     { db, eventBus },
   );
   expect(joined.isOk()).toBe(true);

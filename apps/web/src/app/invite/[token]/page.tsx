@@ -1,5 +1,5 @@
 import { getInviteByToken, NoopEventBus, respondToInvite } from '@brunchsters/core';
-import type { UserId } from '@brunchsters/shared';
+import type { InviteToken, UserId } from '@brunchsters/shared';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
@@ -12,7 +12,8 @@ export default async function InviteLandingPage({
 }: {
   readonly params: Promise<{ readonly token: string }>;
 }) {
-  const { token } = await params;
+  const { token: rawToken } = await params;
+  const token = rawToken as InviteToken;
 
   const preview = await getInviteByToken(token, { db });
   if (preview === undefined) {

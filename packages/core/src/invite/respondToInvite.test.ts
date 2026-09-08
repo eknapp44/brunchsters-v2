@@ -1,11 +1,11 @@
 import type { DbClient } from '@brunchsters/database';
-import type { UserId } from '@brunchsters/shared';
+import type { InviteToken, UserId } from '@brunchsters/shared';
 import { describe, expect, it, vi } from 'vitest';
 import type { EventBus } from '../events/EventBus';
 import { respondToInvite, respondToInviteRequestSchema } from './respondToInvite';
 
 const VIEWER_ID = 'viewer-uuid' as UserId;
-const TOKEN = 'valid-token';
+const TOKEN = 'valid-token' as InviteToken;
 
 const BASE_INVITE = {
   id: 'invite-uuid',
@@ -143,7 +143,7 @@ describe('respondToInvite', () => {
     const db = makeMockDb(tx, null);
 
     const result = await respondToInvite(
-      { token: 'bad-token', viewerId: VIEWER_ID, response: 'yes' },
+      { token: 'bad-token' as InviteToken, viewerId: VIEWER_ID, response: 'yes' },
       { db, eventBus: makeMockEventBus() },
     );
 

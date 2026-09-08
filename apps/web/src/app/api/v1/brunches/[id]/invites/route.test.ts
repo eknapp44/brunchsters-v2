@@ -73,7 +73,7 @@ describe('POST /api/v1/brunches/[id]/invites', () => {
   it('returns 201 with the created invites on success', async () => {
     mockAuth.mockResolvedValue(SESSION);
     mockSendInvites.mockResolvedValue(
-      ok([{ id: 'invite-1' as never, invitedEmail: 'a@example.com' }]),
+      ok([{ id: 'invite-1' as never, invitedEmail: 'a@example.com' as never }]),
     );
 
     const response = await POST(postRequest({ emails: ['a@example.com'] }), {

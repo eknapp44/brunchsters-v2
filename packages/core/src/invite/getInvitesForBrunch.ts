@@ -1,18 +1,18 @@
 import type { DbClient } from '@brunchsters/database';
-import type { BrunchId, InviteId, UserId } from '@brunchsters/shared';
+import type { BrunchId, Email, InviteId, InviteToken, UserId } from '@brunchsters/shared';
 import { err, ok, type Result } from 'neverthrow';
 
 export type InviteStatus = 'pending' | 'yes' | 'no' | 'maybe';
 
 export type InviteListItem = {
   readonly id: InviteId;
-  readonly invitedEmail: string;
+  readonly invitedEmail: Email;
   readonly status: InviteStatus;
   readonly lastResentAt: Date | undefined;
   // Host-only surface — this is the capability the host copies and shares
   // themselves (no real email delivery yet; see spec 0004's "What This Spec
   // Does Not Cover"). Never expose this list to anyone but the host.
-  readonly token: string;
+  readonly token: InviteToken;
 };
 
 export type GetInvitesForBrunchInput = {
@@ -45,7 +45,10 @@ export async function getInvitesForBrunch(
   if (brunch.hostId !== input.requestedById) return err({ kind: 'not_host' });
 
   const invites = await ctx.db.brunchInvite.findMany({
-    where: { brunchId: input.brunchId, invitedEmail: { not: brunch.host.email } },
+    where: {
+      brunchId: input.brunchId,
+      NOT: { invitedEmail: { equals: brunch.host.email, mode: 'insensitive' } },
+    },
     include: { attendee: { include: { rsvpStatus: true } } },
     orderBy: { createdAt: 'asc' },
   });
@@ -53,10 +56,10 @@ export async function getInvitesForBrunch(
   return ok(
     invites.map((invite) => ({
       id: invite.id as InviteId,
-      invitedEmail: invite.invitedEmail,
+      invitedEmail: invite.invitedEmail as Email,
       status: toInviteStatus(invite.attendee?.rsvpStatus.code),
       lastResentAt: invite.lastResentAt ?? undefined,
-      token: invite.token,
+      token: invite.token as InviteToken,
     })),
   );
 }

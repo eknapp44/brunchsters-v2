@@ -39,13 +39,25 @@ export default async function BrunchDetailPage({
     notFound();
   }
 
-  const invites = brunch.isHost
-    ? await getInvitesForBrunch({ brunchId, requestedById: viewerId }, { db })
-    : undefined;
+  const [invites, pendingSuggestions] = brunch.isHost
+    ? await Promise.all([
+        getInvitesForBrunch({ brunchId, requestedById: viewerId }, { db }),
+        getPendingSuggestionsForBrunch({ brunchId, requestedById: viewerId }, { db }),
+      ])
+    : [undefined, undefined];
 
-  const pendingSuggestions = brunch.isHost
-    ? await getPendingSuggestionsForBrunch({ brunchId, requestedById: viewerId }, { db })
-    : undefined;
+  // brunch.isHost was just established via getBrunchById above, so these
+  // should never fail — but if that invariant is ever violated, fail loudly
+  // instead of silently omitting the panel with no trace.
+  if (invites?.isErr()) {
+    console.error('getInvitesForBrunch failed for a viewer flagged as host', invites.error);
+  }
+  if (pendingSuggestions?.isErr()) {
+    console.error(
+      'getPendingSuggestionsForBrunch failed for a viewer flagged as host',
+      pendingSuggestions.error,
+    );
+  }
 
   return (
     <main>

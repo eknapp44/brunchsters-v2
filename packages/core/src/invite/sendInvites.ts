@@ -1,5 +1,5 @@
 import type { DbClient } from '@brunchsters/database';
-import type { BrunchId, InviteId, UserId } from '@brunchsters/shared';
+import type { BrunchId, Email, InviteId, UserId } from '@brunchsters/shared';
 import { err, ok, type Result } from 'neverthrow';
 import { z } from 'zod';
 import { LookupNotFoundError } from '../errors/LookupNotFoundError';
@@ -20,7 +20,7 @@ export type SendInvitesInput = SendInvitesRequest & {
 
 export type InviteSummary = {
   readonly id: InviteId;
-  readonly invitedEmail: string;
+  readonly invitedEmail: Email;
 };
 
 export type SendInvitesError =
@@ -82,7 +82,36 @@ export async function sendInvitesInTransaction(
           deletedBy: null,
         },
       });
-      results.push({ id: revived.id as InviteId, invitedEmail: revived.invitedEmail });
+
+      // A known-user invitee gets a BrunchAttendee row eagerly (see below),
+      // and revokeInvite soft-deletes it alongside the BrunchInvite. If we
+      // don't also revive it here, respondToInvite's soft-delete-filtered
+      // lookups see no attendee, fall through to create(), and collide with
+      // the still-present row on the inviteId/[brunchId,userId] unique
+      // constraints. findUnique bypasses the soft-delete extension, so this
+      // sees the row even while it's still marked deleted.
+      const existingAttendee = await tx.brunchAttendee.findUnique({
+        where: { inviteId: revived.id },
+      });
+      if (existingAttendee !== null && existingAttendee.deletedAt !== null) {
+        await tx.brunchAttendee.update({
+          where: { id: existingAttendee.id },
+          data: {
+            rsvpStatusId: invitedStatus.id,
+            respondedAt: null,
+            arrivingLate: false,
+            leavingEarly: false,
+            dietaryNote: null,
+            decideBy: null,
+            regretNote: null,
+            inviteNextTime: false,
+            deletedAt: null,
+            deletedBy: null,
+          },
+        });
+      }
+
+      results.push({ id: revived.id as InviteId, invitedEmail: revived.invitedEmail as Email });
       continue;
     }
 
@@ -110,7 +139,7 @@ export async function sendInvitesInTransaction(
       });
     }
 
-    results.push({ id: newInvite.id as InviteId, invitedEmail: newInvite.invitedEmail });
+    results.push({ id: newInvite.id as InviteId, invitedEmail: newInvite.invitedEmail as Email });
   }
 
   if (input.brunchStatusCode === 'draft') {
@@ -148,7 +177,8 @@ export async function sendInvites(
   // same just-created row on the second (findUnique sees uncommitted writes
   // within the same transaction), producing a duplicate entry in the
   // returned summaries for a single underlying row.
-  const emails = [...new Set(input.emails.filter((email) => email !== brunch.host.email))];
+  const hostEmail = brunch.host.email.toLowerCase();
+  const emails = [...new Set(input.emails.filter((email) => email.toLowerCase() !== hostEmail))];
   if (emails.length === 0) return ok([]);
 
   let summaries: readonly InviteSummary[];

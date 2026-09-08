@@ -1,4 +1,5 @@
 import type { DbClient } from '@brunchsters/database';
+import type { InviteToken } from '@brunchsters/shared';
 import { describe, expect, it, vi } from 'vitest';
 import { getInviteByToken } from './getInviteByToken';
 
@@ -20,7 +21,7 @@ describe('getInviteByToken', () => {
     const findFirst = vi.fn().mockResolvedValue(VALID_INVITE);
     const db = makeMockDb(findFirst);
 
-    const result = await getInviteByToken('valid-token', { db });
+    const result = await getInviteByToken('valid-token' as InviteToken, { db });
 
     expect(result).toEqual({
       brunchTitle: 'Weekend Brunch',
@@ -33,7 +34,7 @@ describe('getInviteByToken', () => {
     const findFirst = vi.fn().mockResolvedValue(VALID_INVITE);
     const db = makeMockDb(findFirst);
 
-    await getInviteByToken('valid-token', { db });
+    await getInviteByToken('valid-token' as InviteToken, { db });
 
     expect(findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -46,7 +47,7 @@ describe('getInviteByToken', () => {
     const findFirst = vi.fn().mockResolvedValue(null);
     const db = makeMockDb(findFirst);
 
-    const result = await getInviteByToken('bad-token', { db });
+    const result = await getInviteByToken('bad-token' as InviteToken, { db });
 
     expect(result).toBeUndefined();
   });

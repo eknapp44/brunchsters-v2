@@ -1,11 +1,12 @@
 import { createDb } from '@brunchsters/database';
-import type { BrunchId, InviteId, UserId } from '@brunchsters/shared';
+import type { BrunchId, InviteId, InviteToken, UserId } from '@brunchsters/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { NoopEventBus } from '../events/NoopEventBus';
 import { createBrunch } from '../brunch/createBrunch';
 import { getInviteByToken } from './getInviteByToken';
 import { getInvitesForBrunch } from './getInvitesForBrunch';
 import { resendInvite } from './resendInvite';
+import { respondToInvite } from './respondToInvite';
 import { revokeInvite } from './revokeInvite';
 import { sendInvites } from './sendInvites';
 
@@ -132,7 +133,7 @@ describe('sendInvites integration', () => {
       where: { brunchId, invitedEmail: UNREGISTERED_INVITEE_EMAIL },
     });
 
-    const preview = await getInviteByToken(invite.token, { db });
+    const preview = await getInviteByToken(invite.token as InviteToken, { db });
 
     expect(preview).toEqual({
       brunchTitle: 'Integration Invite Brunch',
@@ -145,7 +146,7 @@ describe('sendInvites integration', () => {
     const invite = await db.brunchInvite.findFirstOrThrow({
       where: { brunchId, invitedEmail: UNREGISTERED_INVITEE_EMAIL },
     });
-    const oldToken = invite.token;
+    const oldToken = invite.token as InviteToken;
 
     const result = await resendInvite(
       { inviteId: invite.id as InviteId, requestedById: hostId },
@@ -170,7 +171,7 @@ describe('sendInvites integration', () => {
     );
 
     expect(result.isOk()).toBe(true);
-    expect(await getInviteByToken(invite.token, { db })).toBeUndefined();
+    expect(await getInviteByToken(invite.token as InviteToken, { db })).toBeUndefined();
 
     const revoked = await db.brunchInvite.findUniqueOrThrow({ where: { id: invite.id } });
     expect(revoked.deletedAt).not.toBeNull();
@@ -202,6 +203,52 @@ describe('sendInvites integration', () => {
       where: { brunchId, userId: knownInviteeId },
     });
     expect(liveAttendee).toBeNull();
+  });
+
+  it('re-inviting a revoked known-user invitee revives their attendee row instead of leaving it soft-deleted and colliding with respondToInvite', async () => {
+    const before = await db.brunchInvite.findUniqueOrThrow({
+      where: { brunchId_invitedEmail: { brunchId, invitedEmail: KNOWN_INVITEE_EMAIL } },
+    });
+    expect(before.deletedAt).not.toBeNull(); // revoked by the previous test
+
+    const attendeeBefore = await db.brunchAttendee.findUniqueOrThrow({
+      where: { inviteId: before.id },
+    });
+    expect(attendeeBefore.deletedAt).not.toBeNull();
+
+    const result = await sendInvites(
+      { brunchId, invitedById: hostId, emails: [KNOWN_INVITEE_EMAIL] },
+      { db, eventBus },
+    );
+    expect(result.isOk()).toBe(true);
+
+    const revivedInvite = await db.brunchInvite.findUniqueOrThrow({
+      where: { brunchId_invitedEmail: { brunchId, invitedEmail: KNOWN_INVITEE_EMAIL } },
+    });
+    expect(revivedInvite.id).toBe(before.id);
+    expect(revivedInvite.deletedAt).toBeNull();
+
+    // The attendee row must be the same (revived) row, not left soft-deleted —
+    // otherwise respondToInvite's create() below would violate the unique
+    // constraint on inviteId/[brunchId, userId].
+    const revivedAttendee = await db.brunchAttendee.findUniqueOrThrow({
+      where: { inviteId: revivedInvite.id },
+    });
+    expect(revivedAttendee.id).toBe(attendeeBefore.id);
+    expect(revivedAttendee.deletedAt).toBeNull();
+
+    const respondResult = await respondToInvite(
+      { token: revivedInvite.token as InviteToken, response: 'yes', viewerId: knownInviteeId },
+      { db, eventBus },
+    );
+    expect(respondResult.isOk()).toBe(true);
+
+    const finalAttendee = await db.brunchAttendee.findUniqueOrThrow({
+      where: { inviteId: revivedInvite.id },
+      include: { rsvpStatus: true },
+    });
+    expect(finalAttendee.id).toBe(attendeeBefore.id);
+    expect(finalAttendee.rsvpStatus.code).toBe('yes');
   });
 
   it('resendInvite and revokeInvite both report invite_not_found for an already-revoked invite (real soft-delete filtering, not just a mock)', async () => {

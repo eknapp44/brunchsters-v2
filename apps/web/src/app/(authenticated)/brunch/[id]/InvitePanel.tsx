@@ -41,6 +41,7 @@ export function InvitePanel({
   const [email, setEmail] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
+  const [pendingInviteId, setPendingInviteId] = useState<string | undefined>(undefined);
 
   async function sendInvite(): Promise<void> {
     const trimmed = email.trim();
@@ -68,13 +69,37 @@ export function InvitePanel({
   }
 
   async function resend(inviteId: string): Promise<void> {
-    await fetch(`/api/v1/invites/${inviteId}/resend`, { method: 'POST' });
-    router.refresh();
+    setPendingInviteId(inviteId);
+    setError(undefined);
+    try {
+      const response = await fetch(`/api/v1/invites/${inviteId}/resend`, { method: 'POST' });
+      if (!response.ok) {
+        setError('Failed to resend invite');
+        return;
+      }
+      router.refresh();
+    } catch {
+      setError('Failed to resend invite');
+    } finally {
+      setPendingInviteId(undefined);
+    }
   }
 
   async function revoke(inviteId: string): Promise<void> {
-    await fetch(`/api/v1/invites/${inviteId}`, { method: 'DELETE' });
-    router.refresh();
+    setPendingInviteId(inviteId);
+    setError(undefined);
+    try {
+      const response = await fetch(`/api/v1/invites/${inviteId}`, { method: 'DELETE' });
+      if (!response.ok) {
+        setError('Failed to revoke invite');
+        return;
+      }
+      router.refresh();
+    } catch {
+      setError('Failed to revoke invite');
+    } finally {
+      setPendingInviteId(undefined);
+    }
   }
 
   return (
@@ -89,10 +114,18 @@ export function InvitePanel({
             <li key={invite.id}>
               {invite.invitedEmail} — {invite.status}
               <CopyLinkButton token={invite.token} />
-              <button type="button" onClick={() => void resend(invite.id)}>
+              <button
+                type="button"
+                onClick={() => void resend(invite.id)}
+                disabled={pendingInviteId === invite.id}
+              >
                 Resend
               </button>
-              <button type="button" onClick={() => void revoke(invite.id)}>
+              <button
+                type="button"
+                onClick={() => void revoke(invite.id)}
+                disabled={pendingInviteId === invite.id}
+              >
                 Revoke
               </button>
             </li>

@@ -1,4 +1,5 @@
 import { getInviteByToken } from '@brunchsters/core';
+import type { InviteToken } from '@brunchsters/shared';
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
@@ -9,7 +10,7 @@ export async function GET(
 ): Promise<NextResponse> {
   const { token } = await params;
 
-  const preview = await getInviteByToken(token, { db });
+  const preview = await getInviteByToken(token as InviteToken, { db });
   if (preview === undefined) {
     return NextResponse.json({ error: 'Invite not found or expired' }, { status: 404 });
   }

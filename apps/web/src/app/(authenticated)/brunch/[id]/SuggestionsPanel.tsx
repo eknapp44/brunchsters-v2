@@ -22,6 +22,7 @@ export function SuggestionsPanel({
   const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
+  const [pendingSuggestionId, setPendingSuggestionId] = useState<string | undefined>(undefined);
 
   async function suggest(): Promise<void> {
     const trimmed = email.trim();
@@ -49,12 +50,26 @@ export function SuggestionsPanel({
   }
 
   async function review(suggestionId: string, decision: 'approve' | 'decline'): Promise<void> {
-    await fetch(`/api/v1/suggestions/${suggestionId}/review`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ decision }),
-    });
-    router.refresh();
+    if (pendingSuggestionId !== undefined) return;
+
+    setPendingSuggestionId(suggestionId);
+    setError(undefined);
+    try {
+      const response = await fetch(`/api/v1/suggestions/${suggestionId}/review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ decision }),
+      });
+      if (!response.ok) {
+        setError('Failed to review suggestion');
+        return;
+      }
+      router.refresh();
+    } catch {
+      setError('Failed to review suggestion');
+    } finally {
+      setPendingSuggestionId(undefined);
+    }
   }
 
   if (!canSuggest && pendingSuggestions === undefined) return null;
@@ -71,10 +86,18 @@ export function SuggestionsPanel({
             {pendingSuggestions.map((suggestion) => (
               <li key={suggestion.id}>
                 {suggestion.suggestedEmail} — suggested by {suggestion.suggestedByName}
-                <button type="button" onClick={() => void review(suggestion.id, 'approve')}>
+                <button
+                  type="button"
+                  onClick={() => void review(suggestion.id, 'approve')}
+                  disabled={pendingSuggestionId === suggestion.id}
+                >
                   Approve
                 </button>
-                <button type="button" onClick={() => void review(suggestion.id, 'decline')}>
+                <button
+                  type="button"
+                  onClick={() => void review(suggestion.id, 'decline')}
+                  disabled={pendingSuggestionId === suggestion.id}
+                >
                   Decline
                 </button>
               </li>

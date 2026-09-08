@@ -8,4 +8,5 @@ export type {
   BrunchTimeId,
   Email,
   IanaTimezone,
+  InviteToken,
 } from './types/ids';

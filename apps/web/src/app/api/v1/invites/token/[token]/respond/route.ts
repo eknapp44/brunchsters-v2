@@ -1,5 +1,5 @@
 import { NoopEventBus, respondToInvite, respondToInviteRequestSchema } from '@brunchsters/core';
-import type { UserId } from '@brunchsters/shared';
+import type { InviteToken, UserId } from '@brunchsters/shared';
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
@@ -31,7 +31,11 @@ export async function POST(
   }
 
   const result = await respondToInvite(
-    { token, viewerId: session.user.id as UserId, response: parsed.data.response },
+    {
+      token: token as InviteToken,
+      viewerId: session.user.id as UserId,
+      response: parsed.data.response,
+    },
     { db, eventBus },
   );
 

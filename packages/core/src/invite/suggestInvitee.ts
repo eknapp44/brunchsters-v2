@@ -47,7 +47,9 @@ export async function suggestInvitee(
   });
   if (brunch === null) return err({ kind: 'brunch_not_found' });
   if (!brunch.allowInviteSuggestions) return err({ kind: 'suggestions_disabled' });
-  if (input.email === brunch.host.email) return err({ kind: 'cannot_suggest_host' });
+  if (input.email.toLowerCase() === brunch.host.email.toLowerCase()) {
+    return err({ kind: 'cannot_suggest_host' });
+  }
 
   const isHost = brunch.hostId === input.suggestedById;
   if (!isHost) {

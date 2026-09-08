@@ -1,4 +1,5 @@
 import type { DbClient } from '@brunchsters/database';
+import type { InviteToken } from '@brunchsters/shared';
 
 export type InvitePreview = {
   readonly brunchTitle: string;
@@ -10,7 +11,7 @@ export type InvitePreview = {
 // 29 — email is identity, not contact info). undefined for any invalid state —
 // expired, revoked, or nonexistent — so a bad token can't distinguish those cases.
 export async function getInviteByToken(
-  token: string,
+  token: InviteToken,
   ctx: { readonly db: DbClient },
 ): Promise<InvitePreview | undefined> {
   const invite = await ctx.db.brunchInvite.findFirst({
