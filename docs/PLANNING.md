@@ -1336,16 +1336,20 @@ For solo side project: don't split. Premature.
 2. ✅ **Project scaffold** — Next.js + TypeScript + Prisma (specs/0001-repo-scaffold)
 3. ✅ **Prisma schema** — codify this data model (specs/0001-repo-scaffold M4)
 4. ✅ **Seed lookup tables** (specs/0001-repo-scaffold M5)
-5. **Auth** — NextAuth + Google + Apple + UserAuthProvider
+5. ✅ **Auth** — NextAuth + Google (specs/0002-auth). Apple Sign-In deliberately deferred — see spec 0002 "What".
 6. **Core brunch flow** — create → invite → attendee → vote → confirm
-7. **Google Places integration**
-8. **Notifications + Inngest**
-9. **UI** — host flow, invitee flow, dashboard
+   - ✅ create (specs/0003-create-brunch)
+   - ✅ invite + attendee/RSVP (specs/0004-invitations)
+   - ❌ vote — not started. `decisionType` (`host_decides`/`group_vote`) exists in the data model, but no vote-casting service or UI yet.
+   - ❌ confirm — not started.
+7. ✅ **Google Places integration** — folded into specs/0003-create-brunch (`GooglePlacesProvider`: Places Autocomplete (New) + Time Zone API)
+8. **Notifications + Inngest** — not started. `EventBus` interface + `NoopEventBus` stub exist (services already emit through it); no real Inngest wiring or Resend email sending yet.
+9. **UI** — host flow, invitee flow, dashboard. Dashboard, creation wizard, brunch detail page, invite panel, RSVP control, suggestion panel, and the public invite landing page are all built (specs/0003, 0004). No voting UI yet — blocked on item 6.
 
 ### Setup tasks parallel to development
 
-- GitHub repo + branch protection
-- CI pipeline (lint, typecheck, test on every PR)
+- GitHub repo ✅ / branch protection ❌ — repo exists, but `main` has no branch protection rules configured yet (confirmed via `gh api repos/.../branches/main/protection` → 404, as of the spec 0004 merge). Worth doing now that CI has real required-check candidates (`lint`, `typecheck`, `test`, `test-integration`, `validate`, `build`).
+- ✅ CI pipeline (lint, typecheck, test on every PR) — `.github/workflows/ci.yml`; integration tests (`test-integration`, real Postgres service container) added as of specs/0004-invitations.
 - Vercel project linked to GitHub (auto-deploy)
 - Supabase project (Postgres + auth optional)
 - Google Cloud project + API keys

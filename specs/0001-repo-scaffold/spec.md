@@ -1,7 +1,7 @@
 # Spec 0001 — Repo Scaffold
 
-**Status:** In planning  
-**Branch:** `feat/0001-repo-scaffold`  
+**Status:** Complete  
+**Branch:** `feat/0001-repo-scaffold` (merged)  
 **Created:** 2026-06-13
 
 ---
@@ -54,6 +54,7 @@ local database — with no cloud accounts required.
 ## Third-Party Flag
 
 This spec requires only:
+
 - **Docker Desktop** (already on machine for Supabase CLI)
 - **Supabase CLI** (local Postgres via Docker; no cloud account)
 - **Inngest dev server** (`npx inngest-cli@latest dev`; no account)

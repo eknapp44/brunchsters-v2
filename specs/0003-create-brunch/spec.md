@@ -1,7 +1,7 @@
 # Spec 0003 — Create Brunch
 
-**Status:** Draft  
-**Branch:** `feat/0003-create-brunch`  
+**Status:** Complete  
+**Branch:** `feat/0003-create-brunch` (merged)  
 **PLANNING.md ref:** §5 Host Journey, §6 Permissions Model, §8 Brunch / Location & Time / Invites & Attendees schema, §9.3 Timezone Handling, §9.6 Synthetic Invite for Host, §9.7 Voting Close Rule, §10 Async Event Architecture
 
 ---
