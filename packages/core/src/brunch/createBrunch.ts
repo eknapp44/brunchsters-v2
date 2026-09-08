@@ -2,6 +2,7 @@ import type { DbClient } from '@brunchsters/database';
 import type { BrunchId, UserId } from '@brunchsters/shared';
 import { err, ok, type Result } from 'neverthrow';
 import { z } from 'zod';
+import { LookupNotFoundError } from '../errors/LookupNotFoundError';
 import type { EventBus } from '../events/EventBus';
 
 // Validates the string is a real IANA zone the runtime knows about,
@@ -55,13 +56,6 @@ type CreateBrunchContext = {
   readonly db: DbClient;
   readonly eventBus: EventBus;
 };
-
-// Thrown inside the transaction to abort it; mapped to a typed Err in the catch.
-class LookupNotFoundError extends Error {
-  constructor(readonly code: string) {
-    super(`Lookup row not found: ${code}`);
-  }
-}
 
 export async function createBrunch(
   input: CreateBrunchInput,

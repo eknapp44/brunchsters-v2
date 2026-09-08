@@ -1,0 +1,224 @@
+import type { DbClient } from '@brunchsters/database';
+import type { BrunchId, Email, InviteId, UserId } from '@brunchsters/shared';
+import { err, ok, type Result } from 'neverthrow';
+import { z } from 'zod';
+import { LookupNotFoundError } from '../errors/LookupNotFoundError';
+import type { EventBus } from '../events/EventBus';
+
+const INVITE_EXPIRY_DAYS = 30;
+
+export const sendInvitesRequestSchema = z.object({
+  emails: z.array(z.email()).min(1),
+});
+
+export type SendInvitesRequest = z.infer<typeof sendInvitesRequestSchema>;
+
+export type SendInvitesInput = SendInvitesRequest & {
+  readonly brunchId: BrunchId;
+  readonly invitedById: UserId; // from the session, never from the request body
+};
+
+export type InviteSummary = {
+  readonly id: InviteId;
+  readonly invitedEmail: Email;
+};
+
+export type SendInvitesError =
+  | { readonly kind: 'brunch_not_found' }
+  | { readonly kind: 'not_host' }
+  | { readonly kind: 'lookup_not_found'; readonly code: string }
+  | { readonly kind: 'db_error'; readonly cause: unknown };
+
+type SendInvitesContext = {
+  readonly db: DbClient;
+  readonly eventBus: EventBus;
+};
+
+// The interactive-transaction client Prisma passes into db.$transaction's
+// callback, derived from DbClient itself so it stays correct for the
+// soft-delete extension DbClient applies.
+export type SendInvitesTxClient = Parameters<Parameters<DbClient['$transaction']>[0]>[0];
+
+export type SendInvitesTxInput = {
+  readonly brunchId: BrunchId;
+  readonly invitedById: UserId;
+  readonly emails: readonly string[]; // already deduped/self-filtered by the caller
+  readonly brunchStatusCode: string;
+};
+
+function expiresIn30Days(): Date {
+  return new Date(Date.now() + INVITE_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
+}
+
+// Core per-email create-or-revive loop, runnable inside any already-open
+// transaction. Shared by sendInvites (opens its own transaction) and
+// reviewInviteSuggestion (needs invite creation and the suggestion's status
+// update to commit atomically together, so a real invite can never be sent
+// while the suggestion is left stuck at 'pending', or vice versa).
+export async function sendInvitesInTransaction(
+  tx: SendInvitesTxClient,
+  input: SendInvitesTxInput,
+): Promise<InviteSummary[]> {
+  const invitedStatus = await tx.rsvpStatus.findFirst({ where: { code: 'invited' } });
+  if (invitedStatus === null) throw new LookupNotFoundError('RsvpStatus:invited');
+
+  const results: InviteSummary[] = [];
+
+  for (const email of input.emails) {
+    // findUnique bypasses the soft-delete extension (only findMany/findFirst
+    // are intercepted) — we need to see revoked invites here to revive them.
+    const existing = await tx.brunchInvite.findUnique({
+      where: { brunchId_invitedEmail: { brunchId: input.brunchId, invitedEmail: email } },
+    });
+
+    if (existing !== null) {
+      const revived = await tx.brunchInvite.update({
+        where: { id: existing.id },
+        data: {
+          token: crypto.randomUUID(),
+          tokenExpiresAt: expiresIn30Days(),
+          lastResentAt: new Date(),
+          deletedAt: null,
+          deletedBy: null,
+        },
+      });
+
+      // A known-user invitee gets a BrunchAttendee row eagerly (see below),
+      // and revokeInvite soft-deletes it alongside the BrunchInvite. If we
+      // don't also revive it here, respondToInvite's soft-delete-filtered
+      // lookups see no attendee, fall through to create(), and collide with
+      // the still-present row on the inviteId/[brunchId,userId] unique
+      // constraints. findUnique bypasses the soft-delete extension, so this
+      // sees the row even while it's still marked deleted.
+      const existingAttendee = await tx.brunchAttendee.findUnique({
+        where: { inviteId: revived.id },
+      });
+      if (existingAttendee !== null && existingAttendee.deletedAt !== null) {
+        await tx.brunchAttendee.update({
+          where: { id: existingAttendee.id },
+          data: {
+            rsvpStatusId: invitedStatus.id,
+            respondedAt: null,
+            arrivingLate: false,
+            leavingEarly: false,
+            dietaryNote: null,
+            decideBy: null,
+            regretNote: null,
+            inviteNextTime: false,
+            deletedAt: null,
+            deletedBy: null,
+          },
+        });
+      }
+
+      results.push({ id: revived.id as InviteId, invitedEmail: revived.invitedEmail as Email });
+      continue;
+    }
+
+    const existingUser = await tx.user.findFirst({ where: { email } });
+
+    const newInvite = await tx.brunchInvite.create({
+      data: {
+        brunchId: input.brunchId,
+        invitedUserId: existingUser?.id ?? null,
+        invitedEmail: email,
+        invitedById: input.invitedById,
+        token: crypto.randomUUID(),
+        tokenExpiresAt: expiresIn30Days(),
+      },
+    });
+
+    if (existingUser !== null) {
+      await tx.brunchAttendee.create({
+        data: {
+          brunchId: input.brunchId,
+          userId: existingUser.id,
+          inviteId: newInvite.id,
+          rsvpStatusId: invitedStatus.id,
+        },
+      });
+    }
+
+    results.push({ id: newInvite.id as InviteId, invitedEmail: newInvite.invitedEmail as Email });
+  }
+
+  if (input.brunchStatusCode === 'draft') {
+    const activeStatus = await tx.brunchStatus.findFirst({ where: { code: 'active' } });
+    if (activeStatus === null) throw new LookupNotFoundError('BrunchStatus:active');
+    await tx.brunch.update({
+      where: { id: input.brunchId },
+      data: { statusId: activeStatus.id },
+    });
+  }
+
+  return results;
+}
+
+export async function sendInvites(
+  input: SendInvitesInput,
+  ctx: SendInvitesContext,
+): Promise<Result<readonly InviteSummary[], SendInvitesError>> {
+  const { db, eventBus } = ctx;
+
+  const brunch = await db.brunch.findFirst({
+    where: { id: input.brunchId },
+    include: { status: true, host: true },
+  });
+  if (brunch === null) return err({ kind: 'brunch_not_found' });
+  if (brunch.hostId !== input.invitedById) return err({ kind: 'not_host' });
+
+  // Inviting yourself is a no-op, not an error — the host already has the
+  // synthetic invite. Filtering it out (rather than rejecting the whole
+  // batch) means the rest of a multi-email submission still goes through
+  // even if the host absent-mindedly included their own address.
+  //
+  // Also de-duplicate: the same email appearing twice in one batch would
+  // otherwise create the invite on the first pass and then "revive" that
+  // same just-created row on the second (findUnique sees uncommitted writes
+  // within the same transaction), producing a duplicate entry in the
+  // returned summaries for a single underlying row. Both checks are
+  // case-insensitive — invitedEmail has no case-insensitive DB constraint
+  // (no citext, default collation), so two entries differing only in case
+  // would otherwise both survive as separate rows for the same address.
+  const hostEmail = brunch.host.email.toLowerCase();
+  const seenEmails = new Set<string>();
+  const emails: string[] = [];
+  for (const email of input.emails) {
+    const normalized = email.toLowerCase();
+    if (normalized === hostEmail || seenEmails.has(normalized)) continue;
+    seenEmails.add(normalized);
+    emails.push(email);
+  }
+  if (emails.length === 0) return ok([]);
+
+  let summaries: readonly InviteSummary[];
+  try {
+    summaries = await db.$transaction((tx) =>
+      sendInvitesInTransaction(tx, {
+        brunchId: input.brunchId,
+        invitedById: input.invitedById,
+        emails,
+        brunchStatusCode: brunch.status.code,
+      }),
+    );
+  } catch (cause) {
+    if (cause instanceof LookupNotFoundError) {
+      return err({ kind: 'lookup_not_found', code: cause.code });
+    }
+    return err({ kind: 'db_error', cause });
+  }
+
+  for (const invite of summaries) {
+    try {
+      await eventBus.emit('invite/sent', {
+        brunchId: input.brunchId,
+        inviteId: invite.id,
+        invitedEmail: invite.invitedEmail,
+      });
+    } catch {
+      // Side effects must never fail the send (Constitution 12).
+    }
+  }
+
+  return ok(summaries);
+}

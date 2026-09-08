@@ -2,7 +2,11 @@ import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 
 const PUBLIC_ROUTES = new Set(['/', '/sign-in']);
-const PUBLIC_PREFIXES = ['/invite/', '/api/auth/'];
+// /api/v1/invites/token/ covers both the preview GET and the respond POST —
+// the respond route still enforces its own auth() check, this just stops
+// the blanket /api/ 401 gate from short-circuiting the one route meant to
+// work for a signed-out visitor previewing an invite before they sign in.
+const PUBLIC_PREFIXES = ['/invite/', '/api/auth/', '/api/v1/invites/token/'];
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;

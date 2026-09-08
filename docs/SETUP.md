@@ -208,27 +208,30 @@ The whole point: **fast, deterministic tests that run offline.**
 
 ### Test types
 
-| Type            | What it covers                                   | Runner     | DB                           | External APIs                               |
-| --------------- | ------------------------------------------------ | ---------- | ---------------------------- | ------------------------------------------- |
-| **Unit**        | `packages/core` services, pure logic, validation | Vitest     | none                         | mocked (`MockEmailService`, mock providers) |
-| **Integration** | DB interactions, Prisma queries, transactions    | Vitest     | **local Postgres (test DB)** | mocked                                      |
-| **E2E**         | Critical user flows end-to-end                   | Playwright | local stack                  | mocked or sandbox                           |
+| Type            | What it covers                                   | Runner     | DB                 | External APIs                               |
+| --------------- | ------------------------------------------------ | ---------- | ------------------ | ------------------------------------------- |
+| **Unit**        | `packages/core` services, pure logic, validation | Vitest     | none               | mocked (`MockEmailService`, mock providers) |
+| **Integration** | DB interactions, Prisma queries, transactions    | Vitest     | **local Postgres** | mocked                                      |
+| **E2E**         | Critical user flows end-to-end                   | Playwright | local stack        | mocked or sandbox                           |
 
 ### Running tests
 
 ```bash
-pnpm test           # unit tests across all packages (no DB needed)
-pnpm test:watch     # watch mode during a milestone (add script when needed)
-pnpm test:e2e       # Playwright (added when E2E tests exist)
+pnpm test                                          # unit tests across all packages (no DB needed)
+pnpm test:watch                                    # watch mode during a milestone (add script when needed)
+pnpm --filter @brunchsters/core test:integration   # integration tests — needs local Postgres (supabase start)
+pnpm test:e2e                                      # Playwright (added when E2E tests exist)
 ```
 
 ### Local test database
 
-Integration tests run against a **dedicated local test database**, separate from your dev DB, so tests can wipe and reseed freely. Setup TBD when the first feature spec adds integration tests — the local Supabase Postgres can host a `postgres_test` database alongside the dev database.
+Integration tests run against your **local Supabase Postgres** — the same instance `supabase start` gives you, not a separate database. `packages/core/test/setup-db-env.ts` reads `DATABASE_URL`/`DIRECT_URL` from `packages/database/.env` automatically, so you don't need to export them by hand locally. Each integration test file generates run-unique fixture data (a `RUN_ID = Date.now()` suffix on emails/titles) and deletes it in `afterAll`, so repeated local runs don't collide or accumulate cruft.
+
+In CI, integration tests run against a throwaway `postgres:17` service container instead (the `test-integration` job in `.github/workflows/ci.yml`) — migrated and seeded fresh on every run, then discarded. No cleanup needed there since the whole container goes away.
 
 Conventions:
 
-- Each integration test starts from a known seeded state and cleans up after itself (transaction rollback per test, or truncate-and-reseed).
+- Each integration test file creates its own uniquely-named fixture data and cleans it up in `afterAll` — see any `*.integration.test.ts` for the pattern.
 - External boundaries (Resend, Google Places) are **always** mocked in tests via the interface + mock-implementation pattern from `CLAUDE.md`. Tests never hit a real third-party API.
 - Tests are co-located: `createBrunch.test.ts` next to `createBrunch.ts`.
 
@@ -240,15 +243,15 @@ Per the workflow in `CLAUDE.md`, every milestone records a short testing note (w
 
 ## 9. Troubleshooting
 
-| Symptom                                                      | Likely cause                                                                                                                                                   | Fix                                                                                                   |
-| ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `supabase start` fails with pipe error                       | Docker Desktop not running (Windows)                                                                                                                           | Open Docker Desktop, wait for whale icon to be steady, retry                                          |
-| `supabase start` fails with port conflict                    | Stale containers or another process on :54322                                                                                                                  | `supabase stop`, check for other processes, retry                                                     |
-| Prisma can't connect                                         | `DATABASE_URL` / `DIRECT_URL` not matching `supabase start` output                                                                                             | Re-copy `DB_URL` from the CLI output into `apps/web/.env.local` and `packages/database/.env`          |
-| Auth.js `MissingSecret` error at runtime                     | `AUTH_SECRET` not found — Next.js reads `.env.local` from the app directory, not the monorepo root                                                             | Ensure `apps/web/.env.local` exists and contains `AUTH_SECRET`                                        |
-| Turbopack `@prisma/client can't be external`                 | `@prisma/client` not installed as a direct dep of `apps/web`                                                                                                   | `pnpm add --filter @brunchsters/web @prisma/client`                                                   |
-| Google OAuth `invalid_client` / "OAuth client was not found" | App sends `client_id=undefined` — a bare Auth.js v5 provider reads `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET`, but we use `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` | Credentials are wired explicitly in `auth.ts`; ensure both vars are set in `apps/web/.env.local`      |
-| `pnpm install` blocked by build scripts                      | pnpm 11 requires explicit allowBuilds approval                                                                                                                 | Run `pnpm approve-builds` and set new entries to `true` in `pnpm-workspace.yaml`                      |
-| Migration drift errors                                       | Schema changed without a migration                                                                                                                             | `pnpm db:migrate` to generate a migration; never edit the DB by hand                                  |
-| App boots then crashes on a missing key                      | Required env var unset                                                                                                                                         | Check `.env.local` against `.env.example`; the boot-time Zod validation message names the missing var |
-| Tests pass locally, fail in CI                               | CI test DB not seeded the same way                                                                                                                             | Ensure `test:setup` runs in CI before `test`; keep seed deterministic                                 |
+| Symptom                                                      | Likely cause                                                                                                                                                   | Fix                                                                                                                   |
+| ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `supabase start` fails with pipe error                       | Docker Desktop not running (Windows)                                                                                                                           | Open Docker Desktop, wait for whale icon to be steady, retry                                                          |
+| `supabase start` fails with port conflict                    | Stale containers or another process on :54322                                                                                                                  | `supabase stop`, check for other processes, retry                                                                     |
+| Prisma can't connect                                         | `DATABASE_URL` / `DIRECT_URL` not matching `supabase start` output                                                                                             | Re-copy `DB_URL` from the CLI output into `apps/web/.env.local` and `packages/database/.env`                          |
+| Auth.js `MissingSecret` error at runtime                     | `AUTH_SECRET` not found — Next.js reads `.env.local` from the app directory, not the monorepo root                                                             | Ensure `apps/web/.env.local` exists and contains `AUTH_SECRET`                                                        |
+| Turbopack `@prisma/client can't be external`                 | `@prisma/client` not installed as a direct dep of `apps/web`                                                                                                   | `pnpm add --filter @brunchsters/web @prisma/client`                                                                   |
+| Google OAuth `invalid_client` / "OAuth client was not found" | App sends `client_id=undefined` — a bare Auth.js v5 provider reads `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET`, but we use `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` | Credentials are wired explicitly in `auth.ts`; ensure both vars are set in `apps/web/.env.local`                      |
+| `pnpm install` blocked by build scripts                      | pnpm 11 requires explicit allowBuilds approval                                                                                                                 | Run `pnpm approve-builds` and set new entries to `true` in `pnpm-workspace.yaml`                                      |
+| Migration drift errors                                       | Schema changed without a migration                                                                                                                             | `pnpm db:migrate` to generate a migration; never edit the DB by hand                                                  |
+| App boots then crashes on a missing key                      | Required env var unset                                                                                                                                         | Check `.env.local` against `.env.example`; the boot-time Zod validation message names the missing var                 |
+| Integration tests pass locally, fail in CI                   | CI's Postgres container starts empty — migrations/seed run fresh each time in `test-integration`                                                               | Check the migration is committed (`pnpm db:migrate` generates it); keep `packages/database/src/seed.ts` deterministic |
