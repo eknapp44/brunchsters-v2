@@ -1,3 +1,21 @@
+# [1.3.0](https://github.com/eknapp44/brunchsters-v2/compare/v1.2.0...v1.3.0) (2026-09-08)
+
+### Bug Fixes
+
+- address PR [#5](https://github.com/eknapp44/brunchsters-v2/issues/5) review findings — revoke access gap, suggestion-review atomicity ([7bf851a](https://github.com/eknapp44/brunchsters-v2/commit/7bf851af0b73e7877a88eb659df5fb614fe7911f))
+- address second review pass — revive-flow crash, case-sensitive email checks, silent UI failures ([f6710f2](https://github.com/eknapp44/brunchsters-v2/commit/f6710f2db9ff1e023cd1214de0ec9c32f5695c4c))
+- address third review pass — case-sensitive dedup, InvitePanel race, stale doc lines ([4a21c4a](https://github.com/eknapp44/brunchsters-v2/commit/4a21c4a3a844c031e563f5986af1072fb263f242))
+
+### Features
+
+- invite and suggestion API routes (M4) ([620ce22](https://github.com/eknapp44/brunchsters-v2/commit/620ce2238ffd210f1ef01179435cb0494ff34250))
+- invite lifecycle services — send, resend, revoke, token lookup (M1) ([1ca52e6](https://github.com/eknapp44/brunchsters-v2/commit/1ca52e69ab14b15f8a220577c405d45d25662ea4))
+- invite suggestion services with auto-approve and host review (M3) ([89e9263](https://github.com/eknapp44/brunchsters-v2/commit/89e926396a46b675e0b704aeb1ff2526bb89827a))
+- public invite landing page with auto-accept on auth (M6) ([6cf5a1c](https://github.com/eknapp44/brunchsters-v2/commit/6cf5a1ccc6e13544a61fb6238b9a0b71a9f26288))
+- respondToInvite service and getBrunchById viewer fields (M2) ([a809a9e](https://github.com/eknapp44/brunchsters-v2/commit/a809a9e241c252336837c5770f40d21deb370562))
+- RSVP and invite-suggestion UI on brunch detail page (M7) ([5e07be5](https://github.com/eknapp44/brunchsters-v2/commit/5e07be52724c7bdb981a1447b824660726e33a17))
+- wizard invite step and detail page invite panel (M5) ([f048999](https://github.com/eknapp44/brunchsters-v2/commit/f04899972caffa95c1ac56aed14659c1e9bbf411))
+
 # [1.2.0](https://github.com/eknapp44/brunchsters-v2/compare/v1.1.0...v1.2.0) (2026-08-01)
 
 ### Bug Fixes
