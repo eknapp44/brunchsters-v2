@@ -1,7 +1,7 @@
 # Spec 0004 — Invitations
 
-**Status:** Draft  
-**Branch:** `feat/0004-invitations`  
+**Status:** Complete  
+**Branch:** `feat/0004-invitations` (merged)  
 **PLANNING.md ref:** §5 Invitee Journey / Confirmation Lock Rules / Minimum Brunch Size, §6 Permissions Model, §7 Notifications, §8 Invites & Attendees schema, §9.5 Token Lifecycle, §9.6 Synthetic Invite for Host, §10 Async Event Architecture, Constitution 28 (least privilege for invite tokens), Constitution 29 (email is identity, not contact info)
 
 ---
