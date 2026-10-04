@@ -16,7 +16,7 @@ Pure refactor, no user-facing change. Merges on its own once green rather than r
 - [x] Implement `guards/deriveDecisionMode.ts` — the single place allowed to count options, always filtering `deletedAt: null` (ADR 0006's named footgun); unit tests for 0, 1, and 2+ options, plus one asserting the `deletedAt: null` filter is always sent
 - [x] Amend PLANNING §8 to describe the derivation and reference ADR 0006
 - [x] `pnpm typecheck && pnpm lint && pnpm test` pass
-- [ ] Commit: `refactor: derive brunch decision type instead of storing it (M1)`
+- [x] Commit: `refactor: derive brunch decision type instead of storing it (M1)`
 
 **Testing notes:**
 
