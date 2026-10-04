@@ -163,8 +163,8 @@ The handoff from invite link → auth → brunch detail page must feel invisible
 ### Edge Cases
 
 - **Expired token:** Friendly message, "Ask [host] to resend". Tokens expire 7 days after the scheduled brunch date — hosts can revoke and regenerate at any time.
-- **Brunch already confirmed:** Read-only view, still allow late RSVPs
-- **Declined invitee:** Allow them to change mind until confirmed
+- **Brunch already confirmed:** Location, time, and the ballot become read-only; RSVP stays open, so late RSVPs and changes of mind are still allowed
+- **Declined invitee:** Allow them to change their mind at any time, confirmation included. (Originally read "until confirmed," which contradicted the bullet above; resolved in favour of staying open during spec 0005 planning — a friend whose plans free up the night before should still be able to join, and v1 has no reservation that needs a frozen headcount.)
 
 ### Confirmation Lock Rules
 
@@ -176,6 +176,8 @@ After a brunch is confirmed:
 ### Minimum Brunch Size
 
 2 people including host (1-on-1s are valid brunches).
+
+Enforced structurally rather than by an explicit check: a brunch only leaves `draft` when its first invite is sent, and confirmation requires an `active` brunch, so a brunch with no invitees can never be confirmed. "Invitees exist but nobody has accepted yet" is allowed — the host often knows their friend is coming before the app does — and surfaces as a UI warning on the confirm control, not an error.
 
 ---
 
@@ -266,8 +268,13 @@ BrunchDecisionType {
 
 RsvpStatus {
   id, code, label, description, isActive, sortOrder,
-  countsAsAttendee, createdAt, updatedAt
+  countsAsAttendee, canVote, createdAt, updatedAt
   // values: invited, yes, no, maybe
+  // countsAsAttendee ("is coming" — drives headcount): true for yes only
+  // canVote ("gets a say" — drives voting eligibility): true for yes and maybe.
+  //   Deliberately separate from countsAsAttendee: a maybe shouldn't inflate the
+  //   headcount but is often the most informative voter, since narrowing the
+  //   options is what turns their maybe into a yes. Added by spec 0005.
   // (countsForQuorum dropped — quorum is more nuanced than a flag)
 }
 
