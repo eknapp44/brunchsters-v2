@@ -31,18 +31,27 @@ Pure refactor, no user-facing change. Merges on its own once green rather than r
 
 ## M2 — Shared guards + add/remove options
 
-- [ ] Implement `guards/assertHostOf.ts` → `Result<Brunch, 'brunch_not_found' | 'not_host'>`
-- [ ] Implement `guards/assertBrunchActive.ts` → `Result<void, 'brunch_not_active'>` (covers confirmed and cancelled)
-- [ ] Unit tests for both guards in isolation
-- [ ] Implement `addLocation.ts` — host-only; brunch must be `active`; payload reuses `locationInputSchema` from `createBrunch.ts`
-- [ ] Implement `addTime.ts` — same guards; validates a future ISO datetime
-- [ ] Implement `removeLocation.ts` / `removeTime.ts` — host-only; soft delete (`deletedAt`/`deletedBy`); reject a confirmed option (`option_confirmed`), the last remaining option of a kind (`last_option`), or an option id belonging to another brunch (`unknown_option`)
-- [ ] Export all four + the guards from `packages/core/src/index.ts`
-- [ ] Routes: `POST /api/v1/brunches/:id/locations`, `POST .../times`, `DELETE .../locations/:optionId`, `DELETE .../times/:optionId`
-- [ ] Unit tests: both kinds, non-host rejected, confirmed brunch rejected, cross-brunch option id rejected, last-option removal rejected, db-error mapping
-- [ ] Integration test: a brunch created with one time gains a second (derived mode flips to `group_vote` with no column to update), then one is removed and it flips back
-- [ ] `pnpm typecheck && pnpm lint && pnpm test` pass
-- [ ] Commit: `feat: host can add and remove brunch locations and times (M2)`
+- [x] Implement `guards/assertHostOf.ts` → `Result<Brunch, 'brunch_not_found' | 'not_host'>`
+- [x] Implement `guards/assertBrunchActive.ts` → `Result<void, 'brunch_not_active'>` (covers confirmed and cancelled)
+- [x] Unit tests for both guards in isolation
+- [x] Implement `addLocation.ts` — host-only; brunch must be `active`; payload reuses `locationInputSchema` from `createBrunch.ts`
+- [x] Implement `addTime.ts` — same guards; validates a future ISO datetime
+- [x] Implement `removeLocation.ts` / `removeTime.ts` — host-only; soft delete (`deletedAt`/`deletedBy`); reject a confirmed option (`option_confirmed`), the last remaining option of a kind (`last_option`), or an option id belonging to another brunch (`unknown_option`)
+- [x] Export all four + the guards from `packages/core/src/index.ts`
+- [x] Routes: `POST /api/v1/brunches/:id/locations`, `POST .../times`, `DELETE .../locations/:optionId`, `DELETE .../times/:optionId`
+- [x] Unit tests: both kinds, non-host rejected, confirmed brunch rejected, cross-brunch option id rejected, last-option removal rejected, db-error mapping
+- [x] Integration test: a brunch created with one time gains a second (derived mode flips to `group_vote` with no column to update), then one is removed and it flips back
+- [x] `pnpm typecheck && pnpm lint && pnpm test` pass
+- [x] Commit: `feat: host can add and remove brunch locations and times (M2)`
+
+**Testing notes:**
+
+- **What was tested:** Both guards in isolation (`assertHostOf`: found/not-found/wrong-host; `assertBrunchActive`: active/draft/confirmed/cancelled). All four services' happy paths, host-only enforcement, every non-active status (draft, confirmed, cancelled covered across the four files), db-error mapping on the write call. `removeLocation`/`removeTime` additionally: unknown option id, cross-brunch option id (scoped query returns null either way — same `unknown_option` outcome, confirmed explicitly), confirmed-option rejection, last-option rejection, and that the sibling `count()` always sends `deletedAt: null` (ADR 0006's footgun, same pattern as `deriveDecisionMode`'s own test). All four route handlers: auth, malformed id, body validation (locations: bad timezone; times: past datetime), every service error mapped to its HTTP status, success shape.
+- **How:** Unit — 4 new service files + 2 guards + their routes, all mocked at the `db` call boundary (not module-mocking the guards themselves, consistent with the rest of the codebase). 70 new unit tests across core and web. Integration (`optionManagement.integration.test.ts`, 6 tests) against real Postgres: the mode flip for both kinds independently, last-option rejection, confirmed-option rejection (confirmed set via a direct `db.update`, since no confirm service exists until M5), cross-brunch rejection, and that a soft-deleted option actually disappears from `deriveDecisionMode`'s count (not just that the query was shaped right — this is the one case M1's testing notes deferred to M2).
+- **Bug caught by the integration suite that the unit tests couldn't catch:** `createBrunch` leaves a brunch in `draft` — it only moves to `active` when `sendInvites` runs (spec 0004). Every unit test mocks `db.brunch.findFirst` to return `status: { code: 'active' }` directly, so this never surfaces there. The first integration run failed all 6 tests with `brunch_not_active` because the test brunches were still `draft`. Fixed by having the integration test's `createTestBrunch` helper activate the brunch via a direct `db.brunch.update` after creation — a deliberate test-only shortcut around the real activation path (sending a real invite), since what's under test here is option management, not invitations.
+- **What's deferred:** No test exercises `addLocation`/`addTime` against a `draft` brunch through the real activation path (i.e., via `sendInvites`) — only via the shortcut above. That full chain (create → invite → add option) is exactly the kind of multi-step flow the browser test in M7/M8 and the E2E proposal in PLANNING's Still Open section are meant to cover, not a unit or isolated integration test.
+- **How to run it:** `pnpm typecheck && pnpm lint && pnpm test` from repo root (unit only); `pnpm --filter @brunchsters/core test:integration` for the integration suite (local Supabase must be running).
+- **No migration this milestone** — M2 adds no schema, only services/routes. The next migration is M3's `RsvpStatus.canVote`.
 
 **Testing notes:** _(fill on completion)_
 

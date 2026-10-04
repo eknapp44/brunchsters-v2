@@ -1,3 +1,3 @@
 export { createDb } from './middleware';
 export type { DbClient } from './middleware';
-export type { PrismaClient } from '@prisma/client';
+export type { Brunch, PrismaClient } from '@prisma/client';
