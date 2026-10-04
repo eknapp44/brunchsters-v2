@@ -84,6 +84,11 @@ model RsvpStatus {
   isActive         Boolean  @default(true)
   sortOrder        Int
   countsAsAttendee Boolean  @default(true)
+  // "Gets a say" on voting — deliberately separate from countsAsAttendee's
+  // "is coming": a maybe shouldn't inflate the headcount but is often the
+  // most informative voter (spec 0005). true for yes/maybe, false for
+  // invited/no.
+  canVote          Boolean  @default(false)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 

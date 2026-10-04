@@ -30,6 +30,18 @@ export { removeLocation } from './brunch/removeLocation';
 export type { RemoveLocationError, RemoveLocationInput } from './brunch/removeLocation';
 export { removeTime } from './brunch/removeTime';
 export type { RemoveTimeError, RemoveTimeInput } from './brunch/removeTime';
+export { assertCanVote } from './brunch/guards/assertCanVote';
+export type { AssertCanVoteError, VotingAttendee } from './brunch/guards/assertCanVote';
+export { castLocationBallot, castBallotRequestSchema } from './brunch/castLocationBallot';
+export type {
+  CastBallotRequest,
+  CastLocationBallotError,
+  CastLocationBallotInput,
+} from './brunch/castLocationBallot';
+export { castTimeBallot } from './brunch/castTimeBallot';
+export type { CastTimeBallotError, CastTimeBallotInput } from './brunch/castTimeBallot';
+export { getBrunchVoting } from './brunch/getBrunchVoting';
+export type { BrunchVoting, BrunchVotingKind, VoteOptionSummary } from './brunch/getBrunchVoting';
 export { getBrunchesForUser } from './brunch/getBrunchesForUser';
 export type { BrunchSummary } from './brunch/getBrunchesForUser';
 export { sendInvites, sendInvitesRequestSchema } from './invite/sendInvites';

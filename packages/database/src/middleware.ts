@@ -1,6 +1,10 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 
 // Models with a deletedAt field — excluded from findMany/findFirst by default.
+// BrunchLocationVote/BrunchTimeVote are deliberately NOT here: votes are
+// replaced via hard delete + insert (spec 0005), not soft-deleted, and
+// neither table has a deletedAt column — findMany/findFirst against them
+// would throw "Unknown argument deletedAt" if they were added back.
 const SOFT_DELETE_MODELS = new Set([
   'User',
   'Brunch',
@@ -8,8 +12,6 @@ const SOFT_DELETE_MODELS = new Set([
   'BrunchAttendee',
   'BrunchLocation',
   'BrunchTime',
-  'BrunchLocationVote',
-  'BrunchTimeVote',
   'Message',
   'Friendship',
   'FriendGroup',

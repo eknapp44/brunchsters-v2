@@ -59,23 +59,30 @@ Pure refactor, no user-facing change. Merges on its own once green rather than r
 
 ## M3 — Voting: `canVote`, cast ballot, read model
 
-- [ ] Schema: add `RsvpStatus.canVote Boolean @default(false)`; seed true for `yes` and `maybe`, false for `invited` and `no`; migration + seed update in the same commit
-- [ ] Implement `guards/assertCanVote.ts` → `Result<BrunchAttendee, 'not_an_attendee' | 'cannot_vote'>`, reading `RsvpStatus.canVote`; unit tests covering all four statuses
-- [ ] Implement `castLocationBallot.ts`:
+- [x] Schema: add `RsvpStatus.canVote Boolean @default(false)`; seed true for `yes` and `maybe`, false for `invited` and `no`; migration + seed update in the same commit
+- [x] Implement `guards/assertCanVote.ts` → `Result<BrunchAttendee, 'not_an_attendee' | 'cannot_vote'>`, reading `RsvpStatus.canVote`; unit tests covering all four statuses
+- [x] Implement `castLocationBallot.ts`:
   - Input `{ brunchId, voterId, optionIds }`; Zod-validated, `optionIds` non-empty (`empty_ballot`)
   - One transaction: run the guards, then delete the voter's vote rows not in the set and insert the ones missing
   - Rejects `brunch_not_found`, `brunch_not_active`, `not_an_attendee`, `cannot_vote`, `voting_closed`, `not_a_vote` (≤ 1 non-deleted option of that kind), `unknown_option` (any id not among this brunch's non-deleted options)
   - Emits `vote/cast` when the voter had no prior rows for this kind, `vote/changed` otherwise — best-effort, never fails the write
-- [ ] Implement `castTimeBallot.ts` mirroring it
-- [ ] Implement `getBrunchVoting.ts` — one shape for every viewer: per kind, options with vote counts (filtered on each option's `deletedAt`), the viewer's selections, derived mode, derived closed state, `canVote`, `participationRatio`, `eligibleCount`. Per-option `voters?: readonly string[]` populated only when the viewer is the host (PLANNING §17 RSVP visibility rule)
-- [ ] Export all three from `packages/core/src/index.ts`
-- [ ] Routes: `PUT /api/v1/brunches/:id/votes/locations`, `PUT .../votes/times` — body `{ optionIds: string[] }`
-- [ ] Unit tests: replace semantics (adds and removes in one call), idempotent re-send, every rejection above, non-host viewer gets counts without names, host viewer gets names
-- [ ] Integration test: two eligible voters cast overlapping ballots and counts are correct; a voter revises their ballot; an option is soft-deleted and its votes vanish from counts; a `maybe` attendee votes successfully while a `no` attendee is rejected; an option id from another brunch is rejected
-- [ ] `pnpm typecheck && pnpm lint && pnpm test` pass
-- [ ] Commit: `feat: approval voting on brunch locations and times (M3)`
+- [x] Implement `castTimeBallot.ts` mirroring it
+- [x] Implement `getBrunchVoting.ts` — one shape for every viewer: per kind, options with vote counts (filtered on each option's `deletedAt`), the viewer's selections, derived mode, derived closed state, `canVote`, `participationRatio`, `eligibleCount`. Per-option `voters?: readonly string[]` populated only when the viewer is the host (PLANNING §17 RSVP visibility rule)
+- [x] Export all three from `packages/core/src/index.ts`
+- [x] Routes: `PUT /api/v1/brunches/:id/votes/locations`, `PUT .../votes/times` — body `{ optionIds: string[] }`
+- [x] Unit tests: replace semantics (adds and removes in one call), idempotent re-send, every rejection above, non-host viewer gets counts without names, host viewer gets names
+- [x] Integration test: two eligible voters cast overlapping ballots and counts are correct; a voter revises their ballot; an option is soft-deleted and its votes vanish from counts; a `maybe` attendee votes successfully while a `no` attendee is rejected; an option id from another brunch is rejected
+- [x] `pnpm typecheck && pnpm lint && pnpm test` pass
+- [x] Commit: `feat: approval voting on brunch locations and times (M3)`
 
-**Testing notes:** _(fill on completion)_
+**Testing notes:**
+
+- **Real bug found and fixed before any of this milestone's own code could run:** `packages/database/src/middleware.ts`'s soft-delete extension listed `BrunchLocationVote` and `BrunchTimeVote` in `SOFT_DELETE_MODELS`, but neither table has a `deletedAt` column — it was never added, because votes are replaced via hard delete + insert (there's nothing to soft-delete). Any `findMany`/`findFirst` against either table threw `PrismaClientValidationError: Unknown argument deletedAt`. Nothing had ever queried these tables directly before this milestone (spec 0001 only created them), so the bug was latent since the original scaffold. Verified by direct reproduction against the live DB, then fixed by removing both models from the set, with a comment explaining why they don't belong there. No test suite caught this because nothing exercised the tables — the fix is covered going forward by every integration test in this milestone, since `castLocationBallot`/`castTimeBallot`/`getBrunchVoting` all query them now.
+- **What was tested:** `assertCanVote` for all four RSVP statuses. Both cast-ballot services: insert-only (first vote), replace semantics (add and remove in one call), idempotent re-send, every rejection kind (`brunch_not_found`, `brunch_not_active`, `empty_ballot`, `not_an_attendee`, `cannot_vote`, `voting_closed` via both a past deadline and a confirmed brunch, `not_a_vote`, `unknown_option`), db-error mapping, event-emit-failure-still-Ok, and `vote/cast` vs `vote/changed` naming. `getBrunchVoting`: access scoping (host-or-attendee only, mirroring `getBrunchById`), `canVote` derivation, per-option `voteCount`/`viewerVoted`, voter names visible only to the host, derived mode and closed state, and `participationRatio`/`eligibleCount` including the case where a vote exists from a user no longer in the eligible set. Both routes: auth, malformed id, empty-array validation, every error-to-status mapping, success shape.
+- **How:** Unit — 3 new service/guard files + 2 routes, 91 new unit tests (`castLocationBallot.test.ts` 18, `castTimeBallot.test.ts` 17, `getBrunchVoting.test.ts` 12, `assertCanVote.test.ts` 5, plus the two route test files), all mocked at the `db` call boundary. Integration (`voting.integration.test.ts`, 5 tests) against real Postgres, using the real activation path this time — `sendInvites` + `respondToInvite`, not the M2 test-only status shortcut — since a believable yes/maybe/no attendee mix needs the real RSVP flow anyway. Each test builds its own brunch via a `createVotableBrunch` helper rather than sharing mutated state across tests in declaration order, matching the existing `createTestBrunch` convention in the other integration files.
+- **A design choice this milestone had to make that the spec didn't fully pin down:** the order of guard checks inside both cast-ballot services. Settled on brunch existence → brunch active → empty ballot → attendee/eligibility → voting closed → vote-exists (mode) → option validity. Not specified anywhere, and only observable when a request fails more than one check at once; recorded here so M4 (which inserts `assertVotingOpen` into this sequence) doesn't have to rediscover it.
+- **What's deferred:** The `voting_closed` check (inline `isVotingClosed` in both services, explicitly commented as an M4 placeholder) runs **before** the transaction opens, not inside it. The spec's stated goal — "a ballot submitted a millisecond after the host closes voting must lose" — isn't met yet; a close racing a vote could still let the vote through. This is intentional and expected: M4 formally wires `guards/assertVotingOpen.ts` into both services' transactions, which is the point where this gets fixed, not before. No test asserts the race is closed, since M3 doesn't claim to close it.
+- **How to run it:** `pnpm typecheck && pnpm lint && pnpm test` from repo root (unit only); `pnpm --filter @brunchsters/core test:integration` for the integration suite (local Supabase must be running, same port-exclusion caveat logged in M1's notes if it's been a while since the DB last ran).
 
 ---
 

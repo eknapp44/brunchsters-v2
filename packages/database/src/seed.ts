@@ -128,6 +128,7 @@ async function main(): Promise<void> {
       isActive: true,
       sortOrder: 1,
       countsAsAttendee: false,
+      canVote: false,
     },
     {
       code: 'yes',
@@ -136,6 +137,7 @@ async function main(): Promise<void> {
       isActive: true,
       sortOrder: 2,
       countsAsAttendee: true,
+      canVote: true,
     },
     {
       code: 'no',
@@ -144,6 +146,7 @@ async function main(): Promise<void> {
       isActive: true,
       sortOrder: 3,
       countsAsAttendee: false,
+      canVote: false,
     },
     {
       code: 'maybe',
@@ -152,6 +155,7 @@ async function main(): Promise<void> {
       isActive: true,
       sortOrder: 4,
       countsAsAttendee: false,
+      canVote: true,
     },
   ];
   for (const rs of rsvpStatuses) {
@@ -163,6 +167,7 @@ async function main(): Promise<void> {
         isActive: rs.isActive,
         sortOrder: rs.sortOrder,
         countsAsAttendee: rs.countsAsAttendee,
+        canVote: rs.canVote,
       },
       create: rs,
     });
