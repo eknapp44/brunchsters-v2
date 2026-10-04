@@ -99,44 +99,32 @@ describe('createBrunch (integration — real Postgres)', () => {
     expect(attendee?.respondedAt).not.toBeNull();
   });
 
-  it('marks a single location host_decides', async () => {
+  it('creates a single location with the expected fields', async () => {
     const brunchId = await createTestBrunch({ locations: [LOCATION_A] });
 
-    const locations = await db.brunchLocation.findMany({
-      where: { brunchId },
-      include: { decisionType: true },
-    });
+    const locations = await db.brunchLocation.findMany({ where: { brunchId } });
     expect(locations).toHaveLength(1);
-    expect(locations[0]?.decisionType.code).toBe('host_decides');
     expect(locations[0]?.timezone).toBe('America/Chicago');
   });
 
-  it('marks two locations group_vote', async () => {
+  it('creates two locations for the same brunch', async () => {
     const brunchId = await createTestBrunch({ locations: [LOCATION_A, LOCATION_B] });
 
-    const locations = await db.brunchLocation.findMany({
-      where: { brunchId },
-      include: { decisionType: true },
-    });
+    const locations = await db.brunchLocation.findMany({ where: { brunchId } });
     expect(locations).toHaveLength(2);
-    expect(locations.every((l) => l.decisionType.code === 'group_vote')).toBe(true);
   });
 
-  it('marks a single time host_decides and stores UTC', async () => {
+  it('creates a single time and stores it in UTC', async () => {
     const brunchId = await createTestBrunch({
       times: [{ scheduledAt: '2026-08-01T15:00:00.000Z' }],
     });
 
-    const times = await db.brunchTime.findMany({
-      where: { brunchId },
-      include: { decisionType: true },
-    });
+    const times = await db.brunchTime.findMany({ where: { brunchId } });
     expect(times).toHaveLength(1);
-    expect(times[0]?.decisionType.code).toBe('host_decides');
     expect(times[0]?.scheduledAt.toISOString()).toBe('2026-08-01T15:00:00.000Z');
   });
 
-  it('marks two times group_vote, independently of a single location', async () => {
+  it('creates locations and times independently', async () => {
     const brunchId = await createTestBrunch({
       locations: [LOCATION_A],
       times: [
@@ -145,18 +133,11 @@ describe('createBrunch (integration — real Postgres)', () => {
       ],
     });
 
-    const locations = await db.brunchLocation.findMany({
-      where: { brunchId },
-      include: { decisionType: true },
-    });
-    expect(locations[0]?.decisionType.code).toBe('host_decides');
+    const locations = await db.brunchLocation.findMany({ where: { brunchId } });
+    expect(locations).toHaveLength(1);
 
-    const times = await db.brunchTime.findMany({
-      where: { brunchId },
-      include: { decisionType: true },
-    });
+    const times = await db.brunchTime.findMany({ where: { brunchId } });
     expect(times).toHaveLength(2);
-    expect(times.every((t) => t.decisionType.code === 'group_vote')).toBe(true);
   });
 
   it('stores votingDeadline on the brunch', async () => {

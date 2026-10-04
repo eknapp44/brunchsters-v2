@@ -264,6 +264,9 @@ BrunchStatus {
 BrunchDecisionType {
   id, code, label, description, isActive, sortOrder, createdAt, updatedAt
   // values: host_decides, group_vote
+  // Label source only — no FK references this table. The mode is derived
+  // from option count (ADR 0006, spec 0005), not stored on BrunchLocation/
+  // BrunchTime. See the Location & Time section below.
 }
 
 RsvpStatus {
@@ -476,11 +479,17 @@ BrunchInviteSuggestion {
 
 ### Location & Time `[v1 schema + ui]`
 
+**Decision type is derived, not stored** (ADR 0006, spec 0005): a brunch is in
+`group_vote` for a given resource kind if it has more than one non-deleted
+option of that kind, otherwise `host_decides`. There is no `decisionTypeId`
+column on either table below — `BrunchDecisionType` survives only as a label
+source for the UI badge, with no FK pointing at it. The derivation always
+filters `deletedAt: null`; see `deriveDecisionMode` in `packages/core`.
+
 ```typescript
 BrunchLocation {
   id
   brunchId (FK → Brunch, indexed)
-  decisionTypeId (FK → BrunchDecisionType)  // moved from Brunch — per-resource
   placeId        // Google Maps place ID
   placeName
   placeAddress
@@ -496,7 +505,6 @@ BrunchLocation {
 BrunchTime {
   id
   brunchId (FK → Brunch, indexed)
-  decisionTypeId (FK → BrunchDecisionType)
   scheduledAt (UTC, indexed)
   // Display rule: convert scheduledAt to BrunchLocation.timezone for primary display.
   // If viewer's local timezone differs from location timezone, show a subline:

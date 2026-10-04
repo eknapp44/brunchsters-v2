@@ -16,6 +16,8 @@ export type {
 } from './brunch/createBrunch';
 export { getBrunchById } from './brunch/getBrunchById';
 export type { BrunchDetail } from './brunch/getBrunchById';
+export { deriveDecisionMode } from './brunch/guards/deriveDecisionMode';
+export type { DecisionMode, OptionKind } from './brunch/guards/deriveDecisionMode';
 export { getBrunchesForUser } from './brunch/getBrunchesForUser';
 export type { BrunchSummary } from './brunch/getBrunchesForUser';
 export { sendInvites, sendInvitesRequestSchema } from './invite/sendInvites';

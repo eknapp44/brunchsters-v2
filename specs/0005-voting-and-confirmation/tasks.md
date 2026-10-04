@@ -8,17 +8,24 @@ Service and schema work (M1–M6) lands before any UI (M7–M8), so the screens 
 
 Pure refactor, no user-facing change. Merges on its own once green rather than riding along in the full feature PR.
 
-- [ ] Commit `docs/adrs/0006-derive-decision-type.md` (already drafted)
-- [ ] Remove `decisionTypeId` and the `decisionType` relation from `BrunchLocation` and `BrunchTime`; remove the back-relations from `BrunchDecisionType`; add a model comment explaining the table is retained for labels only
-- [ ] Generate and commit the migration dropping both columns and their FK constraints
-- [ ] Update `createBrunch.ts`: delete both `brunchDecisionType.findFirst` lookups and the `decisionTypeId` assignments; the array-length branch disappears entirely
-- [ ] Update `createBrunch.test.ts` / `createBrunch.integration.test.ts` — drop `BrunchDecisionType` fixtures and its two `LookupNotFoundError` cases
-- [ ] Implement `guards/deriveDecisionMode.ts` — the single place allowed to count options, always filtering `deletedAt: null` (ADR 0006's named footgun); unit tests for 0, 1, and 2+ options, plus one asserting soft-deleted options are excluded
-- [ ] Amend PLANNING §8 to describe the derivation and reference ADR 0006
-- [ ] `pnpm typecheck && pnpm lint && pnpm test` pass
+- [x] Commit `docs/adrs/0006-derive-decision-type.md` (already drafted)
+- [x] Remove `decisionTypeId` and the `decisionType` relation from `BrunchLocation` and `BrunchTime`; remove the back-relations from `BrunchDecisionType`; add a model comment explaining the table is retained for labels only
+- [x] Generate and commit the migration dropping both columns and their FK constraints
+- [x] Update `createBrunch.ts`: delete both `brunchDecisionType.findFirst` lookups and the `decisionTypeId` assignments; the array-length branch disappears entirely
+- [x] Update `createBrunch.test.ts` / `createBrunch.integration.test.ts` — drop `BrunchDecisionType` fixtures
+- [x] Implement `guards/deriveDecisionMode.ts` — the single place allowed to count options, always filtering `deletedAt: null` (ADR 0006's named footgun); unit tests for 0, 1, and 2+ options, plus one asserting the `deletedAt: null` filter is always sent
+- [x] Amend PLANNING §8 to describe the derivation and reference ADR 0006
+- [x] `pnpm typecheck && pnpm lint && pnpm test` pass
 - [ ] Commit: `refactor: derive brunch decision type instead of storing it (M1)`
 
-**Testing notes:** _(fill on completion)_
+**Testing notes:**
+
+- **What was tested:** `deriveDecisionMode` for 0/1/2+ option counts and that it always sends `deletedAt: null` in its `count()` query (unit, mocked `db.brunchLocation.count`/`db.brunchTime.count` — see note below on why this matters). `createBrunch` continues to create location/time rows correctly with no `decisionTypeId` field at all, locations and times independently, both in isolation (unit) and against real Postgres (integration, post-migration).
+- **How:** Unit (`deriveDecisionMode.test.ts`, 5 tests; rewritten `createBrunch.test.ts`, 16 tests) + integration against local Supabase Postgres (`createBrunch.integration.test.ts`, 7 tests, run after applying the migration and reseeding). No mocks needed for the integration pass — real transaction, real constraints.
+- **Correction to this milestone's original task list:** the "drop its two `LookupNotFoundError` cases for it" bullet assumed tests existed asserting `lookup_not_found` when `BrunchDecisionType` rows were missing. Checking the actual pre-M1 test file, no such cases existed — only `BrunchStatus:draft` was tested that way. Nothing was removed on that front because there was nothing to remove; noting this so the task list doesn't misrepresent what changed.
+- **What's deferred:** `deriveDecisionMode`'s soft-delete exclusion is only verified at the unit level (asserting the `where` clause shape sent to `count()`), not by seeding a real soft-deleted option against Postgres and confirming it's excluded from the count. That real-data case is covered by M2's integration test instead ("a brunch created with one time gains a second... then one is removed and [the mode] flips back"), since M1 has no service yet that creates more than one option after the fact — `createBrunch` only ever inserts, never soft-deletes.
+- **How to run it:** `pnpm typecheck && pnpm lint && pnpm test` from repo root (unit only); `pnpm --filter @brunchsters/core test:integration` for the integration suite (requires local Supabase running — `npx supabase start` from `packages/database`, port 54322).
+- **Infra note for future milestones:** local Supabase was down for a month between sessions. Docker Desktop restart alone didn't free port 54322 — it was stuck in a Windows Hyper-V/WSL TCP port-exclusion range (visible via `netsh interface ipv4 show excludedportrange protocol=tcp`). Fixed by restarting the `winnat` service as admin (`net stop winnat && net start winnat`). Also: this environment's non-interactive shell can't run `prisma migrate dev` at all (Prisma refuses outright on a non-interactive TTY, even with `--create-only`). The workaround used here and worth reusing for M3–M6's migrations: `prisma migrate diff --from-url <DATABASE_URL> --to-schema-datamodel prisma/schema.prisma --script` to generate the SQL, hand-create the timestamped migration folder, then `prisma migrate deploy` to apply (that command is explicitly built for non-interactive use).
 
 ---
 

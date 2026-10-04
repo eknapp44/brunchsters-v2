@@ -61,6 +61,9 @@ model BrunchStatus {
 }
 
 // values: host_decides, group_vote
+// No FK references this table. The mode is derived, not stored — ADR 0006:
+// group_vote iff a brunch has >1 non-deleted option of that kind, else
+// host_decides. Kept only as a label source for the UI badge.
 model BrunchDecisionType {
   id          String   @id @default(uuid()) @db.Uuid
   code        String   @unique
@@ -70,9 +73,6 @@ model BrunchDecisionType {
   sortOrder   Int
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-
-  brunchLocations BrunchLocation[]
-  brunchTimes     BrunchTime[]
 }
 
 // values: invited, yes, no, maybe
@@ -427,7 +427,6 @@ model BrunchInviteSuggestion {
 model BrunchLocation {
   id             String    @id @default(uuid()) @db.Uuid
   brunchId       String    @db.Uuid
-  decisionTypeId String    @db.Uuid
   placeId        String
   placeName      String
   placeAddress   String
@@ -441,10 +440,9 @@ model BrunchLocation {
   deletedAt      DateTime?
   deletedBy      String?   @db.Uuid // audit field
 
-  brunch       Brunch             @relation(fields: [brunchId], references: [id])
-  decisionType BrunchDecisionType @relation(fields: [decisionTypeId], references: [id])
-  proposedBy   User               @relation("BrunchLocationProposedBy", fields: [proposedById], references: [id])
-  votes        BrunchLocationVote[]
+  brunch     Brunch @relation(fields: [brunchId], references: [id])
+  proposedBy User   @relation("BrunchLocationProposedBy", fields: [proposedById], references: [id])
+  votes      BrunchLocationVote[]
 
   @@index([brunchId])
   @@index([isConfirmed])
@@ -455,7 +453,6 @@ model BrunchLocation {
 model BrunchTime {
   id             String    @id @default(uuid()) @db.Uuid
   brunchId       String    @db.Uuid
-  decisionTypeId String    @db.Uuid
   scheduledAt    DateTime
   isConfirmed    Boolean   @default(false)
   confirmedAt    DateTime?
@@ -465,10 +462,9 @@ model BrunchTime {
   deletedAt      DateTime?
   deletedBy      String?   @db.Uuid // audit field
 
-  brunch       Brunch             @relation(fields: [brunchId], references: [id])
-  decisionType BrunchDecisionType @relation(fields: [decisionTypeId], references: [id])
-  proposedBy   User               @relation("BrunchTimeProposedBy", fields: [proposedById], references: [id])
-  votes        BrunchTimeVote[]
+  brunch     Brunch @relation(fields: [brunchId], references: [id])
+  proposedBy User   @relation("BrunchTimeProposedBy", fields: [proposedById], references: [id])
+  votes      BrunchTimeVote[]
 
   @@index([brunchId])
   @@index([scheduledAt])
