@@ -1,5 +1,6 @@
 import {
   getBrunchById,
+  getBrunchVoting,
   getInvitesForBrunch,
   getPendingSuggestionsForBrunch,
 } from '@brunchsters/core';
@@ -9,7 +10,9 @@ import { notFound } from 'next/navigation';
 import { z } from 'zod';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
+import { LocationBallotChecklist, TimeBallotChecklist } from './BallotChecklist';
 import { InvitePanel } from './InvitePanel';
+import { LocationSuggestionControl, TimeSuggestionControl } from './OptionSuggestionControl';
 import { RsvpControl } from './RsvpControl';
 import { SuggestionsPanel } from './SuggestionsPanel';
 
@@ -59,13 +62,71 @@ export default async function BrunchDetailPage({
     );
   }
 
+  const voting = await getBrunchVoting({ brunchId, viewerId }, { db });
+  if (voting === undefined) {
+    // Same access rule as getBrunchById, which already succeeded above —
+    // fail loudly rather than silently omitting voting with no trace.
+    console.error('getBrunchVoting returned undefined for a viewer with confirmed access');
+  }
+
+  // Which candidate location's zone the time options' subline is shown
+  // against: the confirmed location once there is one, else the first
+  // candidate — a deliberate simplification documented in the M7 testing
+  // notes (candidates may span multiple zones before voting closes).
+  const representativeLocation =
+    voting?.locations.options.find((option) => option.isConfirmed) ?? voting?.locations.options[0];
+
   return (
     <main>
       <h1>{brunch.title}</h1>
       <p>{brunch.statusLabel}</p>
       <Link href="/dashboard">← Back to Dashboard</Link>
+      {brunch.isHost && <Link href={`/brunch/${brunchId}/manage`}>Manage brunch</Link>}
 
       <RsvpControl brunchId={brunchId} currentStatus={brunch.viewerRsvpStatus} />
+
+      {voting !== undefined && (
+        <>
+          <section>
+            <h2>Locations</h2>
+            <LocationBallotChecklist
+              brunchId={brunchId}
+              options={voting.locations.options}
+              canVote={voting.canVote}
+              closed={voting.locations.closed}
+              suggestionsEnabled={!brunch.isHost && brunch.allowLocationSuggestions}
+            />
+          </section>
+
+          <section>
+            <h2>Times</h2>
+            <TimeBallotChecklist
+              brunchId={brunchId}
+              options={voting.times.options}
+              canVote={voting.canVote}
+              closed={voting.times.closed}
+              suggestionsEnabled={!brunch.isHost && brunch.allowTimeSuggestions}
+              locationTimezone={representativeLocation?.timezone}
+              locationName={representativeLocation?.placeName}
+            />
+          </section>
+
+          {!brunch.isHost && (
+            <>
+              <LocationSuggestionControl
+                brunchId={brunchId}
+                canSuggest={brunch.allowLocationSuggestions}
+                pendingSuggestions={voting.locations.pendingSuggestions}
+              />
+              <TimeSuggestionControl
+                brunchId={brunchId}
+                canSuggest={brunch.allowTimeSuggestions}
+                pendingSuggestions={voting.times.pendingSuggestions}
+              />
+            </>
+          )}
+        </>
+      )}
 
       <SuggestionsPanel
         brunchId={brunchId}

@@ -44,9 +44,10 @@ export { getBrunchVoting } from './brunch/getBrunchVoting';
 export type {
   BrunchVoting,
   BrunchVotingKind,
+  LocationVoteOption,
   PendingLocationSuggestion,
   PendingTimeSuggestion,
-  VoteOptionSummary,
+  TimeVoteOption,
 } from './brunch/getBrunchVoting';
 export { assertVotingOpen, isVotingClosed } from './brunch/guards/assertVotingOpen';
 export type { AssertVotingOpenError, ClosableBrunch } from './brunch/guards/assertVotingOpen';

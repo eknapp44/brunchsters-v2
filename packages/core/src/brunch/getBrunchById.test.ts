@@ -16,6 +16,8 @@ const DB_ROW = {
   status: { code: 'draft', label: 'Draft' },
   attendees: [{ rsvpStatus: { code: 'yes' } }],
   allowInviteSuggestions: true,
+  allowLocationSuggestions: true,
+  allowTimeSuggestions: true,
 };
 
 function makeMockDb(findFirst: ReturnType<typeof vi.fn>): DbClient {
@@ -40,6 +42,8 @@ describe('getBrunchById', () => {
       isHost: false,
       viewerRsvpStatus: 'yes',
       allowInviteSuggestions: true,
+      allowLocationSuggestions: true,
+      allowTimeSuggestions: true,
     });
   });
 

@@ -154,12 +154,12 @@ Per-kind pairs, each built on the guards above. Only `castBallot` and the read m
 
 Components colocated beside the page, following the `InvitePanel` / `RsvpControl` / `SuggestionsPanel` pattern already established. The page stays a thin server component that composes them.
 
-- [ ] `BallotChecklist.tsx` — per-kind option checklist with counts, whole-ballot save on change, refetch after save
-- [ ] Read-only ballot for ineligible viewers with an explanation, and for everyone once voting is closed
-- [ ] Unchecking the last option explains that it withdraws the vote and points at the suggestion control; empty ballots are never submitted
-- [ ] `OptionSuggestionControl.tsx` — suggest a place or a time when permitted; shows the suggester their own pending suggestions
-- [ ] Times show the location-zone subline whenever any candidate location's zone differs from the viewer's, during voting and after confirmation alike
-- [ ] Confirmed state: location, time, and ballot read-only; RSVP control still live
+- [x] `BallotChecklist.tsx` — per-kind option checklist with counts, whole-ballot save on change, refetch after save
+- [x] Read-only ballot for ineligible viewers with an explanation, and for everyone once voting is closed
+- [x] Unchecking the last option explains that it withdraws the vote and points at the suggestion control; empty ballots are never submitted
+- [x] `OptionSuggestionControl.tsx` — suggest a place or a time when permitted; shows the suggester their own pending suggestions
+- [x] Times show the location-zone subline whenever any candidate location's zone differs from the viewer's, during voting and after confirmation alike
+- [x] Confirmed state: location, time, and ballot read-only; RSVP control still live
 
 ### UI — `/brunch/[id]/manage` (host only)
 

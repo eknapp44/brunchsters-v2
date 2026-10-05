@@ -89,6 +89,33 @@ describe('getBrunchVoting', () => {
     });
   });
 
+  it('selects only the intended fields on locations/times — never include, which would leak internal columns', async () => {
+    const findManyLocations = vi.fn().mockResolvedValue([]);
+    const findManyTimes = vi.fn().mockResolvedValue([]);
+    const db = makeMockDb({ findManyLocations, findManyTimes });
+
+    await getBrunchVoting({ brunchId: BRUNCH_ID, viewerId: VIEWER_ID }, { db });
+
+    const voteSelect = { userId: true, user: { select: { name: true } } };
+    expect(findManyLocations).toHaveBeenCalledWith({
+      where: { brunchId: BRUNCH_ID },
+      select: {
+        id: true,
+        placeId: true,
+        placeName: true,
+        placeAddress: true,
+        placeUrl: true,
+        timezone: true,
+        isConfirmed: true,
+        votes: { select: voteSelect },
+      },
+    });
+    expect(findManyTimes).toHaveBeenCalledWith({
+      where: { brunchId: BRUNCH_ID },
+      select: { id: true, scheduledAt: true, isConfirmed: true, votes: { select: voteSelect } },
+    });
+  });
+
   it('reports canVote true for a yes/maybe viewer and false otherwise', async () => {
     const dbCanVote = makeMockDb({
       findFirstAttendee: vi
@@ -119,25 +146,89 @@ describe('getBrunchVoting', () => {
     expect(result?.canVote).toBe(false);
   });
 
-  it('computes voteCount and viewerVoted per option', async () => {
+  it('computes voteCount and viewerVoted per option, carrying the location payload through', async () => {
     const db = makeMockDb({
       findManyLocations: vi.fn().mockResolvedValue([
         {
           id: 'option-a',
+          placeId: 'place-a',
+          placeName: 'Cafe A',
+          placeAddress: '1 Main St',
+          placeUrl: 'https://maps.google.com/?cid=a',
+          timezone: 'America/Chicago',
+          isConfirmed: true,
           votes: [
             { userId: VIEWER_ID, user: { name: 'Viewer' } },
             { userId: 'other-uuid', user: { name: 'Other' } },
           ],
         },
-        { id: 'option-b', votes: [] },
+        {
+          id: 'option-b',
+          placeId: 'place-b',
+          placeName: 'Cafe B',
+          placeAddress: '2 Main St',
+          placeUrl: 'https://maps.google.com/?cid=b',
+          timezone: 'America/Chicago',
+          isConfirmed: false,
+          votes: [],
+        },
       ]),
     });
 
     const result = await getBrunchVoting({ brunchId: BRUNCH_ID, viewerId: VIEWER_ID }, { db });
 
     expect(result?.locations.options).toEqual([
-      { id: 'option-a', voteCount: 2, viewerVoted: true, voters: undefined },
-      { id: 'option-b', voteCount: 0, viewerVoted: false, voters: undefined },
+      {
+        id: 'option-a',
+        placeId: 'place-a',
+        placeName: 'Cafe A',
+        placeAddress: '1 Main St',
+        placeUrl: 'https://maps.google.com/?cid=a',
+        timezone: 'America/Chicago',
+        isConfirmed: true,
+        voteCount: 2,
+        viewerVoted: true,
+        voters: undefined,
+      },
+      {
+        id: 'option-b',
+        placeId: 'place-b',
+        placeName: 'Cafe B',
+        placeAddress: '2 Main St',
+        placeUrl: 'https://maps.google.com/?cid=b',
+        timezone: 'America/Chicago',
+        isConfirmed: false,
+        voteCount: 0,
+        viewerVoted: false,
+        voters: undefined,
+      },
+    ]);
+  });
+
+  it('computes voteCount and viewerVoted per time option, carrying scheduledAt through', async () => {
+    const scheduledAt = new Date('2026-08-01T15:00:00.000Z');
+    const db = makeMockDb({
+      findManyTimes: vi.fn().mockResolvedValue([
+        {
+          id: 'time-a',
+          scheduledAt,
+          isConfirmed: true,
+          votes: [{ userId: VIEWER_ID, user: { name: 'Viewer' } }],
+        },
+      ]),
+    });
+
+    const result = await getBrunchVoting({ brunchId: BRUNCH_ID, viewerId: VIEWER_ID }, { db });
+
+    expect(result?.times.options).toEqual([
+      {
+        id: 'time-a',
+        scheduledAt,
+        isConfirmed: true,
+        voteCount: 1,
+        viewerVoted: true,
+        voters: undefined,
+      },
     ]);
   });
 
