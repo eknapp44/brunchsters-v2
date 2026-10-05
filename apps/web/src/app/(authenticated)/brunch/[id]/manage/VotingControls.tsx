@@ -94,6 +94,7 @@ export function VotingControls({
         <input
           type="datetime-local"
           value={deadlineInput}
+          min={toDatetimeLocalValue(new Date())}
           disabled={submitting}
           onChange={(event) => setDeadlineInput(event.target.value)}
         />

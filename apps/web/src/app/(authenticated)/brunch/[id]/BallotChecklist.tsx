@@ -50,12 +50,19 @@ export function LocationBallotChecklist({
   canVote,
   closed,
   suggestionsEnabled,
+  votable,
 }: {
   readonly brunchId: string;
   readonly options: readonly LocationOption[];
   readonly canVote: boolean;
   readonly closed: boolean;
   readonly suggestionsEnabled: boolean;
+  // false in host_decides mode (0 or 1 option) — spec 0005 shows a checklist
+  // only "for each kind with more than one option"; a single candidate (or
+  // none yet) is display-only, with no checkbox and no vote count shown
+  // (votes on a surviving option in that mode stop being displayed, though
+  // they're kept in storage — see spec.md's "mode round-trip" note).
+  readonly votable: boolean;
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<ReadonlySet<string>>(
@@ -107,6 +114,23 @@ export function LocationBallotChecklist({
     void submit(next);
   }
 
+  if (!votable) {
+    return (
+      <ul>
+        {options.length === 0 && <li>No locations yet.</li>}
+        {options.map((option) => (
+          <li key={option.id}>
+            <a href={option.placeUrl} target="_blank" rel="noreferrer">
+              {option.placeName}
+            </a>{' '}
+            — {option.placeAddress}
+            {option.isConfirmed && <strong> — Confirmed</strong>}
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
   return (
     <div>
       {closed && <p>Voting is closed.</p>}
@@ -147,6 +171,7 @@ export function TimeBallotChecklist({
   suggestionsEnabled,
   locationTimezone,
   locationName,
+  votable,
 }: {
   readonly brunchId: string;
   readonly options: readonly TimeOption[];
@@ -155,6 +180,8 @@ export function TimeBallotChecklist({
   readonly suggestionsEnabled: boolean;
   readonly locationTimezone: string | undefined;
   readonly locationName: string | undefined;
+  // See LocationBallotChecklist's votable doc — same host_decides rule.
+  readonly votable: boolean;
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<ReadonlySet<string>>(
@@ -218,6 +245,40 @@ export function TimeBallotChecklist({
     viewerTimezone !== undefined &&
     locationTimezone !== viewerTimezone;
 
+  function timeLabel(option: TimeOption) {
+    return (
+      <>
+        {option.scheduledAt.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+        {showSubline && locationTimezone !== undefined && (
+          <span>
+            {' '}
+            (at {locationName ?? 'the location'}&apos;s time:{' '}
+            {option.scheduledAt.toLocaleString(undefined, {
+              dateStyle: 'medium',
+              timeStyle: 'short',
+              timeZone: locationTimezone,
+            })}
+            )
+          </span>
+        )}
+      </>
+    );
+  }
+
+  if (!votable) {
+    return (
+      <ul>
+        {options.length === 0 && <li>No times yet.</li>}
+        {options.map((option) => (
+          <li key={option.id}>
+            {timeLabel(option)}
+            {option.isConfirmed && <strong> — Confirmed</strong>}
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
   return (
     <div>
       {closed && <p>Voting is closed.</p>}
@@ -233,23 +294,7 @@ export function TimeBallotChecklist({
                 disabled={readOnly || submitting}
                 onChange={() => toggle(option.id)}
               />
-              {option.scheduledAt.toLocaleString(undefined, {
-                dateStyle: 'medium',
-                timeStyle: 'short',
-              })}
-              {showSubline && locationTimezone !== undefined && (
-                <span>
-                  {' '}
-                  (at {locationName ?? 'the location'}&apos;s time:{' '}
-                  {option.scheduledAt.toLocaleString(undefined, {
-                    dateStyle: 'medium',
-                    timeStyle: 'short',
-                    timeZone: locationTimezone,
-                  })}
-                  )
-                </span>
-              )}{' '}
-              ({voteCountLabel(option.voteCount)})
+              {timeLabel(option)} ({voteCountLabel(option.voteCount)})
               <VoterNames voters={option.voters} />
               {option.isConfirmed && <strong> — Confirmed</strong>}
             </label>

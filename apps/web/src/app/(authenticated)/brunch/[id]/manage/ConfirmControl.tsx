@@ -48,8 +48,17 @@ export function ConfirmControl({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
 
+  // locationId/timeId only ever get set once (on mount) or by a radio click —
+  // if the option they point at was removed by OptionManager in the same
+  // session (a router.refresh(), not a remount), fall back to the current
+  // list's own leader rather than submitting a confirm for a vanished option.
+  const effectiveLocationId = locations.some((location) => location.id === locationId)
+    ? locationId
+    : leaderId(locations);
+  const effectiveTimeId = times.some((time) => time.id === timeId) ? timeId : leaderId(times);
+
   async function confirm(): Promise<void> {
-    if (locationId === undefined || timeId === undefined) return;
+    if (effectiveLocationId === undefined || effectiveTimeId === undefined) return;
 
     setSubmitting(true);
     setError(undefined);
@@ -57,7 +66,7 @@ export function ConfirmControl({
       const response = await fetch(`/api/v1/brunches/${brunchId}/confirm`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ locationId, timeId }),
+        body: JSON.stringify({ locationId: effectiveLocationId, timeId: effectiveTimeId }),
       });
       if (!response.ok) {
         setError('Failed to confirm the brunch');
@@ -84,7 +93,7 @@ export function ConfirmControl({
             <input
               type="radio"
               name="confirm-location"
-              checked={locationId === location.id}
+              checked={effectiveLocationId === location.id}
               disabled={submitting}
               onChange={() => setLocationId(location.id)}
             />
@@ -100,7 +109,7 @@ export function ConfirmControl({
             <input
               type="radio"
               name="confirm-time"
-              checked={timeId === time.id}
+              checked={effectiveTimeId === time.id}
               disabled={submitting}
               onChange={() => setTimeId(time.id)}
             />
@@ -116,7 +125,7 @@ export function ConfirmControl({
       <button
         type="button"
         onClick={() => void confirm()}
-        disabled={submitting || locationId === undefined || timeId === undefined}
+        disabled={submitting || effectiveLocationId === undefined || effectiveTimeId === undefined}
       >
         Confirm brunch
       </button>

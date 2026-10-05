@@ -95,6 +95,7 @@ export default async function BrunchDetailPage({
               canVote={voting.canVote}
               closed={voting.locations.closed}
               suggestionsEnabled={!brunch.isHost && brunch.allowLocationSuggestions}
+              votable={voting.locations.mode === 'group_vote'}
             />
           </section>
 
@@ -108,6 +109,7 @@ export default async function BrunchDetailPage({
               suggestionsEnabled={!brunch.isHost && brunch.allowTimeSuggestions}
               locationTimezone={representativeLocation?.timezone}
               locationName={representativeLocation?.placeName}
+              votable={voting.times.mode === 'group_vote'}
             />
           </section>
 
@@ -115,12 +117,12 @@ export default async function BrunchDetailPage({
             <>
               <LocationSuggestionControl
                 brunchId={brunchId}
-                canSuggest={brunch.allowLocationSuggestions}
+                canSuggest={brunch.allowLocationSuggestions && brunch.statusCode !== 'confirmed'}
                 pendingSuggestions={voting.locations.pendingSuggestions}
               />
               <TimeSuggestionControl
                 brunchId={brunchId}
-                canSuggest={brunch.allowTimeSuggestions}
+                canSuggest={brunch.allowTimeSuggestions && brunch.statusCode !== 'confirmed'}
                 pendingSuggestions={voting.times.pendingSuggestions}
               />
             </>
