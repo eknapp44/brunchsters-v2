@@ -116,23 +116,29 @@ No `...VotePromptedAt` columns and no fire-once guard — the 66% nudge is deriv
 
 ## M5 — `confirmBrunch`
 
-- [ ] Schema: partial unique indexes for one confirmed location and one confirmed time per brunch (raw SQL in the migration — Prisma cannot express partial uniques in the schema DSL); document them with a schema comment
-- [ ] Implement `confirmBrunch.ts` — host-only, one transaction:
+- [x] Schema: partial unique indexes for one confirmed location and one confirmed time per brunch (raw SQL in the migration — Prisma cannot express partial uniques in the schema DSL); document them with a schema comment
+- [x] Implement `confirmBrunch.ts` — host-only, one transaction:
   - Validates `locationId` and `timeId` both belong to this brunch and are not soft-deleted (`unknown_option`)
   - Rejects a brunch that is not `active` (`brunch_not_active` — covers already-confirmed)
   - Rejects a brunch with no locations or no times (`no_locations` / `no_times`)
   - Sets `isConfirmed`/`confirmedAt` on both options, `votingClosedAt` if still null, `status = confirmed`
   - Recomputes `tokenExpiresAt = scheduledAt + 7 days` on every active invite for the brunch (spec 0004's deferred hook)
   - Emits `brunch/confirmed` carrying whether each pick was the vote leader
-- [ ] Export from `packages/core/src/index.ts`
-- [ ] Route: `POST /api/v1/brunches/:id/confirm` — body `{ locationId, timeId }`
-- [ ] Unit tests: host-only, every rejection above, confirming a non-leading option succeeds (host prerogative), `votingClosedAt` preserved when already set
-- [ ] Integration test: a full confirm writes all five changes atomically; a second confirm is rejected; the partial unique index rejects a directly-inserted second confirmed location; invite token expiry recomputed and verified against the confirmed `scheduledAt`
-- [ ] Update spec 0004's `tasks.md` note that the token-expiry hook is now implemented
-- [ ] `pnpm typecheck && pnpm lint && pnpm test` pass
-- [ ] Commit: `feat: host confirms a brunch, locking location and time (M5)`
+- [x] Export from `packages/core/src/index.ts`
+- [x] Route: `POST /api/v1/brunches/:id/confirm` — body `{ locationId, timeId }`
+- [x] Unit tests: host-only, every rejection above, confirming a non-leading option succeeds (host prerogative), `votingClosedAt` preserved when already set
+- [x] Integration test: a full confirm writes all five changes atomically; a second confirm is rejected; the partial unique index rejects a directly-inserted second confirmed location; invite token expiry recomputed and verified against the confirmed `scheduledAt`
+- [x] Update spec 0004's `tasks.md` note that the token-expiry hook is now implemented
+- [x] `pnpm typecheck && pnpm lint && pnpm test` pass
+- [x] Commit: `feat: host confirms a brunch, locking location and time (M5)`
 
-**Testing notes:** _(fill on completion)_
+**Testing notes:**
+
+- **What was tested:** Host-only enforcement; every rejection path (`brunch_not_found`, `brunch_not_active` including already-confirmed, `no_locations`, `no_times`, `unknown_option` for both ids independently); confirming a non-leading option succeeds and reports `locationWasVoteLeader: false` on the emitted event rather than being blocked (host prerogative, not an error); `votingClosedAt` set when null and preserved untouched when already set by an earlier `closeVoting` call; `tokenExpiresAt` recomputed on every invite except the host's own synthetic one (identified the same way `getInvitesForBrunch` already does — matching `invitedEmail` against the host's, case-insensitive); db-error and `lookup_not_found` mapping; event-emit-failure-still-Ok.
+- **The one test that actually proves the schema constraint, not just the service's promise:** `confirmBrunch.integration.test.ts`'s partial-index test bypasses `confirmBrunch` entirely and does two raw `db.brunchLocation.update({ data: { isConfirmed: true } })` calls directly against the same brunch, asserting the second one throws. `confirmBrunch` itself can never produce two confirmed options (it only ever sets one per call, on an `active` brunch it immediately moves to `confirmed`), so a test that only called the service would never exercise the index at all — it would pass whether or not the index existed. This is the belt-and-braces the plan called for, verified by actually trying to defeat the belt.
+- **How:** Unit (`confirmBrunch.test.ts`, 15 tests) mocked at the `db`/`tx` boundary, following the same mock-tx-separately-from-mock-db shape established in M3/M4. Integration (`confirmBrunch.integration.test.ts`, 4 tests) against real Postgres: a full confirm's five writes verified individually (location, time, brunch status, `votingClosedAt`, invite `tokenExpiresAt`), a rejected double-confirm, the partial-index bypass test above, and confirming while an unrelated option still holds a vote (proving a vote on the non-chosen option doesn't block confirming the other).
+- **What's deferred:** No test exercises two `confirmBrunch` calls racing concurrently. Worked through on paper rather than left unexamined: unlike M4's vote/close race, this one is already closed by the partial unique index itself, not by anything application-level. `assertBrunchActive`'s pre-transaction check isn't re-fetched inside the transaction the way M4 made the cast-ballot services do for `assertVotingOpen` — so two concurrent calls could both pass that check before either commits — but the index is keyed on `brunchId` alone (not `brunchId + locationId`), so a second transaction setting `isConfirmed` on _any_ location row for the same brunch, even a different one than the first call chose, collides with the same constraint and fails at the database. Data integrity holds either way; the only real gap is that the loser gets a generic `db_error` instead of a clean `brunch_not_active`. That's a minor error-message quality issue, not a correctness one, and not worth the cost of a re-fetch-inside-transaction restructure for an action only the host ever takes, alone, once.
+- **How to run it:** `pnpm typecheck && pnpm lint && pnpm test` from repo root (unit only); `pnpm --filter @brunchsters/core test:integration` for the integration suite (local Supabase must be running).
 
 ---
 

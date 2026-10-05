@@ -433,6 +433,10 @@ model BrunchInviteSuggestion {
 
 // ─── Location & Time [v1 schema + ui] ─────────────────────────────────────────
 
+// Partial unique index enforces at most one confirmed, non-deleted location
+// per brunch at the DB level (spec 0005 M5) — not expressible in the Prisma
+// schema DSL, added via raw SQL in migration 20261005001802_single_confirmed_option:
+//   CREATE UNIQUE INDEX ... ON "BrunchLocation"("brunchId") WHERE "isConfirmed" AND "deletedAt" IS NULL
 model BrunchLocation {
   id             String    @id @default(uuid()) @db.Uuid
   brunchId       String    @db.Uuid
@@ -459,6 +463,9 @@ model BrunchLocation {
 
 // scheduledAt stored as UTC per PLANNING.md §9.3
 // Display rule: convert to BrunchLocation.timezone post-confirmation (UI only, no schema impact)
+// Same partial unique index treatment as BrunchLocation above — one
+// confirmed, non-deleted time per brunch, enforced in migration
+// 20261005001802_single_confirmed_option, not representable here.
 model BrunchTime {
   id             String    @id @default(uuid()) @db.Uuid
   brunchId       String    @db.Uuid

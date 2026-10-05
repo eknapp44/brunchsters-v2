@@ -55,6 +55,8 @@ export type {
   UpdateVotingDeadlineInput,
   UpdateVotingDeadlineRequest,
 } from './brunch/updateVotingDeadline';
+export { confirmBrunch } from './brunch/confirmBrunch';
+export type { ConfirmBrunchError, ConfirmBrunchInput } from './brunch/confirmBrunch';
 export { getBrunchesForUser } from './brunch/getBrunchesForUser';
 export type { BrunchSummary } from './brunch/getBrunchesForUser';
 export { sendInvites, sendInvitesRequestSchema } from './invite/sendInvites';
