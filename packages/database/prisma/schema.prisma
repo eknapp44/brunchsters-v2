@@ -309,6 +309,10 @@ model Brunch {
   statusId    String  @db.Uuid
 
   votingDeadline DateTime?
+  // Early manual close (spec 0005). Not derivable — it's a host action with
+  // no other trace. votingDeadline keeps its original meaning (intent);
+  // this records what actually happened. See guards/assertVotingOpen.ts.
+  votingClosedAt DateTime?
 
   // Permissions — stored on Brunch per PLANNING.md §6 (not a separate table)
   allowInviteSuggestions      Boolean @default(true)

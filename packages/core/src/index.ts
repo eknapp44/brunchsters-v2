@@ -42,6 +42,19 @@ export { castTimeBallot } from './brunch/castTimeBallot';
 export type { CastTimeBallotError, CastTimeBallotInput } from './brunch/castTimeBallot';
 export { getBrunchVoting } from './brunch/getBrunchVoting';
 export type { BrunchVoting, BrunchVotingKind, VoteOptionSummary } from './brunch/getBrunchVoting';
+export { assertVotingOpen, isVotingClosed } from './brunch/guards/assertVotingOpen';
+export type { AssertVotingOpenError, ClosableBrunch } from './brunch/guards/assertVotingOpen';
+export { closeVoting } from './brunch/closeVoting';
+export type { CloseVotingError, CloseVotingInput } from './brunch/closeVoting';
+export {
+  updateVotingDeadline,
+  updateVotingDeadlineRequestSchema,
+} from './brunch/updateVotingDeadline';
+export type {
+  UpdateVotingDeadlineError,
+  UpdateVotingDeadlineInput,
+  UpdateVotingDeadlineRequest,
+} from './brunch/updateVotingDeadline';
 export { getBrunchesForUser } from './brunch/getBrunchesForUser';
 export type { BrunchSummary } from './brunch/getBrunchesForUser';
 export { sendInvites, sendInvitesRequestSchema } from './invite/sendInvites';

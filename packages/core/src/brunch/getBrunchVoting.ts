@@ -2,6 +2,12 @@ import type { DbClient } from '@brunchsters/database';
 import type { BrunchId, UserId } from '@brunchsters/shared';
 import type { DecisionMode } from './guards/deriveDecisionMode';
 import { deriveDecisionMode } from './guards/deriveDecisionMode';
+import { isVotingClosed } from './guards/assertVotingOpen';
+
+// Below this, the 66% nudge never fires — a host alone with one or two
+// attendees would otherwise see it at 1/1 or 2/2 immediately (spec 0005).
+const MIN_ELIGIBLE_FOR_CLOSE_NUDGE = 3;
+const CLOSE_NUDGE_PARTICIPATION_THRESHOLD = 0.66;
 
 export type VoteOptionSummary = {
   readonly id: string;
@@ -18,6 +24,10 @@ export type BrunchVotingKind = {
   readonly options: readonly VoteOptionSummary[];
   readonly eligibleCount: number;
   readonly participationRatio: number;
+  // Derived, not stored — v1 has no way to deliver a notification for this,
+  // so it's a banner on the host's manage screen rather than a fire-once
+  // event (see ADR-adjacent note in plan.md's "66% nudge is derived").
+  readonly shouldSuggestClosing: boolean;
 };
 
 // One shape for every viewer, regardless of role — a return type that
@@ -63,16 +73,19 @@ function buildKind(
   const eligibleCount = eligibleIds.size;
   const participated = Array.from(participantIds).filter((id) => eligibleIds.has(id)).length;
   const participationRatio = eligibleCount > 0 ? participated / eligibleCount : 0;
+  const shouldSuggestClosing =
+    !closed &&
+    eligibleCount >= MIN_ELIGIBLE_FOR_CLOSE_NUDGE &&
+    participationRatio >= CLOSE_NUDGE_PARTICIPATION_THRESHOLD;
 
-  return { mode, closed, options: builtOptions, eligibleCount, participationRatio };
-}
-
-// Closure here is a placeholder for M4's guards/assertVotingOpen.ts, which
-// will also account for an early manual close (votingClosedAt). Until that
-// column exists, closed is just "confirmed" or "past the original deadline."
-function isVotingClosed(statusCode: string, votingDeadline: Date | null): boolean {
-  if (statusCode === 'confirmed') return true;
-  return votingDeadline !== null && new Date() > votingDeadline;
+  return {
+    mode,
+    closed,
+    options: builtOptions,
+    eligibleCount,
+    participationRatio,
+    shouldSuggestClosing,
+  };
 }
 
 // Authorized read: undefined unless the viewer is the host or a live
@@ -96,7 +109,7 @@ export async function getBrunchVoting(
   if (brunch === null) return undefined;
 
   const isHost = brunch.hostId === input.viewerId;
-  const closed = isVotingClosed(brunch.status.code, brunch.votingDeadline);
+  const closed = isVotingClosed(brunch);
 
   const viewerAttendee = await db.brunchAttendee.findFirst({
     where: { brunchId: input.brunchId, userId: input.viewerId },

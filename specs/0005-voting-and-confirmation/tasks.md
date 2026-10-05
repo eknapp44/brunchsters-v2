@@ -90,20 +90,27 @@ Pure refactor, no user-facing change. Merges on its own once green rather than r
 
 No `...VotePromptedAt` columns and no fire-once guard — the 66% nudge is derived, since v1 cannot deliver the notification it would have guarded (see plan.md). The notifications spec owns that work.
 
-- [ ] Schema: add `Brunch.votingClosedAt DateTime?`; generate and commit the migration
-- [ ] Implement `guards/assertVotingOpen.ts` — the derived predicate (`votingClosedAt`, past `votingDeadline`, or `status == confirmed`), callable inside a transaction; unit tests for all three closure paths plus the open case
-- [ ] Wire `assertVotingOpen` into both cast-ballot services, evaluated **inside** the transaction
-- [ ] Implement `closeVoting.ts` — host-only; sets `votingClosedAt = now`; rejects when already closed (`already_closed`)
-- [ ] Implement `updateVotingDeadline.ts` — host-only; accepts a future datetime or `undefined` to clear; rejects once voting is closed. Without this there is no way to set a deadline after creation, since only the wizard sets one today
-- [ ] Extend `getBrunchVoting` with `shouldSuggestClosing` = `!closed && eligibleCount >= 3 && participationRatio >= 0.66`, computed per kind
-- [ ] Export both services from `packages/core/src/index.ts`
-- [ ] Routes: `POST /api/v1/brunches/:id/voting/close`, `PATCH /api/v1/brunches/:id/voting/deadline`
-- [ ] Unit tests: close is host-only and rejects double-close; deadline must be future; ballots rejected once closed by manual close and by past deadline; `shouldSuggestClosing` false below 3 eligible, true at the 66% boundary, false once closed
-- [ ] Integration test: three eligible attendees, two vote, ratio and nudge correct; ballot after `votingClosedAt` rejected; ballot after a past `votingDeadline` rejected with no `votingClosedAt` set
-- [ ] `pnpm typecheck && pnpm lint && pnpm test` pass
-- [ ] Commit: `feat: close voting, manage the deadline, and derive the close nudge (M4)`
+- [x] Schema: add `Brunch.votingClosedAt DateTime?`; generate and commit the migration
+- [x] Implement `guards/assertVotingOpen.ts` — the derived predicate (`votingClosedAt`, past `votingDeadline`, or `status == confirmed`), callable inside a transaction; unit tests for all three closure paths plus the open case
+- [x] Wire `assertVotingOpen` into both cast-ballot services, evaluated **inside** the transaction
+- [x] Implement `closeVoting.ts` — host-only; sets `votingClosedAt = now`; rejects when already closed (`already_closed`)
+- [x] Implement `updateVotingDeadline.ts` — host-only; accepts a future datetime or `undefined` to clear; rejects once voting is closed. Without this there is no way to set a deadline after creation, since only the wizard sets one today
+- [x] Extend `getBrunchVoting` with `shouldSuggestClosing` = `!closed && eligibleCount >= 3 && participationRatio >= 0.66`, computed per kind
+- [x] Export both services from `packages/core/src/index.ts`
+- [x] Routes: `POST /api/v1/brunches/:id/voting/close`, `PATCH /api/v1/brunches/:id/voting/deadline`
+- [x] Unit tests: close is host-only and rejects double-close; deadline must be future; ballots rejected once closed by manual close and by past deadline; `shouldSuggestClosing` false below 3 eligible, true at the 66% boundary, false once closed
+- [x] Integration test: three eligible attendees, two vote, ratio and nudge correct; ballot after `votingClosedAt` rejected; ballot after a past `votingDeadline` rejected with no `votingClosedAt` set
+- [x] `pnpm typecheck && pnpm lint && pnpm test` pass
+- [x] Commit: `feat: close voting, manage the deadline, and derive the close nudge (M4)`
 
-**Testing notes:** _(fill on completion)_
+**Testing notes:**
+
+- **What was tested:** `assertVotingOpen`/`isVotingClosed` for all three closure paths (`votingClosedAt`, past `votingDeadline`, confirmed status) plus the open case. `closeVoting`: host-only, double-close rejected, and — reusing the full derived predicate rather than just the raw column — closing a brunch already closed by a past deadline or by confirmation is also rejected as `already_closed`, not treated as a fresh close. `updateVotingDeadline`: host-only, future-only validated at the Zod boundary (not in the service itself), clearing via `undefined`, rejected once closed. Both cast-ballot services: the manual-close and past-deadline paths now resolve via a **fresh re-fetch inside the transaction**, not the pre-transaction brunch object. `getBrunchVoting`'s `shouldSuggestClosing`: fires at exactly 2/3 with 3+ eligible, never below 3 eligible regardless of participation, never below the 66% threshold, and never once already closed.
+- **The actual race-closing test** — the one this milestone exists for: `castLocationBallot`/`castTimeBallot` unit tests now include "closes the race: a close that lands between the pre-transaction check and the write still loses the vote," where the pre-transaction mock returns an open brunch and only the transaction-scoped re-fetch (`tx.brunch.findFirst`) returns a closed one. Before this milestone's restructuring, that scenario couldn't be expressed at all — the old inline check ran once, before the transaction, with no second look. Integration-level, the same shape is covered by `closingVoting.integration.test.ts`'s manual-close and past-deadline cases against real Postgres, though a true concurrent race (two overlapping transactions) isn't simulated — that would need two real concurrent connections mid-transaction, which is a meaningfully different and more expensive test to write; the single-fetch-vs-fresh-fetch unit test is what actually proves the fix.
+- **A test-fidelity bug caught and fixed along the way, not a production bug:** `getBrunchVoting.test.ts`'s mock brunch objects omitted `votingClosedAt` entirely (`undefined`, not `null`). `isVotingClosed` checks `votingClosedAt !== null`, and `undefined !== null` is `true` in JS — so every mock brunch was silently evaluating as "closed," and no existing assertion caught it because nothing asserted `closed === false` for the default open case. Fixed by giving every mock brunch an explicit `votingClosedAt: null` (matching what a real Prisma row always returns — never `undefined`) and adding an explicit "is open by default" test. This was a gap in test fidelity, not in the shipped code; the real Prisma client never returns `undefined` for a nullable column.
+- **How:** Unit — `assertVotingOpen.test.ts` (5), `closeVoting.test.ts` (7), `updateVotingDeadline.test.ts` (10), plus restructured tests in `castLocationBallot.test.ts` and `castTimeBallot.test.ts` (both mock `tx` now includes `brunch.findFirst`, separately overridable from the pre-transaction `db.brunch.findFirst`) and new `shouldSuggestClosing` coverage in `getBrunchVoting.test.ts`, plus the two new route test files. Integration (`closingVoting.integration.test.ts`, 5 tests) against real Postgres, following the same `createThreeEligibleBrunch` real-activation-path convention as M3's `voting.integration.test.ts` (host + 2 yes-voters = 3 eligible, since the host counts toward eligibility per plan.md).
+- **What's deferred:** No test simulates two genuinely concurrent transactions racing against the same brunch (one closing, one voting, overlapping in time) — see above. `confirmBrunch` (M5) is the other path that sets `votingClosedAt`; this milestone's tests only exercise `closeVoting` setting it directly.
+- **How to run it:** `pnpm typecheck && pnpm lint && pnpm test` from repo root (unit only); `pnpm --filter @brunchsters/core test:integration` for the integration suite (local Supabase must be running).
 
 ---
 

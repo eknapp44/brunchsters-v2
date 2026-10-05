@@ -9,7 +9,16 @@ const VOTER_ID = 'voter-uuid' as UserId;
 const OPTION_A = 'option-a-uuid' as BrunchTimeId;
 const OPTION_B = 'option-b-uuid' as BrunchTimeId;
 
+const OPEN_BRUNCH = {
+  id: BRUNCH_ID,
+  hostId: 'host-uuid',
+  status: { code: 'active' },
+  votingDeadline: null,
+  votingClosedAt: null,
+};
+
 type MockTx = {
+  brunch: { findFirst: ReturnType<typeof vi.fn> };
   brunchTimeVote: {
     findMany: ReturnType<typeof vi.fn>;
     deleteMany: ReturnType<typeof vi.fn>;
@@ -17,8 +26,15 @@ type MockTx = {
   };
 };
 
-function makeMockTx(overrides: Partial<MockTx['brunchTimeVote']> = {}): MockTx {
+function makeMockTx(
+  overrides: Partial<MockTx['brunchTimeVote']> & {
+    findFirstBrunch?: ReturnType<typeof vi.fn>;
+  } = {},
+): MockTx {
   return {
+    brunch: {
+      findFirst: overrides.findFirstBrunch ?? vi.fn().mockResolvedValue(OPEN_BRUNCH),
+    },
     brunchTimeVote: {
       findMany: overrides.findMany ?? vi.fn().mockResolvedValue([]),
       deleteMany: overrides.deleteMany ?? vi.fn().mockResolvedValue({ count: 0 }),
@@ -39,14 +55,7 @@ function makeMockDb(overrides: Overrides): DbClient & { readonly tx: MockTx } {
   const tx = overrides.tx ?? makeMockTx();
   const db = {
     brunch: {
-      findFirst:
-        overrides.findFirstBrunch ??
-        vi.fn().mockResolvedValue({
-          id: BRUNCH_ID,
-          hostId: 'host-uuid',
-          status: { code: 'active' },
-          votingDeadline: null,
-        }),
+      findFirst: overrides.findFirstBrunch ?? vi.fn().mockResolvedValue(OPEN_BRUNCH),
     },
     brunchAttendee: {
       findFirst:
@@ -204,13 +213,10 @@ describe('castTimeBallot', () => {
   });
 
   it('rejects once voting is closed by a past deadline', async () => {
+    const closedBrunch = { ...OPEN_BRUNCH, votingDeadline: new Date('2000-01-01T00:00:00.000Z') };
     const db = makeMockDb({
-      findFirstBrunch: vi.fn().mockResolvedValue({
-        id: BRUNCH_ID,
-        hostId: 'host-uuid',
-        status: { code: 'active' },
-        votingDeadline: new Date('2000-01-01T00:00:00.000Z'),
-      }),
+      findFirstBrunch: vi.fn().mockResolvedValue(closedBrunch),
+      tx: makeMockTx({ findFirstBrunch: vi.fn().mockResolvedValue(closedBrunch) }),
     });
 
     const result = await castTimeBallot(
@@ -219,6 +225,37 @@ describe('castTimeBallot', () => {
     );
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'voting_closed' });
+  });
+
+  it('rejects once voting is closed by an early manual close (votingClosedAt)', async () => {
+    const closedBrunch = { ...OPEN_BRUNCH, votingClosedAt: new Date() };
+    const db = makeMockDb({
+      findFirstBrunch: vi.fn().mockResolvedValue(closedBrunch),
+      tx: makeMockTx({ findFirstBrunch: vi.fn().mockResolvedValue(closedBrunch) }),
+    });
+
+    const result = await castTimeBallot(
+      { brunchId: BRUNCH_ID, voterId: VOTER_ID, optionIds: [OPTION_A] },
+      { db, eventBus: makeMockEventBus() },
+    );
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'voting_closed' });
+  });
+
+  it('closes the race: a close that lands between the pre-transaction check and the write still loses the vote', async () => {
+    const tx = makeMockTx({
+      findFirstBrunch: vi.fn().mockResolvedValue({ ...OPEN_BRUNCH, votingClosedAt: new Date() }),
+    });
+    const db = makeMockDb({ findFirstBrunch: vi.fn().mockResolvedValue(OPEN_BRUNCH), tx });
+
+    const result = await castTimeBallot(
+      { brunchId: BRUNCH_ID, voterId: VOTER_ID, optionIds: [OPTION_A] },
+      { db, eventBus: makeMockEventBus() },
+    );
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'voting_closed' });
+    expect(tx.brunchTimeVote.createMany).not.toHaveBeenCalled();
+    expect(tx.brunchTimeVote.deleteMany).not.toHaveBeenCalled();
   });
 
   it('rejects a kind with only one option — nothing to vote on', async () => {

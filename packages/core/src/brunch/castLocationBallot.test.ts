@@ -9,7 +9,16 @@ const VOTER_ID = 'voter-uuid' as UserId;
 const OPTION_A = 'option-a-uuid' as BrunchLocationId;
 const OPTION_B = 'option-b-uuid' as BrunchLocationId;
 
+const OPEN_BRUNCH = {
+  id: BRUNCH_ID,
+  hostId: 'host-uuid',
+  status: { code: 'active' },
+  votingDeadline: null,
+  votingClosedAt: null,
+};
+
 type MockTx = {
+  brunch: { findFirst: ReturnType<typeof vi.fn> };
   brunchLocationVote: {
     findMany: ReturnType<typeof vi.fn>;
     deleteMany: ReturnType<typeof vi.fn>;
@@ -17,8 +26,15 @@ type MockTx = {
   };
 };
 
-function makeMockTx(overrides: Partial<MockTx['brunchLocationVote']> = {}): MockTx {
+function makeMockTx(
+  overrides: Partial<MockTx['brunchLocationVote']> & {
+    findFirstBrunch?: ReturnType<typeof vi.fn>;
+  } = {},
+): MockTx {
   return {
+    brunch: {
+      findFirst: overrides.findFirstBrunch ?? vi.fn().mockResolvedValue(OPEN_BRUNCH),
+    },
     brunchLocationVote: {
       findMany: overrides.findMany ?? vi.fn().mockResolvedValue([]),
       deleteMany: overrides.deleteMany ?? vi.fn().mockResolvedValue({ count: 0 }),
@@ -39,14 +55,7 @@ function makeMockDb(overrides: Overrides): DbClient & { readonly tx: MockTx } {
   const tx = overrides.tx ?? makeMockTx();
   const db = {
     brunch: {
-      findFirst:
-        overrides.findFirstBrunch ??
-        vi.fn().mockResolvedValue({
-          id: BRUNCH_ID,
-          hostId: 'host-uuid',
-          status: { code: 'active' },
-          votingDeadline: null,
-        }),
+      findFirst: overrides.findFirstBrunch ?? vi.fn().mockResolvedValue(OPEN_BRUNCH),
     },
     brunchAttendee: {
       findFirst:
@@ -208,13 +217,10 @@ describe('castLocationBallot', () => {
   });
 
   it('rejects once voting is closed by a past deadline', async () => {
+    const closedBrunch = { ...OPEN_BRUNCH, votingDeadline: new Date('2000-01-01T00:00:00.000Z') };
     const db = makeMockDb({
-      findFirstBrunch: vi.fn().mockResolvedValue({
-        id: BRUNCH_ID,
-        hostId: 'host-uuid',
-        status: { code: 'active' },
-        votingDeadline: new Date('2000-01-01T00:00:00.000Z'),
-      }),
+      findFirstBrunch: vi.fn().mockResolvedValue(closedBrunch),
+      tx: makeMockTx({ findFirstBrunch: vi.fn().mockResolvedValue(closedBrunch) }),
     });
 
     const result = await castLocationBallot(
@@ -223,6 +229,41 @@ describe('castLocationBallot', () => {
     );
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'voting_closed' });
+  });
+
+  it('rejects once voting is closed by an early manual close (votingClosedAt)', async () => {
+    const closedBrunch = { ...OPEN_BRUNCH, votingClosedAt: new Date() };
+    const db = makeMockDb({
+      findFirstBrunch: vi.fn().mockResolvedValue(closedBrunch),
+      tx: makeMockTx({ findFirstBrunch: vi.fn().mockResolvedValue(closedBrunch) }),
+    });
+
+    const result = await castLocationBallot(
+      { brunchId: BRUNCH_ID, voterId: VOTER_ID, optionIds: [OPTION_A] },
+      { db, eventBus: makeMockEventBus() },
+    );
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'voting_closed' });
+  });
+
+  it('closes the race: a close that lands between the pre-transaction check and the write still loses the vote', async () => {
+    // The pre-transaction brunch lookup sees voting as open — this mirrors
+    // the exact race the spec calls out: "a ballot submitted a millisecond
+    // after the host closes voting must lose." Only the transaction's own
+    // fresh re-fetch (tx.brunch.findFirst) sees the close.
+    const tx = makeMockTx({
+      findFirstBrunch: vi.fn().mockResolvedValue({ ...OPEN_BRUNCH, votingClosedAt: new Date() }),
+    });
+    const db = makeMockDb({ findFirstBrunch: vi.fn().mockResolvedValue(OPEN_BRUNCH), tx });
+
+    const result = await castLocationBallot(
+      { brunchId: BRUNCH_ID, voterId: VOTER_ID, optionIds: [OPTION_A] },
+      { db, eventBus: makeMockEventBus() },
+    );
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'voting_closed' });
+    expect(tx.brunchLocationVote.createMany).not.toHaveBeenCalled();
+    expect(tx.brunchLocationVote.deleteMany).not.toHaveBeenCalled();
   });
 
   it('rejects once voting is closed because the brunch is confirmed', async () => {

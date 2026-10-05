@@ -6,6 +6,7 @@ import type { AssertCanVoteError } from './guards/assertCanVote';
 import { assertCanVote } from './guards/assertCanVote';
 import { assertBrunchActive, type AssertBrunchActiveError } from './guards/assertBrunchActive';
 import type { HostBrunch } from './guards/assertHostOf';
+import { assertVotingOpen, type AssertVotingOpenError } from './guards/assertVotingOpen';
 import { deriveDecisionMode } from './guards/deriveDecisionMode';
 
 export type CastTimeBallotInput = {
@@ -19,7 +20,7 @@ export type CastTimeBallotError =
   | AssertBrunchActiveError
   | { readonly kind: 'empty_ballot' }
   | AssertCanVoteError
-  | { readonly kind: 'voting_closed' }
+  | AssertVotingOpenError
   | { readonly kind: 'not_a_vote' }
   | { readonly kind: 'unknown_option' }
   | { readonly kind: 'db_error'; readonly cause: unknown };
@@ -28,14 +29,6 @@ type CastTimeBallotContext = {
   readonly db: DbClient;
   readonly eventBus: EventBus;
 };
-
-// Closure here is a placeholder for M4's guards/assertVotingOpen.ts, which
-// will also account for an early manual close (votingClosedAt). Until that
-// column exists, closed is just "confirmed" or "past the original deadline."
-function isVotingClosed(brunch: HostBrunch & { readonly votingDeadline: Date | null }): boolean {
-  if (brunch.status.code === 'confirmed') return true;
-  return brunch.votingDeadline !== null && new Date() > brunch.votingDeadline;
-}
 
 export async function castTimeBallot(
   input: CastTimeBallotInput,
@@ -60,8 +53,6 @@ export async function castTimeBallot(
   );
   if (canVoteResult.isErr()) return err(canVoteResult.error);
 
-  if (isVotingClosed(brunch)) return err({ kind: 'voting_closed' });
-
   const mode = await deriveDecisionMode({ brunchId: input.brunchId, kind: 'time' }, { db });
   if (mode === 'host_decides') return err({ kind: 'not_a_vote' });
 
@@ -76,8 +67,22 @@ export async function castTimeBallot(
   if (!allKnown) return err({ kind: 'unknown_option' });
 
   let hadPriorVote = false;
+  let votingClosed = false;
   try {
     await db.$transaction(async (tx) => {
+      // Re-fetched here, not reused from the pre-transaction brunch lookup
+      // above: closure must reflect the latest committed state at write
+      // time, not a value read earlier in the request. A close racing a
+      // vote must make the vote lose.
+      const freshBrunch = await tx.brunch.findFirst({
+        where: { id: input.brunchId },
+        include: { status: true },
+      });
+      if (freshBrunch === null || assertVotingOpen(freshBrunch).isErr()) {
+        votingClosed = true;
+        return;
+      }
+
       const existingVotes = await tx.brunchTimeVote.findMany({
         where: { userId: input.voterId, brunchTime: { brunchId: input.brunchId } },
         select: { brunchTimeId: true },
@@ -106,6 +111,8 @@ export async function castTimeBallot(
   } catch (cause) {
     return err({ kind: 'db_error', cause });
   }
+
+  if (votingClosed) return err({ kind: 'voting_closed' });
 
   try {
     await eventBus.emit(hadPriorVote ? 'vote/changed' : 'vote/cast', {

@@ -17,17 +17,18 @@ type Overrides = {
   findManyTimes?: ReturnType<typeof vi.fn>;
 };
 
+const OPEN_BRUNCH = {
+  id: BRUNCH_ID,
+  hostId: HOST_ID,
+  status: { code: 'active' },
+  votingDeadline: null,
+  votingClosedAt: null,
+};
+
 function makeMockDb(overrides: Overrides): DbClient {
   return {
     brunch: {
-      findFirst:
-        overrides.findFirstBrunch ??
-        vi.fn().mockResolvedValue({
-          id: BRUNCH_ID,
-          hostId: HOST_ID,
-          status: { code: 'active' },
-          votingDeadline: null,
-        }),
+      findFirst: overrides.findFirstBrunch ?? vi.fn().mockResolvedValue(OPEN_BRUNCH),
     },
     brunchAttendee: {
       findFirst:
@@ -162,14 +163,18 @@ describe('getBrunchVoting', () => {
     expect(result?.locations.mode).toBe('host_decides');
   });
 
+  it('is open by default when nothing has closed it', async () => {
+    const db = makeMockDb({});
+
+    const result = await getBrunchVoting({ brunchId: BRUNCH_ID, viewerId: VIEWER_ID }, { db });
+
+    expect(result?.locations.closed).toBe(false);
+    expect(result?.times.closed).toBe(false);
+  });
+
   it('is closed when the brunch is confirmed', async () => {
     const db = makeMockDb({
-      findFirstBrunch: vi.fn().mockResolvedValue({
-        id: BRUNCH_ID,
-        hostId: HOST_ID,
-        status: { code: 'confirmed' },
-        votingDeadline: null,
-      }),
+      findFirstBrunch: vi.fn().mockResolvedValue({ ...OPEN_BRUNCH, status: { code: 'confirmed' } }),
     });
 
     const result = await getBrunchVoting({ brunchId: BRUNCH_ID, viewerId: VIEWER_ID }, { db });
@@ -181,11 +186,19 @@ describe('getBrunchVoting', () => {
   it('is closed once the voting deadline has passed', async () => {
     const db = makeMockDb({
       findFirstBrunch: vi.fn().mockResolvedValue({
-        id: BRUNCH_ID,
-        hostId: HOST_ID,
-        status: { code: 'active' },
+        ...OPEN_BRUNCH,
         votingDeadline: new Date('2000-01-01T00:00:00.000Z'),
       }),
+    });
+
+    const result = await getBrunchVoting({ brunchId: BRUNCH_ID, viewerId: VIEWER_ID }, { db });
+
+    expect(result?.locations.closed).toBe(true);
+  });
+
+  it('is closed by an early manual close (votingClosedAt)', async () => {
+    const db = makeMockDb({
+      findFirstBrunch: vi.fn().mockResolvedValue({ ...OPEN_BRUNCH, votingClosedAt: new Date() }),
     });
 
     const result = await getBrunchVoting({ brunchId: BRUNCH_ID, viewerId: VIEWER_ID }, { db });
@@ -245,5 +258,87 @@ describe('getBrunchVoting', () => {
 
     expect(result?.locations.eligibleCount).toBe(0);
     expect(result?.locations.participationRatio).toBe(0);
+  });
+
+  it('suggests closing at exactly 2/3 participation with 3+ eligible attendees', async () => {
+    const db = makeMockDb({
+      findManyAttendees: vi
+        .fn()
+        .mockResolvedValue([{ userId: 'voter-1' }, { userId: 'voter-2' }, { userId: 'voter-3' }]),
+      findManyLocations: vi.fn().mockResolvedValue([
+        {
+          id: 'option-a',
+          votes: [
+            { userId: 'voter-1', user: { name: 'One' } },
+            { userId: 'voter-2', user: { name: 'Two' } },
+          ],
+        },
+      ]),
+    });
+
+    const result = await getBrunchVoting({ brunchId: BRUNCH_ID, viewerId: VIEWER_ID }, { db });
+
+    expect(result?.locations.shouldSuggestClosing).toBe(true);
+  });
+
+  it('does not suggest closing below 3 eligible attendees, even at 100% participation', async () => {
+    const db = makeMockDb({
+      findManyAttendees: vi.fn().mockResolvedValue([{ userId: 'voter-1' }, { userId: 'voter-2' }]),
+      findManyLocations: vi.fn().mockResolvedValue([
+        {
+          id: 'option-a',
+          votes: [
+            { userId: 'voter-1', user: { name: 'One' } },
+            { userId: 'voter-2', user: { name: 'Two' } },
+          ],
+        },
+      ]),
+    });
+
+    const result = await getBrunchVoting({ brunchId: BRUNCH_ID, viewerId: VIEWER_ID }, { db });
+
+    expect(result?.locations.eligibleCount).toBe(2);
+    expect(result?.locations.participationRatio).toBe(1);
+    expect(result?.locations.shouldSuggestClosing).toBe(false);
+  });
+
+  it('does not suggest closing below the 66% threshold', async () => {
+    const db = makeMockDb({
+      findManyAttendees: vi
+        .fn()
+        .mockResolvedValue([{ userId: 'voter-1' }, { userId: 'voter-2' }, { userId: 'voter-3' }]),
+      findManyLocations: vi
+        .fn()
+        .mockResolvedValue([
+          { id: 'option-a', votes: [{ userId: 'voter-1', user: { name: 'One' } }] },
+        ]),
+    });
+
+    const result = await getBrunchVoting({ brunchId: BRUNCH_ID, viewerId: VIEWER_ID }, { db });
+
+    expect(result?.locations.shouldSuggestClosing).toBe(false);
+  });
+
+  it('does not suggest closing once voting is already closed', async () => {
+    const db = makeMockDb({
+      findFirstBrunch: vi.fn().mockResolvedValue({ ...OPEN_BRUNCH, status: { code: 'confirmed' } }),
+      findManyAttendees: vi
+        .fn()
+        .mockResolvedValue([{ userId: 'voter-1' }, { userId: 'voter-2' }, { userId: 'voter-3' }]),
+      findManyLocations: vi.fn().mockResolvedValue([
+        {
+          id: 'option-a',
+          votes: [
+            { userId: 'voter-1', user: { name: 'One' } },
+            { userId: 'voter-2', user: { name: 'Two' } },
+          ],
+        },
+      ]),
+    });
+
+    const result = await getBrunchVoting({ brunchId: BRUNCH_ID, viewerId: VIEWER_ID }, { db });
+
+    expect(result?.locations.closed).toBe(true);
+    expect(result?.locations.shouldSuggestClosing).toBe(false);
   });
 });
