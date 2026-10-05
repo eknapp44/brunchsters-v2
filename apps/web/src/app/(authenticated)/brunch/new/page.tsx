@@ -1,8 +1,9 @@
 'use client';
 
-import type { PlaceDetails, PlaceResult } from '@brunchsters/core';
+import type { PlaceDetails } from '@brunchsters/core';
 import { useRouter } from 'next/navigation';
-import { type Dispatch, useEffect, useReducer, useState } from 'react';
+import { type Dispatch, useReducer, useState } from 'react';
+import { PlaceSearchInput } from '../PlaceSearchInput';
 
 type WizardState = {
   readonly step: 1 | 2 | 3 | 4;
@@ -144,68 +145,9 @@ function StepTwo({
   readonly state: WizardState;
   readonly dispatch: Dispatch<WizardAction>;
 }) {
-  const [query, setQuery] = useState('');
-  const [sessionToken, setSessionToken] = useState<string | undefined>(undefined);
-  const [predictions, setPredictions] = useState<readonly PlaceResult[]>([]);
-
-  useEffect(() => {
-    if (query.length < 3) {
-      setPredictions([]);
-      return;
-    }
-
-    const timeoutId = setTimeout(() => {
-      const params = new URLSearchParams({
-        q: query,
-        ...(sessionToken !== undefined ? { sessionToken } : {}),
-      });
-      void fetch(`/api/v1/places/search?${params.toString()}`)
-        .then((response) => response.json() as Promise<{ places: readonly PlaceResult[] }>)
-        .then((data) => setPredictions(data.places))
-        .catch(() => setPredictions([]));
-    }, 300);
-
-    return () => clearTimeout(timeoutId);
-  }, [query, sessionToken]);
-
-  function handleQueryChange(value: string): void {
-    if (sessionToken === undefined && value !== '') {
-      setSessionToken(crypto.randomUUID());
-    }
-    setQuery(value);
-  }
-
-  async function selectPlace(placeId: string): Promise<void> {
-    const params = new URLSearchParams(sessionToken !== undefined ? { sessionToken } : {});
-    const response = await fetch(`/api/v1/places/${placeId}?${params.toString()}`);
-    if (response.ok) {
-      const details = (await response.json()) as PlaceDetails;
-      dispatch({ type: 'ADD_LOCATION', location: details });
-    }
-    setQuery('');
-    setPredictions([]);
-    setSessionToken(undefined);
-  }
-
   return (
     <section>
-      <input
-        type="text"
-        value={query}
-        onChange={(event) => handleQueryChange(event.target.value)}
-        placeholder="Search for a place"
-      />
-      {predictions.length > 0 && (
-        <ul>
-          {predictions.map((prediction) => (
-            <li key={prediction.placeId}>
-              <button type="button" onClick={() => void selectPlace(prediction.placeId)}>
-                {prediction.name} — {prediction.address}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      <PlaceSearchInput onSelect={(location) => dispatch({ type: 'ADD_LOCATION', location })} />
 
       {state.locations.length > 0 && (
         <ul>
