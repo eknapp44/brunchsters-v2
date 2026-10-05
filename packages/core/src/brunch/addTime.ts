@@ -25,6 +25,35 @@ export type AddTimeError =
   | AssertBrunchActiveError
   | { readonly kind: 'db_error'; readonly cause: unknown };
 
+// The interactive-transaction client Prisma passes into db.$transaction's
+// callback, derived from DbClient itself so it stays correct for the
+// soft-delete extension DbClient applies.
+export type AddTimeTxClient = Parameters<Parameters<DbClient['$transaction']>[0]>[0];
+
+export type AddTimeTxInput = {
+  readonly brunchId: BrunchId;
+  readonly proposedById: UserId;
+  readonly scheduledAt: string;
+};
+
+// Raw create, no guards — callable with either a plain DbClient (addTime
+// itself; a single insert needs no transaction) or a transaction client
+// (reviewTimeSuggestion, which needs this write and the suggestion's status
+// update to commit atomically together).
+export async function addTimeInTransaction(
+  db: AddTimeTxClient,
+  input: AddTimeTxInput,
+): Promise<{ id: BrunchTimeId }> {
+  const time = await db.brunchTime.create({
+    data: {
+      brunchId: input.brunchId,
+      scheduledAt: new Date(input.scheduledAt),
+      proposedById: input.proposedById,
+    },
+  });
+  return { id: time.id as BrunchTimeId };
+}
+
 export async function addTime(
   input: AddTimeInput,
   ctx: { readonly db: DbClient },
@@ -39,14 +68,12 @@ export async function addTime(
   if (activeResult.isErr()) return err(activeResult.error);
 
   try {
-    const time = await ctx.db.brunchTime.create({
-      data: {
-        brunchId: input.brunchId,
-        scheduledAt: new Date(input.scheduledAt),
-        proposedById: input.requestedById,
-      },
+    const created = await addTimeInTransaction(ctx.db, {
+      brunchId: input.brunchId,
+      proposedById: input.requestedById,
+      scheduledAt: input.scheduledAt,
     });
-    return ok({ id: time.id as BrunchTimeId });
+    return ok(created);
   } catch (cause) {
     return err({ kind: 'db_error', cause });
   }

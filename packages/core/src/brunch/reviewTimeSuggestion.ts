@@ -1,0 +1,74 @@
+import type { DbClient } from '@brunchsters/database';
+import type { BrunchId, BrunchTimeSuggestionId, UserId } from '@brunchsters/shared';
+import { err, ok, type Result } from 'neverthrow';
+import { z } from 'zod';
+import { addTimeInTransaction } from './addTime';
+
+export const reviewTimeSuggestionRequestSchema = z.object({
+  decision: z.enum(['approve', 'decline']),
+});
+
+export type ReviewTimeSuggestionRequest = z.infer<typeof reviewTimeSuggestionRequestSchema>;
+
+export type ReviewTimeSuggestionInput = ReviewTimeSuggestionRequest & {
+  readonly suggestionId: BrunchTimeSuggestionId;
+  readonly reviewedById: UserId;
+};
+
+export type ReviewTimeSuggestionError =
+  | { readonly kind: 'suggestion_not_found' }
+  | { readonly kind: 'not_host' }
+  | { readonly kind: 'already_reviewed' }
+  | { readonly kind: 'lookup_not_found'; readonly code: string }
+  | { readonly kind: 'db_error'; readonly cause: unknown };
+
+export async function reviewTimeSuggestion(
+  input: ReviewTimeSuggestionInput,
+  ctx: { readonly db: DbClient },
+): Promise<Result<{ suggestionId: BrunchTimeSuggestionId }, ReviewTimeSuggestionError>> {
+  const { db } = ctx;
+
+  const suggestion = await db.brunchTimeSuggestion.findFirst({
+    where: { id: input.suggestionId },
+    include: { brunch: true, status: true },
+  });
+  if (suggestion === null) return err({ kind: 'suggestion_not_found' });
+  if (suggestion.brunch.hostId !== input.reviewedById) return err({ kind: 'not_host' });
+  if (suggestion.status.code !== 'pending') return err({ kind: 'already_reviewed' });
+
+  const newStatusCode = input.decision === 'approve' ? 'approved' : 'declined';
+  const newStatus = await db.brunchOptionSuggestionStatus.findFirst({
+    where: { code: newStatusCode },
+  });
+  if (newStatus === null) {
+    return err({ kind: 'lookup_not_found', code: `BrunchOptionSuggestionStatus:${newStatusCode}` });
+  }
+
+  try {
+    await db.$transaction(async (tx) => {
+      if (input.decision === 'approve') {
+        // Same create logic addTime uses, run in the same transaction as the
+        // status update below — so a real time can never get created while
+        // the suggestion is left stuck at 'pending' (or vice versa) if one
+        // write succeeds and the other fails.
+        await addTimeInTransaction(tx, {
+          brunchId: suggestion.brunchId as BrunchId,
+          // "Adding a time" is a host action even when it originates from a
+          // suggestion — same precedent as reviewInviteSuggestion
+          // attributing the resulting invite to the host, not the suggester.
+          proposedById: suggestion.brunch.hostId as UserId,
+          scheduledAt: suggestion.scheduledAt.toISOString(),
+        });
+      }
+
+      await tx.brunchTimeSuggestion.update({
+        where: { id: input.suggestionId },
+        data: { statusId: newStatus.id, reviewedById: input.reviewedById, reviewedAt: new Date() },
+      });
+    });
+  } catch (cause) {
+    return err({ kind: 'db_error', cause });
+  }
+
+  return ok({ suggestionId: input.suggestionId });
+}

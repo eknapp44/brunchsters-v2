@@ -18,7 +18,25 @@ export type VoteOptionSummary = {
   readonly voters: readonly string[] | undefined;
 };
 
-export type BrunchVotingKind = {
+export type PendingLocationSuggestion = {
+  readonly id: string;
+  readonly placeId: string;
+  readonly placeName: string;
+  readonly placeAddress: string;
+  readonly placeUrl: string;
+  readonly timezone: string;
+  readonly suggestedByName: string;
+  readonly suggestedByViewer: boolean;
+};
+
+export type PendingTimeSuggestion = {
+  readonly id: string;
+  readonly scheduledAt: Date;
+  readonly suggestedByName: string;
+  readonly suggestedByViewer: boolean;
+};
+
+export type BrunchVotingKind<TPendingSuggestion> = {
   readonly mode: DecisionMode;
   readonly closed: boolean;
   readonly options: readonly VoteOptionSummary[];
@@ -28,14 +46,17 @@ export type BrunchVotingKind = {
   // so it's a banner on the host's manage screen rather than a fire-once
   // event (see ADR-adjacent note in plan.md's "66% nudge is derived").
   readonly shouldSuggestClosing: boolean;
+  // The host sees every pending suggestion; anyone else sees only their own
+  // — mirrors the RSVP/vote visibility rule (PLANNING §17).
+  readonly pendingSuggestions: readonly TPendingSuggestion[];
 };
 
 // One shape for every viewer, regardless of role — a return type that
 // varied by caller identity would push role-checking into every consumer.
 export type BrunchVoting = {
   readonly canVote: boolean;
-  readonly locations: BrunchVotingKind;
-  readonly times: BrunchVotingKind;
+  readonly locations: BrunchVotingKind<PendingLocationSuggestion>;
+  readonly times: BrunchVotingKind<PendingTimeSuggestion>;
 };
 
 type GetBrunchVotingInput = {
@@ -51,14 +72,15 @@ type RawOption = {
   }[];
 };
 
-function buildKind(
+function buildKind<TPendingSuggestion>(
   options: readonly RawOption[],
   mode: DecisionMode,
   closed: boolean,
   viewerId: UserId,
   isHost: boolean,
   eligibleIds: ReadonlySet<string>,
-): BrunchVotingKind {
+  pendingSuggestions: readonly TPendingSuggestion[],
+): BrunchVotingKind<TPendingSuggestion> {
   const participantIds = new Set<string>();
   const builtOptions = options.map((option) => {
     for (const vote of option.votes) participantIds.add(vote.userId);
@@ -85,6 +107,7 @@ function buildKind(
     eligibleCount,
     participationRatio,
     shouldSuggestClosing,
+    pendingSuggestions,
   };
 }
 
@@ -123,7 +146,17 @@ export async function getBrunchVoting(
   });
   const eligibleIds = new Set(eligibleAttendees.map((a) => a.userId));
 
-  const [locationMode, timeMode, locations, times] = await Promise.all([
+  // The host sees every pending suggestion; everyone else sees only their own.
+  const suggestionScope = isHost ? {} : { suggestedById: input.viewerId };
+
+  const [
+    locationMode,
+    timeMode,
+    locations,
+    times,
+    pendingLocationSuggestions,
+    pendingTimeSuggestions,
+  ] = await Promise.all([
     deriveDecisionMode({ brunchId: input.brunchId, kind: 'location' }, { db }),
     deriveDecisionMode({ brunchId: input.brunchId, kind: 'time' }, { db }),
     db.brunchLocation.findMany({
@@ -134,11 +167,46 @@ export async function getBrunchVoting(
       where: { brunchId: input.brunchId },
       include: { votes: { include: { user: { select: { name: true } } } } },
     }),
+    db.brunchLocationSuggestion.findMany({
+      where: { brunchId: input.brunchId, status: { code: 'pending' }, ...suggestionScope },
+      include: { suggestedBy: { select: { name: true } } },
+    }),
+    db.brunchTimeSuggestion.findMany({
+      where: { brunchId: input.brunchId, status: { code: 'pending' }, ...suggestionScope },
+      include: { suggestedBy: { select: { name: true } } },
+    }),
   ]);
+
+  const locationSuggestions: readonly PendingLocationSuggestion[] = pendingLocationSuggestions.map(
+    (s) => ({
+      id: s.id,
+      placeId: s.placeId,
+      placeName: s.placeName,
+      placeAddress: s.placeAddress,
+      placeUrl: s.placeUrl,
+      timezone: s.timezone,
+      suggestedByName: s.suggestedBy.name,
+      suggestedByViewer: s.suggestedById === input.viewerId,
+    }),
+  );
+  const timeSuggestions: readonly PendingTimeSuggestion[] = pendingTimeSuggestions.map((s) => ({
+    id: s.id,
+    scheduledAt: s.scheduledAt,
+    suggestedByName: s.suggestedBy.name,
+    suggestedByViewer: s.suggestedById === input.viewerId,
+  }));
 
   return {
     canVote,
-    locations: buildKind(locations, locationMode, closed, input.viewerId, isHost, eligibleIds),
-    times: buildKind(times, timeMode, closed, input.viewerId, isHost, eligibleIds),
+    locations: buildKind(
+      locations,
+      locationMode,
+      closed,
+      input.viewerId,
+      isHost,
+      eligibleIds,
+      locationSuggestions,
+    ),
+    times: buildKind(times, timeMode, closed, input.viewerId, isHost, eligibleIds, timeSuggestions),
   };
 }

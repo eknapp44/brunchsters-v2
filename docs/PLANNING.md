@@ -189,6 +189,8 @@ Host controls per-brunch:
 - `requireHostApprovalToInvite` — must host approve suggestions?
 - `allowLocationSuggestions` — can invitees suggest places?
 - `allowTimeSuggestions` — can invitees suggest times?
+- `requireHostApprovalForOptions` — must host approve location/time suggestions? (spec 0005 M6 — added so location/time suggestions have the same approval gate invite suggestions already had; the two
+  original flags above shipped with spec 0004 before this gap was noticed)
 
 **Defaults:** All permissions ON, host approval required (always safe default).
 
@@ -404,12 +406,14 @@ Brunch {
   hostId (FK → User, indexed)
   statusId (FK → BrunchStatus, indexed)
   votingDeadline (nullable)
+  votingClosedAt (nullable)  // early manual close (spec 0005 M4) — see §9.7
 
   // Permissions (folded in from BrunchSettings)
   allowInviteSuggestions (default true)
   requireHostApprovalToInvite (default true)
   allowLocationSuggestions (default true)
   allowTimeSuggestions (default true)
+  requireHostApprovalForOptions (default true)  // spec 0005 M6
 
   // Host transfer — one transfer per brunch, kept for audit trail
   hostTransferredAt (nullable)
@@ -537,6 +541,45 @@ BrunchTimeVote {
   userId (FK → User, indexed)
   createdAt, updatedAt
   // composite unique: brunchTimeId + userId
+}
+```
+
+### Option Suggestions `[v1 schema + ui]`
+
+Mirrors BrunchInviteSuggestion's shape (spec 0005 M6). Kept as their own tables
+rather than a pending-status column on BrunchLocation/BrunchTime — with
+decisionTypeId derived from a count of option rows (ADR 0006), a pending
+suggestion sitting in those tables would silently flip a brunch into
+group_vote before the host ever approved it.
+
+```typescript
+BrunchOptionSuggestionStatus {
+  id, code, label, description, isActive, sortOrder, createdAt, updatedAt
+  // values: pending, approved, declined
+}
+
+BrunchLocationSuggestion {
+  id
+  brunchId (FK → Brunch, indexed)
+  suggestedBy (FK → User)
+  placeId, placeName, placeAddress, placeUrl, timezone  // same shape as BrunchLocation
+  statusId (FK → BrunchOptionSuggestionStatus)
+  reviewedBy (FK → User, nullable)
+  reviewedAt (nullable)
+  createdAt, updatedAt
+  // unique: brunchId + placeId (can only suggest a given place once)
+}
+
+BrunchTimeSuggestion {
+  id
+  brunchId (FK → Brunch, indexed)
+  suggestedBy (FK → User)
+  scheduledAt (UTC)
+  statusId (FK → BrunchOptionSuggestionStatus)
+  reviewedBy (FK → User, nullable)
+  reviewedAt (nullable)
+  createdAt, updatedAt
+  // unique: brunchId + scheduledAt (can only suggest a given time once)
 }
 ```
 
@@ -846,6 +889,7 @@ BrunchStatus:                  draft, active, confirmed, brunching*, paying*,
 BrunchDecisionType:            host_decides, group_vote
 RsvpStatus:                    invited, yes, no, maybe
 BrunchInviteSuggestionStatus:  pending, approved, declined
+BrunchOptionSuggestionStatus:  pending, approved, declined
 NotificationType:              rsvp.received, vote.cast, invite.suggestion,
                                location.suggested, time.suggested,
                                brunch.confirmed, vote.deadline.approaching,

@@ -6,6 +6,8 @@ export type InviteId = Brand<string, 'InviteId'>;
 export type InviteSuggestionId = Brand<string, 'InviteSuggestionId'>;
 export type BrunchLocationId = Brand<string, 'BrunchLocationId'>;
 export type BrunchTimeId = Brand<string, 'BrunchTimeId'>;
+export type BrunchLocationSuggestionId = Brand<string, 'BrunchLocationSuggestionId'>;
+export type BrunchTimeSuggestionId = Brand<string, 'BrunchTimeSuggestionId'>;
 
 // Not a domain entity ID — a branded primitive for type safety at API boundaries
 export type Email = Brand<string, 'Email'>;

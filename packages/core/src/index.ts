@@ -41,7 +41,13 @@ export type {
 export { castTimeBallot } from './brunch/castTimeBallot';
 export type { CastTimeBallotError, CastTimeBallotInput } from './brunch/castTimeBallot';
 export { getBrunchVoting } from './brunch/getBrunchVoting';
-export type { BrunchVoting, BrunchVotingKind, VoteOptionSummary } from './brunch/getBrunchVoting';
+export type {
+  BrunchVoting,
+  BrunchVotingKind,
+  PendingLocationSuggestion,
+  PendingTimeSuggestion,
+  VoteOptionSummary,
+} from './brunch/getBrunchVoting';
 export { assertVotingOpen, isVotingClosed } from './brunch/guards/assertVotingOpen';
 export type { AssertVotingOpenError, ClosableBrunch } from './brunch/guards/assertVotingOpen';
 export { closeVoting } from './brunch/closeVoting';
@@ -57,6 +63,37 @@ export type {
 } from './brunch/updateVotingDeadline';
 export { confirmBrunch } from './brunch/confirmBrunch';
 export type { ConfirmBrunchError, ConfirmBrunchInput } from './brunch/confirmBrunch';
+export { suggestLocation } from './brunch/suggestLocation';
+export type {
+  SuggestLocationError,
+  SuggestLocationInput,
+  SuggestLocationResult,
+} from './brunch/suggestLocation';
+export { suggestTime, suggestTimeRequestSchema } from './brunch/suggestTime';
+export type {
+  SuggestTimeError,
+  SuggestTimeInput,
+  SuggestTimeRequest,
+  SuggestTimeResult,
+} from './brunch/suggestTime';
+export {
+  reviewLocationSuggestion,
+  reviewLocationSuggestionRequestSchema,
+} from './brunch/reviewLocationSuggestion';
+export type {
+  ReviewLocationSuggestionError,
+  ReviewLocationSuggestionInput,
+  ReviewLocationSuggestionRequest,
+} from './brunch/reviewLocationSuggestion';
+export {
+  reviewTimeSuggestion,
+  reviewTimeSuggestionRequestSchema,
+} from './brunch/reviewTimeSuggestion';
+export type {
+  ReviewTimeSuggestionError,
+  ReviewTimeSuggestionInput,
+  ReviewTimeSuggestionRequest,
+} from './brunch/reviewTimeSuggestion';
 export { getBrunchesForUser } from './brunch/getBrunchesForUser';
 export type { BrunchSummary } from './brunch/getBrunchesForUser';
 export { sendInvites, sendInvitesRequestSchema } from './invite/sendInvites';

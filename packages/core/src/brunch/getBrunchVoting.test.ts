@@ -15,6 +15,8 @@ type Overrides = {
   timeCount?: ReturnType<typeof vi.fn>;
   findManyLocations?: ReturnType<typeof vi.fn>;
   findManyTimes?: ReturnType<typeof vi.fn>;
+  findManyLocationSuggestions?: ReturnType<typeof vi.fn>;
+  findManyTimeSuggestions?: ReturnType<typeof vi.fn>;
 };
 
 const OPEN_BRUNCH = {
@@ -45,6 +47,12 @@ function makeMockDb(overrides: Overrides): DbClient {
     brunchTime: {
       count: overrides.timeCount ?? vi.fn().mockResolvedValue(2),
       findMany: overrides.findManyTimes ?? vi.fn().mockResolvedValue([]),
+    },
+    brunchLocationSuggestion: {
+      findMany: overrides.findManyLocationSuggestions ?? vi.fn().mockResolvedValue([]),
+    },
+    brunchTimeSuggestion: {
+      findMany: overrides.findManyTimeSuggestions ?? vi.fn().mockResolvedValue([]),
     },
   } as unknown as DbClient;
 }
@@ -340,5 +348,76 @@ describe('getBrunchVoting', () => {
 
     expect(result?.locations.closed).toBe(true);
     expect(result?.locations.shouldSuggestClosing).toBe(false);
+  });
+
+  it('shows the host every pending location suggestion', async () => {
+    const findManyLocationSuggestions = vi.fn().mockResolvedValue([
+      {
+        id: 'sugg-1',
+        placeId: 'place-1',
+        placeName: 'Cafe Suggested',
+        placeAddress: '9 Side St',
+        placeUrl: 'https://maps.google.com/?cid=z',
+        timezone: 'America/Chicago',
+        suggestedById: 'other-uuid',
+        suggestedBy: { name: 'Other' },
+      },
+    ]);
+    const db = makeMockDb({ findManyLocationSuggestions });
+
+    const result = await getBrunchVoting({ brunchId: BRUNCH_ID, viewerId: HOST_ID }, { db });
+
+    expect(findManyLocationSuggestions).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { brunchId: BRUNCH_ID, status: { code: 'pending' } } }),
+    );
+    expect(result?.locations.pendingSuggestions).toEqual([
+      {
+        id: 'sugg-1',
+        placeId: 'place-1',
+        placeName: 'Cafe Suggested',
+        placeAddress: '9 Side St',
+        placeUrl: 'https://maps.google.com/?cid=z',
+        timezone: 'America/Chicago',
+        suggestedByName: 'Other',
+        suggestedByViewer: false,
+      },
+    ]);
+  });
+
+  it('scopes a non-host viewer to only their own pending suggestions', async () => {
+    const findManyLocationSuggestions = vi.fn().mockResolvedValue([]);
+    const db = makeMockDb({ findManyLocationSuggestions });
+
+    await getBrunchVoting({ brunchId: BRUNCH_ID, viewerId: VIEWER_ID }, { db });
+
+    expect(findManyLocationSuggestions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { brunchId: BRUNCH_ID, status: { code: 'pending' }, suggestedById: VIEWER_ID },
+      }),
+    );
+  });
+
+  it('marks suggestedByViewer true when the viewer made the suggestion', async () => {
+    const db = makeMockDb({
+      findManyTimeSuggestions: vi.fn().mockResolvedValue([
+        {
+          id: 'sugg-time-1',
+          scheduledAt: new Date('2026-08-01T15:00:00.000Z'),
+          suggestedById: VIEWER_ID,
+          suggestedBy: { name: 'Viewer' },
+        },
+      ]),
+    });
+
+    const result = await getBrunchVoting({ brunchId: BRUNCH_ID, viewerId: VIEWER_ID }, { db });
+
+    expect(result?.times.pendingSuggestions).toEqual([
+      {
+        id: 'sugg-time-1',
+        scheduledAt: new Date('2026-08-01T15:00:00.000Z'),
+        suggestedByName: 'Viewer',
+        suggestedByViewer: true,
+      },
+    ]);
   });
 });

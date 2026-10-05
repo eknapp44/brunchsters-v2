@@ -109,6 +109,21 @@ model BrunchInviteSuggestionStatus {
   suggestions BrunchInviteSuggestion[]
 }
 
+// values: pending, approved, declined
+model BrunchOptionSuggestionStatus {
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique
+  label       String
+  description String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  locationSuggestions BrunchLocationSuggestion[]
+  timeSuggestions     BrunchTimeSuggestion[]
+}
+
 model NotificationType {
   id          String   @id @default(uuid()) @db.Uuid
   code        String   @unique
@@ -166,6 +181,10 @@ model User {
   proposedTimes                    BrunchTime[]                @relation("BrunchTimeProposedBy")
   locationVotes                    BrunchLocationVote[]
   timeVotes                        BrunchTimeVote[]
+  locationSuggestionsMade          BrunchLocationSuggestion[]  @relation("LocationSuggestionSuggestedBy")
+  locationSuggestionsReviewed      BrunchLocationSuggestion[]  @relation("LocationSuggestionReviewedBy")
+  timeSuggestionsMade              BrunchTimeSuggestion[]      @relation("TimeSuggestionSuggestedBy")
+  timeSuggestionsReviewed          BrunchTimeSuggestion[]      @relation("TimeSuggestionReviewedBy")
   messages                         Message[]
   notifications                    Notification[]
   friendshipsRequested             Friendship[]                @relation("FriendshipRequester")
@@ -319,6 +338,7 @@ model Brunch {
   requireHostApprovalToInvite Boolean @default(true)
   allowLocationSuggestions    Boolean @default(true)
   allowTimeSuggestions        Boolean @default(true)
+  requireHostApprovalForOptions Boolean @default(true)
 
   // Host transfer — one transfer per brunch, kept for audit trail
   hostTransferredAt     DateTime?
@@ -342,6 +362,8 @@ model Brunch {
   inviteSuggestions   BrunchInviteSuggestion[]
   locations           BrunchLocation[]
   times               BrunchTime[]
+  locationSuggestions BrunchLocationSuggestion[]
+  timeSuggestions     BrunchTimeSuggestion[]
   messages            Message[]
   notifications       Notification[]
 
@@ -517,6 +539,58 @@ model BrunchTimeVote {
   @@unique([brunchTimeId, userId])
   @@index([brunchTimeId])
   @@index([userId])
+}
+
+// ─── Option Suggestions [v1 schema + ui] ──────────────────────────────────────
+// Mirror BrunchInviteSuggestion's shape (spec 0005 M6). Kept as their own
+// tables rather than a pending-status column on BrunchLocation/BrunchTime —
+// with decisionTypeId derived from a count of option rows (ADR 0006), a
+// pending suggestion sitting in those tables would silently flip a brunch
+// into group_vote before the host ever approved it. Every row in
+// BrunchLocation/BrunchTime must stay a real ballot option.
+
+model BrunchLocationSuggestion {
+  id            String    @id @default(uuid()) @db.Uuid
+  brunchId      String    @db.Uuid
+  suggestedById String    @db.Uuid
+  placeId       String
+  placeName     String
+  placeAddress  String
+  placeUrl      String
+  timezone      String
+  statusId      String    @db.Uuid
+  reviewedById  String?   @db.Uuid
+  reviewedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  brunch      Brunch                       @relation(fields: [brunchId], references: [id])
+  suggestedBy User                         @relation("LocationSuggestionSuggestedBy", fields: [suggestedById], references: [id])
+  status      BrunchOptionSuggestionStatus @relation(fields: [statusId], references: [id])
+  reviewedBy  User?                        @relation("LocationSuggestionReviewedBy", fields: [reviewedById], references: [id])
+
+  @@unique([brunchId, placeId])
+  @@index([brunchId])
+}
+
+model BrunchTimeSuggestion {
+  id            String    @id @default(uuid()) @db.Uuid
+  brunchId      String    @db.Uuid
+  suggestedById String    @db.Uuid
+  scheduledAt   DateTime
+  statusId      String    @db.Uuid
+  reviewedById  String?   @db.Uuid
+  reviewedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  brunch      Brunch                       @relation(fields: [brunchId], references: [id])
+  suggestedBy User                         @relation("TimeSuggestionSuggestedBy", fields: [suggestedById], references: [id])
+  status      BrunchOptionSuggestionStatus @relation(fields: [statusId], references: [id])
+  reviewedBy  User?                        @relation("TimeSuggestionReviewedBy", fields: [reviewedById], references: [id])
+
+  @@unique([brunchId, scheduledAt])
+  @@index([brunchId])
 }
 
 // ─── Group Chat [v1 schema only — ui deferred] ────────────────────────────────

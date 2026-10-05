@@ -210,6 +210,43 @@ async function main(): Promise<void> {
     });
   }
 
+  // ── BrunchOptionSuggestionStatus ─────────────────────────────────────────
+  const optionSuggestionStatuses = [
+    {
+      code: 'pending',
+      label: 'Pending',
+      description: 'Suggestion awaiting host review',
+      isActive: true,
+      sortOrder: 1,
+    },
+    {
+      code: 'approved',
+      label: 'Approved',
+      description: 'Host approved the suggestion',
+      isActive: true,
+      sortOrder: 2,
+    },
+    {
+      code: 'declined',
+      label: 'Declined',
+      description: 'Host declined the suggestion',
+      isActive: true,
+      sortOrder: 3,
+    },
+  ];
+  for (const oss of optionSuggestionStatuses) {
+    await prisma.brunchOptionSuggestionStatus.upsert({
+      where: { code: oss.code },
+      update: {
+        label: oss.label,
+        description: oss.description,
+        isActive: oss.isActive,
+        sortOrder: oss.sortOrder,
+      },
+      create: oss,
+    });
+  }
+
   // ── NotificationType ─────────────────────────────────────────────────────
   const notificationTypes = [
     { code: 'rsvp.received', label: 'RSVP Received', sortOrder: 1 },
