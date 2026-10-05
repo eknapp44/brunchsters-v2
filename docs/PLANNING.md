@@ -212,7 +212,7 @@ User can configure per-type preferences via `UserNotificationPreference`. Per-br
 - `rsvp.received` — someone responded to invite
 - `vote.cast` — someone voted
 - `vote.deadline.approaching` — pre-deadline reminder
-- `vote.autoclose.prompted` — ≥66% participation threshold reached, host prompted to close
+- `vote.autoclose.prompted` — ≥66% participation threshold reached, host prompted to close. **v1 note (spec 0005):** not a fired event — v1 has no notification delivery mechanism to fire it into, so the threshold is derived fresh on every read (`getBrunchVoting`'s `shouldSuggestClosing`) and surfaced as a banner on `/brunch/[id]/manage`, not a stored flag or queued job. Becomes a real Inngest-delivered notification once the notifications spec ships.
 - `invite.suggestion` — invitee suggested someone new
 - `location.suggested` — invitee suggested a place
 - `time.suggested` — invitee suggested a time
@@ -1396,14 +1396,14 @@ For solo side project: don't split. Premature.
 3. ✅ **Prisma schema** — codify this data model (specs/0001-repo-scaffold M4)
 4. ✅ **Seed lookup tables** (specs/0001-repo-scaffold M5)
 5. ✅ **Auth** — NextAuth + Google (specs/0002-auth). Apple Sign-In deliberately deferred — see spec 0002 "What".
-6. **Core brunch flow** — create → invite → attendee → vote → confirm
+6. ✅ **Core brunch flow** — create → invite → attendee → vote → confirm (specs/0001–0005)
    - ✅ create (specs/0003-create-brunch)
    - ✅ invite + attendee/RSVP (specs/0004-invitations)
-   - 🔄 vote — backend complete (specs/0005-voting-and-confirmation M1–M5): `castLocationBallot`/`castTimeBallot`, `closeVoting`, `updateVotingDeadline`, `getBrunchVoting`. Decision mode is derived, not stored (ADR 0006). No UI yet — blocked on M7.
-   - 🔄 confirm — backend complete (specs/0005-voting-and-confirmation M5): `confirmBrunch`, partial unique indexes enforcing one confirmed location/time per brunch. No UI yet — blocked on M8.
-7. ✅ **Google Places integration** — folded into specs/0003-create-brunch (`GooglePlacesProvider`: Places Autocomplete (New) + Time Zone API)
-8. **Notifications + Inngest** — not started. `EventBus` interface + `NoopEventBus` stub exist (services already emit through it); no real Inngest wiring or Resend email sending yet.
-9. **UI** — host flow, invitee flow, dashboard. Dashboard, creation wizard, brunch detail page, invite panel, RSVP control, suggestion panel, and the public invite landing page are all built (specs/0003, 0004). No voting UI yet — blocked on item 6.
+   - ✅ vote (specs/0005-voting-and-confirmation M1–M7): `castLocationBallot`/`castTimeBallot`, `closeVoting`, `updateVotingDeadline`, `getBrunchVoting`, and the `BallotChecklist`/`OptionSuggestionControl` UI on `/brunch/[id]`. Decision mode is derived, not stored (ADR 0006).
+   - ✅ confirm (specs/0005-voting-and-confirmation M5+M8): `confirmBrunch`, partial unique indexes enforcing one confirmed location/time per brunch, and the `/brunch/[id]/manage` host workbench (`OptionManager`, `VotingControls`, `ConfirmControl`, `OptionSuggestionReview`).
+7. ✅ **Google Places integration** — folded into specs/0003-create-brunch (`GooglePlacesProvider`: Places Autocomplete (New) + Time Zone API); `PlaceSearchInput` extracted in specs/0005 M8 and shared between the creation wizard and the manage route
+8. **Notifications + Inngest** — not started. `EventBus` interface + `NoopEventBus` stub exist (services already emit through it); no real Inngest wiring or Resend email sending yet. The 66% close-voting nudge (`vote.autoclose.prompted`, §7) is derived on every read rather than fired as an event, for the same reason — see §7's v1 note.
+9. **UI** — host flow, invitee flow, dashboard. Dashboard, creation wizard, brunch detail page, invite panel, RSVP control, suggestion panel, the public invite landing page, the voting/suggestion UI on the brunch detail page, and the host's manage workbench are all built (specs/0003, 0004, 0005).
 
 ### Setup tasks parallel to development
 

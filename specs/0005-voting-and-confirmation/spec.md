@@ -163,21 +163,21 @@ Components colocated beside the page, following the `InvitePanel` / `RsvpControl
 
 ### UI — `/brunch/[id]/manage` (host only)
 
-- [ ] New host-only route; non-hosts get `notFound()`
-- [ ] `PlaceSearchInput.tsx` extracted from `brunch/new/page.tsx`'s `StepTwo` into a shared component and reused by both the wizard and this route — its own commit, since it edits already-shipped wizard code
-- [ ] `OptionManager.tsx` — add/remove locations and times with vote counts
-- [ ] `VotingControls.tsx` — deadline editor, close-voting button, and the derived 66% nudge
-- [ ] `ConfirmControl.tsx` — options with counts, leader preselected, ties preselecting nothing, one action confirming both kinds, and a warning (not a block) when no one but the host has accepted
-- [ ] `OptionSuggestionReview.tsx` — pending location/time suggestions with approve/decline
-- [ ] Read-only summary once confirmed
-- [ ] `pnpm typecheck` and `pnpm lint` pass
-- [ ] Full browser test with two Google accounts: host creates a brunch with two times, invites, second account RSVPs `maybe` and votes, host sees the count on manage, second account suggests a third time, host approves it, both vote on it, host closes voting and confirms, both sessions show the locked brunch with consistent times
+- [x] New host-only route; non-hosts get `notFound()`
+- [x] `PlaceSearchInput.tsx` extracted from `brunch/new/page.tsx`'s `StepTwo` into a shared component and reused by both the wizard and this route — its own commit, since it edits already-shipped wizard code
+- [x] `OptionManager.tsx` — add/remove locations and times with vote counts
+- [x] `VotingControls.tsx` — deadline editor, close-voting button, and the derived 66% nudge
+- [x] `ConfirmControl.tsx` — options with counts, leader preselected, ties preselecting nothing, one action confirming both kinds, and a warning (not a block) when no one but the host has accepted
+- [x] `OptionSuggestionReview.tsx` — pending location/time suggestions with approve/decline
+- [x] Read-only summary once confirmed
+- [x] `pnpm typecheck` and `pnpm lint` pass
+- [x] Full browser test with two Google accounts — **substituted** (tasks.md M7/M8 testing notes): no test-auth-bypass or Playwright exists yet, so this ran as a live-server smoke test against real Postgres with minted session JWTs instead of two real Google-account browser sessions; a real manual two-account pass is still open
 
 ### Docs
 
-- [ ] `tasks.md` testing notes per milestone
-- [ ] PLANNING §8 amended for the derived decision type, `canVote`, and `votingClosedAt`; §6 amended for `requireHostApprovalForOptions`; §7 amended to note `vote.autoclose.prompted` is derived in v1 and becomes a real notification with Inngest; §10 amended with this spec's events; §16 item 6 marked complete
-- [ ] ADR 0006 committed with the M1 migration
+- [x] `tasks.md` testing notes per milestone
+- [x] PLANNING §8 amended for the derived decision type, `canVote`, and `votingClosedAt`; §6 amended for `requireHostApprovalForOptions`; §7 amended to note `vote.autoclose.prompted` is derived in v1 and becomes a real notification with Inngest; §10 needed no edit (its events were already listed); §16 item 6 marked complete
+- [x] ADR 0006 committed with the M1 migration
 
 ---
 
