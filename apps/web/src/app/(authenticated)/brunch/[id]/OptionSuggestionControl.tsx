@@ -43,8 +43,12 @@ export function LocationSuggestionControl({
         ...(sessionToken !== undefined ? { sessionToken } : {}),
       });
       void fetch(`/api/v1/places/search?${params.toString()}`)
-        .then((response) => response.json() as Promise<{ places: readonly PlaceResult[] }>)
-        .then((data) => setPredictions(data.places))
+        .then((response) =>
+          response.ok
+            ? (response.json() as Promise<{ places: readonly PlaceResult[] }>)
+            : undefined,
+        )
+        .then((data) => setPredictions(data?.places ?? []))
         .catch(() => setPredictions([]));
     }, 300);
 
