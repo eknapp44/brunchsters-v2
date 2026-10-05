@@ -98,57 +98,57 @@ Times render in the viewer's local zone before a location is confirmed and in th
 
 ### Schema
 
-- [ ] `decisionTypeId` dropped from `BrunchLocation` and `BrunchTime` (ADR 0006); `BrunchDecisionType` table and seed retained, with a model comment explaining why it has no FKs
-- [ ] `RsvpStatus.canVote Boolean @default(false)` added and seeded true for `yes` and `maybe`, false for `invited` and `no` — separates "gets a say" from `countsAsAttendee`'s "is coming". Seed update ships in the same commit as the column, per CLAUDE.md
-- [ ] `Brunch.votingClosedAt DateTime?` added — records an early manual close without destroying the host's original `votingDeadline`
-- [ ] `Brunch.requireHostApprovalForOptions Boolean @default(true)` added, mirroring `requireHostApprovalToInvite` (PLANNING §6 gained `allowLocationSuggestions`/`allowTimeSuggestions` without a matching approval flag)
-- [ ] Partial unique indexes so the database — not just the service — enforces at most one confirmed location and one confirmed time per brunch: `CREATE UNIQUE INDEX ... ON "BrunchLocation"("brunchId") WHERE "isConfirmed" AND "deletedAt" IS NULL`, and the equivalent for `BrunchTime`
-- [ ] `BrunchOptionSuggestionStatus` lookup table (`pending`, `approved`, `declined`) + seed entries, mirroring `BrunchInviteSuggestionStatus`
-- [ ] `BrunchLocationSuggestion` and `BrunchTimeSuggestion` tables, mirroring `BrunchInviteSuggestion` (`suggestedById`, `statusId`, `reviewedById`, `reviewedAt`, plus the kind's own payload columns)
-- [ ] **No** `...VotePromptedAt` columns — the 66% nudge is derived (see Decisions)
-- [ ] Migrations generated and committed alongside each schema change
+- [x] `decisionTypeId` dropped from `BrunchLocation` and `BrunchTime` (ADR 0006); `BrunchDecisionType` table and seed retained, with a model comment explaining why it has no FKs
+- [x] `RsvpStatus.canVote Boolean @default(false)` added and seeded true for `yes` and `maybe`, false for `invited` and `no` — separates "gets a say" from `countsAsAttendee`'s "is coming". Seed update ships in the same commit as the column, per CLAUDE.md
+- [x] `Brunch.votingClosedAt DateTime?` added — records an early manual close without destroying the host's original `votingDeadline`
+- [ ] `Brunch.requireHostApprovalForOptions Boolean @default(true)` added, mirroring `requireHostApprovalToInvite` (PLANNING §6 gained `allowLocationSuggestions`/`allowTimeSuggestions` without a matching approval flag) — **M6**
+- [x] Partial unique indexes so the database — not just the service — enforces at most one confirmed location and one confirmed time per brunch: `CREATE UNIQUE INDEX ... ON "BrunchLocation"("brunchId") WHERE "isConfirmed" AND "deletedAt" IS NULL`, and the equivalent for `BrunchTime`
+- [ ] `BrunchOptionSuggestionStatus` lookup table (`pending`, `approved`, `declined`) + seed entries, mirroring `BrunchInviteSuggestionStatus` — **M6**
+- [ ] `BrunchLocationSuggestion` and `BrunchTimeSuggestion` tables, mirroring `BrunchInviteSuggestion` (`suggestedById`, `statusId`, `reviewedById`, `reviewedAt`, plus the kind's own payload columns) — **M6**
+- [x] **No** `...VotePromptedAt` columns — the 66% nudge is derived (see Decisions)
+- [x] Migrations generated and committed alongside each schema change
 
 ### Shared guards (`packages/core/src/brunch/guards/`)
 
 Location and time operations are structurally parallel but not type-identical — Prisma generates distinct delegates per model, and the vote FK differs (`brunchLocationId` vs `brunchTimeId`). Rather than one service taking a `kind` discriminant and casting its way across delegates, the _shared_ logic is extracted and the per-kind services stay thin and fully typed.
 
-- [ ] `assertHostOf({ brunchId, userId }, ctx)` → `Result<Brunch, 'brunch_not_found' | 'not_host'>`
-- [ ] `assertBrunchActive(brunch)` → `Result<void, 'brunch_not_active'>`
-- [ ] `assertVotingOpen(brunch)` → `Result<void, 'voting_closed'>` — the derived predicate, callable inside a transaction
-- [ ] `assertCanVote({ brunchId, userId }, ctx)` → `Result<BrunchAttendee, 'not_an_attendee' | 'cannot_vote'>` — reads `RsvpStatus.canVote`
-- [ ] `deriveDecisionMode(optionCount)` → `'host_decides' | 'group_vote'`, and the one place allowed to run the option count, which always filters `deletedAt: null` (ADR 0006)
-- [ ] Unit tests for each guard in isolation
+- [x] `assertHostOf({ brunchId, userId }, ctx)` → `Result<Brunch, 'brunch_not_found' | 'not_host'>`
+- [x] `assertBrunchActive(brunch)` → `Result<void, 'brunch_not_active'>`
+- [x] `assertVotingOpen(brunch)` → `Result<void, 'voting_closed'>` — the derived predicate, callable inside a transaction
+- [x] `assertCanVote({ brunchId, userId }, ctx)` → `Result<BrunchAttendee, 'not_an_attendee' | 'cannot_vote'>` — reads `RsvpStatus.canVote`
+- [x] `deriveDecisionMode(optionCount)` → `'host_decides' | 'group_vote'`, and the one place allowed to run the option count, which always filters `deletedAt: null` (ADR 0006)
+- [x] Unit tests for each guard in isolation
 
 ### Services (`packages/core`)
 
 Per-kind pairs, each built on the guards above. Only `castBallot` and the read model are listed in detail; the time variants mirror the location ones exactly.
 
-- [ ] `addLocation` / `addTime` — host-only; reject a brunch that is not `active` (covers confirmed and cancelled); location payload reuses `locationInputSchema` from `createBrunch.ts`; time payload validates a future ISO datetime
-- [ ] `removeLocation` / `removeTime` — host-only; soft delete; reject removing a confirmed option (`option_confirmed`) or the last remaining option of a kind (`last_option`), or an option id belonging to another brunch (`unknown_option`)
-- [ ] `castLocationBallot` / `castTimeBallot` — replace the voter's entire set of votes for that kind in one transaction. Reject: brunch not `active`, voter not an attendee, `canVote` false, voting closed, empty `optionIds`, any option id not belonging to this brunch or soft-deleted, or a kind with only one option (nothing to vote on). Idempotent — re-sending the same set is a no-op. Emit `vote/cast` on the voter's first ballot for that kind, `vote/changed` after
-- [ ] `closeVoting` — host-only; sets `votingClosedAt = now`; rejects if already closed
-- [ ] `updateVotingDeadline` — host-only; future-dated or `undefined` to clear; rejects once voting is closed. Without this there is no way to set a deadline after creation
-- [ ] `confirmBrunch({ brunchId, requestedById, locationId, timeId }, ctx)` — host-only, one transaction: validates both ids belong to this brunch and are not soft-deleted, sets `isConfirmed`/`confirmedAt` on both, sets `votingClosedAt` if null, moves status to `confirmed`, and recomputes `tokenExpiresAt = scheduledAt + 7 days` on every active invite (spec 0004's deferred hook). Rejects: not host, brunch not `active`, no locations or no times, unknown option ids. Emits `brunch/confirmed` carrying whether each pick was the vote leader
-- [ ] `getBrunchVoting({ brunchId, viewerId }, ctx)` — one read model for both screens, returning **a single shape regardless of viewer**: per kind, the options with vote counts, the viewer's own selections, derived mode, derived closed state, `canVote`, `participationRatio`, `eligibleCount`, and `shouldSuggestClosing` (the derived nudge). Per-option `voters` is `readonly string[] | undefined` — populated only for the host, mirroring the RSVP visibility rule (PLANNING §17). A return type that varies by caller identity would be awkward to consume, so the field is optional rather than the type conditional
-- [ ] `suggestLocation` / `suggestTime` — reject when the kind's `allow...Suggestions` is false, the suggester is not an attendee, or the brunch is not `active`; auto-approve via the review service when `requireHostApprovalForOptions` is false, following the `suggestInvitee` precedent exactly
-- [ ] `reviewLocationSuggestion` / `reviewTimeSuggestion` — host-only; approve creates the real option via the matching add service and marks `approved`; decline marks `declined`; reject an already-reviewed suggestion
-- [ ] All option-id inputs are validated as belonging to the brunch in the path before use — an id from another brunch must never resolve
-- [ ] Every count and participation query filters the parent option's `deletedAt` — votes on a removed option must not count anywhere
-- [ ] Unit tests per service: happy path, host-only enforcement, eligibility rejection, closed-voting rejection, cross-brunch id rejection, soft-deleted-option handling, lookup-not-found and db-error mapping, event-emit-failure-still-Ok
-- [ ] Integration tests against local Postgres: full add-options → vote → change vote → close → confirm lifecycle; votes on a soft-deleted option excluded from counts; the partial unique index rejecting a second confirmed location; token expiry recomputed on confirm; a pending suggestion not affecting the derived mode
+- [x] `addLocation` / `addTime` — host-only; reject a brunch that is not `active` (covers confirmed and cancelled); location payload reuses `locationInputSchema` from `createBrunch.ts`; time payload validates a future ISO datetime
+- [x] `removeLocation` / `removeTime` — host-only; soft delete; reject removing a confirmed option (`option_confirmed`) or the last remaining option of a kind (`last_option`), or an option id belonging to another brunch (`unknown_option`)
+- [x] `castLocationBallot` / `castTimeBallot` — replace the voter's entire set of votes for that kind in one transaction. Reject: brunch not `active`, voter not an attendee, `canVote` false, voting closed, empty `optionIds`, any option id not belonging to this brunch or soft-deleted, or a kind with only one option (nothing to vote on). Idempotent — re-sending the same set is a no-op. Emit `vote/cast` on the voter's first ballot for that kind, `vote/changed` after
+- [x] `closeVoting` — host-only; sets `votingClosedAt = now`; rejects if already closed
+- [x] `updateVotingDeadline` — host-only; future-dated or `undefined` to clear; rejects once voting is closed. Without this there is no way to set a deadline after creation
+- [x] `confirmBrunch({ brunchId, requestedById, locationId, timeId }, ctx)` — host-only, one transaction: validates both ids belong to this brunch and are not soft-deleted, sets `isConfirmed`/`confirmedAt` on both, sets `votingClosedAt` if null, moves status to `confirmed`, and recomputes `tokenExpiresAt = scheduledAt + 7 days` on every active invite (spec 0004's deferred hook). Rejects: not host, brunch not `active`, no locations or no times, unknown option ids. Emits `brunch/confirmed` carrying whether each pick was the vote leader
+- [x] `getBrunchVoting({ brunchId, viewerId }, ctx)` — one read model for both screens, returning **a single shape regardless of viewer**: per kind, the options with vote counts, the viewer's own selections, derived mode, derived closed state, `canVote`, `participationRatio`, `eligibleCount`, and `shouldSuggestClosing` (the derived nudge). Per-option `voters` is `readonly string[] | undefined` — populated only for the host, mirroring the RSVP visibility rule (PLANNING §17). A return type that varies by caller identity would be awkward to consume, so the field is optional rather than the type conditional
+- [ ] `suggestLocation` / `suggestTime` — reject when the kind's `allow...Suggestions` is false, the suggester is not an attendee, or the brunch is not `active`; auto-approve via the review service when `requireHostApprovalForOptions` is false, following the `suggestInvitee` precedent exactly — **M6**
+- [ ] `reviewLocationSuggestion` / `reviewTimeSuggestion` — host-only; approve creates the real option via the matching add service and marks `approved`; decline marks `declined`; reject an already-reviewed suggestion — **M6**
+- [x] All option-id inputs are validated as belonging to the brunch in the path before use — an id from another brunch must never resolve
+- [x] Every count and participation query filters the parent option's `deletedAt` — votes on a removed option must not count anywhere
+- [x] Unit tests per service: happy path, host-only enforcement, eligibility rejection, closed-voting rejection, cross-brunch id rejection, soft-deleted-option handling, lookup-not-found and db-error mapping, event-emit-failure-still-Ok
+- [ ] Integration tests against local Postgres: full add-options → vote → change vote → close → confirm lifecycle (`fullVotingLifecycle.integration.test.ts` ✓); votes on a soft-deleted option excluded from counts ✓; the partial unique index rejecting a second confirmed location ✓; token expiry recomputed on confirm ✓; a pending suggestion not affecting the derived mode — **M6, not yet built**
 
 ### API routes
 
-- [ ] `POST /api/v1/brunches/:id/locations` and `.../times` — host-only; 201
-- [ ] `DELETE /api/v1/brunches/:id/locations/:optionId` and `.../times/:optionId` — host-only; 204
-- [ ] `PUT /api/v1/brunches/:id/votes/locations` and `.../times` — body `{ optionIds: string[] }`; whole-ballot replace; 200 with updated counts; 403 when the viewer may not vote; 409 when voting is closed
-- [ ] `POST /api/v1/brunches/:id/voting/close` — host-only; 200
-- [ ] `PATCH /api/v1/brunches/:id/voting/deadline` — host-only; body `{ votingDeadline: string | null }`; 200
-- [ ] `POST /api/v1/brunches/:id/confirm` — host-only; body `{ locationId, timeId }`; 200; 409 if already confirmed
-- [ ] `POST /api/v1/brunches/:id/location-suggestions` and `.../time-suggestions` — any attendee; 201; 403 when suggestions are disabled
-- [ ] `POST /api/v1/location-suggestions/:id/review` and `/time-suggestions/:id/review` — host-only; body `{ decision }`; 200
-- [ ] Route handler unit tests cover auth, ownership, and validation for every route
-- [ ] `pnpm typecheck` and `pnpm lint` pass
+- [x] `POST /api/v1/brunches/:id/locations` and `.../times` — host-only; 201
+- [x] `DELETE /api/v1/brunches/:id/locations/:optionId` and `.../times/:optionId` — host-only; 204
+- [x] `PUT /api/v1/brunches/:id/votes/locations` and `.../times` — body `{ optionIds: string[] }`; whole-ballot replace; 200 with updated counts; 403 when the viewer may not vote; 409 when voting is closed
+- [x] `POST /api/v1/brunches/:id/voting/close` — host-only; 200
+- [x] `PATCH /api/v1/brunches/:id/voting/deadline` — host-only; body `{ votingDeadline: string | null }`; 200
+- [x] `POST /api/v1/brunches/:id/confirm` — host-only; body `{ locationId, timeId }`; 200; 409 if already confirmed
+- [ ] `POST /api/v1/brunches/:id/location-suggestions` and `.../time-suggestions` — any attendee; 201; 403 when suggestions are disabled — **M6**
+- [ ] `POST /api/v1/location-suggestions/:id/review` and `/time-suggestions/:id/review` — host-only; body `{ decision }`; 200 — **M6**
+- [ ] Route handler unit tests cover auth, ownership, and validation for every route (true for every route built so far; remains open until M6's routes exist and are tested too)
+- [x] `pnpm typecheck` and `pnpm lint` pass
 
 ### UI — `/brunch/[id]` (shared view)
 

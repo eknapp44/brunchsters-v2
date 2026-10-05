@@ -1355,8 +1355,8 @@ For solo side project: don't split. Premature.
 6. **Core brunch flow** — create → invite → attendee → vote → confirm
    - ✅ create (specs/0003-create-brunch)
    - ✅ invite + attendee/RSVP (specs/0004-invitations)
-   - ❌ vote — not started. `decisionType` (`host_decides`/`group_vote`) exists in the data model, but no vote-casting service or UI yet.
-   - ❌ confirm — not started.
+   - 🔄 vote — backend complete (specs/0005-voting-and-confirmation M1–M5): `castLocationBallot`/`castTimeBallot`, `closeVoting`, `updateVotingDeadline`, `getBrunchVoting`. Decision mode is derived, not stored (ADR 0006). No UI yet — blocked on M7.
+   - 🔄 confirm — backend complete (specs/0005-voting-and-confirmation M5): `confirmBrunch`, partial unique indexes enforcing one confirmed location/time per brunch. No UI yet — blocked on M8.
 7. ✅ **Google Places integration** — folded into specs/0003-create-brunch (`GooglePlacesProvider`: Places Autocomplete (New) + Time Zone API)
 8. **Notifications + Inngest** — not started. `EventBus` interface + `NoopEventBus` stub exist (services already emit through it); no real Inngest wiring or Resend email sending yet.
 9. **UI** — host flow, invitee flow, dashboard. Dashboard, creation wizard, brunch detail page, invite panel, RSVP control, suggestion panel, and the public invite landing page are all built (specs/0003, 0004). No voting UI yet — blocked on item 6.
