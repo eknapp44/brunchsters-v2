@@ -3,6 +3,7 @@ import type { BrunchId, BrunchLocationSuggestionId, UserId } from '@brunchsters/
 import { err, ok, type Result } from 'neverthrow';
 import { z } from 'zod';
 import { addLocationInTransaction } from './addLocation';
+import { assertBrunchActive, type AssertBrunchActiveError } from './guards/assertBrunchActive';
 
 export const reviewLocationSuggestionRequestSchema = z.object({
   decision: z.enum(['approve', 'decline']),
@@ -18,6 +19,7 @@ export type ReviewLocationSuggestionInput = ReviewLocationSuggestionRequest & {
 export type ReviewLocationSuggestionError =
   | { readonly kind: 'suggestion_not_found' }
   | { readonly kind: 'not_host' }
+  | AssertBrunchActiveError
   | { readonly kind: 'already_reviewed' }
   | { readonly kind: 'lookup_not_found'; readonly code: string }
   | { readonly kind: 'db_error'; readonly cause: unknown };
@@ -30,10 +32,20 @@ export async function reviewLocationSuggestion(
 
   const suggestion = await db.brunchLocationSuggestion.findFirst({
     where: { id: input.suggestionId },
-    include: { brunch: true, status: true },
+    include: { brunch: { include: { status: true } }, status: true },
   });
   if (suggestion === null) return err({ kind: 'suggestion_not_found' });
   if (suggestion.brunch.hostId !== input.reviewedById) return err({ kind: 'not_host' });
+
+  // A suggestion can sit pending from before the brunch was confirmed (or
+  // cancelled) — without this, approving it after the fact would silently
+  // add a brand-new, never-voted-on option to a brunch that's supposed to be
+  // locked, with no way to remove it afterward (removeLocation/removeTime
+  // require active too). Declining a stale suggestion is equally blocked —
+  // there's no reason to review anything once the brunch itself is settled.
+  const activeResult = assertBrunchActive(suggestion.brunch);
+  if (activeResult.isErr()) return err(activeResult.error);
+
   if (suggestion.status.code !== 'pending') return err({ kind: 'already_reviewed' });
 
   const newStatusCode = input.decision === 'approve' ? 'approved' : 'declined';

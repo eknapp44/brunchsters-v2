@@ -53,6 +53,8 @@ export async function POST(
           { error: 'Only the host can review suggestions' },
           { status: 403 },
         );
+      case 'brunch_not_active':
+        return NextResponse.json({ error: 'Brunch is not open for changes' }, { status: 409 });
       case 'already_reviewed':
         return NextResponse.json(
           { error: 'This suggestion was already reviewed' },

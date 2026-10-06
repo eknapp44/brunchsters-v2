@@ -190,6 +190,7 @@ Components colocated beside the page, following the `InvitePanel` / `RsvpControl
 - **`maybe` attendees can vote**, via `RsvpStatus.canVote` rather than by overloading `countsAsAttendee`.
 - **The 66% nudge is derived rather than stored**, because v1 has no way to deliver the notification it was guarding.
 - **Host management lives on its own route**, per PLANNING §5's "Manage Brunch" step and §1's one-primary-action principle.
+- **A vote survives the voter later dropping below `canVote` (e.g. RSVP changed to `no`).** Raised during the pre-MR architect review: `updateRsvp` never touches `BrunchLocationVote`/`BrunchTimeVote`, so a vote cast while `yes`/`maybe` keeps counting toward `voteCount`, the host's `voters` list, and `ConfirmControl`'s leader preselection even after the voter says they're not coming. `participationRatio`/`eligibleCount`/the 66% nudge are unaffected either way — `getBrunchVoting` already filters participants against the _current_ eligible set. Decided to leave votes sticky, consistent with the mode-round-trip answer below: a vote is a timestamped record of "this person endorsed this option," not a live poll of current attendees, and clearing it on RSVP change would be new, asymmetric logic in spec 0004's `updateRsvp` for a spec 0005 concern. Pinned by `voting.integration.test.ts`.
 
 ### Still open
 

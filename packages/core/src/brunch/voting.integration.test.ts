@@ -3,6 +3,7 @@ import type { BrunchId, BrunchLocationId, InviteToken, UserId } from '@brunchste
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { respondToInvite } from '../invite/respondToInvite';
 import { sendInvites } from '../invite/sendInvites';
+import { updateRsvp } from '../invite/updateRsvp';
 import { NoopEventBus } from '../events/NoopEventBus';
 import { castLocationBallot } from './castLocationBallot';
 import { createBrunch } from './createBrunch';
@@ -199,6 +200,37 @@ describe('voting (integration — real Postgres)', () => {
     );
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'unknown_option' });
+  });
+
+  it('a vote survives the voter later dropping RSVP to no (spec 0005 open question, resolved: votes stay sticky)', async () => {
+    const { brunchId, locationA } = await createVotableBrunch('rsvp-drop');
+
+    const voted = await castLocationBallot(
+      { brunchId, voterId: maybeVoterId, optionIds: [locationA] },
+      { db, eventBus },
+    );
+    expect(voted.isOk()).toBe(true);
+
+    const changed = await updateRsvp(
+      { brunchId, viewerId: maybeVoterId, response: 'no' },
+      { db, eventBus },
+    );
+    expect(changed.isOk()).toBe(true);
+
+    const voting = await getBrunchVoting({ brunchId, viewerId: hostId }, { db });
+    const optionA = voting?.locations.options.find((o) => o.id === locationA);
+
+    // The vote itself is untouched — still counted, still attributed.
+    expect(optionA?.voteCount).toBe(1);
+    expect(optionA?.voters).toContain('Integration Voting Maybe');
+    // But the now-ineligible voter no longer inflates participation —
+    // getBrunchVoting filters participants against the *current* eligible
+    // set, so this was already correct before this test existed. Eligible
+    // here is the host (synthetic yes) + the yes voter — plan.md's "the
+    // host counts toward eligibility" decision — now that maybeVoter opted
+    // out.
+    expect(voting?.locations.eligibleCount).toBe(2);
+    expect(voting?.locations.participationRatio).toBe(0);
   });
 
   it('a removed option is excluded from vote counts', async () => {

@@ -3,6 +3,7 @@ import type { BrunchId, BrunchTimeSuggestionId, UserId } from '@brunchsters/shar
 import { err, ok, type Result } from 'neverthrow';
 import { z } from 'zod';
 import { addTimeInTransaction } from './addTime';
+import { assertBrunchActive, type AssertBrunchActiveError } from './guards/assertBrunchActive';
 
 export const reviewTimeSuggestionRequestSchema = z.object({
   decision: z.enum(['approve', 'decline']),
@@ -18,6 +19,7 @@ export type ReviewTimeSuggestionInput = ReviewTimeSuggestionRequest & {
 export type ReviewTimeSuggestionError =
   | { readonly kind: 'suggestion_not_found' }
   | { readonly kind: 'not_host' }
+  | AssertBrunchActiveError
   | { readonly kind: 'already_reviewed' }
   | { readonly kind: 'lookup_not_found'; readonly code: string }
   | { readonly kind: 'db_error'; readonly cause: unknown };
@@ -30,10 +32,17 @@ export async function reviewTimeSuggestion(
 
   const suggestion = await db.brunchTimeSuggestion.findFirst({
     where: { id: input.suggestionId },
-    include: { brunch: true, status: true },
+    include: { brunch: { include: { status: true } }, status: true },
   });
   if (suggestion === null) return err({ kind: 'suggestion_not_found' });
   if (suggestion.brunch.hostId !== input.reviewedById) return err({ kind: 'not_host' });
+
+  // See reviewLocationSuggestion.ts's identical check for why this matters:
+  // a stale pending suggestion can otherwise be approved after the brunch is
+  // confirmed, with no way to remove the resulting option afterward.
+  const activeResult = assertBrunchActive(suggestion.brunch);
+  if (activeResult.isErr()) return err(activeResult.error);
+
   if (suggestion.status.code !== 'pending') return err({ kind: 'already_reviewed' });
 
   const newStatusCode = input.decision === 'approve' ? 'approved' : 'declined';

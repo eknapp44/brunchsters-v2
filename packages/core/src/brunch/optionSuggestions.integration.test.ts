@@ -1,10 +1,17 @@
 import { createDb } from '@brunchsters/database';
-import type { BrunchId, InviteToken, UserId } from '@brunchsters/shared';
+import type {
+  BrunchId,
+  BrunchLocationId,
+  BrunchTimeId,
+  InviteToken,
+  UserId,
+} from '@brunchsters/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { respondToInvite } from '../invite/respondToInvite';
 import { sendInvites } from '../invite/sendInvites';
 import { NoopEventBus } from '../events/NoopEventBus';
 import { castTimeBallot } from './castTimeBallot';
+import { confirmBrunch } from './confirmBrunch';
 import { createBrunch } from './createBrunch';
 import { deriveDecisionMode } from './guards/deriveDecisionMode';
 import { getBrunchVoting } from './getBrunchVoting';
@@ -40,10 +47,14 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  await db.brunchLocationVote.deleteMany({
+    where: { brunchLocation: { brunchId: { in: createdBrunchIds } } },
+  });
   await db.brunchTimeVote.deleteMany({
     where: { brunchTime: { brunchId: { in: createdBrunchIds } } },
   });
   await db.brunchTimeSuggestion.deleteMany({ where: { brunchId: { in: createdBrunchIds } } });
+  await db.brunchLocation.deleteMany({ where: { brunchId: { in: createdBrunchIds } } });
   await db.brunchTime.deleteMany({ where: { brunchId: { in: createdBrunchIds } } });
   await db.brunchAttendee.deleteMany({ where: { brunchId: { in: createdBrunchIds } } });
   await db.brunchInvite.deleteMany({ where: { brunchId: { in: createdBrunchIds } } });
@@ -178,5 +189,82 @@ describe('option suggestions (integration — real Postgres)', () => {
       await db.brunchOptionSuggestionStatus.findFirst({ where: { id: suggestion.statusId } }),
     );
     expect(status.code).toBe('declined');
+  });
+
+  it('rejects approving a stale pending suggestion once the brunch is confirmed', async () => {
+    // Reproduces the gap found in the senior-architect review pass: a
+    // suggestion submitted before confirmation, never reviewed, used to be
+    // approvable afterward too — silently adding a brand-new, never-voted-on
+    // option to a brunch that's supposed to be locked, with no way to remove
+    // it (removeLocation/removeTime also require active).
+    const brunch = await createBrunch(
+      {
+        title: 'stale-suggestion-after-confirm',
+        hostId,
+        locations: [
+          {
+            placeId: `place-stale-${RUN_ID}`,
+            placeName: 'Stale Test Cafe',
+            placeAddress: '1 Stale St',
+            placeUrl: 'https://maps.google.com/?cid=stale',
+            timezone: 'America/Chicago',
+          },
+        ],
+        times: [{ scheduledAt: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000).toISOString() }],
+      },
+      { db, eventBus },
+    );
+    expect(brunch.isOk()).toBe(true);
+    const brunchId = brunch._unsafeUnwrap().id;
+    createdBrunchIds.push(brunchId);
+
+    const invites = await sendInvites(
+      { brunchId, invitedById: hostId, emails: [VOTER_EMAIL] },
+      { db, eventBus },
+    );
+    expect(invites.isOk()).toBe(true);
+    const invite = required(
+      await db.brunchInvite.findFirst({ where: { brunchId, invitedEmail: VOTER_EMAIL } }),
+    );
+    await respondToInvite(
+      { token: invite.token as InviteToken, viewerId: voterId, response: 'yes' },
+      { db, eventBus },
+    );
+
+    const suggested = await suggestTime(
+      {
+        brunchId,
+        suggestedById: voterId,
+        scheduledAt: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString(),
+      },
+      { db },
+    );
+    expect(suggested.isOk()).toBe(true);
+    const suggestionId = suggested._unsafeUnwrap().suggestionId;
+
+    // Only the original time exists at this point — the suggestion is still
+    // pending, not yet a real BrunchTime row.
+    const location = required(await db.brunchLocation.findFirst({ where: { brunchId } }));
+    const time = required(await db.brunchTime.findFirst({ where: { brunchId } }));
+    const confirmed = await confirmBrunch(
+      {
+        brunchId,
+        requestedById: hostId,
+        locationId: location.id as BrunchLocationId,
+        timeId: time.id as BrunchTimeId,
+      },
+      { db, eventBus },
+    );
+    expect(confirmed.isOk()).toBe(true);
+
+    const reviewed = await reviewTimeSuggestion(
+      { suggestionId, reviewedById: hostId, decision: 'approve' },
+      { db },
+    );
+    expect(reviewed._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_active' });
+
+    // And the stale suggestion never silently became a real option.
+    const timeCount = await db.brunchTime.count({ where: { brunchId, deletedAt: null } });
+    expect(timeCount).toBe(1);
   });
 });

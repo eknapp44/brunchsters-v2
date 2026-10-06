@@ -115,6 +115,23 @@ describe('reviewTimeSuggestion', () => {
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'not_host' });
   });
 
+  it('returns brunch_not_active when the brunch is confirmed, even for a still-pending suggestion', async () => {
+    const db = makeMockDb({
+      findFirst: vi.fn().mockResolvedValue({
+        ...PENDING_SUGGESTION,
+        brunch: { ...PENDING_SUGGESTION.brunch, status: { code: 'confirmed' } },
+      }),
+    });
+
+    const result = await reviewTimeSuggestion(
+      { suggestionId: SUGGESTION_ID, reviewedById: HOST_ID, decision: 'approve' },
+      { db },
+    );
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_active' });
+    expect(addTimeInTransaction).not.toHaveBeenCalled();
+  });
+
   it('returns already_reviewed when the suggestion is not pending', async () => {
     const db = makeMockDb({
       findFirst: vi.fn().mockResolvedValue({ ...PENDING_SUGGESTION, status: { code: 'declined' } }),

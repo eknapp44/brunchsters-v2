@@ -108,6 +108,17 @@ describe('POST /api/v1/location-suggestions/[id]/review', () => {
     expect(response.status).toBe(404);
   });
 
+  it('returns 409 when the brunch is no longer active', async () => {
+    mockAuth.mockResolvedValue(SESSION);
+    mockReview.mockResolvedValue(err({ kind: 'brunch_not_active' }));
+
+    const response = await POST(postRequest({ decision: 'approve' }), {
+      params: params(VALID_SUGGESTION_ID),
+    });
+
+    expect(response.status).toBe(409);
+  });
+
   it('returns 409 when the suggestion was already reviewed', async () => {
     mockAuth.mockResolvedValue(SESSION);
     mockReview.mockResolvedValue(err({ kind: 'already_reviewed' }));
