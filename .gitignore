@@ -33,3 +33,7 @@ coverage/
 # pnpm
 .pnp
 .pnp.js
+
+# Playwright
+playwright-report/
+test-results/

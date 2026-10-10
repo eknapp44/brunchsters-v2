@@ -8,21 +8,31 @@ For this spec "tests" means the Playwright suite itself; "green" for a journey m
 
 ## M1 — Playwright foundation and e2e database
 
-- [ ] Commit ADR 0007 and this spec (docs-only commit, before any code)
-- [ ] Add `@playwright/test` to `apps/web`; Chromium only
-- [ ] `playwright.config.ts`: `testDir: e2e/journeys`, one Chromium project, `webServer` on port 3100 with explicit env (`DATABASE_URL`, `DIRECT_URL`, `AUTH_URL`, `AUTH_SECRET`, placeholder Google creds), retries 1 in CI / 0 locally, trace on first retry, web-first defaults
-- [ ] `e2e/support/env.ts`: single place that reads `DATABASE_URL` / `BASE_URL`
-- [ ] `scripts/e2e-db-reset.ts` and `pnpm e2e:db:reset`: create-or-recreate the `brunchsters_e2e` database, `migrate deploy`, run the seed — non-interactive, works on Windows
-- [ ] `global-setup.ts`: allow-list guard on `DATABASE_URL`; server-uses-e2e-db check (mechanism per plan.md — record the choice)
-- [ ] Verify and record: does `webServer.env` override `apps/web/.env.local`?
-- [ ] Exclude `e2e/` from `apps/web`'s vitest config; confirm lint and typecheck cover `e2e/`
-- [ ] Scripts: `pnpm test:e2e` (root passthrough) — **not** wired into `pnpm test` / turbo `test`
-- [ ] One smoke spec: `/` renders the landing page with the sign-in CTA (proves server + guard + config)
-- [ ] A guard test (vitest, not Playwright): the allow-list rejects a dev DB URL, a remote host, and a missing URL; accepts the e2e URL
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` pass
-- [ ] Commit: `test: add Playwright foundation and isolated e2e database (M1)`
+- [x] Commit ADR 0007 and this spec (docs-only commit, before any code) — `d548770`
+- [x] Add `@playwright/test` to `apps/web`; Chromium only (also added `tsx` as a devDependency for the reset script)
+- [x] `playwright.config.ts`: `testDir: e2e/journeys`, one Chromium project, `webServer` on port 3100 with explicit env (`DATABASE_URL`, `DIRECT_URL`, `AUTH_URL`, `AUTH_SECRET`, placeholder Google creds), retries 1 in CI / 0 locally, trace on first retry, web-first defaults
+- [x] `e2e/support/env.ts`: single place that reads `E2E_DATABASE_URL` / `BASE_URL` (**diverged:** `E2E_DATABASE_URL`, not `DATABASE_URL` — see notes)
+- [x] `scripts/e2e-db-reset.ts` and `pnpm e2e:db:reset`: create-or-recreate the `brunchsters_e2e` database, `migrate deploy`, run the seed — non-interactive, works on Windows
+- [x] `global-setup.ts`: allow-list guard on the e2e database URL; ~~server-uses-e2e-db check~~ **replaced** by `reuseExistingServer: false` plus a one-off probe (see notes)
+- [x] Verify and record: does `webServer.env` override `apps/web/.env.local`? **Yes.**
+- [x] Exclude `e2e/journeys` from `apps/web`'s vitest config; lint and typecheck now cover `e2e/`, `scripts/` and `playwright.config.ts`
+- [x] Scripts: `pnpm test:e2e` (root passthrough) — **not** wired into `pnpm test` / turbo `test`
+- [x] One smoke spec: `/` renders the public landing page (**diverged:** `/` is currently a "Coming soon" stub with no sign-in CTA, so the spec asserts the heading; sign-in is covered from M2)
+- [x] A guard test (vitest, not Playwright): the allow-list rejects a dev DB URL, a remote host, and a missing URL; accepts the e2e URL
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` pass
+- [x] Commit: `test: add Playwright foundation and isolated e2e database (M1)`
 
-**Testing notes:** _(fill on completion)_
+**Testing notes:**
+
+- **What was tested:** The allow-list guard (`assertE2eDatabaseUrl`): accepts a local `*_e2e` database and a bare `e2e`; rejects an unset/empty URL, an unparseable URL, the dev database name, a remote host with the right database name, a name that merely contains `e2e` (`e2e_prod`), and a non-postgres protocol. End to end: the Playwright server boots on port 3100 against a freshly built e2e database and serves the public landing page. Also verified by hand, not by a committed test: (1) a throwaway probe route showed the server process sees `DATABASE_URL` → `/brunchsters_e2e`, the e2e `AUTH_URL`, and the placeholder Google id, i.e. **`webServer.env` overrides `apps/web/.env.local`**; (2) with another process already listening on 3100, Playwright aborts with "http://localhost:3100 is already used" rather than attaching; (3) the e2e server and a normal `next dev` on port 3000 run side by side without interfering (the `.next` directory is shared, but nothing broke). The probe route and its spec were deleted before commit.
+- **How:** Unit — `e2e/support/guard.test.ts`, 8 tests, run by `apps/web`'s existing vitest (web total is now 215 tests, 26 files; core 333). E2E — 1 Playwright test (`smoke.spec.ts`) against real Postgres (local Supabase, port 54322) via `pnpm test:e2e`, which recreates the database each run (~10s of migrate + seed). No mocks.
+- **Diverged from the original task list and ADR wording, and why:**
+  - **`E2E_DATABASE_URL`, not `DATABASE_URL`.** `DATABASE_URL` is what dev shells and `.env` files set, so reading it from the suite could silently aim it at the dev database. ADR 0007, spec.md and plan.md are updated to match.
+  - **No runtime "server is on the e2e database" check.** The plan wanted a mechanism proving the running server uses the e2e DB. Every candidate needed production code (a marker route or header) or an authenticated page, which does not exist until M2. Since Playwright starts the server itself with explicit env and `reuseExistingServer: false` refuses any other server on the port, the server is on the e2e DB by construction; the probe above verified it once. **M2's first authenticated test additionally proves it end to end** (a fixture-created brunch appears on the server-rendered dashboard).
+  - **Smoke spec asserts the heading**, not a sign-in CTA: `/` is still a stub. Spec 0002's "landing page with Sign in with Google CTA" is not what the page currently shows; noted, not fixed here.
+  - **`tsx` added** to `apps/web` devDependencies for the reset script.
+- **What's deferred:** CI wiring (M3) — locally verified only; in CI `next start` needs a prior `pnpm build` step and `E2E_DATABASE_URL` pointing at a database named `*_e2e` (M3 must create the Postgres service with that name). No authenticated or multi-actor behavior is exercised yet (M2). The `reset` runs on every `pnpm test:e2e`; for fast iteration use `pnpm --filter @brunchsters/web exec playwright test` against the existing database.
+- **How to run it:** `pnpm test:e2e` from the repo root (needs local Supabase running — `npx supabase start` from `packages/database`); `pnpm e2e:db:reset` for the database alone; `pnpm --filter @brunchsters/web exec playwright test --headed` or `--ui` to watch; guard unit tests run with `pnpm test`.
 
 ---
 

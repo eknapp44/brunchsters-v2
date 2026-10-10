@@ -94,8 +94,8 @@ The Google OAuth redirect itself is out of scope (ADR 0007); A3 is tested up to 
 
 - [ ] `pnpm test:e2e` runs the suite headlessly against an isolated e2e database and a dedicated-port server, locally and in CI
 - [ ] `pnpm e2e:db:reset` creates (or recreates) the e2e database, applies migrations non-interactively (`migrate deploy`), and seeds reference data
-- [ ] Global setup refuses to run when `DATABASE_URL` does not look like a test target, and fails if the running server is not using the e2e database
-- [ ] The e2e server never attaches to a dev server on the default port; it runs on its own port with `DATABASE_URL`/`AUTH_URL` set explicitly
+- [x] Global setup refuses to run when `E2E_DATABASE_URL` does not look like a test target (local host, database named `e2e` or `*_e2e`)
+- [x] The e2e server never attaches to a server it did not start (`reuseExistingServer: false`); it runs on its own port with `DATABASE_URL`/`AUTH_URL` set explicitly, and a probe confirmed it is on the e2e database (M1; replaces the originally planned "server-uses-e2e-db" runtime check)
 - [ ] `apps/web/src/auth.ts` and the Places route handlers are unchanged by this spec
 - [ ] Session cookies are minted for fixture users created via `signInWithProvider`; the helper works for the `http://localhost` cookie name
 - [ ] Each test creates its own users and brunch; the suite passes with parallel workers and in any order

@@ -220,7 +220,8 @@ The whole point: **fast, deterministic tests that run offline.**
 pnpm test                                          # unit tests across all packages (no DB needed)
 pnpm test:watch                                    # watch mode during a milestone (add script when needed)
 pnpm --filter @brunchsters/core test:integration   # integration tests — needs local Postgres (supabase start)
-pnpm test:e2e                                      # Playwright (added when E2E tests exist)
+pnpm test:e2e                                      # Playwright — recreates the brunchsters_e2e database, then runs the suite (needs supabase start)
+pnpm e2e:db:reset                                  # recreate + migrate + seed the e2e database only
 ```
 
 ### Local test database

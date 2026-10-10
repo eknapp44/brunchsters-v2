@@ -34,13 +34,13 @@ docs/SETUP.md, docs/PLANNING.md, CLAUDE.md           (updated — M3 / M8)
 
 ### Environment
 
-| Variable                                    | Local                                                                    | CI                                      |
-| ------------------------------------------- | ------------------------------------------------------------------------ | --------------------------------------- |
-| `DATABASE_URL` / `DIRECT_URL`               | `…/brunchsters_e2e` on the local Supabase Postgres (port 54322)          | the job's Postgres 17 service container |
-| `BASE_URL` / `AUTH_URL`                     | `http://localhost:3100`                                                  | `http://localhost:3100`                 |
-| `AUTH_SECRET`                               | a fixed non-secret test value, shared by the test process and the server | same                                    |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | placeholders (needed only so `auth.ts` boots)                            | placeholders                            |
-| `GOOGLE_PLACES_API_KEY`                     | not needed (requests intercepted)                                        | not needed                              |
+| Variable                                                             | Local                                                                                 | CI                                                                      |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `E2E_DATABASE_URL` (server gets it as `DATABASE_URL` / `DIRECT_URL`) | `…/brunchsters_e2e` on the local Supabase Postgres (port 54322), the built-in default | the job's Postgres 17 service container; database must be named `*_e2e` |
+| `BASE_URL` / `AUTH_URL`                                              | `http://localhost:3100`                                                               | `http://localhost:3100`                                                 |
+| `AUTH_SECRET`                                                        | a fixed non-secret test value, shared by the test process and the server              | same                                                                    |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`                          | placeholders (needed only so `auth.ts` boots)                                         | placeholders                                                            |
+| `GOOGLE_PLACES_API_KEY`                                              | not needed (requests intercepted)                                                     | not needed                                                              |
 
 The server is started by Playwright's `webServer` with this env set explicitly (`next dev -p 3100` locally, `next build && next start -p 3100` in CI). Process env takes precedence over `.env.local` in Next; M1 verifies this and records it.
 
@@ -48,7 +48,7 @@ The server is started by Playwright's `webServer` with this env set explicitly (
 
 `global-setup.ts` runs before any test:
 
-1. Parse `DATABASE_URL`; fail unless the database name ends in `_e2e` (or `e2e`) **and** the host is `localhost`/`127.0.0.1` (CI's service container is on localhost too). This is a deliberate allow-list, so pointing the suite at a real environment is a code change, not a typo.
+1. Parse `E2E_DATABASE_URL` (the suite's own variable, never the dev `DATABASE_URL`); fail unless the database name ends in `_e2e` (or `e2e`) **and** the host is `localhost`/`127.0.0.1` (CI's service container is on localhost too). This is a deliberate allow-list, so pointing the suite at a real environment is a code change, not a typo.
 2. Hit a lightweight check against the running server proving it is on the e2e DB. Mechanism chosen in M1 (candidates: fixtures create a marker row and the server-rendered result is inspected; or a test-only response header — rejected if it needs production code). If no mechanism avoids touching production code, rely on the dedicated port plus explicit `webServer.env` and record the residual risk.
 
 ### Authentication

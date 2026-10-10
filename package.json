@@ -11,6 +11,8 @@
     "typecheck": "turbo typecheck",
     "lint": "eslint . --max-warnings 0",
     "test": "turbo test",
+    "test:e2e": "pnpm --filter @brunchsters/web test:e2e",
+    "e2e:db:reset": "pnpm --filter @brunchsters/web e2e:db:reset",
     "dev": "turbo dev",
     "db:migrate": "pnpm --filter @brunchsters/database exec prisma migrate dev",
     "db:generate": "pnpm --filter @brunchsters/database exec prisma generate",
