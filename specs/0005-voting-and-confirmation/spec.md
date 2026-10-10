@@ -1,6 +1,6 @@
 # Spec 0005 — Voting and Confirmation
 
-**Status:** Draft  
+**Status:** Complete  
 **Branch:** `feat/0005-voting-and-confirmation`  
 **PLANNING.md ref:** §1 Design principles, §5 Host Journey / Confirmation Lock Rules / Edge Cases / Minimum Brunch Size, §6 Permissions Model, §7 Notifications, §8 Location & Time / Votes schema, §9.3 Timezone display, §9.7 Voting Close Rule, §10 Async Event Architecture, §16 Build Order item 6  
 **ADRs:** [0006 — Derive decision type instead of storing it](../../docs/adrs/0006-derive-decision-type.md)
