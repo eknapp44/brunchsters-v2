@@ -62,16 +62,22 @@ For this spec "tests" means the Playwright suite itself; "green" for a journey m
 
 ## M3 — CI job and docs
 
-- [ ] `ci.yml`: new `e2e` job (Postgres 17 service, install, generate, migrate deploy, seed, build, cached `playwright install chromium`, `pnpm test:e2e`, upload report and traces on failure)
-- [ ] Confirm the job fails when a test fails (temporary failing commit or `act`-style dry run noted in testing notes)
-- [ ] `docs/SETUP.md`: e2e database setup, `pnpm test:e2e`, `--headed` / `--ui` / trace viewer, where reports land, the "never attaches to your dev server" note, Windows port notes if any
-- [ ] `docs/PLANNING.md`: §16 item 10 in progress; §17 E2E entry linked to ADR 0007
-- [ ] `CLAUDE.md` Testing section: E2E location, fixtures-use-core-services rule, journeys-not-permutations rule
-- [ ] Document in `docs/SETUP.md` (or the PR) that the E2E check must be added as a **required status check** with "require branches to be up to date" — this is a GitHub settings change the user makes; flag it, do not assume it is done
-- [ ] `pnpm typecheck && pnpm lint && pnpm test` pass; CI e2e job green on the branch
-- [ ] Commit: `ci: run Playwright e2e on every PR and document setup (M3)`
+- [x] `ci.yml`: new `e2e` job (Postgres 17 service, install, generate, build, cached Playwright browser, `pnpm test:e2e`, upload report and traces on failure). **Diverged:** no separate `migrate deploy` / `db:seed` steps — `pnpm test:e2e` already creates the `brunchsters_e2e` database, migrates and seeds it, which is the same code path used locally
+- [~] Confirm the job fails when a test fails — **verified at the Playwright level locally under `CI=true`** (deliberate failing test → exit 1, one retry, `playwright-report/` and `trace.zip` produced, i.e. exactly what the upload step collects); **not yet verified in GitHub Actions** (needs the branch pushed — see notes)
+- [x] `docs/SETUP.md`: e2e section (database, `pnpm test:e2e`, `--headed` / `--ui` / trace viewer, where reports land, isolation from the dev server, CI), plus two troubleshooting rows and the test-types table row
+- [x] `docs/PLANNING.md`: §16 item 10 in progress; §17 E2E entry marked decided and linked to ADR 0007; branch-protection bullet lists `e2e` as a required-check candidate
+- [x] `CLAUDE.md` Testing section: E2E location, own-your-data / real-services rule, journeys-not-permutations rule, no-production-changes-for-testability rule
+- [x] Document that the E2E check must be added as a **required status check** with "require branches to be up to date" — in `docs/SETUP.md` ("Required status checks"). **Not done by this milestone:** it is a GitHub settings change the repo owner makes; as of M3, `main` has no branch protection, so the job runs but does not yet block merges
+- [~] `pnpm typecheck && pnpm lint && pnpm test` pass (done); CI e2e job green on the branch (**pending a push**)
+- [x] Commit: `ci: run Playwright e2e on every PR and document setup (M3)`
 
-**Testing notes:** _(fill on completion)_
+**Testing notes:**
+
+- **What was tested:** The CI-only execution path, which is where "works locally" is most likely to diverge: `CI=true pnpm build` (production `next build`) followed by `CI=true pnpm test:e2e`, which makes Playwright serve the build with `next start` instead of `next dev`, enables `forbidOnly`, the `github` reporter and one retry — 10 of 10 passed. The failure path: a temporary deliberately failing spec under `CI=true` exited 1, retried once, and left `playwright-report/` and `test-results/<test>-retry1/trace.zip`, the exact paths the upload step collects. The temporary spec was deleted before commit.
+- **How:** Local simulation only (real Postgres, production build, no mocks beyond the suite's own). The workflow YAML itself has not been executed by GitHub Actions: this milestone changed `.github/workflows/ci.yml`, docs and `CLAUDE.md`; no application or test code. Unit suites unchanged (core 333, web 215).
+- **What's deferred / unverified:** (1) The job has never run on a GitHub runner — Ubuntu-specific parts are unproven: the Postgres service container and `E2E_DATABASE_URL` host (`localhost`), the Playwright version/cache step (`playwright --version | awk`), the `install-deps` vs `install --with-deps` branching on cache hit, and artifact upload. **Next step: push the branch and open a PR, then confirm the `E2E Tests` job is green and, ideally, flip a test red once to see the artifact.** (2) Branch protection / required checks is a manual GitHub step (documented, not done). (3) Whether the first cold run fits comfortably in the 20-minute job timeout (expected a few minutes: install, build, ~150 MB browser download).
+- **Two design choices worth knowing:** the e2e job sets `DATABASE_URL`/`DIRECT_URL` to the service's default `postgres` database purely so `prisma generate` and `next build` have a datasource — the e2e server and fixtures use `E2E_DATABASE_URL` (`brunchsters_e2e`, created by `pnpm test:e2e`), and the guard would refuse the plain `postgres` name. And browsers are cached but OS packages are not, so a cache hit still runs `playwright install-deps`.
+- **How to run it:** locally, `pnpm test:e2e`; to mimic CI, `CI=true pnpm build && CI=true pnpm test:e2e`. Workflow: `.github/workflows/ci.yml`, job `e2e`.
 
 ---
 

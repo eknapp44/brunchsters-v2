@@ -16,7 +16,7 @@ Always-loaded baseline is in this file. For deeper context, reference these on d
 - `@docs/adrs/` — historical decision rationale
 - `@specs/NNNN-feature/` — per-feature spec, plan, and tasks
 
-When in doubt about *why* something is done a certain way, check the ADRs before assuming.
+When in doubt about _why_ something is done a certain way, check the ADRs before assuming.
 
 ## Stack
 
@@ -53,6 +53,7 @@ Each major directory may have its own scoped `CLAUDE.md` with local conventions.
 - **Zod schemas live next to the types they validate.** Infer TypeScript types from Zod schemas (`z.infer<typeof schema>`) — schema is the source of truth.
 
 ### Function parameters
+
 - **2+ params → single object parameter.** Named arguments via destructuring. 1-param functions stay positional.
 - **Naming convention:** `input` for service-layer functions (matches input/output mental model and pairs with Zod schemas). `params` for utilities/helpers. `props` for React components (already an object by convention).
 - **Why:** readability at call sites, no positional ordering bugs, additive changes don't break callers.
@@ -75,6 +76,7 @@ function createBrunch(input: CreateBrunchInput): Promise<Result<Brunch, CreateBr
 ### Type categories (replaces Spring's "DTO" catch-all)
 
 Split DTOs by purpose:
+
 - **Domain types** — what services pass around (`Brunch`, `BrunchAttendee`). Branded IDs, discriminated unions.
 - **Input types** — what enters a function or API (`CreateBrunchInput`). Validated by Zod.
 - **Output types** — what leaves an API (`BrunchResponse`). Stripped of internal-only fields.
@@ -90,6 +92,7 @@ Split DTOs by purpose:
 - **Lookup tables, not enums, for configurable values.** Status, type, and category fields are FKs to lookup tables.
 
 ### Interface + Implementation pattern
+
 Every external dependency has an interface and 1+ implementations:
 
 ```typescript
@@ -112,6 +115,7 @@ export class MockEmailService implements EmailService {
 Naming: interface is the bare role (`EmailService`); implementations prefix with provider/purpose (`ResendEmailService`, `MockEmailService`, `LoggingEmailService`).
 
 ### Dependency injection (no framework needed)
+
 Services receive dependencies via parameters, not via global imports.
 
 ```typescript
@@ -130,15 +134,15 @@ This is Spring's DI pattern without the framework. Same benefits.
 
 ### Layering (Spring Boot mental model → Brunchsters mapping)
 
-| Spring Boot | Brunchsters | Where it lives |
-|-------------|-------------|----------------|
-| `@RestController` | Next.js route handler | `apps/web/src/app/api/v1/.../route.ts` |
-| `@Service` | Service function | `packages/core/src/<domain>/<action>.ts` |
-| `@Repository` | Prisma client (injected) | Don't add a wrapper — Prisma is the repo |
-| `@Entity` | Prisma model (generated) | `packages/database/prisma/schema.prisma` |
-| `@Transactional` | `prisma.$transaction(async tx => ...)` | Wrap multi-step DB writes |
-| DTO | Input / Output / Domain types | Co-located with services |
-| `@Autowired` | Function parameter | Pass `ctx` into services |
+| Spring Boot       | Brunchsters                            | Where it lives                           |
+| ----------------- | -------------------------------------- | ---------------------------------------- |
+| `@RestController` | Next.js route handler                  | `apps/web/src/app/api/v1/.../route.ts`   |
+| `@Service`        | Service function                       | `packages/core/src/<domain>/<action>.ts` |
+| `@Repository`     | Prisma client (injected)               | Don't add a wrapper — Prisma is the repo |
+| `@Entity`         | Prisma model (generated)               | `packages/database/prisma/schema.prisma` |
+| `@Transactional`  | `prisma.$transaction(async tx => ...)` | Wrap multi-step DB writes                |
+| DTO               | Input / Output / Domain types          | Co-located with services                 |
+| `@Autowired`      | Function parameter                     | Pass `ctx` into services                 |
 
 **Don't** create a `BrunchRepository` class wrapping Prisma calls. Prisma is already a typed repository — wrapping it adds overhead with no benefit. This is the most common Spring-to-TS anti-pattern.
 
@@ -155,12 +159,16 @@ This is Spring's DI pattern without the framework. Same benefits.
 - **No tests for framework code.** We don't test that React renders or Next.js routes — those are framework guarantees.
 - **Co-located tests.** `foo.test.ts` next to `foo.ts`.
 - **Vitest** is the runner. Playwright for E2E.
+- **E2E lives in `apps/web/e2e/`** (ADR 0007, `pnpm test:e2e`). It covers user _journeys_, especially multi-identity ones and client-side behavior; rule permutations and rejection matrices stay in unit/integration tests.
+- **E2E tests own their data.** Each test creates its own users and brunch through `e2e/support/factories.ts`, which wraps the real core services (never a Prisma shortcut to a state the app can't reach). No shared dataset, no ordering dependence.
+- **Never change production code just to make it testable for E2E** — no bypass auth provider, no mock-injection seam. Sign-in is a minted session cookie; Google Places is intercepted in the browser.
 - **Test against a real local Postgres for integration tests**, not mocks, where the thing under test is a DB interaction. Use the local Supabase/Postgres instance described in `docs/SETUP.md`. Mock only true external boundaries (Resend, Google Places) via the `MockEmailService` / mock-provider pattern.
 - **Every milestone writes its tests as part of the milestone**, not afterward. Tests-after is not the workflow here; a milestone with no tests is incomplete.
 
 ### Testing notes (required per milestone)
 
 Each milestone records a short **testing note** in the spec's `tasks.md` (or a `TESTING-NOTES.md` in the spec folder) capturing:
+
 - **What was tested** — the behaviors/paths covered
 - **How** — unit, integration (local DB), or E2E; what was mocked
 - **What's deferred** — known gaps, edge cases not yet covered, and why
