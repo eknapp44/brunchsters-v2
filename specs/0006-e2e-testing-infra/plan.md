@@ -34,13 +34,13 @@ docs/SETUP.md, docs/PLANNING.md, CLAUDE.md           (updated — M3 / M8)
 
 ### Environment
 
-| Variable                                                             | Local                                                                                 | CI                                                                      |
-| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| `E2E_DATABASE_URL` (server gets it as `DATABASE_URL` / `DIRECT_URL`) | `…/brunchsters_e2e` on the local Supabase Postgres (port 54322), the built-in default | the job's Postgres 17 service container; database must be named `*_e2e` |
-| `BASE_URL` / `AUTH_URL`                                              | `http://localhost:3100`                                                               | `http://localhost:3100`                                                 |
-| `AUTH_SECRET`                                                        | a fixed non-secret test value, shared by the test process and the server              | same                                                                    |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`                          | placeholders (needed only so `auth.ts` boots)                                         | placeholders                                                            |
-| `GOOGLE_PLACES_API_KEY`                                              | not needed (requests intercepted)                                                     | not needed                                                              |
+| Variable                                                             | Local                                                                                       | CI                                                                      |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `E2E_DATABASE_URL` (server gets it as `DATABASE_URL` / `DIRECT_URL`) | `…/brunchsters_e2e` on the local Supabase Postgres (port 54322), the built-in default       | the job's Postgres 17 service container; database must be named `*_e2e` |
+| `BASE_URL` / `AUTH_URL`                                              | `http://localhost:3100`                                                                     | `http://localhost:3100`                                                 |
+| `AUTH_SECRET`                                                        | a fixed non-secret test value, shared by the test process and the server                    | same                                                                    |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`                          | placeholders (needed only so `auth.ts` boots)                                               | placeholders                                                            |
+| `GOOGLE_PLACES_API_KEY`                                              | set to **empty** (requests are intercepted; empty stops `.env.local`'s real key leaking in) | empty                                                                   |
 
 The server is started by Playwright's `webServer` with this env set explicitly (`next dev -p 3100` locally, `next build && next start -p 3100` in CI). Process env takes precedence over `.env.local` in Next; M1 verifies this and records it.
 

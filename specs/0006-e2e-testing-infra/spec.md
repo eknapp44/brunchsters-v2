@@ -97,10 +97,10 @@ The Google OAuth redirect itself is out of scope (ADR 0007); A3 is tested up to 
 - [x] Global setup refuses to run when `E2E_DATABASE_URL` does not look like a test target (local host, database named `e2e` or `*_e2e`)
 - [x] The e2e server never attaches to a server it did not start (`reuseExistingServer: false`); it runs on its own port with `DATABASE_URL`/`AUTH_URL` set explicitly, and a probe confirmed it is on the e2e database (M1; replaces the originally planned "server-uses-e2e-db" runtime check)
 - [ ] `apps/web/src/auth.ts` and the Places route handlers are unchanged by this spec
-- [ ] Session cookies are minted for fixture users created via `signInWithProvider`; the helper works for the `http://localhost` cookie name
-- [ ] Each test creates its own users and brunch; the suite passes with parallel workers and in any order
-- [ ] Places requests are intercepted in the browser; no Google key is needed
-- [ ] E2E files are excluded from the unit-test (`vitest`) run and covered by lint and typecheck (strict, no `any`)
+- [x] Session cookies are minted for fixture users created via `signInWithProvider`; the helper works for the `http://localhost` cookie name
+- [x] Each test creates its own users and brunch; the suite passes with parallel workers and in any order
+- [x] Places requests are intercepted in the browser; no Google key is needed
+- [x] E2E files are excluded from the unit-test (`vitest`) run and covered by lint and typecheck (strict, no `any`)
 
 ### Coverage
 
@@ -138,6 +138,8 @@ The Google OAuth redirect itself is out of scope (ADR 0007); A3 is tested up to 
 
 ## Still Open
 
-- The fixture process needs a Prisma client with the same soft-delete extension the app uses (`packages/database` middleware). Confirm in M2 whether it exports a ready factory or whether `apps/web/src/lib/db.ts` must be mirrored.
-- Whether Next's own env loading lets `webServer.env` override `apps/web/.env.local` (process env should win; verify in M1 and record the result).
-- Exact `@brunchsters/core` ctx needed by `createBrunch`/`sendInvites` in a non-Next process (event bus = `NoopEventBus`).
+All three questions raised at planning are resolved:
+
+- **Prisma client for fixtures:** `@brunchsters/database` already exports `createDb()` (soft-delete extension included); no mirroring needed. It reads `DATABASE_URL` from the environment, so `support/db.ts` re-points it at the e2e URL before building the client (M2).
+- **Does `webServer.env` override `apps/web/.env.local`?** Yes, verified in M1.
+- **Core `ctx` outside Next:** `{ db, eventBus }` with `NoopEventBus`; nothing else is required (M2).

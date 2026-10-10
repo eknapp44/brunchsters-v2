@@ -33,6 +33,9 @@ export default defineConfig({
       // auth.ts refuses to boot without these; no Google call is ever made.
       GOOGLE_CLIENT_ID: 'e2e-placeholder-client-id',
       GOOGLE_CLIENT_SECRET: 'e2e-placeholder-client-secret',
+      // Empty (not absent) so .env.local's real key cannot leak in: a Places request that is
+      // not intercepted in the browser fails with 502 instead of calling Google.
+      GOOGLE_PLACES_API_KEY: '',
     },
   },
 });

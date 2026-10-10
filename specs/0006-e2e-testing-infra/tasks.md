@@ -38,18 +38,25 @@ For this spec "tests" means the Playwright suite itself; "green" for a journey m
 
 ## M2 — Auth cookie minting, fixtures, Places interception
 
-- [ ] `support/db.ts`: Prisma client for fixtures with the app's soft-delete extension (resolve plan.md Still Open #1)
-- [ ] `support/session.ts`: `mintSessionCookie`; cookie name derived from `AUTH_URL` (http vs https)
-- [ ] `support/factories.ts`: `createUser` (via `signInWithProvider`), `createBrunch`, `sendInvites`, `respondToInvite`, `getInviteToken`; each wraps the real core service with explicit `ctx`
-- [ ] `support/fixtures.ts`: `test.extend` with actor fixtures (own browser context per actor, cookie preloaded) and per-test unique-suffix helper
-- [ ] `support/places.ts`: `mockPlaces()` with named fixture places (at least two with different IANA timezones); shapes copied from the route tests
-- [ ] **A1** — protected route redirects to `/sign-in?callbackUrl=…`; `/` and `/sign-in` public
-- [ ] **A2** — signed-in user lands on `/dashboard` with name/avatar; sign-out returns to `/` and protected routes redirect again
-- [ ] Prove isolation: two tests creating same-named brunches in parallel do not interfere (run with `--workers=4 --repeat-each=3`)
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` pass
-- [ ] Commit: `test: add session minting, fixtures, and places interception (M2)`
+- [x] `support/db.ts`: Prisma client for fixtures with the app's soft-delete extension (resolved: `createDb()` is already exported by `@brunchsters/database`; re-pointed at the e2e URL)
+- [x] `support/session.ts`: `mintSessionCookie`; cookie name derived from `AUTH_URL` (http vs https)
+- [x] `support/factories.ts`: `createUser` (via `signInWithProvider`), `createBrunch`, `inviteToBrunch` (wraps `sendInvites`), `respondToInvite`, `getInviteToken`; each wraps the real core service with explicit `ctx` (**renamed:** `inviteToBrunch`, to avoid shadowing the core export)
+- [x] `support/fixtures.ts`: `test.extend` with a `makeActor` fixture (own browser context per actor, cookie preloaded, Places mocked) — per-test unique suffix lives in `factories.ts` as `uniqueSuffix()`
+- [x] `support/places.ts`: `mockPlaces()` with three named fixture places in three IANA timezones, typed against the real `PlaceDetails`/`PlaceResult` (**diverged:** typed against the core types rather than copied from route tests, so drift is a compile error)
+- [x] **A1** — protected route redirects to `/sign-in?callbackUrl=…`; `/` and `/sign-in` public; protected API route answers 401
+- [x] **A2** — signed-in user lands on `/dashboard` with name/avatar; sign-out returns to `/` and protected routes redirect again
+- [x] Prove isolation: two tests creating same-named brunches in parallel do not interfere (permanent test in `fixtures.spec.ts`; also run with `--workers=4 --repeat-each=3`)
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` pass
+- [x] Commit: `test: add session minting, fixtures, and places interception (M2)`
 
-**Testing notes:** _(fill on completion)_
+**Testing notes:**
+
+- **What was tested:** Journeys A1 (3 tests: protected page redirects to `/sign-in?callbackUrl=%2Fdashboard` with the sign-in button; protected API route returns 401 with no redirect; `/` and `/sign-in` stay public) and A2 (a minted session lands on `/dashboard` showing the user's name, avatar and empty state, "Sign out" returns to `/` and a later `/dashboard` visit redirects to sign-in again). Harness checks in `fixtures.spec.ts`: data isolation (two parallel tests each create a same-titled brunch and each user's dashboard shows exactly one — which also proves the server reads the e2e database the fixtures wrote to, closing the item M1 deferred); two actors keep separate sessions and see a brunch created, invited-to and RSVP'd through the real `createBrunch` / `sendInvites` / `respondToInvite` services (`2 going`, so the invite really activated the brunch); Places interception returns fixture search/details, mirrors the real routes' 400 (<3 chars) and 404, and logs the requests it saw; and a request that bypasses interception gets 502, proving the e2e server cannot reach Google.
+- **How:** 10 Playwright tests total (1 smoke from M1 + 9 new) against real Postgres and a real Next server; nothing mocked except the browser-level Places routes. Also verified beyond the committed tests: `--workers=4 --repeat-each=3` = 30/30 passed; a **mutation check** — temporarily signing cookies with the wrong secret made exactly the 5 session-dependent tests fail while the 4 signed-out tests still passed, then restored — shows the tests discriminate rather than pass vacuously; and a `--trace on` run produced a `trace.zip` with a separate trace stream per actor context, so multi-actor failures will be debuggable (manually created contexts are traced under `trace: 'on-first-retry'`). Unit/other suites unchanged: core 333, web 215 (no new vitest tests this milestone).
+- **A real gap found and closed while writing this:** `GOOGLE_PLACES_API_KEY` is set in the dev `.env.local`, and the plan said the e2e server "doesn't need" it. Not setting it would not remove it — Next would load the real key from `.env.local` and an un-intercepted Places request would silently call Google (and bill). `playwright.config.ts` now sets it to the **empty string** in `webServer.env`, which overrides `.env.local` and makes `requireGooglePlacesApiKey()` throw, so an un-mocked request fails loudly with 502. The test above pins that behavior. Plan.md's env table is updated.
+- **Design choices the plan did not pin down:** `makeActor` applies `mockPlaces` to the whole browser context (not just the page) so popups and second pages are covered, and each `Actor` exposes the mock's request log (`places.searchQueries()`), which C2 (query under 3 characters fires no request) will use. Fixture users get an inline `data:` avatar, so the nav `<img>` renders with no network request. The `UserAuthProvider.providerUserId` is unique per user (`e2e-<suffix>`), which `signInWithProvider` keys on.
+- **What's deferred:** `https` cookie name (`__Secure-` prefix) is implemented and derived from the base URL but only the `http://localhost` form is exercised (CI also serves over http, so it stays untested until a deployed environment is targeted). The real Google sign-in redirect remains out of scope (ADR 0007). No invite-link flow yet (A3 is M5). The server logs one expected "Place search failed … Missing GOOGLE_PLACES_API_KEY" error per run, from the deliberate 502 test; it is noise, not a failure.
+- **How to run it:** `pnpm test:e2e` from the repo root (recreates the e2e database, ~10s, then runs the suite). For fast iteration against the existing database: `pnpm --filter @brunchsters/web exec playwright test` (add `--headed`, `--ui`, `-g "<name>"`, or `--workers=4 --repeat-each=3` for the isolation stress run). Reports land in `apps/web/playwright-report/`, traces in `apps/web/test-results/` (both gitignored).
 
 ---
 
