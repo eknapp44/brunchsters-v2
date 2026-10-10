@@ -55,6 +55,7 @@ afterAll(async () => {
     where: { brunchLocation: { brunchId: { in: createdBrunchIds } } },
   });
   await db.brunchLocation.deleteMany({ where: { brunchId: { in: createdBrunchIds } } });
+  await db.brunchTime.deleteMany({ where: { brunchId: { in: createdBrunchIds } } });
   await db.brunchAttendee.deleteMany({ where: { brunchId: { in: createdBrunchIds } } });
   await db.brunchInvite.deleteMany({ where: { brunchId: { in: createdBrunchIds } } });
   await db.brunch.deleteMany({ where: { id: { in: createdBrunchIds } } });
@@ -250,5 +251,73 @@ describe('voting (integration — real Postgres)', () => {
     const voting = await getBrunchVoting({ brunchId, viewerId: hostId }, { db });
 
     expect(voting?.locations.options.map((o) => o.id)).toEqual([locationA]);
+  });
+
+  // Postgres promises no row order, and createMany gives every row it inserts the same
+  // createdAt, so without an explicit orderBy these lists reshuffle between loads. Found by
+  // the e2e suite (spec 0006 M4): the wizard added Sunny Side first but Harbor Bistro rendered
+  // first. The inputs here are deliberately given in the *wrong* order to prove the sort.
+  it('lists options chronologically / by name and voters alphabetically, whatever order they were inserted in', async () => {
+    const placeBase = { placeAddress: '1 Main St', placeUrl: '', timezone: 'America/Chicago' };
+    const created = await createBrunch(
+      {
+        title: 'ordering',
+        hostId,
+        locations: [
+          { ...placeBase, placeId: `place-zed-${RUN_ID}`, placeName: 'Zed Cafe' },
+          { ...placeBase, placeId: `place-alpha-${RUN_ID}`, placeName: 'Alpha Cafe' },
+        ],
+        times: [
+          { scheduledAt: new Date('2031-03-03T17:00:00Z').toISOString() },
+          { scheduledAt: new Date('2031-03-01T17:00:00Z').toISOString() },
+          { scheduledAt: new Date('2031-03-02T17:00:00Z').toISOString() },
+        ],
+      },
+      { db, eventBus },
+    );
+    const brunchId = created._unsafeUnwrap().id;
+    createdBrunchIds.push(brunchId);
+
+    await sendInvites(
+      { brunchId, invitedById: hostId, emails: [YES_EMAIL, MAYBE_EMAIL] },
+      { db, eventBus },
+    );
+    for (const [email, userId] of [
+      [YES_EMAIL, yesVoterId],
+      [MAYBE_EMAIL, maybeVoterId],
+    ] as const) {
+      const invite = required(
+        await db.brunchInvite.findFirst({ where: { brunchId, invitedEmail: email } }),
+      );
+      await respondToInvite(
+        { token: invite.token as InviteToken, viewerId: userId, response: 'yes' },
+        { db, eventBus },
+      );
+    }
+
+    // "Yes" votes before "Maybe", so insertion order is the reverse of alphabetical.
+    const zed = required(
+      await db.brunchLocation.findFirst({ where: { brunchId, placeName: 'Zed Cafe' } }),
+    );
+    for (const voterId of [yesVoterId, maybeVoterId]) {
+      const voted = await castLocationBallot(
+        { brunchId, voterId, optionIds: [zed.id as BrunchLocationId] },
+        { db, eventBus },
+      );
+      expect(voted.isOk()).toBe(true);
+    }
+
+    const voting = required(await getBrunchVoting({ brunchId, viewerId: hostId }, { db }));
+
+    expect(voting.locations.options.map((o) => o.placeName)).toEqual(['Alpha Cafe', 'Zed Cafe']);
+    expect(voting.times.options.map((o) => o.scheduledAt.toISOString())).toEqual([
+      '2031-03-01T17:00:00.000Z',
+      '2031-03-02T17:00:00.000Z',
+      '2031-03-03T17:00:00.000Z',
+    ]);
+    expect(voting.locations.options[1]?.voters).toEqual([
+      'Integration Voting Maybe',
+      'Integration Voting Yes',
+    ]);
   });
 });

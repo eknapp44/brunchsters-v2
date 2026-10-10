@@ -177,6 +177,12 @@ export async function getBrunchVoting(
   const suggestionScope = isHost ? {} : { suggestedById: input.viewerId };
 
   const voteSelect = { userId: true, user: { select: { name: true } } } as const;
+  // Postgres returns rows in no guaranteed order, and createMany stamps every row it inserts
+  // with the same createdAt — so each list needs an explicit, total order or the screens
+  // reshuffle between loads (found by the e2e suite, spec 0006 M4). Times run chronologically;
+  // places keep creation order, tie-broken by name; voter names are alphabetical.
+  const votesOrder = [{ user: { name: 'asc' as const } }, { userId: 'asc' as const }];
+  const suggestionsOrder = [{ createdAt: 'asc' as const }, { id: 'asc' as const }];
 
   const [
     locationMode,
@@ -201,20 +207,29 @@ export async function getBrunchVoting(
         placeUrl: true,
         timezone: true,
         isConfirmed: true,
-        votes: { select: voteSelect },
+        votes: { select: voteSelect, orderBy: votesOrder },
       },
+      orderBy: [{ createdAt: 'asc' }, { placeName: 'asc' }, { id: 'asc' }],
     }),
     db.brunchTime.findMany({
       where: { brunchId: input.brunchId },
-      select: { id: true, scheduledAt: true, isConfirmed: true, votes: { select: voteSelect } },
+      select: {
+        id: true,
+        scheduledAt: true,
+        isConfirmed: true,
+        votes: { select: voteSelect, orderBy: votesOrder },
+      },
+      orderBy: [{ scheduledAt: 'asc' }, { id: 'asc' }],
     }),
     db.brunchLocationSuggestion.findMany({
       where: { brunchId: input.brunchId, status: { code: 'pending' }, ...suggestionScope },
       include: { suggestedBy: { select: { name: true } } },
+      orderBy: suggestionsOrder,
     }),
     db.brunchTimeSuggestion.findMany({
       where: { brunchId: input.brunchId, status: { code: 'pending' }, ...suggestionScope },
       include: { suggestedBy: { select: { name: true } } },
+      orderBy: suggestionsOrder,
     }),
   ]);
 
