@@ -14,7 +14,14 @@ export default defineConfig({
   reporter: isCi
     ? [['github'], ['html', { open: 'never' }]]
     : [['list'], ['html', { open: 'never' }]],
-  use: { baseURL: baseUrl, trace: 'on-first-retry' },
+  use: {
+    baseURL: baseUrl,
+    trace: 'on-first-retry',
+    // Pinned so rendered dates don't depend on the machine running the suite. Chicago is
+    // deliberate: two of the fixture places are in other zones, which the timezone journey needs.
+    locale: 'en-US',
+    timezoneId: 'America/Chicago',
+  },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
     // CI builds first (see ci.yml) and serves the build; locally dev mode is faster.

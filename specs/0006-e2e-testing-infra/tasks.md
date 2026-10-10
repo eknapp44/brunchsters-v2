@@ -83,15 +83,24 @@ For this spec "tests" means the Playwright suite itself; "green" for a journey m
 
 ## M4 — Create brunch and access journeys (specs 0002, 0003)
 
-- [ ] **C1** — wizard end to end (two places with multi-location hint, two times with hint and deadline field, invitee emails) → detail page → on dashboard
-- [ ] **C3** — access rule: stranger 404, host and attendee can open
-- [ ] **C2** — place search behavior (P1)
-- [ ] **C4** — dashboard empty state and listing (P2, if room)
-- [ ] Add accessible labels to any wizard controls that lack them rather than falling back to `data-testid`
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` pass
-- [ ] Commit: `test: e2e journeys for brunch creation and access (M4)`
+- [x] **C1** — wizard end to end (two places with multi-location hint, two times with hint and deadline field, invitee emails) → detail page → on dashboard
+- [x] **C3** — access rule: stranger 404, host and attendee can open
+- [x] **C2** — place search behavior (P1): 4 tests — title required, search debounce/3-char/billing session, hints and deadline field follow option count, back keeps entered data
+- [x] **C4** — dashboard empty state and listing (P2): ordering/role/status/going-count, Past vs Upcoming (empty state is asserted in C1 and A2)
+- [x] Add accessible labels to any wizard controls that lack them rather than falling back to `data-testid` — one found and fixed: the step-3 date/time input (`aria-label="Date and time"`). Everything else was already reachable by role/label (the place search and email inputs are named by their placeholder)
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` pass
+- [x] Commit: `test: e2e journeys for brunch creation and access (M4)`
 
-**Testing notes:** _(fill on completion)_
+**Testing notes:**
+
+- **What was tested:** Journeys C1–C4, 10 new tests. **C1:** a host takes the real wizard end to end — title and description, two intercepted place searches (no hint after one place, "Multiple locations will be put to a vote" after two), two times (multi-time hint, the "Voting closes by" field), a deadline, two invitee emails — and lands on the new brunch's detail page showing the title, `Active` status, both places and both times as ballot checkboxes (4 checkboxes), and both invitees; the rows are then read back from Postgres (2 locations, 2 times, description, deadline set, invites for both guests plus the host's own) so the browser→API→DB round trip is verified, not just the page; the brunch then appears on the dashboard. **C2:** title required (empty and whitespace-only keep Next disabled); place search fires nothing for under three characters, fires **once** for a word typed quickly (debounce), and the search and the details lookup share one session token while the next search gets a different one; hints and the deadline field appear and disappear as options are added and removed (one place + one time shows no deadline field); going Back through every step keeps the title, description, place, time and email. **C3:** host and an RSVP'd attendee get 200 and the title; an unrelated signed-in user gets a real 404 with no brunch title anywhere on the page; a malformed id and an unknown valid UUID are 404 rather than an error. **C4:** a host's dashboard lists newest first, with `(Host)`, status label and going count per row; a guest sees only their own brunch and no `(Host)`; a `completed` brunch is listed under Past with Upcoming showing its empty message.
+- **How:** Playwright against real Postgres and a real server; nothing mocked except the browser-level Places routes. The debounce test uses Playwright's clock (`page.clock.install`/`pauseAt`/`runFor`) so "no request happened" is provable instead of a sleep — this is the technique H7 (deadline passing) will reuse. Verified stable with `--workers=4 --repeat-each=3` (57/57, 19 tests × 3). **Mutation checks on production code**, each reverted: removing the 3-character guard (`query.length < 1`) and weakening the multi-location hint (`> 2`) together made 3 tests fail (the search test, the hints test and C1), confirming they discriminate. Also run in CI mode (`CI=true`, production build served by `next start`): 19/19. Web unit 215, core 333 unchanged.
+- **The one production change:** `aria-label="Date and time"` on the step-3 `datetime-local` input in `brunch/new/page.tsx`. It was the only wizard control with no accessible name; it is invisible and an accessibility improvement, consistent with ADR 0007 ("no production changes just to make code testable" — this one is a real a11y fix that tests happen to need).
+- **A flake caught before it shipped:** one test used `getByRole('button', { name: 'Next' })`, which in **dev mode** also matches Next.js's "Open Next.js Dev Tools" button — strict-mode failures in 3 tests, and the one test that passed only did so because the dev-tools button had not mounted yet. All wizard buttons now use `exact: true`. CI (production build) would not have shown this, so the local dev-mode run found something CI never would.
+- **Environment pinned:** `playwright.config.ts` now sets `locale: 'en-US'` and `timezoneId: 'America/Chicago'`, so rendered dates do not depend on the machine running the suite; Chicago is deliberately different from two of the three fixture places for the V6 timezone journey.
+- **Findings about the product, not fixed here (out of scope for a test milestone):** (1) `getBrunchVoting` has **no `orderBy`**, so the order of locations and times is whatever Postgres returns. In C1 the wizard added Sunny Side first but Harbor Bistro rendered first, and the time labels' "(at <place>…)" subline uses the first option as the representative location — so which place's timezone is shown can change between loads. V6 (timezone subline) should pin this down; it likely wants a stable ordering and a decision on the representative location. (2) Nothing else surprising: the access rule and dashboard behave exactly as spec 0003 describes.
+- **What's deferred:** A3, I1–I6 (M5); V*, H* (M6–M7). C4's "Past" case sets the status with one direct Prisma update, the only place a fixture skips the services: the app has no way to complete a brunch yet. The mock Places layer means the real Google adapter is still exercised only by its unit tests. Browser coverage is Chromium only.
+- **How to run it:** `pnpm test:e2e` (full), or `pnpm --filter @brunchsters/web exec playwright test create-brunch access-and-dashboard` for just this milestone; add `--headed` to watch the wizard.
 
 ---
 
