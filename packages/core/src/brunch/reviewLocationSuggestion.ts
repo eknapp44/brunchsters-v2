@@ -4,6 +4,7 @@ import { err, ok, type Result } from 'neverthrow';
 import { z } from 'zod';
 import { addLocationInTransaction } from './addLocation';
 import { assertBrunchActive, type AssertBrunchActiveError } from './guards/assertBrunchActive';
+import { assertVotingOpen, type AssertVotingOpenError } from './guards/assertVotingOpen';
 
 export const reviewLocationSuggestionRequestSchema = z.object({
   decision: z.enum(['approve', 'decline']),
@@ -20,6 +21,7 @@ export type ReviewLocationSuggestionError =
   | { readonly kind: 'suggestion_not_found' }
   | { readonly kind: 'not_host' }
   | AssertBrunchActiveError
+  | AssertVotingOpenError
   | { readonly kind: 'already_reviewed' }
   | { readonly kind: 'already_added' }
   | { readonly kind: 'lookup_not_found'; readonly code: string }
@@ -48,6 +50,15 @@ export async function reviewLocationSuggestion(
   if (activeResult.isErr()) return err(activeResult.error);
 
   if (suggestion.status.code !== 'pending') return err({ kind: 'already_reviewed' });
+
+  // Only approving creates a new live option — declining a stale suggestion
+  // is still fine to let through even while voting's closed, it just
+  // dismisses a pending row rather than growing the ballot (architect
+  // review, F6; see addLocation.ts's identical check for the full reason).
+  if (input.decision === 'approve') {
+    const votingOpenResult = assertVotingOpen(suggestion.brunch);
+    if (votingOpenResult.isErr()) return err(votingOpenResult.error);
+  }
 
   const newStatusCode = input.decision === 'approve' ? 'approved' : 'declined';
   const newStatus = await db.brunchOptionSuggestionStatus.findFirst({

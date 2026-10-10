@@ -1,8 +1,9 @@
 'use client';
 
-import type { PlaceDetails, PlaceResult } from '@brunchsters/core';
+import type { PlaceDetails } from '@brunchsters/core';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { PlaceSearchInput } from '../PlaceSearchInput';
 
 type PendingLocationSuggestion = {
   readonly id: string;
@@ -25,56 +26,10 @@ export function LocationSuggestionControl({
   readonly pendingSuggestions: readonly PendingLocationSuggestion[];
 }) {
   const router = useRouter();
-  const [query, setQuery] = useState('');
-  const [sessionToken, setSessionToken] = useState<string | undefined>(undefined);
-  const [predictions, setPredictions] = useState<readonly PlaceResult[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
 
-  useEffect(() => {
-    if (query.length < 3) {
-      setPredictions([]);
-      return;
-    }
-
-    const timeoutId = setTimeout(() => {
-      const params = new URLSearchParams({
-        q: query,
-        ...(sessionToken !== undefined ? { sessionToken } : {}),
-      });
-      void fetch(`/api/v1/places/search?${params.toString()}`)
-        .then((response) =>
-          response.ok
-            ? (response.json() as Promise<{ places: readonly PlaceResult[] }>)
-            : undefined,
-        )
-        .then((data) => setPredictions(data?.places ?? []))
-        .catch(() => setPredictions([]));
-    }, 300);
-
-    return () => clearTimeout(timeoutId);
-  }, [query, sessionToken]);
-
-  function handleQueryChange(value: string): void {
-    if (sessionToken === undefined && value !== '') {
-      setSessionToken(crypto.randomUUID());
-    }
-    setQuery(value);
-  }
-
-  async function selectPlace(placeId: string): Promise<void> {
-    const params = new URLSearchParams(sessionToken !== undefined ? { sessionToken } : {});
-    setQuery('');
-    setPredictions([]);
-    setSessionToken(undefined);
-
-    const detailsResponse = await fetch(`/api/v1/places/${placeId}?${params.toString()}`);
-    if (!detailsResponse.ok) {
-      setError('Failed to suggest location');
-      return;
-    }
-    const details = (await detailsResponse.json()) as PlaceDetails;
-
+  async function suggest(details: PlaceDetails): Promise<void> {
     setSubmitting(true);
     setError(undefined);
     try {
@@ -118,26 +73,11 @@ export function LocationSuggestionControl({
       )}
 
       {canSuggest && (
-        <>
-          <input
-            type="text"
-            value={query}
-            disabled={submitting}
-            onChange={(event) => handleQueryChange(event.target.value)}
-            placeholder="Search for a place"
-          />
-          {predictions.length > 0 && (
-            <ul>
-              {predictions.map((prediction) => (
-                <li key={prediction.placeId}>
-                  <button type="button" onClick={() => void selectPlace(prediction.placeId)}>
-                    {prediction.name} — {prediction.address}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </>
+        <PlaceSearchInput
+          onSelect={(details) => void suggest(details)}
+          onError={() => setError('Failed to suggest location')}
+          disabled={submitting}
+        />
       )}
       {error !== undefined && <p role="alert">{error}</p>}
     </section>

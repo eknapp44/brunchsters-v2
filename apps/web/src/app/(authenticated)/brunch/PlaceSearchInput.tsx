@@ -5,9 +5,17 @@ import { useEffect, useState } from 'react';
 
 export function PlaceSearchInput({
   onSelect,
+  onError,
   disabled,
 }: {
   readonly onSelect: (details: PlaceDetails) => void;
+  // Called when the place-details fetch itself fails (as opposed to
+  // onSelect's own caller-side failure, e.g. the suggestion POST) — without
+  // this, a failed details lookup used to clear the input and do nothing,
+  // silently (architect review, F10). Optional since the wizard caller has
+  // nowhere to show it; both current OptionManager/OptionSuggestionControl
+  // callers pass it.
+  readonly onError?: () => void;
   readonly disabled?: boolean;
 }) {
   const [query, setQuery] = useState('');
@@ -47,14 +55,17 @@ export function PlaceSearchInput({
 
   async function selectPlace(placeId: string): Promise<void> {
     const params = new URLSearchParams(sessionToken !== undefined ? { sessionToken } : {});
-    const response = await fetch(`/api/v1/places/${placeId}?${params.toString()}`);
-    if (response.ok) {
-      const details = (await response.json()) as PlaceDetails;
-      onSelect(details);
-    }
     setQuery('');
     setPredictions([]);
     setSessionToken(undefined);
+
+    const response = await fetch(`/api/v1/places/${placeId}?${params.toString()}`);
+    if (!response.ok) {
+      onError?.();
+      return;
+    }
+    const details = (await response.json()) as PlaceDetails;
+    onSelect(details);
   }
 
   return (

@@ -64,6 +64,13 @@ export default async function ManageBrunchPage({
               {confirmedTime.scheduledAt.toLocaleString(undefined, {
                 dateStyle: 'medium',
                 timeStyle: 'short',
+                // PLANNING §9.3: times render in the location's zone once
+                // confirmed. This is a server component with no client-side
+                // correction pass, so `undefined` here would resolve to the
+                // *server's* zone (UTC in production), not the viewer's or
+                // the location's — silently showing the wrong confirmed time
+                // (architect review, F5).
+                timeZone: confirmedLocation?.timezone,
               })}
             </p>
           )}

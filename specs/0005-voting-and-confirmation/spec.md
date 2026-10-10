@@ -141,7 +141,7 @@ Per-kind pairs, each built on the guards above. Only `castBallot` and the read m
 
 - [x] `POST /api/v1/brunches/:id/locations` and `.../times` — host-only; 201
 - [x] `DELETE /api/v1/brunches/:id/locations/:optionId` and `.../times/:optionId` — host-only; 204
-- [x] `PUT /api/v1/brunches/:id/votes/locations` and `.../times` — body `{ optionIds: string[] }`; whole-ballot replace; 200 with updated counts; 403 when the viewer may not vote; 409 when voting is closed
+- [x] `PUT /api/v1/brunches/:id/votes/locations` and `.../times` — body `{ optionIds: string[] }`; whole-ballot replace; 200 echoing the saved `optionIds` (not counts — the client calls `router.refresh()` to get updated counts from the server-rendered page, so the route never needed to shape a read model of its own; corrected during the senior-architect review, which caught this AC overstating the actual response); 403 when the viewer may not vote; 409 when voting is closed
 - [x] `POST /api/v1/brunches/:id/voting/close` — host-only; 200
 - [x] `PATCH /api/v1/brunches/:id/voting/deadline` — host-only; body `{ votingDeadline: string | null }`; 200
 - [x] `POST /api/v1/brunches/:id/confirm` — host-only; body `{ locationId, timeId }`; 200; 409 if already confirmed

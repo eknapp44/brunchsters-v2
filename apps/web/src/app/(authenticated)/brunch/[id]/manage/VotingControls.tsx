@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 // Matches nowAsDatetimeLocalValue() in brunch/new/page.tsx — the browser's
 // datetime-local input needs the same local-time, no-timezone string shape.
@@ -24,9 +24,19 @@ export function VotingControls({
   readonly timesShouldSuggestClosing: boolean;
 }) {
   const router = useRouter();
-  const [deadlineInput, setDeadlineInput] = useState(
-    votingDeadline !== undefined ? toDatetimeLocalValue(votingDeadline) : '',
-  );
+  // Both start empty/undefined during SSR and on first client render, then
+  // get set once mounted — toDatetimeLocalValue uses local-time accessors
+  // (getHours/getMonth/...), which during SSR resolve to the *server's*
+  // zone (UTC in production), not the viewer's. Computing them eagerly
+  // would hydrate-mismatch against the browser's real local zone on every
+  // load (architect review, F4) — same reasoning as this page's existing
+  // viewerTimezone deferral for the time subline.
+  const [deadlineInput, setDeadlineInput] = useState('');
+  const [minDeadline, setMinDeadline] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    setDeadlineInput(votingDeadline !== undefined ? toDatetimeLocalValue(votingDeadline) : '');
+    setMinDeadline(toDatetimeLocalValue(new Date()));
+  }, [votingDeadline]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
 
@@ -94,7 +104,7 @@ export function VotingControls({
         <input
           type="datetime-local"
           value={deadlineInput}
-          min={toDatetimeLocalValue(new Date())}
+          min={minDeadline}
           disabled={submitting}
           onChange={(event) => setDeadlineInput(event.target.value)}
         />

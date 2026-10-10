@@ -108,6 +108,15 @@ describe('POST /api/v1/brunches/[id]/locations', () => {
     expect(response.status).toBe(409);
   });
 
+  it('returns 409 when voting is closed', async () => {
+    mockAuth.mockResolvedValue(SESSION);
+    mockAddLocation.mockResolvedValue(err({ kind: 'voting_closed' }));
+
+    const response = await POST(postRequest(LOCATION_BODY), { params: params(VALID_BRUNCH_ID) });
+
+    expect(response.status).toBe(409);
+  });
+
   it('returns 404 when the brunch does not exist', async () => {
     mockAuth.mockResolvedValue(SESSION);
     mockAddLocation.mockResolvedValue(err({ kind: 'brunch_not_found' }));

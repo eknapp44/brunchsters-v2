@@ -52,6 +52,11 @@ export async function POST(
         return NextResponse.json({ error: 'Only the host can add locations' }, { status: 403 });
       case 'brunch_not_active':
         return NextResponse.json({ error: 'Brunch is not open for changes' }, { status: 409 });
+      case 'voting_closed':
+        return NextResponse.json(
+          { error: 'Voting is closed — extend the deadline to add more options' },
+          { status: 409 },
+        );
       case 'already_added':
         return NextResponse.json({ error: 'This place is already an option' }, { status: 409 });
       default:

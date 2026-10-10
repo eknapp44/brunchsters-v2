@@ -34,9 +34,17 @@ export function OptionManager({
   const router = useRouter();
   const [timeInput, setTimeInput] = useState('');
   const [pendingId, setPendingId] = useState<string | undefined>(undefined);
+  // Separate from pendingId (which tracks a specific remove-by-id) — guards
+  // the two add paths against a double-click firing two POSTs, since
+  // nothing else disabled those controls while a request was in flight
+  // (architect review, nit under F10/F12).
+  const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
 
   async function addLocation(details: PlaceDetails): Promise<void> {
+    if (adding) return;
+
+    setAdding(true);
     setError(undefined);
     try {
       const response = await fetch(`/api/v1/brunches/${brunchId}/locations`, {
@@ -57,12 +65,15 @@ export function OptionManager({
       router.refresh();
     } catch {
       setError('Failed to add location');
+    } finally {
+      setAdding(false);
     }
   }
 
   async function addTime(): Promise<void> {
-    if (timeInput === '') return;
+    if (timeInput === '' || adding) return;
 
+    setAdding(true);
     setError(undefined);
     try {
       const response = await fetch(`/api/v1/brunches/${brunchId}/times`, {
@@ -78,6 +89,8 @@ export function OptionManager({
       router.refresh();
     } catch {
       setError('Failed to add time');
+    } finally {
+      setAdding(false);
     }
   }
 
@@ -140,7 +153,11 @@ export function OptionManager({
           </li>
         ))}
       </ul>
-      <PlaceSearchInput onSelect={(details) => void addLocation(details)} />
+      <PlaceSearchInput
+        onSelect={(details) => void addLocation(details)}
+        onError={() => setError('Failed to add location')}
+        disabled={adding}
+      />
 
       <h2>Times</h2>
       <ul>
@@ -164,9 +181,10 @@ export function OptionManager({
       <input
         type="datetime-local"
         value={timeInput}
+        disabled={adding}
         onChange={(event) => setTimeInput(event.target.value)}
       />
-      <button type="button" onClick={() => void addTime()}>
+      <button type="button" onClick={() => void addTime()} disabled={adding}>
         Add Time
       </button>
 

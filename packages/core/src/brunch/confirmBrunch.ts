@@ -1,4 +1,4 @@
-import type { DbClient } from '@brunchsters/database';
+import { isUniqueConstraintError, type DbClient } from '@brunchsters/database';
 import type { BrunchId, BrunchLocationId, BrunchTimeId, UserId } from '@brunchsters/shared';
 import { err, ok, type Result } from 'neverthrow';
 import type { EventBus } from '../events/EventBus';
@@ -76,8 +76,16 @@ export async function confirmBrunch(
   const timeWasVoteLeader = chosenTime.votes.length === maxTimeVotes;
 
   const now = new Date();
+  // Floored at now — nothing stops the host from confirming a candidate
+  // time that's already passed (addTime only validates futureness at
+  // creation, not at confirm time), and scheduledAt + 7 days could still
+  // land in the past for anything more than a week stale. That would quietly
+  // expire every outstanding invite on a brunch that was just confirmed
+  // (architect review, F8). A brunch happening tonight shouldn't invalidate
+  // links either, so the floor is "at least 7 days from now", not "exactly".
   const tokenExpiresAt = new Date(
-    chosenTime.scheduledAt.getTime() + INVITE_EXPIRY_AFTER_CONFIRM_DAYS * 24 * 60 * 60 * 1000,
+    Math.max(chosenTime.scheduledAt.getTime(), now.getTime()) +
+      INVITE_EXPIRY_AFTER_CONFIRM_DAYS * 24 * 60 * 60 * 1000,
   );
 
   try {
@@ -121,6 +129,15 @@ export async function confirmBrunch(
     if (cause instanceof LookupNotFoundError) {
       return err({ kind: 'lookup_not_found', code: cause.code });
     }
+    // Two concurrent confirms on the same brunch: the partial unique index
+    // (one confirmed, non-deleted location/time per brunch) is what
+    // actually prevents both from landing, not a re-fetch-inside-transaction
+    // check — see confirmBrunch.integration.test.ts's concurrent-confirm
+    // test. The loser hits this collision; brunch_not_active is a more
+    // honest answer than a generic db_error, since the brunch genuinely
+    // isn't active anymore by the time this transaction's write landed
+    // (architect review, F12).
+    if (isUniqueConstraintError(cause)) return err({ kind: 'brunch_not_active' });
     return err({ kind: 'db_error', cause });
   }
 

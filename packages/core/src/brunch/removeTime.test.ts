@@ -15,15 +15,30 @@ const BASE_INPUT: RemoveTimeInput = {
   timeId: TIME_ID,
 };
 
+type MockTx = {
+  $executeRaw: ReturnType<typeof vi.fn>;
+  brunchTime: { count: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> };
+};
+
+function makeMockTx(overrides: Partial<MockTx['brunchTime']> = {}): MockTx {
+  return {
+    $executeRaw: vi.fn().mockResolvedValue(0),
+    brunchTime: {
+      count: overrides.count ?? vi.fn().mockResolvedValue(2),
+      update: overrides.update ?? vi.fn().mockResolvedValue({ id: TIME_ID }),
+    },
+  };
+}
+
 type Overrides = {
   findFirstBrunch?: ReturnType<typeof vi.fn>;
   findFirstTime?: ReturnType<typeof vi.fn>;
-  count?: ReturnType<typeof vi.fn>;
-  update?: ReturnType<typeof vi.fn>;
+  tx?: MockTx;
 };
 
-function makeMockDb(overrides: Overrides): DbClient {
-  return {
+function makeMockDb(overrides: Overrides): DbClient & { readonly tx: MockTx } {
+  const tx = overrides.tx ?? makeMockTx();
+  const db = {
     brunch: {
       findFirst:
         overrides.findFirstBrunch ??
@@ -33,10 +48,10 @@ function makeMockDb(overrides: Overrides): DbClient {
       findFirst:
         overrides.findFirstTime ??
         vi.fn().mockResolvedValue({ id: TIME_ID, brunchId: BRUNCH_ID, isConfirmed: false }),
-      count: overrides.count ?? vi.fn().mockResolvedValue(2),
-      update: overrides.update ?? vi.fn().mockResolvedValue({ id: TIME_ID }),
     },
-  } as unknown as DbClient;
+    $transaction: vi.fn().mockImplementation((fn: (tx: MockTx) => Promise<unknown>) => fn(tx)),
+  };
+  return { ...db, tx } as unknown as DbClient & { readonly tx: MockTx };
 }
 
 describe('removeTime', () => {
@@ -47,7 +62,7 @@ describe('removeTime', () => {
 
     expect(result.isOk()).toBe(true);
     expect(result._unsafeUnwrap()).toEqual({ id: TIME_ID });
-    expect(db.brunchTime.update).toHaveBeenCalledWith({
+    expect(db.tx.brunchTime.update).toHaveBeenCalledWith({
       where: { id: TIME_ID },
       data: { deletedAt: expect.any(Date), deletedBy: HOST_ID },
     });
@@ -59,7 +74,7 @@ describe('removeTime', () => {
     const result = await removeTime(BASE_INPUT, { db });
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_found' });
-    expect(db.brunchTime.update).not.toHaveBeenCalled();
+    expect(db.tx.brunchTime.update).not.toHaveBeenCalled();
   });
 
   it('rejects a non-host', async () => {
@@ -68,7 +83,7 @@ describe('removeTime', () => {
     const result = await removeTime({ ...BASE_INPUT, requestedById: OTHER_ID }, { db });
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'not_host' });
-    expect(db.brunchTime.update).not.toHaveBeenCalled();
+    expect(db.tx.brunchTime.update).not.toHaveBeenCalled();
   });
 
   it('rejects a brunch that is not active', async () => {
@@ -81,7 +96,7 @@ describe('removeTime', () => {
     const result = await removeTime(BASE_INPUT, { db });
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_active' });
-    expect(db.brunchTime.update).not.toHaveBeenCalled();
+    expect(db.tx.brunchTime.update).not.toHaveBeenCalled();
   });
 
   it('rejects an unknown time id', async () => {
@@ -90,7 +105,7 @@ describe('removeTime', () => {
     const result = await removeTime(BASE_INPUT, { db });
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'unknown_option' });
-    expect(db.brunchTime.update).not.toHaveBeenCalled();
+    expect(db.tx.brunchTime.update).not.toHaveBeenCalled();
   });
 
   it('rejects a time id that belongs to another brunch', async () => {
@@ -114,21 +129,23 @@ describe('removeTime', () => {
     const result = await removeTime(BASE_INPUT, { db });
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'option_confirmed' });
-    expect(db.brunchTime.update).not.toHaveBeenCalled();
+    expect(db.tx.brunchTime.update).not.toHaveBeenCalled();
   });
 
   it('rejects removing the last remaining time', async () => {
-    const db = makeMockDb({ count: vi.fn().mockResolvedValue(1) });
+    const tx = makeMockTx({ count: vi.fn().mockResolvedValue(1) });
+    const db = makeMockDb({ tx });
 
     const result = await removeTime(BASE_INPUT, { db });
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'last_option' });
-    expect(db.brunchTime.update).not.toHaveBeenCalled();
+    expect(tx.brunchTime.update).not.toHaveBeenCalled();
   });
 
   it('always filters deletedAt: null on the sibling count, since count() bypasses the soft-delete extension', async () => {
     const count = vi.fn().mockResolvedValue(2);
-    const db = makeMockDb({ count });
+    const tx = makeMockTx({ count });
+    const db = makeMockDb({ tx });
 
     await removeTime(BASE_INPUT, { db });
 
@@ -137,9 +154,19 @@ describe('removeTime', () => {
     });
   });
 
+  it('locks the Brunch row before re-checking the remaining-option count', async () => {
+    const tx = makeMockTx();
+    const db = makeMockDb({ tx });
+
+    await removeTime(BASE_INPUT, { db });
+
+    expect(tx.$executeRaw).toHaveBeenCalled();
+  });
+
   it('maps a db error on update', async () => {
     const cause = new Error('connection refused');
-    const db = makeMockDb({ update: vi.fn().mockRejectedValue(cause) });
+    const tx = makeMockTx({ update: vi.fn().mockRejectedValue(cause) });
+    const db = makeMockDb({ tx });
 
     const result = await removeTime(BASE_INPUT, { db });
 

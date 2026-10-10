@@ -74,7 +74,21 @@ export function LocationBallotChecklist({
 
   const readOnly = closed || !canVote;
 
-  async function submit(nextSelected: ReadonlySet<string>): Promise<void> {
+  // selected is seeded once on mount and never re-derived from props after —
+  // router.refresh() re-renders this client component with new options but
+  // does not remount it. Filtering against the current option ids on every
+  // render means a stale id (e.g. the host removed the option this voter had
+  // checked) silently drops out here instead of being resubmitted forever
+  // and 404ing as unknown_option on every subsequent vote (architect review,
+  // F2). A plain useState wouldn't notice the props changed; this does, every
+  // render, without needing a key or an effect.
+  const validOptionIds = new Set(options.map((option) => option.id));
+  const effectiveSelected = new Set(Array.from(selected).filter((id) => validOptionIds.has(id)));
+
+  async function submit(
+    nextSelected: ReadonlySet<string>,
+    previous: ReadonlySet<string>,
+  ): Promise<void> {
     setSubmitting(true);
     setError(undefined);
     try {
@@ -84,11 +98,16 @@ export function LocationBallotChecklist({
         body: JSON.stringify({ optionIds: Array.from(nextSelected) }),
       });
       if (!response.ok) {
+        // Roll back the optimistic check — otherwise a failed save (e.g.
+        // voting closed mid-click) leaves a checked box on screen for a vote
+        // that was never actually recorded (architect review, F2).
+        setSelected(previous);
         setError('Failed to save your vote');
         return;
       }
       router.refresh();
     } catch {
+      setSelected(previous);
       setError('Failed to save your vote');
     } finally {
       setSubmitting(false);
@@ -98,7 +117,8 @@ export function LocationBallotChecklist({
   function toggle(optionId: string): void {
     if (readOnly || submitting) return;
 
-    const next = new Set(selected);
+    const previous = effectiveSelected;
+    const next = new Set(effectiveSelected);
     if (next.has(optionId)) {
       next.delete(optionId);
     } else {
@@ -111,7 +131,7 @@ export function LocationBallotChecklist({
       return;
     }
     setEmptyWarning(false);
-    void submit(next);
+    void submit(next, previous);
   }
 
   if (!votable) {
@@ -142,7 +162,7 @@ export function LocationBallotChecklist({
             <label>
               <input
                 type="checkbox"
-                checked={selected.has(option.id)}
+                checked={effectiveSelected.has(option.id)}
                 disabled={readOnly || submitting}
                 onChange={() => toggle(option.id)}
               />
@@ -193,6 +213,14 @@ export function TimeBallotChecklist({
 
   const readOnly = closed || !canVote;
 
+  // See LocationBallotChecklist's identical derivation for why — selected
+  // is seeded once on mount and never re-derived from props, so a stale id
+  // (e.g. the host removed the time this voter had checked) must be
+  // filtered out here on every render, not left to 404 forever (architect
+  // review, F2).
+  const validOptionIds = new Set(options.map((option) => option.id));
+  const effectiveSelected = new Set(Array.from(selected).filter((id) => validOptionIds.has(id)));
+
   // undefined during server render (and briefly on first client render) so
   // the subline only appears once we know the viewer's actual local zone.
   const [viewerTimezone, setViewerTimezone] = useState<string | undefined>(undefined);
@@ -200,7 +228,10 @@ export function TimeBallotChecklist({
     setViewerTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone);
   }, []);
 
-  async function submit(nextSelected: ReadonlySet<string>): Promise<void> {
+  async function submit(
+    nextSelected: ReadonlySet<string>,
+    previous: ReadonlySet<string>,
+  ): Promise<void> {
     setSubmitting(true);
     setError(undefined);
     try {
@@ -210,11 +241,15 @@ export function TimeBallotChecklist({
         body: JSON.stringify({ optionIds: Array.from(nextSelected) }),
       });
       if (!response.ok) {
+        // See LocationBallotChecklist's identical rollback — a failed save
+        // must not leave a phantom checked box on screen (architect review, F2).
+        setSelected(previous);
         setError('Failed to save your vote');
         return;
       }
       router.refresh();
     } catch {
+      setSelected(previous);
       setError('Failed to save your vote');
     } finally {
       setSubmitting(false);
@@ -224,7 +259,8 @@ export function TimeBallotChecklist({
   function toggle(optionId: string): void {
     if (readOnly || submitting) return;
 
-    const next = new Set(selected);
+    const previous = effectiveSelected;
+    const next = new Set(effectiveSelected);
     if (next.has(optionId)) {
       next.delete(optionId);
     } else {
@@ -237,7 +273,7 @@ export function TimeBallotChecklist({
       return;
     }
     setEmptyWarning(false);
-    void submit(next);
+    void submit(next, previous);
   }
 
   const showSubline =
@@ -290,7 +326,7 @@ export function TimeBallotChecklist({
             <label>
               <input
                 type="checkbox"
-                checked={selected.has(option.id)}
+                checked={effectiveSelected.has(option.id)}
                 disabled={readOnly || submitting}
                 onChange={() => toggle(option.id)}
               />

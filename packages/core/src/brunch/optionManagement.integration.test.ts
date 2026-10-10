@@ -188,4 +188,40 @@ describe('option management (integration — real Postgres)', () => {
     expect(stillPresent).toBeNull(); // soft-delete extension filters findFirst too
     expect(await deriveDecisionMode({ brunchId, kind: 'location' }, { db })).toBe('host_decides');
   });
+
+  it('two concurrent removes of different options never both succeed and empty the kind', async () => {
+    // Architect review F7: the remaining-count check used to read outside
+    // any lock, so two concurrent removes of the two different surviving
+    // options could each see "2 remaining" and both pass, leaving zero —
+    // the exact state removeLocation's last_option guard exists to prevent.
+    // Fired via Promise.all (not sequential) so this is a genuine race, not
+    // just two awaited calls.
+    const brunchId = await createTestBrunch({ locations: [LOCATION_A, LOCATION_B] });
+    const locationA = required(
+      await db.brunchLocation.findFirst({ where: { brunchId, placeId: LOCATION_A.placeId } }),
+    );
+    const locationB = required(
+      await db.brunchLocation.findFirst({ where: { brunchId, placeId: LOCATION_B.placeId } }),
+    );
+
+    const [resultA, resultB] = await Promise.all([
+      removeLocation(
+        { brunchId, requestedById: hostId, locationId: locationA.id as BrunchLocationId },
+        { db },
+      ),
+      removeLocation(
+        { brunchId, requestedById: hostId, locationId: locationB.id as BrunchLocationId },
+        { db },
+      ),
+    ]);
+
+    const results = [resultA, resultB];
+    expect(results.filter((r) => r.isOk())).toHaveLength(1);
+    const failed = results.filter((r) => r.isErr());
+    expect(failed).toHaveLength(1);
+    expect(failed[0]?._unsafeUnwrapErr()).toEqual({ kind: 'last_option' });
+
+    const remaining = await db.brunchLocation.count({ where: { brunchId, deletedAt: null } });
+    expect(remaining).toBe(1);
+  });
 });

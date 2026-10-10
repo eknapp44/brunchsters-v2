@@ -47,6 +47,12 @@ export async function castTimeBallot(
 
   if (input.optionIds.length === 0) return err({ kind: 'empty_ballot' });
 
+  // Dedupe defensively — see castLocationBallot.ts's identical note: the
+  // Zod schema already rejects duplicates at the API boundary, but a
+  // duplicate id reaching createMany would throw on the (brunchTimeId,
+  // userId) unique index (architect review).
+  const optionIds = Array.from(new Set(input.optionIds));
+
   const canVoteResult = await assertCanVote(
     { brunchId: input.brunchId, userId: input.voterId },
     { db },
@@ -63,13 +69,22 @@ export async function castTimeBallot(
     select: { id: true },
   });
   const validIds = new Set(validOptions.map((o) => o.id));
-  const allKnown = input.optionIds.every((id) => validIds.has(id));
+  const allKnown = optionIds.every((id) => validIds.has(id));
   if (!allKnown) return err({ kind: 'unknown_option' });
 
   let hadPriorVote = false;
   let votingClosed = false;
   try {
     await db.$transaction(async (tx) => {
+      // Lock the Brunch row before reading its status — see
+      // castLocationBallot.ts's identical lock for the full rationale: a
+      // concurrent closeVoting (a plain UPDATE, no transaction of its own)
+      // can otherwise commit in the gap between this transaction's read and
+      // its write, letting a vote land after voting has, in real-time
+      // terms, already closed. SELECT FOR UPDATE forces the two to
+      // serialize.
+      await tx.$executeRaw`SELECT 1 FROM "Brunch" WHERE id = ${input.brunchId}::uuid FOR UPDATE`;
+
       // Re-fetched here, not reused from the pre-transaction brunch lookup
       // above: closure must reflect the latest committed state at write
       // time, not a value read earlier in the request. A close racing a
@@ -97,11 +112,11 @@ export async function castTimeBallot(
         where: {
           userId: input.voterId,
           brunchTime: { brunchId: input.brunchId },
-          brunchTimeId: { notIn: [...input.optionIds] },
+          brunchTimeId: { notIn: [...optionIds] },
         },
       });
 
-      const toInsert = input.optionIds.filter((id) => !existingIds.has(id));
+      const toInsert = optionIds.filter((id) => !existingIds.has(id));
       if (toInsert.length > 0) {
         await tx.brunchTimeVote.createMany({
           data: toInsert.map((brunchTimeId) => ({ brunchTimeId, userId: input.voterId })),
@@ -118,11 +133,11 @@ export async function castTimeBallot(
     await eventBus.emit(hadPriorVote ? 'vote/changed' : 'vote/cast', {
       brunchId: input.brunchId,
       voterId: input.voterId,
-      optionIds: input.optionIds,
+      optionIds,
     });
   } catch {
     // Side effects must never fail the vote (Constitution 12).
   }
 
-  return ok({ optionIds: input.optionIds });
+  return ok({ optionIds });
 }

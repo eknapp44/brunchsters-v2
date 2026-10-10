@@ -4,6 +4,7 @@ import { err, ok, type Result } from 'neverthrow';
 import { z } from 'zod';
 import { addTimeInTransaction } from './addTime';
 import { assertBrunchActive, type AssertBrunchActiveError } from './guards/assertBrunchActive';
+import { assertVotingOpen, type AssertVotingOpenError } from './guards/assertVotingOpen';
 
 export const reviewTimeSuggestionRequestSchema = z.object({
   decision: z.enum(['approve', 'decline']),
@@ -20,6 +21,7 @@ export type ReviewTimeSuggestionError =
   | { readonly kind: 'suggestion_not_found' }
   | { readonly kind: 'not_host' }
   | AssertBrunchActiveError
+  | AssertVotingOpenError
   | { readonly kind: 'already_reviewed' }
   | { readonly kind: 'already_added' }
   | { readonly kind: 'lookup_not_found'; readonly code: string }
@@ -45,6 +47,13 @@ export async function reviewTimeSuggestion(
   if (activeResult.isErr()) return err(activeResult.error);
 
   if (suggestion.status.code !== 'pending') return err({ kind: 'already_reviewed' });
+
+  // See reviewLocationSuggestion.ts's identical check — only approving
+  // creates a new live option, so only approving needs voting still open.
+  if (input.decision === 'approve') {
+    const votingOpenResult = assertVotingOpen(suggestion.brunch);
+    if (votingOpenResult.isErr()) return err(votingOpenResult.error);
+  }
 
   const newStatusCode = input.decision === 'approve' ? 'approved' : 'declined';
   const newStatus = await db.brunchOptionSuggestionStatus.findFirst({

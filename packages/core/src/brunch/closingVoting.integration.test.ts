@@ -204,4 +204,104 @@ describe('closing voting (integration — real Postgres)', () => {
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'already_closed' });
   });
+
+  it('updateVotingDeadline can extend a deadline that merely lapsed, reopening voting', async () => {
+    // Architect review F6: a lapsed deadline nobody acted on must be
+    // recoverable — unlike a manual close or a confirm, it's an accident,
+    // not a decision. isVotingClosed factors in votingDeadline itself, so
+    // updateVotingDeadline can't use it directly to decide whether IT is
+    // allowed to change that very field.
+    const { brunchId, locationA } = await createThreeEligibleBrunch('extend-lapsed-deadline');
+
+    const lapsed = await updateVotingDeadline(
+      { brunchId, requestedById: hostId, votingDeadline: '2000-01-01T00:00:00.000Z' },
+      { db },
+    );
+    expect(lapsed.isOk()).toBe(true);
+
+    const rejectedWhileLapsed = await castLocationBallot(
+      { brunchId, voterId: voter1Id, optionIds: [locationA] },
+      { db, eventBus },
+    );
+    expect(rejectedWhileLapsed._unsafeUnwrapErr()).toEqual({ kind: 'voting_closed' });
+
+    const future = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    const extended = await updateVotingDeadline(
+      { brunchId, requestedById: hostId, votingDeadline: future },
+      { db },
+    );
+    expect(extended.isOk()).toBe(true);
+
+    const votedAfterExtend = await castLocationBallot(
+      { brunchId, voterId: voter1Id, optionIds: [locationA] },
+      { db, eventBus },
+    );
+    expect(votedAfterExtend.isOk()).toBe(true);
+  });
+
+  it('a lock held by an in-flight vote transaction blocks a concurrent manual close until it commits', async () => {
+    // Proves the actual mechanism castLocationBallot/castTimeBallot rely on
+    // to close the vote-vs-close race (see their "SELECT ... FOR UPDATE"
+    // comment): without a real row lock, closeVoting's plain UPDATE could
+    // commit in the gap between a vote transaction's read and its write,
+    // letting a vote land after voting has, in real-time terms, already
+    // closed. A second real connection (dbA) is used so the two genuinely
+    // run concurrently, not just interleaved within one event loop tick.
+    const { brunchId } = await createThreeEligibleBrunch('lock-blocks-close');
+
+    const dbA = createDb();
+    let releaseLock: () => void = () => {};
+    const lockHeld = new Promise<void>((resolve) => {
+      releaseLock = resolve;
+    });
+
+    const txPromise = dbA.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT 1 FROM "Brunch" WHERE id = ${brunchId}::uuid FOR UPDATE`;
+      await lockHeld;
+    });
+
+    // Give the lock a moment to actually be acquired before racing closeVoting.
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    let closeSettled = false;
+    const closePromise = closeVoting({ brunchId, requestedById: hostId }, { db }).then((r) => {
+      closeSettled = true;
+      return r;
+    });
+
+    // closeVoting's UPDATE needs the same row lock — it must still be
+    // blocked while dbA's transaction holds it.
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(closeSettled).toBe(false);
+
+    releaseLock();
+    await txPromise;
+
+    const closeResult = await closePromise;
+    expect(closeResult.isOk()).toBe(true);
+  });
+
+  it('two genuinely concurrent calls, a vote and a close, never leave an inconsistent result', async () => {
+    const { brunchId, locationA } = await createThreeEligibleBrunch('concurrent-vote-vs-close');
+
+    const [voteResult, closeResult] = await Promise.all([
+      castLocationBallot({ brunchId, voterId: voter1Id, optionIds: [locationA] }, { db, eventBus }),
+      closeVoting({ brunchId, requestedById: hostId }, { db }),
+    ]);
+
+    expect(closeResult.isOk()).toBe(true);
+
+    // Whichever order they actually serialized in, the final state must be
+    // self-consistent: if the vote succeeded, it must be visible; if it was
+    // rejected as voting_closed, no vote row exists.
+    const voting = await getBrunchVoting({ brunchId, viewerId: hostId }, { db });
+    const option = voting?.locations.options.find((o) => o.id === locationA);
+    if (voteResult.isOk()) {
+      expect(option?.viewerVoted).toBe(false); // viewer here is the host, not voter1
+      expect(option?.voteCount).toBe(1);
+    } else {
+      expect(voteResult._unsafeUnwrapErr()).toEqual({ kind: 'voting_closed' });
+      expect(option?.voteCount).toBe(0);
+    }
+  });
 });

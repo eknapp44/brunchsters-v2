@@ -3,7 +3,6 @@ import type { BrunchId, UserId } from '@brunchsters/shared';
 import { err, ok, type Result } from 'neverthrow';
 import { z } from 'zod';
 import { assertHostOf, type AssertHostOfError } from './guards/assertHostOf';
-import { isVotingClosed } from './guards/assertVotingOpen';
 
 export const updateVotingDeadlineRequestSchema = z.object({
   votingDeadline: z.iso
@@ -39,7 +38,15 @@ export async function updateVotingDeadline(
   );
   if (hostResult.isErr()) return err(hostResult.error);
 
-  if (isVotingClosed(hostResult.value)) return err({ kind: 'already_closed' });
+  // Deliberately narrower than isVotingClosed: that also factors in the
+  // current votingDeadline, which is exactly the field being changed here.
+  // A host extending a deadline that merely lapsed must be allowed — it's
+  // an accident nobody acted on, not a decision — so only a genuine, standing
+  // lock (an early manual close, or the brunch already confirmed) blocks
+  // this (architect review, F6).
+  const manuallyClosedOrConfirmed =
+    hostResult.value.votingClosedAt !== null || hostResult.value.status.code === 'confirmed';
+  if (manuallyClosedOrConfirmed) return err({ kind: 'already_closed' });
 
   const votingDeadline = input.votingDeadline !== undefined ? new Date(input.votingDeadline) : null;
   try {

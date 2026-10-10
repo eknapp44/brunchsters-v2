@@ -1,8 +1,16 @@
 import type { DbClient } from '@brunchsters/database';
 import type { BrunchId, BrunchLocationId, BrunchTimeId, UserId } from '@brunchsters/shared';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('@brunchsters/database', () => ({ isUniqueConstraintError: vi.fn() }));
+
+import { isUniqueConstraintError } from '@brunchsters/database';
 import type { EventBus } from '../events/EventBus';
 import { confirmBrunch } from './confirmBrunch';
+
+beforeEach(() => {
+  vi.mocked(isUniqueConstraintError).mockReturnValue(false);
+});
 
 const BRUNCH_ID = 'brunch-uuid' as BrunchId;
 const HOST_ID = 'host-uuid' as UserId;
@@ -11,7 +19,7 @@ const LOCATION_A = 'location-a-uuid' as BrunchLocationId;
 const LOCATION_B = 'location-b-uuid' as BrunchLocationId;
 const TIME_A = 'time-a-uuid' as BrunchTimeId;
 const TIME_B = 'time-b-uuid' as BrunchTimeId;
-const SCHEDULED_AT = new Date('2026-08-01T15:00:00.000Z');
+const SCHEDULED_AT = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
 
 const OPEN_BRUNCH = {
   id: BRUNCH_ID,
@@ -147,6 +155,32 @@ describe('confirmBrunch', () => {
     });
   });
 
+  it('floors tokenExpiresAt at now + 7 days when the chosen time has already passed', async () => {
+    // Nothing stops confirming a time that's gone stale (addTime only
+    // validates futureness at creation, not at confirm time) — without the
+    // floor, scheduledAt + 7 days could still land in the past for anything
+    // more than a week stale, retroactively expiring every outstanding
+    // invite on a brunch that was just confirmed (architect review, F8).
+    const pastScheduledAt = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const db = makeMockDb({
+      findManyTimes: vi.fn().mockResolvedValue([
+        { id: TIME_A, scheduledAt: pastScheduledAt, votes: [{ id: 'v1' }] },
+        { id: TIME_B, scheduledAt: pastScheduledAt, votes: [] },
+      ]),
+    });
+
+    const before = Date.now();
+    await confirmBrunch(BASE_INPUT, { db, eventBus: makeMockEventBus() });
+    const after = Date.now();
+
+    const call = (db.tx.brunchInvite.updateMany as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as {
+      data: { tokenExpiresAt: Date };
+    };
+    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+    expect(call.data.tokenExpiresAt.getTime()).toBeGreaterThanOrEqual(before + sevenDaysMs);
+    expect(call.data.tokenExpiresAt.getTime()).toBeLessThanOrEqual(after + sevenDaysMs);
+  });
+
   it('emits brunch/confirmed with whether each pick was the vote leader', async () => {
     const emit = vi.fn().mockResolvedValue(undefined);
     const db = makeMockDb({});
@@ -267,6 +301,21 @@ describe('confirmBrunch', () => {
     const result = await confirmBrunch(BASE_INPUT, { db, eventBus: makeMockEventBus() });
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'db_error', cause });
+  });
+
+  it('maps a unique-constraint collision from a concurrent confirm to brunch_not_active', async () => {
+    // Two genuinely concurrent confirms race on the partial unique index
+    // (one confirmed location/time per brunch) — the loser hits a P2002,
+    // not a re-fetch-inside-transaction check. brunch_not_active is a more
+    // honest answer than a generic db_error (architect review, F12); see
+    // confirmBrunch.integration.test.ts for the real-concurrency proof.
+    vi.mocked(isUniqueConstraintError).mockReturnValue(true);
+    const db = makeMockDb({});
+    db.$transaction = vi.fn().mockRejectedValue(new Error('P2002'));
+
+    const result = await confirmBrunch(BASE_INPUT, { db, eventBus: makeMockEventBus() });
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_active' });
   });
 
   it('still returns Ok when the event emit throws', async () => {

@@ -25,7 +25,13 @@ const PENDING_SUGGESTION = {
   placeAddress: '1 Main St',
   placeUrl: 'https://maps.google.com/?cid=a',
   timezone: 'America/Chicago',
-  brunch: { id: 'brunch-uuid', hostId: HOST_ID, status: { code: 'active' } },
+  brunch: {
+    id: 'brunch-uuid',
+    hostId: HOST_ID,
+    status: { code: 'active' },
+    votingDeadline: null,
+    votingClosedAt: null,
+  },
   status: { code: 'pending' },
 };
 
@@ -135,6 +141,44 @@ describe('reviewLocationSuggestion', () => {
     );
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_active' });
+    expect(addLocationInTransaction).not.toHaveBeenCalled();
+  });
+
+  it('returns voting_closed when approving while voting is closed — approval would add a new, never-votable option', async () => {
+    const db = makeMockDb({
+      findFirst: vi.fn().mockResolvedValue({
+        ...PENDING_SUGGESTION,
+        brunch: { ...PENDING_SUGGESTION.brunch, votingClosedAt: new Date() },
+      }),
+    });
+
+    const result = await reviewLocationSuggestion(
+      { suggestionId: SUGGESTION_ID, reviewedById: HOST_ID, decision: 'approve' },
+      { db },
+    );
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'voting_closed' });
+    expect(addLocationInTransaction).not.toHaveBeenCalled();
+  });
+
+  it('still allows declining while voting is closed — declining dismisses a pending row rather than adding one', async () => {
+    const statusFindFirst = vi.fn().mockResolvedValue({ id: 'status-declined' });
+    const txUpdate = vi.fn().mockResolvedValue({});
+    const db = makeMockDb({
+      findFirst: vi.fn().mockResolvedValue({
+        ...PENDING_SUGGESTION,
+        brunch: { ...PENDING_SUGGESTION.brunch, votingClosedAt: new Date() },
+      }),
+      statusFindFirst,
+      txUpdate,
+    });
+
+    const result = await reviewLocationSuggestion(
+      { suggestionId: SUGGESTION_ID, reviewedById: HOST_ID, decision: 'decline' },
+      { db },
+    );
+
+    expect(result.isOk()).toBe(true);
     expect(addLocationInTransaction).not.toHaveBeenCalled();
   });
 

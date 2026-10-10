@@ -6,6 +6,7 @@ import type { AssertBrunchActiveError } from './guards/assertBrunchActive';
 import { assertBrunchActive } from './guards/assertBrunchActive';
 import type { AssertHostOfError } from './guards/assertHostOf';
 import { assertHostOf } from './guards/assertHostOf';
+import { assertVotingOpen, type AssertVotingOpenError } from './guards/assertVotingOpen';
 
 export type AddLocationInput = {
   readonly brunchId: BrunchId;
@@ -16,6 +17,7 @@ export type AddLocationInput = {
 export type AddLocationError =
   | AssertHostOfError
   | AssertBrunchActiveError
+  | AssertVotingOpenError
   | { readonly kind: 'already_added' }
   | { readonly kind: 'db_error'; readonly cause: unknown };
 
@@ -64,6 +66,14 @@ export async function addLocation(
 
   const activeResult = assertBrunchActive(hostResult.value);
   if (activeResult.isErr()) return err(activeResult.error);
+
+  // Adding an option while voting is closed would add a brand-new option
+  // nobody could ever vote on — the ballot is supposed to freeze together
+  // with voting, not keep growing after it (architect review, F6). A host
+  // who wants to add one more candidate after a deadline merely lapsed can
+  // extend it via updateVotingDeadline first, which reopens this.
+  const votingOpenResult = assertVotingOpen(hostResult.value);
+  if (votingOpenResult.isErr()) return err(votingOpenResult.error);
 
   try {
     const created = await addLocationInTransaction(ctx.db, {

@@ -84,7 +84,7 @@ describe('updateVotingDeadline', () => {
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_found' });
   });
 
-  it('rejects once voting is closed', async () => {
+  it('rejects once voting is manually closed', async () => {
     const db = makeMockDb({
       findFirstBrunch: vi.fn().mockResolvedValue({ ...OPEN_BRUNCH, votingClosedAt: new Date() }),
     });
@@ -96,6 +96,42 @@ describe('updateVotingDeadline', () => {
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'already_closed' });
     expect(db.brunch.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects once the brunch is confirmed', async () => {
+    const db = makeMockDb({
+      findFirstBrunch: vi.fn().mockResolvedValue({ ...OPEN_BRUNCH, status: { code: 'confirmed' } }),
+    });
+
+    const result = await updateVotingDeadline(
+      { brunchId: BRUNCH_ID, requestedById: HOST_ID, votingDeadline: FUTURE_ISO },
+      { db },
+    );
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'already_closed' });
+    expect(db.brunch.update).not.toHaveBeenCalled();
+  });
+
+  it('allows extending a deadline that merely lapsed — it was never manually closed or confirmed', async () => {
+    const db = makeMockDb({
+      findFirstBrunch: vi
+        .fn()
+        .mockResolvedValue({
+          ...OPEN_BRUNCH,
+          votingDeadline: new Date('2000-01-01T00:00:00.000Z'),
+        }),
+    });
+
+    const result = await updateVotingDeadline(
+      { brunchId: BRUNCH_ID, requestedById: HOST_ID, votingDeadline: FUTURE_ISO },
+      { db },
+    );
+
+    expect(result.isOk()).toBe(true);
+    expect(db.brunch.update).toHaveBeenCalledWith({
+      where: { id: BRUNCH_ID },
+      data: { votingDeadline: new Date(FUTURE_ISO) },
+    });
   });
 
   it('maps a db error on update', async () => {

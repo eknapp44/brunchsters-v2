@@ -6,6 +6,7 @@ import type { AssertBrunchActiveError } from './guards/assertBrunchActive';
 import { assertBrunchActive } from './guards/assertBrunchActive';
 import type { AssertHostOfError } from './guards/assertHostOf';
 import { assertHostOf } from './guards/assertHostOf';
+import { assertVotingOpen, type AssertVotingOpenError } from './guards/assertVotingOpen';
 
 export const addTimeRequestSchema = z.object({
   scheduledAt: z.iso.datetime().refine((iso) => new Date(iso) > new Date(), {
@@ -23,6 +24,7 @@ export type AddTimeInput = AddTimeRequest & {
 export type AddTimeError =
   | AssertHostOfError
   | AssertBrunchActiveError
+  | AssertVotingOpenError
   | { readonly kind: 'already_added' }
   | { readonly kind: 'db_error'; readonly cause: unknown };
 
@@ -67,6 +69,11 @@ export async function addTime(
 
   const activeResult = assertBrunchActive(hostResult.value);
   if (activeResult.isErr()) return err(activeResult.error);
+
+  // See addLocation.ts's identical check — adding an option while voting is
+  // closed would add a new, never-votable option (architect review, F6).
+  const votingOpenResult = assertVotingOpen(hostResult.value);
+  if (votingOpenResult.isErr()) return err(votingOpenResult.error);
 
   try {
     const created = await addTimeInTransaction(ctx.db, {

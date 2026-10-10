@@ -1,6 +1,7 @@
 import type { DbClient } from '@brunchsters/database';
 import type { BrunchId, BrunchLocationId, UserId } from '@brunchsters/shared';
 import { err, ok, type Result } from 'neverthrow';
+import { LastOptionError } from '../errors/LastOptionError';
 import type { AssertBrunchActiveError } from './guards/assertBrunchActive';
 import { assertBrunchActive } from './guards/assertBrunchActive';
 import type { AssertHostOfError } from './guards/assertHostOf';
@@ -41,19 +42,28 @@ export async function removeLocation(
   if (location === null) return err({ kind: 'unknown_option' });
   if (location.isConfirmed) return err({ kind: 'option_confirmed' });
 
-  // count() bypasses the soft-delete extension (only findMany/findFirst are
-  // intercepted), so deletedAt: null must be spelled out here (ADR 0006).
-  const remaining = await ctx.db.brunchLocation.count({
-    where: { brunchId: input.brunchId, deletedAt: null },
-  });
-  if (remaining <= 1) return err({ kind: 'last_option' });
-
   try {
-    await ctx.db.brunchLocation.update({
-      where: { id: input.locationId },
-      data: { deletedAt: new Date(), deletedBy: input.requestedById },
+    await ctx.db.$transaction(async (tx) => {
+      // Lock the Brunch row before the remaining-count check — without
+      // this, two concurrent removes of two different options can each
+      // see "2 remaining" and both pass, leaving zero (architect review,
+      // F7). Same mechanism as castLocationBallot.ts's lock.
+      await tx.$executeRaw`SELECT 1 FROM "Brunch" WHERE id = ${input.brunchId}::uuid FOR UPDATE`;
+
+      // count() bypasses the soft-delete extension (only findMany/findFirst
+      // are intercepted), so deletedAt: null must be spelled out here (ADR 0006).
+      const remaining = await tx.brunchLocation.count({
+        where: { brunchId: input.brunchId, deletedAt: null },
+      });
+      if (remaining <= 1) throw new LastOptionError();
+
+      await tx.brunchLocation.update({
+        where: { id: input.locationId },
+        data: { deletedAt: new Date(), deletedBy: input.requestedById },
+      });
     });
   } catch (cause) {
+    if (cause instanceof LastOptionError) return err({ kind: 'last_option' });
     return err({ kind: 'db_error', cause });
   }
 

@@ -30,15 +30,21 @@ const BASE_INPUT: AddLocationInput = {
   location: LOCATION,
 };
 
+const ACTIVE_OPEN_BRUNCH = {
+  id: BRUNCH_ID,
+  hostId: HOST_ID,
+  status: { code: 'active' },
+  votingDeadline: null,
+  votingClosedAt: null,
+};
+
 function makeMockDb(overrides: {
   findFirstBrunch?: ReturnType<typeof vi.fn>;
   create?: ReturnType<typeof vi.fn>;
 }): DbClient {
   return {
     brunch: {
-      findFirst:
-        overrides.findFirstBrunch ??
-        vi.fn().mockResolvedValue({ id: BRUNCH_ID, hostId: HOST_ID, status: { code: 'active' } }),
+      findFirst: overrides.findFirstBrunch ?? vi.fn().mockResolvedValue(ACTIVE_OPEN_BRUNCH),
     },
     brunchLocation: {
       create: overrides.create ?? vi.fn().mockResolvedValue({ id: 'new-location-uuid' }),
@@ -95,6 +101,19 @@ describe('addLocation', () => {
     const result = await addLocation(BASE_INPUT, { db });
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_active' });
+    expect(db.brunchLocation.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects once voting is closed', async () => {
+    const db = makeMockDb({
+      findFirstBrunch: vi
+        .fn()
+        .mockResolvedValue({ ...ACTIVE_OPEN_BRUNCH, votingClosedAt: new Date() }),
+    });
+
+    const result = await addLocation(BASE_INPUT, { db });
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'voting_closed' });
     expect(db.brunchLocation.create).not.toHaveBeenCalled();
   });
 

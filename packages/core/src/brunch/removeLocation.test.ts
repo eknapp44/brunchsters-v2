@@ -15,15 +15,30 @@ const BASE_INPUT: RemoveLocationInput = {
   locationId: LOCATION_ID,
 };
 
+type MockTx = {
+  $executeRaw: ReturnType<typeof vi.fn>;
+  brunchLocation: { count: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> };
+};
+
+function makeMockTx(overrides: Partial<MockTx['brunchLocation']> = {}): MockTx {
+  return {
+    $executeRaw: vi.fn().mockResolvedValue(0),
+    brunchLocation: {
+      count: overrides.count ?? vi.fn().mockResolvedValue(2),
+      update: overrides.update ?? vi.fn().mockResolvedValue({ id: LOCATION_ID }),
+    },
+  };
+}
+
 type Overrides = {
   findFirstBrunch?: ReturnType<typeof vi.fn>;
   findFirstLocation?: ReturnType<typeof vi.fn>;
-  count?: ReturnType<typeof vi.fn>;
-  update?: ReturnType<typeof vi.fn>;
+  tx?: MockTx;
 };
 
-function makeMockDb(overrides: Overrides): DbClient {
-  return {
+function makeMockDb(overrides: Overrides): DbClient & { readonly tx: MockTx } {
+  const tx = overrides.tx ?? makeMockTx();
+  const db = {
     brunch: {
       findFirst:
         overrides.findFirstBrunch ??
@@ -33,10 +48,10 @@ function makeMockDb(overrides: Overrides): DbClient {
       findFirst:
         overrides.findFirstLocation ??
         vi.fn().mockResolvedValue({ id: LOCATION_ID, brunchId: BRUNCH_ID, isConfirmed: false }),
-      count: overrides.count ?? vi.fn().mockResolvedValue(2),
-      update: overrides.update ?? vi.fn().mockResolvedValue({ id: LOCATION_ID }),
     },
-  } as unknown as DbClient;
+    $transaction: vi.fn().mockImplementation((fn: (tx: MockTx) => Promise<unknown>) => fn(tx)),
+  };
+  return { ...db, tx } as unknown as DbClient & { readonly tx: MockTx };
 }
 
 describe('removeLocation', () => {
@@ -47,7 +62,7 @@ describe('removeLocation', () => {
 
     expect(result.isOk()).toBe(true);
     expect(result._unsafeUnwrap()).toEqual({ id: LOCATION_ID });
-    expect(db.brunchLocation.update).toHaveBeenCalledWith({
+    expect(db.tx.brunchLocation.update).toHaveBeenCalledWith({
       where: { id: LOCATION_ID },
       data: { deletedAt: expect.any(Date), deletedBy: HOST_ID },
     });
@@ -59,7 +74,7 @@ describe('removeLocation', () => {
     const result = await removeLocation(BASE_INPUT, { db });
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_found' });
-    expect(db.brunchLocation.update).not.toHaveBeenCalled();
+    expect(db.tx.brunchLocation.update).not.toHaveBeenCalled();
   });
 
   it('rejects a non-host', async () => {
@@ -68,7 +83,7 @@ describe('removeLocation', () => {
     const result = await removeLocation({ ...BASE_INPUT, requestedById: OTHER_ID }, { db });
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'not_host' });
-    expect(db.brunchLocation.update).not.toHaveBeenCalled();
+    expect(db.tx.brunchLocation.update).not.toHaveBeenCalled();
   });
 
   it('rejects a brunch that is not active', async () => {
@@ -81,7 +96,7 @@ describe('removeLocation', () => {
     const result = await removeLocation(BASE_INPUT, { db });
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_active' });
-    expect(db.brunchLocation.update).not.toHaveBeenCalled();
+    expect(db.tx.brunchLocation.update).not.toHaveBeenCalled();
   });
 
   it('rejects an unknown location id', async () => {
@@ -90,7 +105,7 @@ describe('removeLocation', () => {
     const result = await removeLocation(BASE_INPUT, { db });
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'unknown_option' });
-    expect(db.brunchLocation.update).not.toHaveBeenCalled();
+    expect(db.tx.brunchLocation.update).not.toHaveBeenCalled();
   });
 
   it('rejects a location id that belongs to another brunch', async () => {
@@ -114,21 +129,23 @@ describe('removeLocation', () => {
     const result = await removeLocation(BASE_INPUT, { db });
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'option_confirmed' });
-    expect(db.brunchLocation.update).not.toHaveBeenCalled();
+    expect(db.tx.brunchLocation.update).not.toHaveBeenCalled();
   });
 
   it('rejects removing the last remaining location', async () => {
-    const db = makeMockDb({ count: vi.fn().mockResolvedValue(1) });
+    const tx = makeMockTx({ count: vi.fn().mockResolvedValue(1) });
+    const db = makeMockDb({ tx });
 
     const result = await removeLocation(BASE_INPUT, { db });
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'last_option' });
-    expect(db.brunchLocation.update).not.toHaveBeenCalled();
+    expect(tx.brunchLocation.update).not.toHaveBeenCalled();
   });
 
   it('always filters deletedAt: null on the sibling count, since count() bypasses the soft-delete extension', async () => {
     const count = vi.fn().mockResolvedValue(2);
-    const db = makeMockDb({ count });
+    const tx = makeMockTx({ count });
+    const db = makeMockDb({ tx });
 
     await removeLocation(BASE_INPUT, { db });
 
@@ -137,9 +154,19 @@ describe('removeLocation', () => {
     });
   });
 
+  it('locks the Brunch row before re-checking the remaining-option count', async () => {
+    const tx = makeMockTx();
+    const db = makeMockDb({ tx });
+
+    await removeLocation(BASE_INPUT, { db });
+
+    expect(tx.$executeRaw).toHaveBeenCalled();
+  });
+
   it('maps a db error on update', async () => {
     const cause = new Error('connection refused');
-    const db = makeMockDb({ update: vi.fn().mockRejectedValue(cause) });
+    const tx = makeMockTx({ update: vi.fn().mockRejectedValue(cause) });
+    const db = makeMockDb({ tx });
 
     const result = await removeLocation(BASE_INPUT, { db });
 

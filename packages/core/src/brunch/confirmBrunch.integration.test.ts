@@ -220,8 +220,10 @@ describe('confirmBrunch (integration — real Postgres)', () => {
     // What actually prevents two confirmed brunches here is the DB-level
     // partial unique index, not application logic — this is the race M5's
     // testing notes flagged as reasoned-through-on-paper but never run for
-    // real. The loser is expected to surface a generic db_error rather than a
-    // clean brunch_not_active (documented, accepted trade-off — see M5 notes).
+    // real. The loser surfaces a clean brunch_not_active, not a generic
+    // db_error — M5's original trade-off note is now resolved: catching the
+    // P2002 (isUniqueConstraintError) costs two lines, which the architect
+    // review pass added.
     const { brunchId, locationA, locationB, timeA, timeB } =
       await createConfirmableBrunch('concurrent-confirm');
 
@@ -238,9 +240,10 @@ describe('confirmBrunch (integration — real Postgres)', () => {
 
     const results = [first, second];
     const okCount = results.filter((r) => r.isOk()).length;
-    const errCount = results.filter((r) => r.isErr()).length;
+    const errored = results.filter((r) => r.isErr());
     expect(okCount).toBe(1);
-    expect(errCount).toBe(1);
+    expect(errored).toHaveLength(1);
+    expect(errored[0]?._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_active' });
 
     // Whichever lost, it lost cleanly — no partial write, no two confirmed
     // locations or times.

@@ -22,7 +22,13 @@ const PENDING_SUGGESTION = {
   id: SUGGESTION_ID,
   brunchId: 'brunch-uuid',
   scheduledAt: SCHEDULED_AT,
-  brunch: { id: 'brunch-uuid', hostId: HOST_ID, status: { code: 'active' } },
+  brunch: {
+    id: 'brunch-uuid',
+    hostId: HOST_ID,
+    status: { code: 'active' },
+    votingDeadline: null,
+    votingClosedAt: null,
+  },
   status: { code: 'pending' },
 };
 
@@ -132,6 +138,42 @@ describe('reviewTimeSuggestion', () => {
     );
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_active' });
+    expect(addTimeInTransaction).not.toHaveBeenCalled();
+  });
+
+  it('returns voting_closed when approving while voting is closed — approval would add a new, never-votable option', async () => {
+    const db = makeMockDb({
+      findFirst: vi.fn().mockResolvedValue({
+        ...PENDING_SUGGESTION,
+        brunch: { ...PENDING_SUGGESTION.brunch, votingClosedAt: new Date() },
+      }),
+    });
+
+    const result = await reviewTimeSuggestion(
+      { suggestionId: SUGGESTION_ID, reviewedById: HOST_ID, decision: 'approve' },
+      { db },
+    );
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'voting_closed' });
+    expect(addTimeInTransaction).not.toHaveBeenCalled();
+  });
+
+  it('still allows declining while voting is closed — declining dismisses a pending row rather than adding one', async () => {
+    const statusFindFirst = vi.fn().mockResolvedValue({ id: 'status-declined' });
+    const db = makeMockDb({
+      findFirst: vi.fn().mockResolvedValue({
+        ...PENDING_SUGGESTION,
+        brunch: { ...PENDING_SUGGESTION.brunch, votingClosedAt: new Date() },
+      }),
+      statusFindFirst,
+    });
+
+    const result = await reviewTimeSuggestion(
+      { suggestionId: SUGGESTION_ID, reviewedById: HOST_ID, decision: 'decline' },
+      { db },
+    );
+
+    expect(result.isOk()).toBe(true);
     expect(addTimeInTransaction).not.toHaveBeenCalled();
   });
 

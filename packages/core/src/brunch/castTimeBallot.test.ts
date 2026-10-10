@@ -18,6 +18,7 @@ const OPEN_BRUNCH = {
 };
 
 type MockTx = {
+  $executeRaw: ReturnType<typeof vi.fn>;
   brunch: { findFirst: ReturnType<typeof vi.fn> };
   brunchTimeVote: {
     findMany: ReturnType<typeof vi.fn>;
@@ -32,6 +33,7 @@ function makeMockTx(
   } = {},
 ): MockTx {
   return {
+    $executeRaw: vi.fn().mockResolvedValue(0),
     brunch: {
       findFirst: overrides.findFirstBrunch ?? vi.fn().mockResolvedValue(OPEN_BRUNCH),
     },
@@ -305,5 +307,32 @@ describe('castTimeBallot', () => {
     );
 
     expect(result.isOk()).toBe(true);
+  });
+
+  it('dedupes a duplicate id instead of inserting it twice and throwing on the unique index', async () => {
+    const db = makeMockDb({});
+
+    const result = await castTimeBallot(
+      { brunchId: BRUNCH_ID, voterId: VOTER_ID, optionIds: [OPTION_A, OPTION_A] },
+      { db, eventBus: makeMockEventBus() },
+    );
+
+    expect(result.isOk()).toBe(true);
+    expect(result._unsafeUnwrap()).toEqual({ optionIds: [OPTION_A] });
+    expect(db.tx.brunchTimeVote.createMany).toHaveBeenCalledWith({
+      data: [{ brunchTimeId: OPTION_A, userId: VOTER_ID }],
+    });
+  });
+
+  it('locks the Brunch row before re-checking voting status inside the transaction', async () => {
+    const tx = makeMockTx();
+    const db = makeMockDb({ tx });
+
+    await castTimeBallot(
+      { brunchId: BRUNCH_ID, voterId: VOTER_ID, optionIds: [OPTION_A] },
+      { db, eventBus: makeMockEventBus() },
+    );
+
+    expect(tx.$executeRaw).toHaveBeenCalled();
   });
 });

@@ -11,7 +11,12 @@ import { assertVotingOpen, type AssertVotingOpenError } from './guards/assertVot
 import { deriveDecisionMode } from './guards/deriveDecisionMode';
 
 export const castBallotRequestSchema = z.object({
-  optionIds: z.array(z.uuid()).min(1, 'optionIds must not be empty'),
+  optionIds: z
+    .array(z.uuid())
+    .min(1, 'optionIds must not be empty')
+    .refine((ids) => new Set(ids).size === ids.length, {
+      message: 'optionIds must not contain duplicates',
+    }),
 });
 
 export type CastBallotRequest = z.infer<typeof castBallotRequestSchema>;
@@ -54,6 +59,13 @@ export async function castLocationBallot(
 
   if (input.optionIds.length === 0) return err({ kind: 'empty_ballot' });
 
+  // Dedupe defensively — the Zod schema already rejects duplicates at the
+  // API boundary, but this is the actual set semantics the type promises
+  // ("the voter's complete set"), and a duplicate id would otherwise reach
+  // createMany and throw on the (brunchLocationId, userId) unique index
+  // (architect review).
+  const optionIds = Array.from(new Set(input.optionIds));
+
   const canVoteResult = await assertCanVote(
     { brunchId: input.brunchId, userId: input.voterId },
     { db },
@@ -70,13 +82,26 @@ export async function castLocationBallot(
     select: { id: true },
   });
   const validIds = new Set(validOptions.map((o) => o.id));
-  const allKnown = input.optionIds.every((id) => validIds.has(id));
+  const allKnown = optionIds.every((id) => validIds.has(id));
   if (!allKnown) return err({ kind: 'unknown_option' });
 
   let hadPriorVote = false;
   let votingClosed = false;
   try {
     await db.$transaction(async (tx) => {
+      // Lock the Brunch row before reading its status — without this, a
+      // concurrent closeVoting (a plain UPDATE, no transaction of its own)
+      // can commit in the gap between this transaction's read and its write,
+      // so the fresh re-fetch below sees "open" and the vote lands after
+      // voting has, in real-time terms, already closed. SELECT FOR UPDATE
+      // forces the two to serialize: either this transaction already holds
+      // the lock (so closeVoting blocks until it commits/rolls back, and the
+      // vote legitimately happened first), or closeVoting got there first
+      // (so the re-fetch below sees it, correctly, as closed). The comment
+      // on castTimeBallot.ts's identical lock and the test in
+      // closingVoting.integration.test.ts cover the "why" in more detail.
+      await tx.$executeRaw`SELECT 1 FROM "Brunch" WHERE id = ${input.brunchId}::uuid FOR UPDATE`;
+
       // Re-fetched here, not reused from the pre-transaction brunch lookup
       // above: closure must reflect the latest committed state at write
       // time, not a value read earlier in the request. A close racing a
@@ -104,11 +129,11 @@ export async function castLocationBallot(
         where: {
           userId: input.voterId,
           brunchLocation: { brunchId: input.brunchId },
-          brunchLocationId: { notIn: [...input.optionIds] },
+          brunchLocationId: { notIn: [...optionIds] },
         },
       });
 
-      const toInsert = input.optionIds.filter((id) => !existingIds.has(id));
+      const toInsert = optionIds.filter((id) => !existingIds.has(id));
       if (toInsert.length > 0) {
         await tx.brunchLocationVote.createMany({
           data: toInsert.map((brunchLocationId) => ({ brunchLocationId, userId: input.voterId })),
@@ -125,11 +150,11 @@ export async function castLocationBallot(
     await eventBus.emit(hadPriorVote ? 'vote/changed' : 'vote/cast', {
       brunchId: input.brunchId,
       voterId: input.voterId,
-      optionIds: input.optionIds,
+      optionIds,
     });
   } catch {
     // Side effects must never fail the vote (Constitution 12).
   }
 
-  return ok({ optionIds: input.optionIds });
+  return ok({ optionIds });
 }
