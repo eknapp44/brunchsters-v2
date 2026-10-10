@@ -1,4 +1,4 @@
-import type { DbClient } from '@brunchsters/database';
+import { isUniqueConstraintError, type DbClient } from '@brunchsters/database';
 import type { BrunchId, BrunchTimeId, UserId } from '@brunchsters/shared';
 import { err, ok, type Result } from 'neverthrow';
 import { z } from 'zod';
@@ -23,6 +23,7 @@ export type AddTimeInput = AddTimeRequest & {
 export type AddTimeError =
   | AssertHostOfError
   | AssertBrunchActiveError
+  | { readonly kind: 'already_added' }
   | { readonly kind: 'db_error'; readonly cause: unknown };
 
 // The interactive-transaction client Prisma passes into db.$transaction's
@@ -75,6 +76,9 @@ export async function addTime(
     });
     return ok(created);
   } catch (cause) {
+    // Partial unique index: one live row per brunchId+scheduledAt (architect
+    // review) — see addLocation.ts's identical check.
+    if (isUniqueConstraintError(cause)) return err({ kind: 'already_added' });
     return err({ kind: 'db_error', cause });
   }
 }

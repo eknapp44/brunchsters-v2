@@ -52,6 +52,8 @@ export async function POST(
         return NextResponse.json({ error: 'Only the host can add times' }, { status: 403 });
       case 'brunch_not_active':
         return NextResponse.json({ error: 'Brunch is not open for changes' }, { status: 409 });
+      case 'already_added':
+        return NextResponse.json({ error: 'This time is already an option' }, { status: 409 });
       default:
         console.error('addTime failed', result.error);
         return NextResponse.json({ error: 'Failed to add time' }, { status: 500 });

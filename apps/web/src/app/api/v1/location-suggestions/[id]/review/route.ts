@@ -55,6 +55,8 @@ export async function POST(
         );
       case 'brunch_not_active':
         return NextResponse.json({ error: 'Brunch is not open for changes' }, { status: 409 });
+      case 'already_added':
+        return NextResponse.json({ error: 'This place is already an option' }, { status: 409 });
       case 'already_reviewed':
         return NextResponse.json(
           { error: 'This suggestion was already reviewed' },

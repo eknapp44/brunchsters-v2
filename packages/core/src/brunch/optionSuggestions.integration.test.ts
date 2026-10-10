@@ -10,12 +10,15 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { respondToInvite } from '../invite/respondToInvite';
 import { sendInvites } from '../invite/sendInvites';
 import { NoopEventBus } from '../events/NoopEventBus';
+import { addLocation } from './addLocation';
 import { castTimeBallot } from './castTimeBallot';
 import { confirmBrunch } from './confirmBrunch';
 import { createBrunch } from './createBrunch';
 import { deriveDecisionMode } from './guards/deriveDecisionMode';
 import { getBrunchVoting } from './getBrunchVoting';
+import { reviewLocationSuggestion } from './reviewLocationSuggestion';
 import { reviewTimeSuggestion } from './reviewTimeSuggestion';
+import { suggestLocation } from './suggestLocation';
 import { suggestTime } from './suggestTime';
 
 // Requires: supabase start + seeded lookup tables (pnpm db:seed).
@@ -54,6 +57,7 @@ afterAll(async () => {
     where: { brunchTime: { brunchId: { in: createdBrunchIds } } },
   });
   await db.brunchTimeSuggestion.deleteMany({ where: { brunchId: { in: createdBrunchIds } } });
+  await db.brunchLocationSuggestion.deleteMany({ where: { brunchId: { in: createdBrunchIds } } });
   await db.brunchLocation.deleteMany({ where: { brunchId: { in: createdBrunchIds } } });
   await db.brunchTime.deleteMany({ where: { brunchId: { in: createdBrunchIds } } });
   await db.brunchAttendee.deleteMany({ where: { brunchId: { in: createdBrunchIds } } });
@@ -266,5 +270,83 @@ describe('option suggestions (integration — real Postgres)', () => {
     // And the stale suggestion never silently became a real option.
     const timeCount = await db.brunchTime.count({ where: { brunchId, deletedAt: null } });
     expect(timeCount).toBe(1);
+  });
+
+  it('rejects approving a suggestion for a place the host already added directly', async () => {
+    // Reproduces the second gap found in the senior-architect review: the
+    // DB-level partial unique index (one live BrunchLocation per
+    // brunchId+placeId) must reject this, since nothing upstream of the
+    // transaction can catch every ordering — the suggestion was created
+    // before the host's direct add, so suggestLocation's own
+    // already-live-option check never saw it.
+    const brunch = await createBrunch(
+      { title: 'race-add-then-approve', hostId, locations: [], times: [] },
+      { db, eventBus },
+    );
+    expect(brunch.isOk()).toBe(true);
+    const brunchId = brunch._unsafeUnwrap().id;
+    createdBrunchIds.push(brunchId);
+
+    const invites = await sendInvites(
+      { brunchId, invitedById: hostId, emails: [VOTER_EMAIL] },
+      { db, eventBus },
+    );
+    expect(invites.isOk()).toBe(true);
+    const invite = required(
+      await db.brunchInvite.findFirst({ where: { brunchId, invitedEmail: VOTER_EMAIL } }),
+    );
+    await respondToInvite(
+      { token: invite.token as InviteToken, viewerId: voterId, response: 'yes' },
+      { db, eventBus },
+    );
+
+    const placeId = `place-race-${RUN_ID}`;
+    const suggested = await suggestLocation(
+      {
+        brunchId,
+        suggestedById: voterId,
+        location: {
+          placeId,
+          placeName: 'Race Cafe (suggested)',
+          placeAddress: '1 Race St',
+          placeUrl: 'https://maps.google.com/?cid=race',
+          timezone: 'America/Chicago',
+        },
+      },
+      { db },
+    );
+    expect(suggested.isOk()).toBe(true);
+    const suggestionId = suggested._unsafeUnwrap().suggestionId;
+
+    // Host adds the identical place directly while the suggestion still sits
+    // pending — suggestLocation's own check only runs at suggest-time, so
+    // this ordering is exactly what it can't catch.
+    const added = await addLocation(
+      {
+        brunchId,
+        requestedById: hostId,
+        location: {
+          placeId,
+          placeName: 'Race Cafe (host-added)',
+          placeAddress: '1 Race St',
+          placeUrl: 'https://maps.google.com/?cid=race',
+          timezone: 'America/Chicago',
+        },
+      },
+      { db },
+    );
+    expect(added.isOk()).toBe(true);
+
+    const reviewed = await reviewLocationSuggestion(
+      { suggestionId, reviewedById: hostId, decision: 'approve' },
+      { db },
+    );
+    expect(reviewed._unsafeUnwrapErr()).toEqual({ kind: 'already_added' });
+
+    // Exactly one live row for this place — the host's direct add — not two.
+    const liveCount = await db.brunchLocation.count({
+      where: { brunchId, placeId, deletedAt: null },
+    });
+    expect(liveCount).toBe(1);
   });
 });

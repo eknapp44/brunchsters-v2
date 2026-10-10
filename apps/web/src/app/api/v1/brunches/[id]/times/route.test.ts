@@ -122,6 +122,17 @@ describe('POST /api/v1/brunches/[id]/times', () => {
     expect(response.status).toBe(404);
   });
 
+  it('returns 409 when the time is already an option', async () => {
+    mockAuth.mockResolvedValue(SESSION);
+    mockAddTime.mockResolvedValue(err({ kind: 'already_added' }));
+
+    const response = await POST(postRequest({ scheduledAt: FUTURE_ISO }), {
+      params: params(VALID_BRUNCH_ID),
+    });
+
+    expect(response.status).toBe(409);
+  });
+
   it('returns 500 on an unexpected service error', async () => {
     mockAuth.mockResolvedValue(SESSION);
     mockAddTime.mockResolvedValue(err({ kind: 'db_error', cause: new Error('boom') }));

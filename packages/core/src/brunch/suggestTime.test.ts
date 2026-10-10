@@ -26,6 +26,7 @@ function makeMockDb(
     brunchFindFirst?: ReturnType<typeof vi.fn>;
     attendeeFindFirst?: ReturnType<typeof vi.fn>;
     suggestionFindUnique?: ReturnType<typeof vi.fn>;
+    timeFindFirst?: ReturnType<typeof vi.fn>;
     statusFindFirst?: ReturnType<typeof vi.fn>;
     suggestionCreate?: ReturnType<typeof vi.fn>;
   } = {},
@@ -40,6 +41,9 @@ function makeMockDb(
       findUnique: overrides.suggestionFindUnique ?? vi.fn().mockResolvedValue(null),
       create:
         overrides.suggestionCreate ?? vi.fn().mockResolvedValue({ id: 'new-suggestion-uuid' }),
+    },
+    brunchTime: {
+      findFirst: overrides.timeFindFirst ?? vi.fn().mockResolvedValue(null),
     },
     brunchOptionSuggestionStatus: {
       findFirst: overrides.statusFindFirst ?? vi.fn().mockResolvedValue({ id: 'status-pending' }),
@@ -159,6 +163,16 @@ describe('suggestTime', () => {
   it('returns already_suggested when the time was already suggested for this brunch', async () => {
     const db = makeMockDb({
       suggestionFindUnique: vi.fn().mockResolvedValue({ id: 'existing-suggestion' }),
+    });
+
+    const result = await suggestTime(BASE_INPUT, { db });
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'already_suggested' });
+  });
+
+  it('returns already_suggested when the time is already a live option', async () => {
+    const db = makeMockDb({
+      timeFindFirst: vi.fn().mockResolvedValue({ id: 'existing-time' }),
     });
 
     const result = await suggestTime(BASE_INPUT, { db });

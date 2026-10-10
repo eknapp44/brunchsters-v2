@@ -117,6 +117,15 @@ describe('POST /api/v1/brunches/[id]/locations', () => {
     expect(response.status).toBe(404);
   });
 
+  it('returns 409 when the place is already an option', async () => {
+    mockAuth.mockResolvedValue(SESSION);
+    mockAddLocation.mockResolvedValue(err({ kind: 'already_added' }));
+
+    const response = await POST(postRequest(LOCATION_BODY), { params: params(VALID_BRUNCH_ID) });
+
+    expect(response.status).toBe(409);
+  });
+
   it('returns 500 on an unexpected service error', async () => {
     mockAuth.mockResolvedValue(SESSION);
     mockAddLocation.mockResolvedValue(err({ kind: 'db_error', cause: new Error('boom') }));

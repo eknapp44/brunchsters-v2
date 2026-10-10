@@ -3,12 +3,15 @@ import type { BrunchLocationSuggestionId, UserId } from '@brunchsters/shared';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('./addLocation', () => ({ addLocationInTransaction: vi.fn() }));
+vi.mock('@brunchsters/database', () => ({ isUniqueConstraintError: vi.fn() }));
 
+import { isUniqueConstraintError } from '@brunchsters/database';
 import { addLocationInTransaction } from './addLocation';
 import { reviewLocationSuggestion } from './reviewLocationSuggestion';
 
 beforeEach(() => {
   vi.mocked(addLocationInTransaction).mockReset();
+  vi.mocked(isUniqueConstraintError).mockReturnValue(false);
 });
 
 const HOST_ID = 'host-uuid' as UserId;
@@ -161,6 +164,19 @@ describe('reviewLocationSuggestion', () => {
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'db_error', cause: expect.any(Error) });
     // Same transaction as the failed location creation — must not have committed.
     expect(txUpdate).not.toHaveBeenCalled();
+  });
+
+  it('returns already_added when the place was added directly while the suggestion sat pending', async () => {
+    vi.mocked(isUniqueConstraintError).mockReturnValue(true);
+    vi.mocked(addLocationInTransaction).mockRejectedValue(new Error('P2002'));
+    const db = makeMockDb();
+
+    const result = await reviewLocationSuggestion(
+      { suggestionId: SUGGESTION_ID, reviewedById: HOST_ID, decision: 'approve' },
+      { db },
+    );
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'already_added' });
   });
 
   it('returns lookup_not_found when the target status row is missing', async () => {

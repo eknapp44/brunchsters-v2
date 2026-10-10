@@ -33,6 +33,7 @@ function makeMockDb(
     brunchFindFirst?: ReturnType<typeof vi.fn>;
     attendeeFindFirst?: ReturnType<typeof vi.fn>;
     suggestionFindUnique?: ReturnType<typeof vi.fn>;
+    locationFindFirst?: ReturnType<typeof vi.fn>;
     statusFindFirst?: ReturnType<typeof vi.fn>;
     suggestionCreate?: ReturnType<typeof vi.fn>;
   } = {},
@@ -47,6 +48,9 @@ function makeMockDb(
       findUnique: overrides.suggestionFindUnique ?? vi.fn().mockResolvedValue(null),
       create:
         overrides.suggestionCreate ?? vi.fn().mockResolvedValue({ id: 'new-suggestion-uuid' }),
+    },
+    brunchLocation: {
+      findFirst: overrides.locationFindFirst ?? vi.fn().mockResolvedValue(null),
     },
     brunchOptionSuggestionStatus: {
       findFirst: overrides.statusFindFirst ?? vi.fn().mockResolvedValue({ id: 'status-pending' }),
@@ -168,6 +172,16 @@ describe('suggestLocation', () => {
   it('returns already_suggested when the place was already suggested for this brunch', async () => {
     const db = makeMockDb({
       suggestionFindUnique: vi.fn().mockResolvedValue({ id: 'existing-suggestion' }),
+    });
+
+    const result = await suggestLocation(BASE_INPUT, { db });
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'already_suggested' });
+  });
+
+  it('returns already_suggested when the place is already a live option', async () => {
+    const db = makeMockDb({
+      locationFindFirst: vi.fn().mockResolvedValue({ id: 'existing-location' }),
     });
 
     const result = await suggestLocation(BASE_INPUT, { db });

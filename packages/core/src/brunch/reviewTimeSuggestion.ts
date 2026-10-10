@@ -1,4 +1,4 @@
-import type { DbClient } from '@brunchsters/database';
+import { isUniqueConstraintError, type DbClient } from '@brunchsters/database';
 import type { BrunchId, BrunchTimeSuggestionId, UserId } from '@brunchsters/shared';
 import { err, ok, type Result } from 'neverthrow';
 import { z } from 'zod';
@@ -21,6 +21,7 @@ export type ReviewTimeSuggestionError =
   | { readonly kind: 'not_host' }
   | AssertBrunchActiveError
   | { readonly kind: 'already_reviewed' }
+  | { readonly kind: 'already_added' }
   | { readonly kind: 'lookup_not_found'; readonly code: string }
   | { readonly kind: 'db_error'; readonly cause: unknown };
 
@@ -76,6 +77,9 @@ export async function reviewTimeSuggestion(
       });
     });
   } catch (cause) {
+    // See reviewLocationSuggestion.ts's identical check — the host may have
+    // added this exact time directly while the suggestion was still pending.
+    if (isUniqueConstraintError(cause)) return err({ kind: 'already_added' });
     return err({ kind: 'db_error', cause });
   }
 

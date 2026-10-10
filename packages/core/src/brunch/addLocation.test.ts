@@ -1,8 +1,16 @@
 import type { DbClient } from '@brunchsters/database';
 import type { BrunchId, UserId } from '@brunchsters/shared';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('@brunchsters/database', () => ({ isUniqueConstraintError: vi.fn() }));
+
+import { isUniqueConstraintError } from '@brunchsters/database';
 import { addLocation, type AddLocationInput } from './addLocation';
 import type { LocationInput } from './createBrunch';
+
+beforeEach(() => {
+  vi.mocked(isUniqueConstraintError).mockReturnValue(false);
+});
 
 const BRUNCH_ID = 'brunch-uuid' as BrunchId;
 const HOST_ID = 'host-uuid' as UserId;
@@ -97,5 +105,14 @@ describe('addLocation', () => {
     const result = await addLocation(BASE_INPUT, { db });
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'db_error', cause });
+  });
+
+  it('maps a unique-constraint violation on create to already_added', async () => {
+    vi.mocked(isUniqueConstraintError).mockReturnValue(true);
+    const db = makeMockDb({ create: vi.fn().mockRejectedValue(new Error('P2002')) });
+
+    const result = await addLocation(BASE_INPUT, { db });
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'already_added' });
   });
 });

@@ -56,6 +56,13 @@ export async function suggestTime(
   });
   if (existing !== null) return err({ kind: 'already_suggested' });
 
+  // Also check against already-live options — see suggestLocation.ts's
+  // identical check for why.
+  const existingTime = await db.brunchTime.findFirst({
+    where: { brunchId: input.brunchId, scheduledAt: new Date(input.scheduledAt) },
+  });
+  if (existingTime !== null) return err({ kind: 'already_suggested' });
+
   const pendingStatus = await db.brunchOptionSuggestionStatus.findFirst({
     where: { code: 'pending' },
   });

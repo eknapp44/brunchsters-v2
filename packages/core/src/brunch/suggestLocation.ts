@@ -52,6 +52,15 @@ export async function suggestLocation(
   });
   if (existing !== null) return err({ kind: 'already_suggested' });
 
+  // Also check against already-live options, not just other suggestions —
+  // otherwise this place could sit pending for days before failing at
+  // approval time (partial unique index, architect review) with a less
+  // useful error than telling the suggester up front it's already an option.
+  const existingLocation = await db.brunchLocation.findFirst({
+    where: { brunchId: input.brunchId, placeId: input.location.placeId },
+  });
+  if (existingLocation !== null) return err({ kind: 'already_suggested' });
+
   const pendingStatus = await db.brunchOptionSuggestionStatus.findFirst({
     where: { code: 'pending' },
   });

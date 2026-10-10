@@ -455,10 +455,16 @@ model BrunchInviteSuggestion {
 
 // ─── Location & Time [v1 schema + ui] ─────────────────────────────────────────
 
-// Partial unique index enforces at most one confirmed, non-deleted location
-// per brunch at the DB level (spec 0005 M5) — not expressible in the Prisma
-// schema DSL, added via raw SQL in migration 20261005001802_single_confirmed_option:
-//   CREATE UNIQUE INDEX ... ON "BrunchLocation"("brunchId") WHERE "isConfirmed" AND "deletedAt" IS NULL
+// Two partial unique indexes, neither expressible in the Prisma schema DSL,
+// added via raw SQL:
+// - at most one confirmed, non-deleted location per brunch (spec 0005 M5),
+//   migration 20261005001802_single_confirmed_option:
+//     CREATE UNIQUE INDEX ... ON "BrunchLocation"("brunchId") WHERE "isConfirmed" AND "deletedAt" IS NULL
+// - at most one live row per brunch+placeId (spec 0005 architect review) —
+//   addLocation and an approved suggestion for the same place never checked
+//   against each other, so both could end up live and split the vote;
+//   migration 20261006_unique_live_place_and_time:
+//     CREATE UNIQUE INDEX ... ON "BrunchLocation"("brunchId", "placeId") WHERE "deletedAt" IS NULL
 model BrunchLocation {
   id             String    @id @default(uuid()) @db.Uuid
   brunchId       String    @db.Uuid
@@ -485,9 +491,10 @@ model BrunchLocation {
 
 // scheduledAt stored as UTC per PLANNING.md §9.3
 // Display rule: convert to BrunchLocation.timezone post-confirmation (UI only, no schema impact)
-// Same partial unique index treatment as BrunchLocation above — one
-// confirmed, non-deleted time per brunch, enforced in migration
-// 20261005001802_single_confirmed_option, not representable here.
+// Same two partial unique indexes as BrunchLocation above — one confirmed,
+// non-deleted time per brunch (migration 20261005001802_single_confirmed_option),
+// and at most one live row per brunch+scheduledAt (migration
+// 20261006_unique_live_place_and_time) — neither representable here.
 model BrunchTime {
   id             String    @id @default(uuid()) @db.Uuid
   brunchId       String    @db.Uuid

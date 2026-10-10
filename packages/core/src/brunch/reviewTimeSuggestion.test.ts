@@ -3,12 +3,15 @@ import type { BrunchTimeSuggestionId, UserId } from '@brunchsters/shared';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('./addTime', () => ({ addTimeInTransaction: vi.fn() }));
+vi.mock('@brunchsters/database', () => ({ isUniqueConstraintError: vi.fn() }));
 
+import { isUniqueConstraintError } from '@brunchsters/database';
 import { addTimeInTransaction } from './addTime';
 import { reviewTimeSuggestion } from './reviewTimeSuggestion';
 
 beforeEach(() => {
   vi.mocked(addTimeInTransaction).mockReset();
+  vi.mocked(isUniqueConstraintError).mockReturnValue(false);
 });
 
 const HOST_ID = 'host-uuid' as UserId;
@@ -157,6 +160,19 @@ describe('reviewTimeSuggestion', () => {
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'db_error', cause: expect.any(Error) });
     expect(txUpdate).not.toHaveBeenCalled();
+  });
+
+  it('returns already_added when the time was added directly while the suggestion sat pending', async () => {
+    vi.mocked(isUniqueConstraintError).mockReturnValue(true);
+    vi.mocked(addTimeInTransaction).mockRejectedValue(new Error('P2002'));
+    const db = makeMockDb();
+
+    const result = await reviewTimeSuggestion(
+      { suggestionId: SUGGESTION_ID, reviewedById: HOST_ID, decision: 'approve' },
+      { db },
+    );
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'already_added' });
   });
 
   it('returns lookup_not_found when the target status row is missing', async () => {

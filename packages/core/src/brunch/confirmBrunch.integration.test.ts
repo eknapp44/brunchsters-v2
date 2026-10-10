@@ -211,4 +211,49 @@ describe('confirmBrunch (integration — real Postgres)', () => {
 
     expect(result.isOk()).toBe(true);
   });
+
+  it('two genuinely concurrent confirms on the same brunch: exactly one wins', async () => {
+    // Unlike "rejects a second confirm" above (sequential — the second call's
+    // own pre-check already sees the brunch as confirmed), this fires both
+    // confirmBrunch calls via Promise.all so neither's pre-transaction
+    // assertBrunchActive check has necessarily seen the other's write yet.
+    // What actually prevents two confirmed brunches here is the DB-level
+    // partial unique index, not application logic — this is the race M5's
+    // testing notes flagged as reasoned-through-on-paper but never run for
+    // real. The loser is expected to surface a generic db_error rather than a
+    // clean brunch_not_active (documented, accepted trade-off — see M5 notes).
+    const { brunchId, locationA, locationB, timeA, timeB } =
+      await createConfirmableBrunch('concurrent-confirm');
+
+    const [first, second] = await Promise.all([
+      confirmBrunch(
+        { brunchId, requestedById: hostId, locationId: locationA, timeId: timeA },
+        { db, eventBus },
+      ),
+      confirmBrunch(
+        { brunchId, requestedById: hostId, locationId: locationB, timeId: timeB },
+        { db, eventBus },
+      ),
+    ]);
+
+    const results = [first, second];
+    const okCount = results.filter((r) => r.isOk()).length;
+    const errCount = results.filter((r) => r.isErr()).length;
+    expect(okCount).toBe(1);
+    expect(errCount).toBe(1);
+
+    // Whichever lost, it lost cleanly — no partial write, no two confirmed
+    // locations or times.
+    const confirmedLocations = await db.brunchLocation.count({
+      where: { brunchId, isConfirmed: true },
+    });
+    const confirmedTimes = await db.brunchTime.count({ where: { brunchId, isConfirmed: true } });
+    expect(confirmedLocations).toBe(1);
+    expect(confirmedTimes).toBe(1);
+
+    const brunch = required(
+      await db.brunch.findFirst({ where: { id: brunchId }, include: { status: true } }),
+    );
+    expect(brunch.status.code).toBe('confirmed');
+  });
 });

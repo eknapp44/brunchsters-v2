@@ -119,6 +119,17 @@ describe('POST /api/v1/time-suggestions/[id]/review', () => {
     expect(response.status).toBe(409);
   });
 
+  it('returns 409 when the time is already an option', async () => {
+    mockAuth.mockResolvedValue(SESSION);
+    mockReview.mockResolvedValue(err({ kind: 'already_added' }));
+
+    const response = await POST(postRequest({ decision: 'approve' }), {
+      params: params(VALID_SUGGESTION_ID),
+    });
+
+    expect(response.status).toBe(409);
+  });
+
   it('returns 409 when the suggestion was already reviewed', async () => {
     mockAuth.mockResolvedValue(SESSION);
     mockReview.mockResolvedValue(err({ kind: 'already_reviewed' }));

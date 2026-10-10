@@ -1,4 +1,4 @@
-import type { DbClient } from '@brunchsters/database';
+import { isUniqueConstraintError, type DbClient } from '@brunchsters/database';
 import type { BrunchId, BrunchLocationId, UserId } from '@brunchsters/shared';
 import { err, ok, type Result } from 'neverthrow';
 import type { LocationInput } from './createBrunch';
@@ -16,6 +16,7 @@ export type AddLocationInput = {
 export type AddLocationError =
   | AssertHostOfError
   | AssertBrunchActiveError
+  | { readonly kind: 'already_added' }
   | { readonly kind: 'db_error'; readonly cause: unknown };
 
 // The interactive-transaction client Prisma passes into db.$transaction's
@@ -72,6 +73,11 @@ export async function addLocation(
     });
     return ok(created);
   } catch (cause) {
+    // Partial unique index: one live row per brunchId+placeId (architect
+    // review) — this place is already a live option, direct-added or
+    // approved from a suggestion, so adding it again is a no-op error, not
+    // an unexpected one.
+    if (isUniqueConstraintError(cause)) return err({ kind: 'already_added' });
     return err({ kind: 'db_error', cause });
   }
 }

@@ -1,4 +1,4 @@
-import type { DbClient } from '@brunchsters/database';
+import { isUniqueConstraintError, type DbClient } from '@brunchsters/database';
 import type { BrunchId, BrunchLocationSuggestionId, UserId } from '@brunchsters/shared';
 import { err, ok, type Result } from 'neverthrow';
 import { z } from 'zod';
@@ -21,6 +21,7 @@ export type ReviewLocationSuggestionError =
   | { readonly kind: 'not_host' }
   | AssertBrunchActiveError
   | { readonly kind: 'already_reviewed' }
+  | { readonly kind: 'already_added' }
   | { readonly kind: 'lookup_not_found'; readonly code: string }
   | { readonly kind: 'db_error'; readonly cause: unknown };
 
@@ -85,6 +86,11 @@ export async function reviewLocationSuggestion(
       });
     });
   } catch (cause) {
+    // The host may have added this exact place directly (OptionManager)
+    // while the suggestion was still pending — the partial unique index
+    // catches it here, approval-time, since suggestLocation's own check
+    // only runs at suggestion-time.
+    if (isUniqueConstraintError(cause)) return err({ kind: 'already_added' });
     return err({ kind: 'db_error', cause });
   }
 

@@ -53,3 +53,10 @@ export function createDb() {
 
 // Use DbClient wherever PrismaClient would be used — it includes the soft-delete extension.
 export type DbClient = ReturnType<typeof createDb>;
+
+// Lets packages/core detect a unique-constraint collision (e.g. a partial
+// index enforcing one live row per brunchId+placeId) without importing
+// @prisma/client directly, which CLAUDE.md forbids outside this package.
+export function isUniqueConstraintError(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
+}
