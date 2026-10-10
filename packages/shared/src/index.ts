@@ -6,6 +6,8 @@ export type {
   InviteSuggestionId,
   BrunchLocationId,
   BrunchTimeId,
+  BrunchLocationSuggestionId,
+  BrunchTimeSuggestionId,
   Email,
   IanaTimezone,
   InviteToken,

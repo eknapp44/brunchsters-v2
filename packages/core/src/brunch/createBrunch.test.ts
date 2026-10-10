@@ -32,7 +32,6 @@ const LOCATION_B = {
 type MockTx = {
   brunchStatus: { findFirst: ReturnType<typeof vi.fn> };
   rsvpStatus: { findFirst: ReturnType<typeof vi.fn> };
-  brunchDecisionType: { findFirst: ReturnType<typeof vi.fn> };
   user: { findFirst: ReturnType<typeof vi.fn> };
   brunch: { create: ReturnType<typeof vi.fn> };
   brunchInvite: { create: ReturnType<typeof vi.fn> };
@@ -45,15 +44,6 @@ function makeMockTx(overrides: Partial<MockTx> = {}): MockTx {
   return {
     brunchStatus: { findFirst: vi.fn().mockResolvedValue({ id: 'status-draft' }) },
     rsvpStatus: { findFirst: vi.fn().mockResolvedValue({ id: 'rsvp-yes' }) },
-    brunchDecisionType: {
-      findFirst: vi
-        .fn()
-        .mockImplementation(({ where }: { where: { code: string } }) =>
-          Promise.resolve(
-            where.code === 'host_decides' ? { id: 'dt-host-decides' } : { id: 'dt-group-vote' },
-          ),
-        ),
-    },
     user: { findFirst: vi.fn().mockResolvedValue({ id: HOST_ID, email: 'host@example.com' }) },
     brunch: { create: vi.fn().mockResolvedValue({ id: 'new-brunch-uuid' }) },
     brunchInvite: { create: vi.fn().mockResolvedValue({ id: 'invite-uuid' }) },
@@ -122,22 +112,7 @@ describe('createBrunch', () => {
     expect(inviteData.invitedEmail).toBe('host@example.com');
   });
 
-  it('uses host_decides for a single location', async () => {
-    const tx = makeMockTx();
-
-    await createBrunch(
-      { ...BASE_INPUT, locations: [LOCATION_A] },
-      { db: makeMockDb(tx), eventBus: makeMockEventBus() },
-    );
-
-    expect(tx.brunchLocation.createMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: [expect.objectContaining({ decisionTypeId: 'dt-host-decides' })],
-      }),
-    );
-  });
-
-  it('uses group_vote for two locations', async () => {
+  it('creates one location row per input, with no decision type stamped', async () => {
     const tx = makeMockTx();
 
     await createBrunch(
@@ -145,37 +120,31 @@ describe('createBrunch', () => {
       { db: makeMockDb(tx), eventBus: makeMockEventBus() },
     );
 
-    expect(tx.brunchLocation.createMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: [
-          expect.objectContaining({ decisionTypeId: 'dt-group-vote' }),
-          expect.objectContaining({ decisionTypeId: 'dt-group-vote' }),
-        ],
-      }),
-    );
+    expect(tx.brunchLocation.createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          brunchId: 'new-brunch-uuid',
+          placeId: LOCATION_A.placeId,
+          placeName: LOCATION_A.placeName,
+          placeAddress: LOCATION_A.placeAddress,
+          placeUrl: LOCATION_A.placeUrl,
+          timezone: LOCATION_A.timezone,
+          proposedById: HOST_ID,
+        },
+        {
+          brunchId: 'new-brunch-uuid',
+          placeId: LOCATION_B.placeId,
+          placeName: LOCATION_B.placeName,
+          placeAddress: LOCATION_B.placeAddress,
+          placeUrl: LOCATION_B.placeUrl,
+          timezone: LOCATION_B.timezone,
+          proposedById: HOST_ID,
+        },
+      ],
+    });
   });
 
-  it('uses host_decides for a single time', async () => {
-    const tx = makeMockTx();
-
-    await createBrunch(
-      { ...BASE_INPUT, times: [{ scheduledAt: '2026-08-01T15:00:00.000Z' }] },
-      { db: makeMockDb(tx), eventBus: makeMockEventBus() },
-    );
-
-    expect(tx.brunchTime.createMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: [
-          expect.objectContaining({
-            decisionTypeId: 'dt-host-decides',
-            scheduledAt: new Date('2026-08-01T15:00:00.000Z'),
-          }),
-        ],
-      }),
-    );
-  });
-
-  it('uses group_vote for two times', async () => {
+  it('creates one time row per input, with no decision type stamped', async () => {
     const tx = makeMockTx();
 
     await createBrunch(
@@ -189,43 +158,40 @@ describe('createBrunch', () => {
       { db: makeMockDb(tx), eventBus: makeMockEventBus() },
     );
 
-    expect(tx.brunchTime.createMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: [
-          expect.objectContaining({ decisionTypeId: 'dt-group-vote' }),
-          expect.objectContaining({ decisionTypeId: 'dt-group-vote' }),
-        ],
-      }),
-    );
+    expect(tx.brunchTime.createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          brunchId: 'new-brunch-uuid',
+          scheduledAt: new Date('2026-08-01T15:00:00.000Z'),
+          proposedById: HOST_ID,
+        },
+        {
+          brunchId: 'new-brunch-uuid',
+          scheduledAt: new Date('2026-08-02T15:00:00.000Z'),
+          proposedById: HOST_ID,
+        },
+      ],
+    });
   });
 
-  it('infers decision types for locations and times independently', async () => {
+  it('creates locations and times independently when both are provided', async () => {
     const tx = makeMockTx();
 
     await createBrunch(
       {
         ...BASE_INPUT,
         locations: [LOCATION_A],
-        times: [
-          { scheduledAt: '2026-08-01T15:00:00.000Z' },
-          { scheduledAt: '2026-08-02T15:00:00.000Z' },
-        ],
+        times: [{ scheduledAt: '2026-08-01T15:00:00.000Z' }],
       },
       { db: makeMockDb(tx), eventBus: makeMockEventBus() },
     );
 
-    expect(tx.brunchLocation.createMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: [expect.objectContaining({ decisionTypeId: 'dt-host-decides' })],
-      }),
-    );
-    expect(tx.brunchTime.createMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.arrayContaining([
-          expect.objectContaining({ decisionTypeId: 'dt-group-vote' }),
-        ]),
-      }),
-    );
+    expect(tx.brunchLocation.createMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({ placeId: LOCATION_A.placeId })],
+    });
+    expect(tx.brunchTime.createMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({ scheduledAt: new Date('2026-08-01T15:00:00.000Z') })],
+    });
   });
 
   it('stores votingDeadline when provided', async () => {

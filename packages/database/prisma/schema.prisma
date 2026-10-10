@@ -61,6 +61,9 @@ model BrunchStatus {
 }
 
 // values: host_decides, group_vote
+// No FK references this table. The mode is derived, not stored — ADR 0006:
+// group_vote iff a brunch has >1 non-deleted option of that kind, else
+// host_decides. Kept only as a label source for the UI badge.
 model BrunchDecisionType {
   id          String   @id @default(uuid()) @db.Uuid
   code        String   @unique
@@ -70,9 +73,6 @@ model BrunchDecisionType {
   sortOrder   Int
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-
-  brunchLocations BrunchLocation[]
-  brunchTimes     BrunchTime[]
 }
 
 // values: invited, yes, no, maybe
@@ -84,6 +84,11 @@ model RsvpStatus {
   isActive         Boolean  @default(true)
   sortOrder        Int
   countsAsAttendee Boolean  @default(true)
+  // "Gets a say" on voting — deliberately separate from countsAsAttendee's
+  // "is coming": a maybe shouldn't inflate the headcount but is often the
+  // most informative voter (spec 0005). true for yes/maybe, false for
+  // invited/no.
+  canVote          Boolean  @default(false)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -102,6 +107,21 @@ model BrunchInviteSuggestionStatus {
   updatedAt   DateTime @updatedAt
 
   suggestions BrunchInviteSuggestion[]
+}
+
+// values: pending, approved, declined
+model BrunchOptionSuggestionStatus {
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique
+  label       String
+  description String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  locationSuggestions BrunchLocationSuggestion[]
+  timeSuggestions     BrunchTimeSuggestion[]
 }
 
 model NotificationType {
@@ -161,6 +181,10 @@ model User {
   proposedTimes                    BrunchTime[]                @relation("BrunchTimeProposedBy")
   locationVotes                    BrunchLocationVote[]
   timeVotes                        BrunchTimeVote[]
+  locationSuggestionsMade          BrunchLocationSuggestion[]  @relation("LocationSuggestionSuggestedBy")
+  locationSuggestionsReviewed      BrunchLocationSuggestion[]  @relation("LocationSuggestionReviewedBy")
+  timeSuggestionsMade              BrunchTimeSuggestion[]      @relation("TimeSuggestionSuggestedBy")
+  timeSuggestionsReviewed          BrunchTimeSuggestion[]      @relation("TimeSuggestionReviewedBy")
   messages                         Message[]
   notifications                    Notification[]
   friendshipsRequested             Friendship[]                @relation("FriendshipRequester")
@@ -304,12 +328,17 @@ model Brunch {
   statusId    String  @db.Uuid
 
   votingDeadline DateTime?
+  // Early manual close (spec 0005). Not derivable — it's a host action with
+  // no other trace. votingDeadline keeps its original meaning (intent);
+  // this records what actually happened. See guards/assertVotingOpen.ts.
+  votingClosedAt DateTime?
 
   // Permissions — stored on Brunch per PLANNING.md §6 (not a separate table)
   allowInviteSuggestions      Boolean @default(true)
   requireHostApprovalToInvite Boolean @default(true)
   allowLocationSuggestions    Boolean @default(true)
   allowTimeSuggestions        Boolean @default(true)
+  requireHostApprovalForOptions Boolean @default(true)
 
   // Host transfer — one transfer per brunch, kept for audit trail
   hostTransferredAt     DateTime?
@@ -333,6 +362,8 @@ model Brunch {
   inviteSuggestions   BrunchInviteSuggestion[]
   locations           BrunchLocation[]
   times               BrunchTime[]
+  locationSuggestions BrunchLocationSuggestion[]
+  timeSuggestions     BrunchTimeSuggestion[]
   messages            Message[]
   notifications       Notification[]
 
@@ -424,10 +455,19 @@ model BrunchInviteSuggestion {
 
 // ─── Location & Time [v1 schema + ui] ─────────────────────────────────────────
 
+// Two partial unique indexes, neither expressible in the Prisma schema DSL,
+// added via raw SQL:
+// - at most one confirmed, non-deleted location per brunch (spec 0005 M5),
+//   migration 20261005001802_single_confirmed_option:
+//     CREATE UNIQUE INDEX ... ON "BrunchLocation"("brunchId") WHERE "isConfirmed" AND "deletedAt" IS NULL
+// - at most one live row per brunch+placeId (spec 0005 architect review) —
+//   addLocation and an approved suggestion for the same place never checked
+//   against each other, so both could end up live and split the vote;
+//   migration 20261006_unique_live_place_and_time:
+//     CREATE UNIQUE INDEX ... ON "BrunchLocation"("brunchId", "placeId") WHERE "deletedAt" IS NULL
 model BrunchLocation {
   id             String    @id @default(uuid()) @db.Uuid
   brunchId       String    @db.Uuid
-  decisionTypeId String    @db.Uuid
   placeId        String
   placeName      String
   placeAddress   String
@@ -441,10 +481,9 @@ model BrunchLocation {
   deletedAt      DateTime?
   deletedBy      String?   @db.Uuid // audit field
 
-  brunch       Brunch             @relation(fields: [brunchId], references: [id])
-  decisionType BrunchDecisionType @relation(fields: [decisionTypeId], references: [id])
-  proposedBy   User               @relation("BrunchLocationProposedBy", fields: [proposedById], references: [id])
-  votes        BrunchLocationVote[]
+  brunch     Brunch @relation(fields: [brunchId], references: [id])
+  proposedBy User   @relation("BrunchLocationProposedBy", fields: [proposedById], references: [id])
+  votes      BrunchLocationVote[]
 
   @@index([brunchId])
   @@index([isConfirmed])
@@ -452,10 +491,13 @@ model BrunchLocation {
 
 // scheduledAt stored as UTC per PLANNING.md §9.3
 // Display rule: convert to BrunchLocation.timezone post-confirmation (UI only, no schema impact)
+// Same two partial unique indexes as BrunchLocation above — one confirmed,
+// non-deleted time per brunch (migration 20261005001802_single_confirmed_option),
+// and at most one live row per brunch+scheduledAt (migration
+// 20261006_unique_live_place_and_time) — neither representable here.
 model BrunchTime {
   id             String    @id @default(uuid()) @db.Uuid
   brunchId       String    @db.Uuid
-  decisionTypeId String    @db.Uuid
   scheduledAt    DateTime
   isConfirmed    Boolean   @default(false)
   confirmedAt    DateTime?
@@ -465,10 +507,9 @@ model BrunchTime {
   deletedAt      DateTime?
   deletedBy      String?   @db.Uuid // audit field
 
-  brunch       Brunch             @relation(fields: [brunchId], references: [id])
-  decisionType BrunchDecisionType @relation(fields: [decisionTypeId], references: [id])
-  proposedBy   User               @relation("BrunchTimeProposedBy", fields: [proposedById], references: [id])
-  votes        BrunchTimeVote[]
+  brunch     Brunch @relation(fields: [brunchId], references: [id])
+  proposedBy User   @relation("BrunchTimeProposedBy", fields: [proposedById], references: [id])
+  votes      BrunchTimeVote[]
 
   @@index([brunchId])
   @@index([scheduledAt])
@@ -505,6 +546,58 @@ model BrunchTimeVote {
   @@unique([brunchTimeId, userId])
   @@index([brunchTimeId])
   @@index([userId])
+}
+
+// ─── Option Suggestions [v1 schema + ui] ──────────────────────────────────────
+// Mirror BrunchInviteSuggestion's shape (spec 0005 M6). Kept as their own
+// tables rather than a pending-status column on BrunchLocation/BrunchTime —
+// with decisionTypeId derived from a count of option rows (ADR 0006), a
+// pending suggestion sitting in those tables would silently flip a brunch
+// into group_vote before the host ever approved it. Every row in
+// BrunchLocation/BrunchTime must stay a real ballot option.
+
+model BrunchLocationSuggestion {
+  id            String    @id @default(uuid()) @db.Uuid
+  brunchId      String    @db.Uuid
+  suggestedById String    @db.Uuid
+  placeId       String
+  placeName     String
+  placeAddress  String
+  placeUrl      String
+  timezone      String
+  statusId      String    @db.Uuid
+  reviewedById  String?   @db.Uuid
+  reviewedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  brunch      Brunch                       @relation(fields: [brunchId], references: [id])
+  suggestedBy User                         @relation("LocationSuggestionSuggestedBy", fields: [suggestedById], references: [id])
+  status      BrunchOptionSuggestionStatus @relation(fields: [statusId], references: [id])
+  reviewedBy  User?                        @relation("LocationSuggestionReviewedBy", fields: [reviewedById], references: [id])
+
+  @@unique([brunchId, placeId])
+  @@index([brunchId])
+}
+
+model BrunchTimeSuggestion {
+  id            String    @id @default(uuid()) @db.Uuid
+  brunchId      String    @db.Uuid
+  suggestedById String    @db.Uuid
+  scheduledAt   DateTime
+  statusId      String    @db.Uuid
+  reviewedById  String?   @db.Uuid
+  reviewedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  brunch      Brunch                       @relation(fields: [brunchId], references: [id])
+  suggestedBy User                         @relation("TimeSuggestionSuggestedBy", fields: [suggestedById], references: [id])
+  status      BrunchOptionSuggestionStatus @relation(fields: [statusId], references: [id])
+  reviewedBy  User?                        @relation("TimeSuggestionReviewedBy", fields: [reviewedById], references: [id])
+
+  @@unique([brunchId, scheduledAt])
+  @@index([brunchId])
 }
 
 // ─── Group Chat [v1 schema only — ui deferred] ────────────────────────────────

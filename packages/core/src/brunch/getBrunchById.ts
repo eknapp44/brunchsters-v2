@@ -12,6 +12,9 @@ export type BrunchDetail = {
   readonly isHost: boolean;
   readonly viewerRsvpStatus: ViewerRsvpStatus | undefined;
   readonly allowInviteSuggestions: boolean;
+  readonly allowLocationSuggestions: boolean;
+  readonly allowTimeSuggestions: boolean;
+  readonly votingDeadline: Date | undefined;
 };
 
 function toViewerRsvpStatus(rsvpStatusCode: string | undefined): ViewerRsvpStatus | undefined {
@@ -70,5 +73,8 @@ export async function getBrunchById(
     isHost: brunch.hostId === input.viewerId,
     viewerRsvpStatus: toViewerRsvpStatus(rsvpStatusCode),
     allowInviteSuggestions: brunch.allowInviteSuggestions,
+    allowLocationSuggestions: brunch.allowLocationSuggestions,
+    allowTimeSuggestions: brunch.allowTimeSuggestions,
+    votingDeadline: brunch.votingDeadline ?? undefined,
   };
 }

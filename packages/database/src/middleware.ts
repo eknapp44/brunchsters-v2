@@ -1,6 +1,10 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 
 // Models with a deletedAt field — excluded from findMany/findFirst by default.
+// BrunchLocationVote/BrunchTimeVote are deliberately NOT here: votes are
+// replaced via hard delete + insert (spec 0005), not soft-deleted, and
+// neither table has a deletedAt column — findMany/findFirst against them
+// would throw "Unknown argument deletedAt" if they were added back.
 const SOFT_DELETE_MODELS = new Set([
   'User',
   'Brunch',
@@ -8,8 +12,6 @@ const SOFT_DELETE_MODELS = new Set([
   'BrunchAttendee',
   'BrunchLocation',
   'BrunchTime',
-  'BrunchLocationVote',
-  'BrunchTimeVote',
   'Message',
   'Friendship',
   'FriendGroup',
@@ -51,3 +53,10 @@ export function createDb() {
 
 // Use DbClient wherever PrismaClient would be used — it includes the soft-delete extension.
 export type DbClient = ReturnType<typeof createDb>;
+
+// Lets packages/core detect a unique-constraint collision (e.g. a partial
+// index enforcing one live row per brunchId+placeId) without importing
+// @prisma/client directly, which CLAUDE.md forbids outside this package.
+export function isUniqueConstraintError(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
+}

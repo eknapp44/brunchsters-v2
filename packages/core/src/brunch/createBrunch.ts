@@ -72,14 +72,6 @@ export async function createBrunch(
       const yesRsvp = await tx.rsvpStatus.findFirst({ where: { code: 'yes' } });
       if (yesRsvp === null) throw new LookupNotFoundError('RsvpStatus:yes');
 
-      const hostDecides = await tx.brunchDecisionType.findFirst({
-        where: { code: 'host_decides' },
-      });
-      if (hostDecides === null) throw new LookupNotFoundError('BrunchDecisionType:host_decides');
-
-      const groupVote = await tx.brunchDecisionType.findFirst({ where: { code: 'group_vote' } });
-      if (groupVote === null) throw new LookupNotFoundError('BrunchDecisionType:group_vote');
-
       const host = await tx.user.findFirst({ where: { id: input.hostId } });
       if (host === null) throw new LookupNotFoundError(`User:${input.hostId}`);
 
@@ -120,13 +112,12 @@ export async function createBrunch(
       });
 
       // Mode emerges from behavior (Constitution 4): one option means the host
-      // decided; two or more puts it to a vote. Locations and times independently.
+      // decided; two or more puts it to a vote. Derived from option count, not
+      // stored (ADR 0006) — locations and times independently.
       if (input.locations.length > 0) {
-        const decisionTypeId = input.locations.length === 1 ? hostDecides.id : groupVote.id;
         await tx.brunchLocation.createMany({
           data: input.locations.map((location) => ({
             brunchId: brunch.id,
-            decisionTypeId,
             placeId: location.placeId,
             placeName: location.placeName,
             placeAddress: location.placeAddress,
@@ -138,11 +129,9 @@ export async function createBrunch(
       }
 
       if (input.times.length > 0) {
-        const decisionTypeId = input.times.length === 1 ? hostDecides.id : groupVote.id;
         await tx.brunchTime.createMany({
           data: input.times.map((time) => ({
             brunchId: brunch.id,
-            decisionTypeId,
             scheduledAt: new Date(time.scheduledAt),
             proposedById: input.hostId,
           })),

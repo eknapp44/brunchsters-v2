@@ -163,8 +163,8 @@ The handoff from invite link → auth → brunch detail page must feel invisible
 ### Edge Cases
 
 - **Expired token:** Friendly message, "Ask [host] to resend". Tokens expire 7 days after the scheduled brunch date — hosts can revoke and regenerate at any time.
-- **Brunch already confirmed:** Read-only view, still allow late RSVPs
-- **Declined invitee:** Allow them to change mind until confirmed
+- **Brunch already confirmed:** Location, time, and the ballot become read-only; RSVP stays open, so late RSVPs and changes of mind are still allowed
+- **Declined invitee:** Allow them to change their mind at any time, confirmation included. (Originally read "until confirmed," which contradicted the bullet above; resolved in favour of staying open during spec 0005 planning — a friend whose plans free up the night before should still be able to join, and v1 has no reservation that needs a frozen headcount.)
 
 ### Confirmation Lock Rules
 
@@ -177,6 +177,8 @@ After a brunch is confirmed:
 
 2 people including host (1-on-1s are valid brunches).
 
+Enforced structurally rather than by an explicit check: a brunch only leaves `draft` when its first invite is sent, and confirmation requires an `active` brunch, so a brunch with no invitees can never be confirmed. "Invitees exist but nobody has accepted yet" is allowed — the host often knows their friend is coming before the app does — and surfaces as a UI warning on the confirm control, not an error.
+
 ---
 
 ## 6. Permissions Model
@@ -187,6 +189,8 @@ Host controls per-brunch:
 - `requireHostApprovalToInvite` — must host approve suggestions?
 - `allowLocationSuggestions` — can invitees suggest places?
 - `allowTimeSuggestions` — can invitees suggest times?
+- `requireHostApprovalForOptions` — must host approve location/time suggestions? (spec 0005 M6 — added so location/time suggestions have the same approval gate invite suggestions already had; the two
+  original flags above shipped with spec 0004 before this gap was noticed)
 
 **Defaults:** All permissions ON, host approval required (always safe default).
 
@@ -208,7 +212,7 @@ User can configure per-type preferences via `UserNotificationPreference`. Per-br
 - `rsvp.received` — someone responded to invite
 - `vote.cast` — someone voted
 - `vote.deadline.approaching` — pre-deadline reminder
-- `vote.autoclose.prompted` — ≥66% participation threshold reached, host prompted to close
+- `vote.autoclose.prompted` — ≥66% participation threshold reached, host prompted to close. **v1 note (spec 0005):** not a fired event — v1 has no notification delivery mechanism to fire it into, so the threshold is derived fresh on every read (`getBrunchVoting`'s `shouldSuggestClosing`) and surfaced as a banner on `/brunch/[id]/manage`, not a stored flag or queued job. Becomes a real Inngest-delivered notification once the notifications spec ships.
 - `invite.suggestion` — invitee suggested someone new
 - `location.suggested` — invitee suggested a place
 - `time.suggested` — invitee suggested a time
@@ -262,12 +266,20 @@ BrunchStatus {
 BrunchDecisionType {
   id, code, label, description, isActive, sortOrder, createdAt, updatedAt
   // values: host_decides, group_vote
+  // Label source only — no FK references this table. The mode is derived
+  // from option count (ADR 0006, spec 0005), not stored on BrunchLocation/
+  // BrunchTime. See the Location & Time section below.
 }
 
 RsvpStatus {
   id, code, label, description, isActive, sortOrder,
-  countsAsAttendee, createdAt, updatedAt
+  countsAsAttendee, canVote, createdAt, updatedAt
   // values: invited, yes, no, maybe
+  // countsAsAttendee ("is coming" — drives headcount): true for yes only
+  // canVote ("gets a say" — drives voting eligibility): true for yes and maybe.
+  //   Deliberately separate from countsAsAttendee: a maybe shouldn't inflate the
+  //   headcount but is often the most informative voter, since narrowing the
+  //   options is what turns their maybe into a yes. Added by spec 0005.
   // (countsForQuorum dropped — quorum is more nuanced than a flag)
 }
 
@@ -394,12 +406,14 @@ Brunch {
   hostId (FK → User, indexed)
   statusId (FK → BrunchStatus, indexed)
   votingDeadline (nullable)
+  votingClosedAt (nullable)  // early manual close (spec 0005 M4) — see §9.7
 
   // Permissions (folded in from BrunchSettings)
   allowInviteSuggestions (default true)
   requireHostApprovalToInvite (default true)
   allowLocationSuggestions (default true)
   allowTimeSuggestions (default true)
+  requireHostApprovalForOptions (default true)  // spec 0005 M6
 
   // Host transfer — one transfer per brunch, kept for audit trail
   hostTransferredAt (nullable)
@@ -469,11 +483,17 @@ BrunchInviteSuggestion {
 
 ### Location & Time `[v1 schema + ui]`
 
+**Decision type is derived, not stored** (ADR 0006, spec 0005): a brunch is in
+`group_vote` for a given resource kind if it has more than one non-deleted
+option of that kind, otherwise `host_decides`. There is no `decisionTypeId`
+column on either table below — `BrunchDecisionType` survives only as a label
+source for the UI badge, with no FK pointing at it. The derivation always
+filters `deletedAt: null`; see `deriveDecisionMode` in `packages/core`.
+
 ```typescript
 BrunchLocation {
   id
   brunchId (FK → Brunch, indexed)
-  decisionTypeId (FK → BrunchDecisionType)  // moved from Brunch — per-resource
   placeId        // Google Maps place ID
   placeName
   placeAddress
@@ -489,7 +509,6 @@ BrunchLocation {
 BrunchTime {
   id
   brunchId (FK → Brunch, indexed)
-  decisionTypeId (FK → BrunchDecisionType)
   scheduledAt (UTC, indexed)
   // Display rule: convert scheduledAt to BrunchLocation.timezone for primary display.
   // If viewer's local timezone differs from location timezone, show a subline:
@@ -522,6 +541,45 @@ BrunchTimeVote {
   userId (FK → User, indexed)
   createdAt, updatedAt
   // composite unique: brunchTimeId + userId
+}
+```
+
+### Option Suggestions `[v1 schema + ui]`
+
+Mirrors BrunchInviteSuggestion's shape (spec 0005 M6). Kept as their own tables
+rather than a pending-status column on BrunchLocation/BrunchTime — with
+decisionTypeId derived from a count of option rows (ADR 0006), a pending
+suggestion sitting in those tables would silently flip a brunch into
+group_vote before the host ever approved it.
+
+```typescript
+BrunchOptionSuggestionStatus {
+  id, code, label, description, isActive, sortOrder, createdAt, updatedAt
+  // values: pending, approved, declined
+}
+
+BrunchLocationSuggestion {
+  id
+  brunchId (FK → Brunch, indexed)
+  suggestedBy (FK → User)
+  placeId, placeName, placeAddress, placeUrl, timezone  // same shape as BrunchLocation
+  statusId (FK → BrunchOptionSuggestionStatus)
+  reviewedBy (FK → User, nullable)
+  reviewedAt (nullable)
+  createdAt, updatedAt
+  // unique: brunchId + placeId (can only suggest a given place once)
+}
+
+BrunchTimeSuggestion {
+  id
+  brunchId (FK → Brunch, indexed)
+  suggestedBy (FK → User)
+  scheduledAt (UTC)
+  statusId (FK → BrunchOptionSuggestionStatus)
+  reviewedBy (FK → User, nullable)
+  reviewedAt (nullable)
+  createdAt, updatedAt
+  // unique: brunchId + scheduledAt (can only suggest a given time once)
 }
 ```
 
@@ -831,6 +889,7 @@ BrunchStatus:                  draft, active, confirmed, brunching*, paying*,
 BrunchDecisionType:            host_decides, group_vote
 RsvpStatus:                    invited, yes, no, maybe
 BrunchInviteSuggestionStatus:  pending, approved, declined
+BrunchOptionSuggestionStatus:  pending, approved, declined
 NotificationType:              rsvp.received, vote.cast, invite.suggestion,
                                location.suggested, time.suggested,
                                brunch.confirmed, vote.deadline.approaching,
@@ -1337,14 +1396,15 @@ For solo side project: don't split. Premature.
 3. ✅ **Prisma schema** — codify this data model (specs/0001-repo-scaffold M4)
 4. ✅ **Seed lookup tables** (specs/0001-repo-scaffold M5)
 5. ✅ **Auth** — NextAuth + Google (specs/0002-auth). Apple Sign-In deliberately deferred — see spec 0002 "What".
-6. **Core brunch flow** — create → invite → attendee → vote → confirm
+6. ✅ **Core brunch flow** — create → invite → attendee → vote → confirm (specs/0001–0005)
    - ✅ create (specs/0003-create-brunch)
    - ✅ invite + attendee/RSVP (specs/0004-invitations)
-   - ❌ vote — not started. `decisionType` (`host_decides`/`group_vote`) exists in the data model, but no vote-casting service or UI yet.
-   - ❌ confirm — not started.
-7. ✅ **Google Places integration** — folded into specs/0003-create-brunch (`GooglePlacesProvider`: Places Autocomplete (New) + Time Zone API)
-8. **Notifications + Inngest** — not started. `EventBus` interface + `NoopEventBus` stub exist (services already emit through it); no real Inngest wiring or Resend email sending yet.
-9. **UI** — host flow, invitee flow, dashboard. Dashboard, creation wizard, brunch detail page, invite panel, RSVP control, suggestion panel, and the public invite landing page are all built (specs/0003, 0004). No voting UI yet — blocked on item 6.
+   - ✅ vote (specs/0005-voting-and-confirmation M1–M7): `castLocationBallot`/`castTimeBallot`, `closeVoting`, `updateVotingDeadline`, `getBrunchVoting`, and the `BallotChecklist`/`OptionSuggestionControl` UI on `/brunch/[id]`. Decision mode is derived, not stored (ADR 0006).
+   - ✅ confirm (specs/0005-voting-and-confirmation M5+M8): `confirmBrunch`, partial unique indexes enforcing one confirmed location/time per brunch, and the `/brunch/[id]/manage` host workbench (`OptionManager`, `VotingControls`, `ConfirmControl`, `OptionSuggestionReview`).
+7. ✅ **Google Places integration** — folded into specs/0003-create-brunch (`GooglePlacesProvider`: Places Autocomplete (New) + Time Zone API); `PlaceSearchInput` extracted in specs/0005 M8 and shared between the creation wizard and the manage route
+8. **Notifications + Inngest** — not started. `EventBus` interface + `NoopEventBus` stub exist (services already emit through it); no real Inngest wiring or Resend email sending yet. The 66% close-voting nudge (`vote.autoclose.prompted`, §7) is derived on every read rather than fired as an event, for the same reason — see §7's v1 note.
+9. **UI** — host flow, invitee flow, dashboard. Dashboard, creation wizard, brunch detail page, invite panel, RSVP control, suggestion panel, the public invite landing page, the voting/suggestion UI on the brunch detail page, and the host's manage workbench are all built (specs/0003, 0004, 0005).
+10. **E2E testing infrastructure** — not started; see §17 "Still Open" for the full proposal (testcontainers + test-auth bypass + Playwright). Explicitly its own cross-cutting feature, not a milestone of any single spec above — needs its own ADR and spec before implementation. Two specs in a row now (0004, 0005) have shipped with the same gap: real multi-actor browser behavior (two signed-in identities interacting, actual clicks/debounce/refetch) has only ever been checked by hand or by hand-minted session tokens standing in for a browser, never by an automated test. Candidate for right after whichever of item 8 or a notifications-adjacent spec lands next — author wants it before initial release, open to exact sequencing.
 
 ### Setup tasks parallel to development
 
@@ -1371,7 +1431,8 @@ For solo side project: don't split. Premature.
 
 ### Still Open
 
-- **E2E testing infrastructure (testcontainers + test-auth bypass + Playwright).** Proposed after spec 0004: an ephemeral Postgres via `@testcontainers/postgresql` for integration tests (no dependency on a locally running Supabase instance), a test-only NextAuth `Credentials` provider gated behind an env flag (never reachable in production) so headless tests can log in as fixture users without real Google OAuth, and Playwright driving full multi-actor flows (invite → second account joins → RSVP → suggestion → approve) as automated regression coverage. Motivated by spec 0004's M5/M6 bugs (self-invite batch rejection, already-member collision) — both were only caught by manual two-account browser testing, never by unit/integration tests, because the bug required two different signed-in identities interacting with the same data. Candidate for CI (GitHub Actions runners have Docker by default, so both testcontainers and headless Playwright run there naturally). Author wants to push for including this before the initial release but is open to sequencing it after if it doesn't fit. Needs its own ADR (new libraries, new auth code path) and spec before implementation — not a milestone of any single feature spec.
+- **E2E testing infrastructure (testcontainers + test-auth bypass + Playwright).** Proposed after spec 0004: an ephemeral Postgres via `@testcontainers/postgresql` for integration tests (no dependency on a locally running Supabase instance), a test-only NextAuth `Credentials` provider gated behind an env flag (never reachable in production) so headless tests can log in as fixture users without real Google OAuth, and Playwright driving full multi-actor flows (invite → second account joins → RSVP → suggestion → approve) as automated regression coverage. Motivated by spec 0004's M5/M6 bugs (self-invite batch rejection, already-member collision) — both were only caught by manual two-account browser testing, never by unit/integration tests, because the bug required two different signed-in identities interacting with the same data. **Reinforced by spec 0005:** its voting/manage UI (M7/M8) had no browser or auth-bypass available at all, so verification fell back to hand-minting NextAuth session JWTs with `next-auth/jwt`'s `encode()` and driving the live dev server's HTTP surface directly — a real but one-off, non-reusable workaround that proved the server-rendered data and route handlers were correct without ever proving a checkbox click, a debounced search, or `router.refresh()` work in an actual browser. That gap (client-side interactivity, unverified) is recorded in `specs/0005-voting-and-confirmation/tasks.md`'s M7/M8 testing notes and its post-M8 review section. Candidate for CI (GitHub Actions runners have Docker by default, so both testcontainers and headless Playwright run there naturally). Author wants to push for including this before the initial release but is open to sequencing it after if it doesn't fit. Needs its own ADR (new libraries, new auth code path) and spec before implementation — not a milestone of any single feature spec.
+- **Allow resubmitting a declined suggestion.** `BrunchInviteSuggestion` (spec 0004), `BrunchLocationSuggestion`, and `BrunchTimeSuggestion` (spec 0005) have no soft-delete — once a host declines one, that exact suggestion (same email / place / time) can never be resubmitted by anyone, for that brunch, ever. Raised during spec 0005's senior-architect review pass as a question, not a bug (it's spec 0004's existing, already-shipped behavior, consistently applied to spec 0005's new tables). User decided to fix all three rather than leave spec 0005 behaving differently from spec 0004. Scoped out of the spec 0005 branch because it touches already-shipped spec 0004 code and needs a real decision on resubmission mechanics (insert a fresh row reusing the old one's identity, or reset the existing row back to `pending`) — bigger than a pre-MR polish pass. Needs its own small spec; not yet started.
 - Pricing/monetization model (reservations affiliate? premium features? restaurant partnerships?)
 - ToS and Privacy Policy (will need before public launch)
 - Email digest vs. immediate per-event email

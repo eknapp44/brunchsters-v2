@@ -16,6 +16,9 @@ const DB_ROW = {
   status: { code: 'draft', label: 'Draft' },
   attendees: [{ rsvpStatus: { code: 'yes' } }],
   allowInviteSuggestions: true,
+  allowLocationSuggestions: true,
+  allowTimeSuggestions: true,
+  votingDeadline: null,
 };
 
 function makeMockDb(findFirst: ReturnType<typeof vi.fn>): DbClient {
@@ -40,6 +43,9 @@ describe('getBrunchById', () => {
       isHost: false,
       viewerRsvpStatus: 'yes',
       allowInviteSuggestions: true,
+      allowLocationSuggestions: true,
+      allowTimeSuggestions: true,
+      votingDeadline: undefined,
     });
   });
 
@@ -124,5 +130,17 @@ describe('getBrunchById', () => {
     );
 
     expect(result?.description).toBeUndefined();
+  });
+
+  it('passes through a set voting deadline', async () => {
+    const deadline = new Date('2026-08-01T15:00:00.000Z');
+    const findFirst = vi.fn().mockResolvedValue({ ...DB_ROW, votingDeadline: deadline });
+
+    const result = await getBrunchById(
+      { brunchId: BRUNCH_ID, viewerId: VIEWER_ID },
+      { db: makeMockDb(findFirst) },
+    );
+
+    expect(result?.votingDeadline).toBe(deadline);
   });
 });
