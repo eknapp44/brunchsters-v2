@@ -106,17 +106,27 @@ For this spec "tests" means the Playwright suite itself; "green" for a journey m
 
 ## M5 — Invitation journeys (spec 0004)
 
-- [ ] **I1** — invite list with statuses and copyable links after creation
-- [ ] **I2** — existing user opens link, RSVPs; host sees the status
-- [ ] **A3** — signed-out invite link: preview with no PII, sign-in CTA `callbackUrl`, resumed with minted session → auto-accepted
-- [ ] **I4** — expired and revoked tokens (fixtures expire/revoke through the service or a direct token update)
-- [ ] **I5** — attendee suggests someone; host approves one and declines another; control hidden when disallowed
-- [ ] **I6** — historic regressions: host self-invite in a batch; invite of an existing member
-- [ ] **I3** — invite more later; `draft` → `active` (P1)
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` pass
-- [ ] Commit: `test: e2e journeys for invitations (M5)`
+- [x] **I1** — invite list with statuses and copyable links (an answered invitee with an account and a silent address with none; the copy button's clipboard contents are compared to the real link)
+- [x] **I2** — existing user opens link, RSVPs; host sees the status
+- [x] **A3** — signed-out invite link: preview with no PII, sign-in CTA `callbackUrl`, resumed with minted session → auto-accepted
+- [x] **I4** — revoked (via the real Revoke button), expired (direct token update — no service expires an invite early), resend retires the old link, made-up token
+- [x] **I5** — attendee suggests someone; host approves one and declines another; control hidden when disallowed; auto-approve variant
+- [x] **I6** — historic regressions: host self-invite in a batch (a); host and attendee opening an invite link when they already belong (b). "Invite of an existing member" via the panel is covered by I6b's second case; see the case-sensitivity finding below for what is _not_ covered
+- [x] **I3** — invite more later; `draft` → `active` (P1)
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` pass
+- [x] Commit: `test: e2e journeys for invitations (M5)`
 
-**Testing notes:** _(fill on completion)_
+**Testing notes:**
+
+- **What was tested:** 13 new tests in three files. **I1:** the host's list shows `yes` for an invitee who answered and `pending` for an address with no account; "Copy link" turns into "Copied!" and the clipboard holds exactly `<base>/invite/<token>`. **I3:** a draft brunch says "No invites sent yet."; the first invite sent from "Invite more people" makes it `Active`, clears the box, and a second joins the list. **I4:** revoking through the UI removes the row and the old link shows "Invite not found" with neither the brunch title nor the host's name; an expired link is dead until the host clicks Resend, after which the old link is still dead and the new one shows the preview; a made-up token gets the same page. **I6a:** through the real wizard, a batch of the host's own address (in two cases) plus a guest results in the guest invited and shown `pending`, the brunch `Active`, the host not listed as an invitee, and exactly two invite rows in Postgres (guest + the host's built-in one). **I2:** an existing user opens their link and lands on the brunch already `yes`, switches to `maybe` then `no` with the RSVP control, and the host's list follows each change. **A3:** a signed-out visitor sees "You're invited to …", "Hosted by <host>" and the status, and _nothing else_ (no other invitee's email, no host email, not even their own); the sign-in link carries `callbackUrl=/invite/<token>` into `/sign-in`'s hidden field; resuming with a minted session for that address lands them on the brunch, `yes`, and the host sees them accepted while the other invitee is still `pending`. **I6b:** the host opening one of their own guests' links, and an attendee opening someone else's link, both land on the brunch with their answer untouched, the other invite still `pending`, and one attendee row. **I5:** an attendee's suggestion is invisible to them afterwards but listed for the host as "suggested by <name>"; approving turns one into a real invite, declining the other creates none (also checked in Postgres); with `allowInviteSuggestions` off the attendee gets no control; with `requireHostApprovalToInvite` off a suggestion becomes an invite immediately; the host never sees the suggestion control.
+- **How:** Playwright against real Postgres and a real server, nothing mocked. Invites go through the real services (`sendInvites`, `respondToInvite`); the wizard is used where the wizard is the thing under test. Stress run `--workers=4 --repeat-each=3`: 96/96. CI mode (`CI=true`, production build): 32/32. **Both historic bugs were reintroduced temporarily to confirm the tests catch them:** making `sendInvites` reject a batch containing the host's address failed I6a; disabling the `existingMembership` guard in `respondToInvite` failed both I6b tests; every other test kept passing, and `packages/` was restored (clean `git status`). Unit suites unchanged: core 333, web 215.
+- **Direct database writes (the only fixture shortcuts this milestone):** expiring an invite's token (nothing but time expires one) and flipping `allowInviteSuggestions` / `requireHostApprovalToInvite` (no screen exposes those settings yet). Both are noted in the helpers.
+- **Findings about the product, not fixed here:**
+  1. **Case-sensitive duplicates across requests.** Inviting `Case-X@Example.com` and later `case-x@example.com` creates **two** invite rows (two links, two lines in the host's list) for the same person: de-duplication is case-insensitive within one batch and against the host's own address, but the unique key is the exact string (no `citext`). Probed with a throwaway test (not committed); no test asserts either behavior. A fix would normalize the address at the boundary.
+  2. **Three buttons all named "Suggest"** on an attendee's brunch page (invite, place, time) — indistinguishable to a screen reader, and the reason the test scopes by section heading. Probably wants `aria-label`s when the styling spec lands.
+  3. **Spec/implementation drift:** spec 0004 says an invalid link should read "Ask **[host name]** to resend it"; the page says "Ask **the host**" (deliberately generic, and it reveals nothing — the test asserts the actual text). And spec 0004 says a first visit surfaces an RSVP _prompt_; the landing page instead **auto-accepts as `yes`** and the RSVP control is where people change it. The tests follow the implementation; the spec text is worth correcting.
+- **What's deferred:** The invite email itself (nothing sends mail yet — links are copied by hand, which is what I1 tests). The real Google sign-in step in A3 (ADR 0007). Resending to someone who already answered, and revoking an invite someone already accepted, are not exercised end to end. Chromium only.
+- **How to run it:** `pnpm test:e2e`, or `pnpm --filter @brunchsters/web exec playwright test invitations invite-suggestions` for this milestone; add `--headed` to watch.
 
 ---
 

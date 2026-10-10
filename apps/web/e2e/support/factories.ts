@@ -40,9 +40,13 @@ export function uniqueSuffix(): string {
   return randomUUID().replace(/-/g, '').slice(0, 10);
 }
 
-export async function createUser(input: { readonly label: string }): Promise<TestUser> {
+export async function createUser(input: {
+  readonly label: string;
+  // For a user who must match an address that was already invited (journey A3).
+  readonly email?: string;
+}): Promise<TestUser> {
   const suffix = uniqueSuffix();
-  const email = `${input.label}-${suffix}@example.com` as Email;
+  const email = (input.email ?? `${input.label}-${suffix}@example.com`) as Email;
   const name = `E2E ${input.label} ${suffix}`;
 
   // The cookie we mint later skips signInWithProvider, so call it here to get a user
@@ -100,7 +104,8 @@ export async function createBrunch(params: CreateBrunchParams): Promise<BrunchId
 export async function inviteToBrunch(params: {
   readonly brunchId: BrunchId;
   readonly host: TestUser;
-  readonly invitees: readonly TestUser[];
+  // A TestUser fits; so does a bare `{ email }` for an address with no account yet.
+  readonly invitees: readonly { readonly email: string }[];
 }): Promise<void> {
   const result = await sendInvitesService(
     {
