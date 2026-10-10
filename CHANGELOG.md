@@ -1,3 +1,23 @@
+# [1.4.0](https://github.com/eknapp44/brunchsters-v2/compare/v1.3.0...v1.4.0) (2026-10-10)
+
+### Bug Fixes
+
+- close the vote-vs-close race for real, plus a batch of independent-review fixes ([ee1c74e](https://github.com/eknapp44/brunchsters-v2/commit/ee1c74e685581564ec8677cae5fe0485549b68b7))
+- don't crash the place-search UI on a failed search response ([e2c1b42](https://github.com/eknapp44/brunchsters-v2/commit/e2c1b42bcefd9427b55e779adea4651ed0d80c07))
+- gate ballot/suggestion UI on decision mode and confirmation state ([40d361d](https://github.com/eknapp44/brunchsters-v2/commit/40d361d79218016e8dae9aecc183e8bd408008c0))
+- prevent duplicate live options for the same place or time ([80b60c6](https://github.com/eknapp44/brunchsters-v2/commit/80b60c68a9707246355cfccf717955614eed8ce9))
+- reject reviewing an option suggestion once the brunch isn't active ([0ac5d09](https://github.com/eknapp44/brunchsters-v2/commit/0ac5d0965823a5bbc7725e4af0bac5acd2f4cd0c))
+
+### Features
+
+- approval voting on brunch locations and times (M3) ([6312cbc](https://github.com/eknapp44/brunchsters-v2/commit/6312cbc0151c3fee607cbb45adf3004eae1db460))
+- ballot and suggestion UI on the brunch detail page (M7) ([f197fac](https://github.com/eknapp44/brunchsters-v2/commit/f197fac39c730857e27a6802f2e238ca1dd8ba71))
+- close voting, manage the deadline, and derive the close nudge (M4) ([1c3e6cd](https://github.com/eknapp44/brunchsters-v2/commit/1c3e6cd6aa685a2ab0628fbcfa8e68dd9b2edd17))
+- host can add and remove brunch locations and times (M2) ([328896d](https://github.com/eknapp44/brunchsters-v2/commit/328896ddb6156a13e57d69b3701ad9db5331be76))
+- host confirms a brunch, locking location and time (M5) ([92f188a](https://github.com/eknapp44/brunchsters-v2/commit/92f188aea9473c6730781489ff8f8a4b1d1e0e82))
+- host manage route with option, voting, and confirm controls (M8) ([77f2b2f](https://github.com/eknapp44/brunchsters-v2/commit/77f2b2fc0fad337ae54333eb75ac2e7a5c76e807))
+- invitees can suggest locations and times, subject to host approval (M6) ([092d7c2](https://github.com/eknapp44/brunchsters-v2/commit/092d7c23709e6851de14dd81f0526c59e2d4de75))
+
 # [1.3.0](https://github.com/eknapp44/brunchsters-v2/compare/v1.2.0...v1.3.0) (2026-09-08)
 
 ### Bug Fixes
