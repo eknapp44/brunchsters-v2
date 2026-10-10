@@ -146,11 +146,17 @@ export function TimeSuggestionControl({
         <>
           <input
             type="datetime-local"
+            aria-label="Suggested date and time"
             value={timeInput}
             disabled={submitting}
             onChange={(event) => setTimeInput(event.target.value)}
           />
-          <button type="button" onClick={() => void suggest()} disabled={submitting}>
+          <button
+            type="button"
+            aria-label="Suggest this time"
+            onClick={() => void suggest()}
+            disabled={submitting}
+          >
             {submitting ? 'Suggesting…' : 'Suggest'}
           </button>
         </>

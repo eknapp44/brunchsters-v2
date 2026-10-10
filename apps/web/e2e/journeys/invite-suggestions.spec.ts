@@ -23,13 +23,9 @@ async function activeBrunchWithAttendee(
 async function suggest(attendee: Actor, brunchId: BrunchId, email: string): Promise<void> {
   await attendee.page.goto(`/brunch/${brunchId}`);
   await attendee.page.getByLabel('Suggest someone').fill(email);
-  // The place and time suggestion controls also have a button named just "Suggest", so scope
-  // to this section by its heading.
-  await attendee.page
-    .locator('section')
-    .filter({ has: attendee.page.getByRole('heading', { name: 'Invite Suggestions' }) })
-    .getByRole('button', { name: 'Suggest', exact: true })
-    .click();
+  // Its own accessible name: the time-suggestion control used to have an identical "Suggest"
+  // button, which a screen reader could not tell apart (strict mode here fails if it returns).
+  await attendee.page.getByRole('button', { name: 'Suggest this person' }).click();
   // The box empties once the suggestion has been accepted by the server.
   await expect(attendee.page.getByLabel('Suggest someone')).toHaveValue('');
 }
