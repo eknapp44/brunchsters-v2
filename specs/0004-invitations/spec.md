@@ -43,7 +43,7 @@ Also covered:
 
 1. Clicks the invite link (`/invite/[token]`)
 2. Already authenticated → token validated (not expired, not revoked) → immediately redirected to `/brunch/[id]`
-3. If no explicit RSVP yet, first visit to `/brunch/[id]` should surface a lightweight yes/no/maybe prompt (a simple inline control on the stub detail page — not a modal, not a separate page)
+3. Following the link **accepts the invite as `yes`** (the same `respondToInvite(…, 'yes')` call the new-user flow makes), so they land on `/brunch/[id]` already going. The inline yes/no/maybe RSVP control on that page (not a modal, not a separate page) is where they change their answer. _(Originally specified as a prompt on first visit; implemented as accept-then-change, which spec 0006 journey I2 verifies.)_
 
 ### Invitee — new user via Google (unregistered)
 
@@ -56,7 +56,7 @@ Also covered:
 ### Invitee — expired or revoked token
 
 1. Clicks the invite link → token lookup fails the validity check
-2. Friendly message: "This invite has expired. Ask [host name] to resend it." No brunch details shown (don't leak existence to an invalid token)
+2. Friendly message: "This invite has expired or is invalid. Ask the host to resend it." No brunch details **and no host name** are shown (don't leak existence to an invalid token) — the wording is deliberately generic, and spec 0006 journey I4 asserts that nothing about the brunch or its host appears. _(Originally specified as "Ask [host name]".)_
 
 ### Invitee — suggests someone
 
