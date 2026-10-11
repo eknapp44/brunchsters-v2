@@ -94,6 +94,29 @@ describe('closeVoting', () => {
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'already_closed' });
   });
 
+  it('rejects closing a draft brunch, and does not touch it', async () => {
+    const update = vi.fn();
+    const db = makeMockDb({
+      findFirstBrunch: vi.fn().mockResolvedValue({ ...OPEN_BRUNCH, status: { code: 'draft' } }),
+      update,
+    });
+
+    const result = await closeVoting({ brunchId: BRUNCH_ID, requestedById: HOST_ID }, { db });
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_active' });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('rejects closing a cancelled brunch', async () => {
+    const db = makeMockDb({
+      findFirstBrunch: vi.fn().mockResolvedValue({ ...OPEN_BRUNCH, status: { code: 'cancelled' } }),
+    });
+
+    const result = await closeVoting({ brunchId: BRUNCH_ID, requestedById: HOST_ID }, { db });
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_active' });
+  });
+
   it('maps a db error on update', async () => {
     const cause = new Error('connection refused');
     const db = makeMockDb({ update: vi.fn().mockRejectedValue(cause) });

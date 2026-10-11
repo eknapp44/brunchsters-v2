@@ -1,6 +1,7 @@
 import type { DbClient } from '@brunchsters/database';
 import type { BrunchId, UserId } from '@brunchsters/shared';
 import { err, ok, type Result } from 'neverthrow';
+import { assertBrunchActive, type AssertBrunchActiveError } from './guards/assertBrunchActive';
 import { assertHostOf, type AssertHostOfError } from './guards/assertHostOf';
 import { isVotingClosed } from './guards/assertVotingOpen';
 
@@ -11,6 +12,7 @@ export type CloseVotingInput = {
 
 export type CloseVotingError =
   | AssertHostOfError
+  | AssertBrunchActiveError
   | { readonly kind: 'already_closed' }
   | { readonly kind: 'db_error'; readonly cause: unknown };
 
@@ -28,6 +30,13 @@ export async function closeVoting(
   // a brunch already closed by a past deadline (nobody clicked close) is
   // still already_closed, not a fresh close.
   if (isVotingClosed(hostResult.value)) return err({ kind: 'already_closed' });
+
+  // Checked after the closed predicate on purpose: a confirmed brunch is already closed and
+  // keeps reporting that. What is left here is a draft (nobody invited yet, so there is no
+  // voting to close, and closing it would start the brunch with voting already over and no
+  // way to reopen it) or a cancelled brunch.
+  const activeResult = assertBrunchActive(hostResult.value);
+  if (activeResult.isErr()) return err(activeResult.error);
 
   const votingClosedAt = new Date();
   try {

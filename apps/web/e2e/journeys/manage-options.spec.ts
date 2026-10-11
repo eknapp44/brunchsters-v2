@@ -1,3 +1,4 @@
+import { getDb } from '../support/db';
 import { createBrunch, uniqueSuffix } from '../support/factories';
 import { expect, test } from '../support/fixtures';
 import { fixturePlaces } from '../support/places';
@@ -181,6 +182,18 @@ test.describe('H8 — managing a draft brunch', () => {
     await expect(removeButtons).toHaveCount(2);
     for (const remove of await removeButtons.all()) await expect(remove).toBeDisabled();
     await expect(confirmButton).toBeDisabled();
+    // Closing voting would start the brunch with voting already over, so that is off too; setting
+    // a deadline is fine and stays available.
+    const closeButton = host.page.getByRole('button', { name: 'Close voting now' });
+    await expect(closeButton).toBeDisabled();
+    await expect(host.page.getByRole('button', { name: 'Save deadline' })).toBeEnabled();
+    // It is a rule, not just a disabled button: the server refuses too, and nothing changes.
+    const closed = await host.context.request.post(`/api/v1/brunches/${brunchId}/voting/close`);
+    expect(closed.status()).toBe(409);
+    expect(await closed.json()).toEqual({ error: 'Brunch is not open for voting' });
+    expect(
+      (await getDb().brunch.findFirst({ where: { id: brunchId } }))?.votingClosedAt,
+    ).toBeNull();
     // The old screen also claimed "you can still confirm", which the next click contradicted.
     await expect(host.page.getByText('No one else has accepted yet')).toHaveCount(0);
     await expect(host.page.getByRole('alert').filter({ hasText: 'Failed' })).toHaveCount(0);
@@ -198,6 +211,7 @@ test.describe('H8 — managing a draft brunch', () => {
     await expect(search).toBeEnabled();
     await expect(host.page.getByRole('button', { name: 'Add Time' })).toBeEnabled();
     await expect(confirmButton).toBeEnabled();
+    await expect(closeButton).toBeEnabled();
     await confirmButton.click();
     await expect(host.page.getByRole('heading', { name: 'Confirmed', exact: true })).toBeVisible();
   });

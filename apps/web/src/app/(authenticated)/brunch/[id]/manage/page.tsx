@@ -100,8 +100,8 @@ export default async function ManageBrunchPage({
         <section>
           <h2>Send an invite first</h2>
           <p>
-            This brunch is still a draft. You can add or remove places and times, and confirm, once
-            you have invited at least one person.
+            This brunch is still a draft. You can add or remove places and times, close voting, and
+            confirm, once you have invited at least one person.
           </p>
           <Link href={`/brunch/${brunchId}`}>Invite people from the brunch page</Link>
         </section>
@@ -122,6 +122,7 @@ export default async function ManageBrunchPage({
             closed={voting.locations.closed}
             locationsShouldSuggestClosing={voting.locations.shouldSuggestClosing}
             timesShouldSuggestClosing={voting.times.shouldSuggestClosing}
+            canClose={!isDraft}
           />
 
           <ConfirmControl
