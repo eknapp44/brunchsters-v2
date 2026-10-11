@@ -180,16 +180,57 @@ For this spec "tests" means the Playwright suite itself; "green" for a journey m
 
 ## M8 — Release gating and wrap-up
 
-- [ ] Read how `semantic-release` checks out and which SHA it releases under `workflow_run`; choose between `workflow_run` and `needs:` per plan.md; the release must be of the tested SHA
-- [ ] `release.yml`: releases only when CI (including the e2e job) succeeded for that commit; verify with a dry run (`semantic-release --dry-run` in a branch or a documented manual check)
-- [ ] Decide merge-skew handling: "require up to date" documented, or CI also on `push: main`; record in ADR 0007 as accepted
-- [ ] Coverage audit: walk the spec's journey inventory and mark each journey built / deferred (with reason) in this file
-- [ ] Reserve the `@smoke` tag convention in the e2e README section of SETUP.md
-- [ ] `docs/PLANNING.md` §16 item 10 complete; §17 entry resolved
-- [ ] Mark `spec.md` status Complete and tick its acceptance criteria
-- [ ] Update the memory note for the E2E feature (shipped; what future specs must do: every new feature spec adds its journeys)
-- [ ] Add to CLAUDE.md "Process": new feature specs must list their E2E journeys
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` pass
-- [ ] Commit: `ci: gate releases on CI and close out the e2e spec (M8)`
+- [x] Choose between `workflow_run` and `needs:` — **`needs:` within one workflow run**; the release is of the very commit the checks passed on (reasoning in ADR 0007 and plan.md)
+- [x] Releases only when CI (including the e2e job) succeeded for that commit: the `release` job moved into `ci.yml`, `needs` all seven other jobs, runs only on `push` to `main`, has its own concurrency group; `release.yml` removed. Verified with actionlint and a `semantic-release --dry-run` (see notes); **the live path can only be exercised by a merge to `main`**
+- [x] Merge-skew handling: CI now also runs on every push to `main`, so the merge result is re-checked; "require up to date" is still recommended; recorded in ADR 0007
+- [x] Coverage audit — see the table below: **all 26 journeys built, none deferred**
+- [x] Reserve the `@smoke` tag convention (SETUP.md)
+- [x] `docs/PLANNING.md` §16 item 10 complete; §17 entry resolved
+- [x] Mark `spec.md` status Complete and tick its acceptance criteria
+- [x] Update the memory note for the E2E feature
+- [x] Add to CLAUDE.md "Process": new feature specs must list their E2E journeys
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` pass
+- [x] Commit: `ci: gate releases on CI and close out the e2e spec (M8)`
 
-**Testing notes:** _(fill on completion)_
+### Coverage audit (journey inventory → tests)
+
+| Priority | Journey                                               | Built in | Test file                                                         |
+| -------- | ----------------------------------------------------- | -------- | ----------------------------------------------------------------- |
+| P0       | A1 signed-out access                                  | M2       | `auth.spec.ts` (3 tests)                                          |
+| P1       | A2 signed-in session, sign-out                        | M2       | `auth.spec.ts`                                                    |
+| P0       | A3 newcomer via invite link                           | M5       | `invitations-invitee.spec.ts`                                     |
+| P0       | C1 wizard end to end                                  | M4       | `create-brunch.spec.ts`                                           |
+| P1       | C2 place search / wizard behavior                     | M4       | `create-brunch.spec.ts` (4 tests)                                 |
+| P0       | C3 access rule                                        | M4       | `access-and-dashboard.spec.ts` (2 tests)                          |
+| P2       | C4 dashboard                                          | M4       | `access-and-dashboard.spec.ts` (2 tests)                          |
+| P0       | I1 invite list and copy link                          | M5       | `invitations-host.spec.ts`                                        |
+| P0       | I2 existing user follows a link, RSVPs                | M5       | `invitations-invitee.spec.ts`                                     |
+| P1       | I3 invite more later                                  | M5       | `invitations-host.spec.ts`                                        |
+| P0       | I4 revoked / expired / made-up links, resend          | M5       | `invitations-host.spec.ts` (3 tests)                              |
+| P0       | I5 suggest someone to invite                          | M5       | `invite-suggestions.spec.ts` (3 tests)                            |
+| P0       | I6 historic: self-invite (a), already-member link (b) | M5       | `invitations-host.spec.ts` (1), `invitations-invitee.spec.ts` (2) |
+| P0       | V1 vote, revise, empty ballot                         | M6       | `voting.spec.ts`                                                  |
+| P0       | V2 read-only for "no" / "invited"                     | M6       | `voting.spec.ts`                                                  |
+| P0       | V3 voter names: host only                             | M6       | `voting.spec.ts`                                                  |
+| P0       | V4 suggest a place / time                             | M6       | `option-suggestions.spec.ts` (2 tests)                            |
+| P1       | V5 single option is not a ballot                      | M6       | `voting.spec.ts`                                                  |
+| P1       | V6 timezone sublines                                  | M6       | `timezones.spec.ts` (3 tests)                                     |
+| P0       | H1 host edits options                                 | M7       | `manage-options.spec.ts` (2 tests)                                |
+| P0       | H2 nudge, deadline, closing                           | M7       | `closing-voting.spec.ts` (3 tests)                                |
+| P0       | H3 confirm                                            | M7       | `confirm.spec.ts`                                                 |
+| P0       | H4 manage is host-only                                | M7       | `manage-options.spec.ts`                                          |
+| P2       | H5 removing the selected option                       | M7       | `manage-options.spec.ts`                                          |
+| P1       | H6 nobody else accepted                               | M7       | `confirm.spec.ts` (2 tests)                                       |
+| P1       | H7 deadline passes                                    | M7       | `closing-voting.spec.ts`                                          |
+
+Plus 6 harness tests that are not user journeys: `smoke.spec.ts` (1) and `fixtures.spec.ts` (5: data isolation ×2, two-actor fixtures, Places interception ×2). **Total: 52 tests**, 17 P0 / 7 P1 / 2 P2 journeys — every row above built, none deferred. Historic-bug classes each have a regression test (I6a, I6b, V5, H5), and each of those was confirmed to fail when the bug was put back.
+
+**Known gaps (deliberate, from the spec's non-goals and the per-milestone notes):** the real Google sign-in and Apple sign-in; visual regression; browsers other than Chromium; email delivery (nothing sends mail yet); post-deploy smoke runs (no INT/QA yet); declining a place/time suggestion and the `last_option` removal refusal end to end; the invite-token expiry recomputation on confirm (core integration only); the case-sensitive-email duplicate invites (a product bug logged in PLANNING §17, not a test gap).
+
+**Testing notes:**
+
+- **What was tested:** This milestone changes only the workflow and docs, so what was verified is the release path. `actionlint` (via its Docker image) reports nothing for `ci.yml` — it checks job references in `needs`, expression syntax and the `if`. `semantic-release --dry-run --no-ci --branches feat/0006-e2e-testing-infra` ran against the real repo and GitHub with the project's own `.releaserc.json`: it analysed the 14 commits since `v1.4.0`, concluded a **patch release 1.4.1**, and listed exactly the three `fix:` commits in the notes, with the `test:`, `ci:` and `docs:` commits correctly not triggering a release; nothing was published, tagged or pushed. The whole gate was re-run: typecheck, lint, unit (core 333, web 215), core integration (76), e2e in dev mode and in CI mode (`CI=true`, production build), and the 4-worker stress run.
+- **How:** Local runs plus the PR's CI. The `release` job is skipped on pull requests (`if: github.event_name == 'push' && github.ref == 'refs/heads/main'`), so on PR #9 it shows as skipped; it first runs for real on the merge to `main`.
+- **What's unverified until the merge (honest list):** (1) That the `release` job starts and that `needs` on all seven jobs behaves as intended on a `push` event — the logic is straightforward and linted, but it has not run. (2) That `GITHUB_TOKEN` can push the release commit/tag to `main` — unchanged from the old `release.yml`, but `main` has no branch protection today; **if a protection rule that requires pull requests is added later, the release push will be blocked** unless it is given an allowance (a PAT or GitHub App bypass). (3) That CI on `push` to `main` plus the release stays reasonably quick (the checks take about 2 minutes in parallel; the release job adds an install and a release step). (4) After this merge the first release will be **1.4.1** if nothing else lands.
+- **Design choices worth knowing:** the release job reuses the same checkout settings as the old workflow (`fetch-depth: 0`, `persist-credentials: false`); it does not rebuild or re-test, because `needs` already guarantees the checks passed on that commit. Pull-request runs are unchanged. The `Release` job name should not be added as a required status check (documented in SETUP.md).
+- **How to run it:** the release dry run is in SETUP.md ("Releases are gated on CI"); everything else is `pnpm test:e2e` as before.

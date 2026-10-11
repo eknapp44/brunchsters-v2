@@ -182,6 +182,7 @@ These notes are the running record of test coverage and intent. They make it pos
 - **ADR for significant decisions.** New library, new pattern, deviation from constitution — write an ADR. See `docs/adrs/README.md` for the template.
 - **Update docs in the same PR as the change.** Stale docs are worse than no docs.
 - **Constitution overrides convenience.** If a request conflicts with a constitution principle, surface the conflict before complying.
+- **Every feature spec lists its E2E journeys.** Alongside acceptance criteria, a spec names the user journeys (especially multi-identity ones and client-side behavior) that get a Playwright test, and its milestones add them — see `docs/SETUP.md` ("Adding E2E coverage for a new feature") and spec 0006's journey inventory for the format. A feature that changes an existing journey updates its test in the same PR.
 
 ## Milestone-Driven Implementation (how to actually build)
 

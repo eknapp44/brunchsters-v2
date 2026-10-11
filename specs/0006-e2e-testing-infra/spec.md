@@ -1,6 +1,6 @@
 # Spec 0006 — End-to-End Testing Infrastructure
 
-**Status:** Draft  
+**Status:** Complete (PR #9, pending merge)  
 **Branch:** `feat/0006-e2e-testing-infra`  
 **PLANNING.md ref:** §16 Build Order item 10, §17 Open Questions (E2E testing infra)  
 **ADRs:** [0007 — End-to-end testing stack](../../docs/adrs/0007-e2e-testing-stack.md)
@@ -92,11 +92,11 @@ The Google OAuth redirect itself is out of scope (ADR 0007); A3 is tested up to 
 
 ### Infrastructure
 
-- [ ] `pnpm test:e2e` runs the suite headlessly against an isolated e2e database and a dedicated-port server, locally and in CI
-- [ ] `pnpm e2e:db:reset` creates (or recreates) the e2e database, applies migrations non-interactively (`migrate deploy`), and seeds reference data
+- [x] `pnpm test:e2e` runs the suite headlessly against an isolated e2e database and a dedicated-port server, locally and in CI
+- [x] `pnpm e2e:db:reset` creates (or recreates) the e2e database, applies migrations non-interactively (`migrate deploy`), and seeds reference data
 - [x] Global setup refuses to run when `E2E_DATABASE_URL` does not look like a test target (local host, database named `e2e` or `*_e2e`)
 - [x] The e2e server never attaches to a server it did not start (`reuseExistingServer: false`); it runs on its own port with `DATABASE_URL`/`AUTH_URL` set explicitly, and a probe confirmed it is on the e2e database (M1; replaces the originally planned "server-uses-e2e-db" runtime check)
-- [ ] `apps/web/src/auth.ts` and the Places route handlers are unchanged by this spec
+- [x] `apps/web/src/auth.ts` and the Places route handlers are unchanged by this spec
 - [x] Session cookies are minted for fixture users created via `signInWithProvider`; the helper works for the `http://localhost` cookie name
 - [x] Each test creates its own users and brunch; the suite passes with parallel workers and in any order
 - [x] Places requests are intercepted in the browser; no Google key is needed
@@ -104,24 +104,24 @@ The Google OAuth redirect itself is out of scope (ADR 0007); A3 is tested up to 
 
 ### Coverage
 
-- [ ] Every P0 journey in the inventory has an automated test
-- [ ] Every P1 journey has an automated test, or an entry in `tasks.md` testing notes explaining the deferral
-- [ ] P2 journeys are built or listed as deferred with a reason
-- [ ] The historic bug classes (I6; the 0005 post-M8 findings V5 and H5) each have a regression test
+- [x] Every P0 journey in the inventory has an automated test
+- [x] Every P1 journey has an automated test, or an entry in `tasks.md` testing notes explaining the deferral
+- [x] P2 journeys are built or listed as deferred with a reason
+- [x] The historic bug classes (I6; the 0005 post-M8 findings V5 and H5) each have a regression test
 
 ### CI and release
 
-- [ ] An E2E job runs on every PR to `main`, runs against a built app (`build && start`), and uploads Playwright traces as artifacts on failure
-- [ ] The E2E job is documented as a required status check, together with "require branches to be up to date" (or E2E also runs on pushes to `main`)
-- [ ] `release.yml` releases only when CI has passed for the same commit
-- [ ] Retries: one in CI, none locally; any test that needs its retry to pass is investigated, not muted
+- [x] An E2E job runs on every PR to `main`, runs against a built app (`build && start`), and uploads Playwright traces as artifacts on failure
+- [x] The E2E job is documented as a required status check, together with "require branches to be up to date"; CI also runs on every push to `main`, so the merge result is re-checked. **Enabling the branch-protection rule is a GitHub setting for the repo owner and was not done by this spec**
+- [x] Releases happen only when every CI check has passed for the same commit: the release job lives in `ci.yml` and `needs` all of them (`release.yml` was removed)
+- [x] Retries: one in CI, none locally; any test that needs its retry to pass is investigated, not muted
 
 ### Docs
 
-- [ ] `docs/SETUP.md` documents e2e database setup, `pnpm test:e2e`, headed/debug modes, and where traces land
-- [ ] `docs/PLANNING.md` §16 item 10 marked complete; §17 E2E entry resolved and linked to ADR 0007
-- [ ] Root `CLAUDE.md` Testing section points at the E2E conventions (location, fixture rule, journey-not-permutation rule)
-- [ ] Testing notes per milestone in `tasks.md`
+- [x] `docs/SETUP.md` documents e2e database setup, `pnpm test:e2e`, headed/debug modes, and where traces land
+- [x] `docs/PLANNING.md` §16 item 10 marked complete; §17 E2E entry resolved and linked to ADR 0007
+- [x] Root `CLAUDE.md` Testing section points at the E2E conventions (location, fixture rule, journey-not-permutation rule)
+- [x] Testing notes per milestone in `tasks.md`
 
 ---
 

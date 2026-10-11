@@ -3,6 +3,10 @@ name: CI
 on:
   pull_request:
     branches: [main]
+  # Also on every push to main: it re-checks the merge result (a PR that was green against an
+  # older main can still break on merge) and it is what the release job below hangs off.
+  push:
+    branches: [main]
 
 jobs:
   lint:
@@ -194,3 +198,35 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:generate
       - run: pnpm build
+
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    # A release is only ever cut from a commit every check above passed on: this job is in the
+    # same workflow run as them, so `needs` is exact (same commit, no race with a later push).
+    # Pull requests run the checks and skip this job.
+    needs: [lint, typecheck, test, test-integration, e2e, validate, build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    # Two quick merges must not release at the same time.
+    concurrency:
+      group: release
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # The release commit it pushes carries [skip ci], so this does not loop.
+      - run: pnpm exec semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

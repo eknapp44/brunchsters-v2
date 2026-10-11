@@ -26,7 +26,7 @@ apps/web/package.json                                (updated — M1: test:e2e, 
 package.json (root)                                  (updated — M1: test:e2e passthrough; NOT part of `pnpm test`)
 apps/web/vitest.config.ts                            (updated — M1: exclude e2e/)
 .github/workflows/ci.yml                             (updated — M3: e2e job)
-.github/workflows/release.yml                        (updated — M8: gate on CI)
+.github/workflows/release.yml                        (removed — M8: the release job now lives in ci.yml)
 docs/SETUP.md, docs/PLANNING.md, CLAUDE.md           (updated — M3 / M8)
 ```
 
@@ -88,7 +88,7 @@ Deadline journeys (H2, H7) use relative dates computed in the test, plus Playwri
 
 New job `e2e` in `ci.yml`: Postgres 17 service container; `pnpm install`, `db:generate`, `migrate deploy`, `db:seed`; `pnpm build`; `playwright install --with-deps chromium` (cached); `pnpm test:e2e`; upload `playwright-report/` and traces on failure. Retries: 1 in CI, 0 locally. Test files shard-ready (no cross-file state) so `--shard` can be added if runtime grows.
 
-Release gating (M8): `release.yml` becomes triggered by `workflow_run` of CI on `main` with `conclusion == 'success'`, or CI's workflow also runs on `push: main` and the release job `needs:` it. Chosen in M8 after reading how semantic-release's checkout behaves under `workflow_run` (it must release the tested SHA, not a later `main`).
+Release gating (M8, done): the release job moved from `release.yml` into `ci.yml` and `needs` every other job, gated on `github.event_name == 'push' && github.ref == 'refs/heads/main'`; CI now also triggers on `push` to `main`. `release.yml` was removed. Chosen over `workflow_run` because a `needs` dependency within one workflow run is exact (same commit), whereas `workflow_run` follows the latest `main` and semantic-release refuses to release anything but the current branch tip. See ADR 0007.
 
 ---
 
