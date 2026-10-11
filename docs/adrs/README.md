@@ -48,3 +48,4 @@ What else was evaluated and why was it not chosen?
 | [0005](./0005-defer-next-intl.md)                           | Defer next-intl until pre-launch          | Accepted |
 | [0006](./0006-derive-decision-type.md)                      | Derive brunch decision type               | Accepted |
 | [0007](./0007-e2e-testing-stack.md)                         | End-to-end testing stack                  | Accepted |
+| [0008](./0008-normalize-email-addresses.md)                 | Normalize email addresses to lowercase    | Accepted |
