@@ -1,5 +1,6 @@
 import type { DbClient } from '@brunchsters/database';
 import {
+  MAX_INVITES_PER_REQUEST,
   normalizeEmail,
   type BrunchId,
   type Email,
@@ -13,10 +14,6 @@ import type { EventBus } from '../events/EventBus';
 import { isBrunchMember } from '../brunch/guards/isBrunchMember';
 
 const INVITE_EXPIRY_DAYS = 30;
-
-// An input guard, not an attendee limit (that is a separate feature): every address
-// becomes an email, so one request must not be able to fan out without bound (spec 0008).
-export const MAX_INVITES_PER_REQUEST = 50;
 
 export const sendInvitesRequestSchema = z.object({
   // Addresses are normalized here, at the boundary (ADR 0008): the output type is Email.

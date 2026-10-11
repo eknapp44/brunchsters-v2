@@ -203,4 +203,48 @@ test.describe('C2 — wizard behavior', () => {
     await wizard.next();
     await expect(wizard.selectedItem(email)).toBeVisible();
   });
+
+  test('the invitee list stops at 50, says where to invite the rest, and all 50 are invited', async ({
+    makeActor,
+  }) => {
+    const host = await makeActor('host');
+    const wizard = new BrunchWizard(host.page);
+    const title = `Big Brunch ${uniqueSuffix()}`;
+    const suffix = uniqueSuffix();
+    await wizard.open();
+    await wizard.fillWhat({ title });
+    await wizard.addPlace(fixturePlaces.sunnySide);
+    await wizard.next();
+    await wizard.addTime(7);
+    await wizard.next();
+
+    for (let index = 1; index <= 50; index += 1) {
+      await wizard.addEmail(`guest-${index}-${suffix}@example.com`);
+    }
+
+    // The 50th address fills the list: no more can be added, and the page says why.
+    const limitMessage = host.page.getByText(
+      'You can add up to 50 people here. Invite the rest from the brunch page after you create it.',
+    );
+    await expect(limitMessage).toBeVisible();
+    await expect(host.page.getByRole('textbox', { name: 'Email address' })).toBeDisabled();
+    await expect(host.page.getByRole('button', { name: 'Add', exact: true })).toBeDisabled();
+    await expect(host.page.getByRole('listitem')).toHaveCount(50);
+
+    // Removing one frees a slot and the message goes away.
+    await wizard.remove(`guest-50-${suffix}@example.com`);
+    await expect(limitMessage).toHaveCount(0);
+    await expect(host.page.getByRole('button', { name: 'Add', exact: true })).toBeEnabled();
+    await wizard.addEmail(`last-${suffix}@example.com`);
+    await expect(limitMessage).toBeVisible();
+
+    // The whole list is accepted by the server: nothing is silently dropped.
+    await wizard.create();
+    await expect(host.page).toHaveURL(BRUNCH_URL);
+    const brunchId = BRUNCH_URL.exec(host.page.url())?.[1] ?? '';
+    const invited = await getDb().brunchInvite.findMany({
+      where: { brunchId, NOT: { invitedEmail: host.user.email } },
+    });
+    expect(invited).toHaveLength(50);
+  });
 });

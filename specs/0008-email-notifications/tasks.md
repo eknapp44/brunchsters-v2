@@ -83,6 +83,19 @@ Four milestones, each green on its own. Testing notes are filled in as each comp
 
 ---
 
+### M3 follow-up: the wizard silently dropped invites over 50 (separate `fix:` commit)
+
+Found in review after M3: the creation wizard (`brunch/new`) sends every address in one request and deliberately ignores the response, so with the new 50-address cap an over-long list created the brunch with **no invites and no message**. Fixed in its own commit:
+
+- [x] `MAX_INVITES_PER_REQUEST` moved to `@brunchsters/shared` (a client component must not import server code from core); core's schema imports it from there
+- [x] Wizard step 4: the Add control and the email box are disabled at 50, a sentence says where to invite the rest, the reducer also refuses a 51st (defense in depth); removing an address frees the slot
+- [x] E2E journey (C2, `create-brunch.spec.ts`): add 50, see the message and disabled controls, remove one and see them return, add another, create, and assert exactly 50 non-host invites exist
+- [x] Commit: `fix: stop the creation wizard at 50 invitees instead of dropping them silently`
+
+**Testing notes:** The journey passes (dev mode 70/70, stress run 210/210 with 4 workers x 3, CI-mode production build 70/70; unit, integration, typecheck and lint unchanged and green). **Proven to fail:** with the wizard's guard removed (UI and reducer, from a backup copy, restored byte for byte) the journey fails at the first assertion, because the limit message never appears. Not checked: the original failure itself (51 addresses and no wizard guard) was reasoned from the code and the 422 the server returns, not reproduced in a browser; with the guard in place that state can no longer be reached. Not covered: the wizard still ignores the invite request's response, so any other failure of that request is still silent (a pre-existing choice from spec 0004, noted in the code); that is a bigger design question than this fix.
+
+---
+
 ## M4 — E2E journeys N1–N4 and CI
 
 - [ ] `playwright.config.ts`: second `webServer` for the Inngest dev server; Next server gets `INNGEST_DEV=1`, `EMAIL_OUTBOX_DIR` (fresh per run) and no `RESEND_API_KEY`

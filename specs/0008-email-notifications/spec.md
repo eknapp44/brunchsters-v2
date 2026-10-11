@@ -89,7 +89,7 @@ Grounded in the current code:
 
 ### UI
 
-- [ ] None. (The invite panel's copy-link stays; email is additive.)
+- [x] The creation wizard's invitee step (step 4) stops at 50 addresses, disables adding and says where to invite the rest, because it sends the whole list in one request and ignores the response (found in review after M3; its own `fix:` commit). The invite panel's copy-link stays; email is additive.
 
 ### E2E Journeys
 
@@ -115,7 +115,7 @@ The suite runs the **real Inngest dev server and the real handlers**; the only s
 | **N3** | Host, attendee who said yes, decliner, silent invitee | Host confirms; the host, the attendee and the silent (no-account) invitee each get exactly one email naming the place and the time in the brunch's timezone; the decliner gets none; the silent invitee's link still opens the invite page after confirm (expiry extended) |
 | **N4** | Unauthenticated visitor                               | `/api/inngest` is not reachable without a valid signature in the production-mode CI run (extends the API-authorization case)                                                                                                                                               |
 
-N1–N3 are multi-person flows; N2 is the historic-bug class (stale token). "Revoked before the queued email runs" is deliberately **not** an e2e journey: whether the handler runs before or after the revoke is a race, so it is proven deterministically at the integration level (real Postgres, handler called directly). No client-side behavior changes, so no optimistic-update journeys apply.
+A fifth journey, **C2 (50-address cap)**, was added after M3 in `create-brunch.spec.ts`: the wizard's invitee list stops at 50 with an explanation, removing one frees a slot, and all 50 are invited. N1–N3 are multi-person flows; N2 is the historic-bug class (stale token). "Revoked before the queued email runs" is deliberately **not** an e2e journey: whether the handler runs before or after the revoke is a race, so it is proven deterministically at the integration level (real Postgres, handler called directly). No client-side behavior changes, so no optimistic-update journeys apply.
 
 ---
 
