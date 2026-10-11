@@ -68,10 +68,15 @@ Four small milestones, each green on its own. Testing notes are filled in as eac
 
 ## M4 — Docs and wrap-up
 
-- [ ] PLANNING §17 entry resolved; §16 notes updated
-- [ ] `CLAUDE.md`: emails are `Email` values made by `normalizeEmail`; never compare raw strings
-- [ ] `docs/SETUP.md` if any command or setup step changed
-- [ ] Mark `spec.md` status Complete and tick its acceptance criteria; update the memory note
-- [ ] Commit: `docs: close out spec 0007 (M4)`
+- [x] PLANNING §17 entry resolved (marked RESOLVED with links to the spec and ADR; the original finding is kept for the record)
+- [x] `CLAUDE.md`: emails are `Email` values made by `normalizeEmail`; never compare raw strings; the database constraints and what they mean for test data
+- [x] `docs/SETUP.md`: test data goes through `normalizeEmail`; what a constraint violation looks like; applying a new migration locally
+- [x] Mark `spec.md` status Complete (pending merge) and tick its acceptance criteria; update the memory note
+- [x] Commit: `docs: close out spec 0007 (M4)`
 
-**Testing notes:** _(fill on completion)_
+**Testing notes:**
+
+- **What was verified:** docs only. The whole suite was re-run at the end of M3 and nothing changed since: typecheck and lint clean; unit shared 7, core 359, web 216; core integration 88; e2e 69 in dev mode, 207/207 under stress and 69 in CI mode. Every acceptance criterion in `spec.md` maps to a committed test (see M1–M3) or to the recorded scratch-database verification (M2).
+- **Not verified until the branch has a pull request:** CI has not run this branch. `ci.yml` triggers on pull requests to `main` (and on pushes to `main`), so a pushed branch alone does not start it. The risk worth watching is the `Integration Tests` job applying the new migration to a fresh Postgres, and the `E2E Tests` job rebuilding its database with it; both were exercised locally on Supabase's Postgres 17, the same major version CI uses.
+- **Stacked on spec 0006:** this branch is built on `feat/0006-e2e-testing-infra` (PR #9) because it needs that branch's e2e suite and fixes. Merge #9 first; then this branch's pull request will contain only spec 0007's commits.
+- **What's deferred:** nothing in scope. Out of scope by design: provider-specific aliasing (Gmail dots and `+tags`), internationalized addresses, remembering the casing the user typed.
