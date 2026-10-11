@@ -86,6 +86,20 @@ The Google OAuth redirect itself is out of scope (ADR 0007); A3 is tested up to 
 
 **26 journeys:** 17 × P0 (A1, A3, C1, C3, I1, I2, I4, I5, I6, V1, V2, V3, V4, H1, H2, H3, H4), 7 × P1 (A2, C2, I3, V5, V6, H6, H7), 2 × P2 (C4, H5). Milestone assignment is in `tasks.md`. P2 items are built only if their milestone has room; they are listed so the gap is visible, not forgotten.
 
+### Added after the initial inventory (M9)
+
+| ID  | Journey                                                                                            | Pri | Why it was added                                                    |
+| --- | -------------------------------------------------------------------------------------------------- | --- | ------------------------------------------------------------------- |
+| F1  | A ballot that fails to save is rolled back and reported (places, times, and a vote racing a close) | P0  | Client-side recovery that only runs on failure; spec 0005 review F2 |
+| F2  | A brunch that fails to create keeps the host's entries and can be retried                          | P1  | Failure recovery in the wizard                                      |
+| F3  | Removing the last place / time is refused                                                          | P1  | Deferred from M7                                                    |
+| V4b | A declined place / time never reaches the ballot                                                   | P1  | Deferred from M6                                                    |
+| S1  | Tampered, expired and orphaned sessions are signed out and resume at the original page             | P0  | Spec 0002 "returning user" flow                                     |
+| X1  | Host-only API endpoints refuse the signed-out, strangers and attendees, changing nothing           | P0  | Wiring that mocks cannot see; spec 0004's cross-actor bug class     |
+| X2  | Member-only actions refuse outsiders and the signed-out                                            | P0  | Same                                                                |
+
+That makes **33 journeys and 64 tests**; see `tasks.md` M9 for the testing notes, the mutation checks, what was deliberately left out, and two product findings.
+
 ---
 
 ## Acceptance Criteria

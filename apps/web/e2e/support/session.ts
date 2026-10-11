@@ -16,7 +16,11 @@ export type SessionCookie = {
 // Mints the cookie a real Google sign-in would end with. auth.ts is untouched: this is
 // the session its jwt/session callbacks expect (userId in the token; name/email/picture
 // for the nav). See ADR 0007.
-export async function mintSessionCookie(user: TestUser): Promise<SessionCookie> {
+export async function mintSessionCookie(
+  user: TestUser,
+  // Defaults to Auth.js's own 30 days. A negative value mints an already-expired session.
+  options: { readonly maxAgeSeconds?: number } = {},
+): Promise<SessionCookie> {
   const name = sessionCookieName(baseUrl);
   const value = await encode({
     token: {
@@ -28,6 +32,7 @@ export async function mintSessionCookie(user: TestUser): Promise<SessionCookie> 
     },
     secret: E2E_AUTH_SECRET,
     salt: name,
+    ...(options.maxAgeSeconds !== undefined ? { maxAge: options.maxAgeSeconds } : {}),
   });
   return { name, value, url: baseUrl };
 }

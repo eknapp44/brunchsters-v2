@@ -182,7 +182,13 @@ These notes are the running record of test coverage and intent. They make it pos
 - **ADR for significant decisions.** New library, new pattern, deviation from constitution — write an ADR. See `docs/adrs/README.md` for the template.
 - **Update docs in the same PR as the change.** Stale docs are worse than no docs.
 - **Constitution overrides convenience.** If a request conflicts with a constitution principle, surface the conflict before complying.
-- **Every feature spec lists its E2E journeys.** Alongside acceptance criteria, a spec names the user journeys (especially multi-identity ones and client-side behavior) that get a Playwright test, and its milestones add them — see `docs/SETUP.md` ("Adding E2E coverage for a new feature") and spec 0006's journey inventory for the format. A feature that changes an existing journey updates its test in the same PR.
+- **User-facing changes keep the E2E suite honest.** Every feature spec has an **`## E2E Journeys`** section naming the journeys (ID, who is involved, what is asserted) that get a Playwright test, and its milestones add them — see `docs/SETUP.md` ("Adding E2E coverage for a new feature") and spec 0006's inventory for the format. Outside a new spec, a change **needs a new or updated journey in the same PR** when it:
+  - adds or changes a screen, route or control a person operates (copy and pure styling do not count — but a changed accessible name or role does, because the tests find things by role and label);
+  - changes a rule people can observe: who can see or do what, or when something locks, unlocks or closes;
+  - involves more than one signed-in person's data (these are the bugs unit tests keep missing);
+  - adds client-side logic: optimistic updates, rollbacks, debounces, form recovery after an error;
+  - or fixes a bug that was found by hand or in review instead of by a test — that bug gets a regression journey, proven to fail with the fix removed.
+    Pure refactors, backend-only changes already covered by integration tests, and styling that keeps accessible names intact need no new journey, but `pnpm test:e2e` must still pass. A PR that deliberately changes behavior updates the journeys it breaks rather than loosening them. If a change is major and no journey is added, say why in the PR (the PR template asks).
 
 ## Milestone-Driven Implementation (how to actually build)
 
@@ -211,6 +217,7 @@ This is a solo, learning-focused project. The goal is steady, verifiable progres
 ## Things to Always Do
 
 - Run `pnpm typecheck` and `pnpm lint` before considering work done.
+- Run `pnpm test:e2e` before considering work done whenever a change touches anything a user sees or does (needs local Supabase running).
 - When adding a new lookup table, also add the seed entries in the same PR.
 - When changing the Prisma schema, generate the migration and commit it alongside the schema change.
 - When asked for a "quick fix" that violates a principle, push back before complying.

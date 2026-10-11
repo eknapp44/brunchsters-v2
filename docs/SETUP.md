@@ -275,7 +275,7 @@ pnpm --filter @brunchsters/web exec playwright show-trace <trace.zip>   # open a
 
 **`@smoke` (reserved).** Once deployed environments (INT/QA) exist, a small subset of tests tagged `@smoke` in their titles will be run against the deployed URL after each deploy (`--grep @smoke`, with `BASE_URL` set); the full suite stays on the ephemeral e2e database. Nothing is tagged yet — don't point the suite at a real environment by loosening the database guard; smoke runs need their own non-mutating approach, decided when those environments exist (ADR 0007).
 
-**Adding E2E coverage for a new feature.** Every new feature spec lists its E2E journeys (see `CLAUDE.md` — Process). Follow the existing pattern: create state through `e2e/support/factories.ts` / `voting.ts` (real core services), drive only the step under test through the UI, use `makeActor` for each person, and prove a new test can fail (temporarily break the behavior it guards) before trusting it.
+**Adding E2E coverage for a new feature.** Every new feature spec has an `## E2E Journeys` section, and any change to what a user sees or does needs a new or updated journey in the same PR (the bar is defined in `CLAUDE.md` — "User-facing changes keep the E2E suite honest"; the pull request template asks for it). Follow the existing pattern: create state through `e2e/support/factories.ts` / `voting.ts` (real core services), drive only the step under test through the UI, use `makeActor` for each person, and prove a new test can fail (temporarily break the behavior it guards) before trusting it.
 
 ### Testing notes
 

@@ -1,6 +1,7 @@
 import {
   castLocationBallot,
   castTimeBallot,
+  closeVoting as closeVotingService,
   confirmBrunch as confirmBrunchService,
   NoopEventBus,
   removeLocation,
@@ -168,4 +169,18 @@ export async function passVotingDeadline(brunchId: BrunchId): Promise<void> {
     where: { id: brunchId },
     data: { votingDeadline: new Date(Date.now() - 60_000) },
   });
+}
+
+// Closes voting the way the host's button does, through the real service.
+export async function closeVoting(params: {
+  readonly brunchId: BrunchId;
+  readonly host: TestUser;
+}): Promise<void> {
+  unwrap(
+    await closeVotingService(
+      { brunchId: params.brunchId, requestedById: params.host.id },
+      { db: getDb() },
+    ),
+    'closeVoting',
+  );
 }
