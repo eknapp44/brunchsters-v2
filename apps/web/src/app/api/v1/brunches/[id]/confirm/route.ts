@@ -1,11 +1,11 @@
-import { confirmBrunch, NoopEventBus } from '@brunchsters/core';
+import { confirmBrunch } from '@brunchsters/core';
 import type { BrunchId, BrunchLocationId, BrunchTimeId, UserId } from '@brunchsters/shared';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
+import { eventBus } from '@/lib/services';
 
-const eventBus = new NoopEventBus();
 const brunchIdSchema = z.uuid();
 const confirmRequestSchema = z.object({
   locationId: z.uuid(),

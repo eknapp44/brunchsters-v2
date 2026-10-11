@@ -61,7 +61,7 @@ The exact payload shapes are copied from what each service emits today (read, no
 
 ### Composition root (M1 → M3)
 
-`apps/web/src/lib/services.ts` exports `getEventBus()` and `getEmailService()` as lazily created singletons (module scope, so Next.js hot reload does not create a new client per request). M1 returns `NoopEventBus` everywhere (no behavior change, eleven call sites collapse to one import). M3 adds the selection table from ADR 0009 and the production boot check, which validates env in one function with Zod (the repo's existing boot-time validation style).
+`apps/web/src/lib/services.ts` exports `eventBus` (M1, a module-level constant like `lib/db.ts`) and, from M3, `getEmailService()`, as singletons (module scope, so Next.js hot reload does not create a new client per request). M1 returns `NoopEventBus` everywhere (no behavior change, eleven call sites collapse to one import). M3 adds the selection table from ADR 0009 and the production boot check, which validates env in one function with Zod (the repo's existing boot-time validation style).
 
 ### Handlers: logic in core, wiring in the app
 

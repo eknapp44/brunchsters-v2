@@ -1,15 +1,9 @@
-import {
-  createBrunch,
-  createBrunchRequestSchema,
-  getBrunchesForUser,
-  NoopEventBus,
-} from '@brunchsters/core';
+import { createBrunch, createBrunchRequestSchema, getBrunchesForUser } from '@brunchsters/core';
 import type { UserId } from '@brunchsters/shared';
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
-
-const eventBus = new NoopEventBus();
+import { eventBus } from '@/lib/services';
 
 export async function POST(request: Request): Promise<NextResponse> {
   const session = await auth();

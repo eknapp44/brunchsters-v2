@@ -7,14 +7,22 @@ Four milestones, each green on its own. Testing notes are filled in as each comp
 ## M1 — Typed events and a composition root (no behavior change)
 
 - [x] Commit ADR 0009, its README index row and this spec folder (docs-only commit, before any code)
-- [ ] Read every `emit` site and write `BrunchEventPayloads` from what is actually emitted; `emit` becomes generic over it; remove names with no producer
-- [ ] Update the eight emit sites and every test `makeMockEventBus` so they compile against the types
-- [ ] `apps/web/src/lib/services.ts`: `getEventBus()` (returns `NoopEventBus`); replace the 11 inline `new NoopEventBus()` in routes and `invite/[token]/page.tsx`
-- [ ] Unit tests: each emit site asserts the exact typed payload (extend existing emit assertions where they are loose); a type-level test (`// @ts-expect-error` with a stated reason) that a wrong payload for an event does not compile
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm --filter @brunchsters/core test:integration && pnpm test:e2e` pass (e2e must pass unchanged — this milestone touches routes)
-- [ ] Commit: `refactor: type event payloads and add an EventBus composition root (M1)`
+- [x] Read every `emit` site and write `BrunchEventPayloads` from what is actually emitted; `emit` becomes generic over it; remove names with no producer
+- [x] Update the eight emit sites and every test `makeMockEventBus` so they compile against the types
+- [x] `apps/web/src/lib/services.ts`: exports `eventBus` (still `NoopEventBus`); replace the 11 inline `new NoopEventBus()` in routes and `invite/[token]/page.tsx`
+- [x] Unit tests: each emit site asserts the exact typed payload (extend existing emit assertions where they are loose); a type-level test (`// @ts-expect-error` with a stated reason) that a wrong payload for an event does not compile
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm --filter @brunchsters/core test:integration && pnpm test:e2e` pass (e2e must pass unchanged — this milestone touches routes)
+- [x] Commit: `refactor: type event payloads and add an EventBus composition root (M1)`
 
-**Testing notes:** _(fill on completion)_
+**Testing notes:**
+
+- **What was tested:** The event payload map is enforced by the compiler, not by convention. `events/EventBus.test.ts` (4 tests) accepts a matching payload and holds three `@ts-expect-error` lines, each a thing that must stay a compile error: a payload belonging to a different event, an unbranded string where a `BrunchId` is required, and an event name nothing emits (`brunch/cancelled`). Every emit site already asserted its exact payload in its own unit test except the two `vote/changed` cases, which used `expect.anything()`; those now assert `{ brunchId, voterId, optionIds }` exactly. No runtime behavior changed.
+- **How:** unit (core 363, +4 over before; web 216 and shared 7 unchanged), integration against real local Postgres (88, unchanged) and the full e2e suite (69/69, dev mode) all pass; typecheck and lint are clean. **Mutation check:** replacing the generic `emit<N>(name, data)` with the old `emit(name: string, data: Record<string, unknown>)` made typecheck fail in exactly `EventBus.test.ts` (all three `@ts-expect-error` lines became "unused directive", plus the test double's own signature); restored from a copy and typecheck is green again.
+- **E2E journeys:** none added. This milestone is a refactor with no user-visible change (the 10 route handlers and one page now import the bus from one place; the bus is still the no-op one), so per CLAUDE.md it needs no new journey, but `pnpm test:e2e` was run and passes. The stress run and CI-mode run were skipped for the same reason; M4 is where the e2e suite gains new moving parts and gets both.
+- **Correction to this milestone's original task list:** (1) "Update the eight emit sites and every test `makeMockEventBus`": only four production lines needed changing, all missing `as BrunchId` / `as InviteId` casts on Prisma's plain-string ids (`resendInvite`, `respondToInvite` x2, `reviewInviteSuggestion`). The test doubles are `vi.fn()` so they compile against any signature and needed no edit. (2) The composition root exports a plain `eventBus` constant (the same style as `lib/db.ts`) and not a `getEventBus()` function; M3 adds `getEmailService()` and the adapter selection when there is something to select. (3) Eleven places built a bus inline: ten route handlers and the invite landing page.
+- **Findings:** the two RSVP paths emitted different payload shapes under the same event name. `respondToInvite` includes `inviteId`; `updateRsvp` does not (it works from the signed-in attendee and has no invite in hand). The map makes `inviteId` optional on the RSVP payload with a comment saying why; nothing consumes RSVP events yet, so M2 and M3 are unaffected. `vote/cast` and `vote/changed` carry location ids or time ids in `optionIds` depending on the ballot, typed as a union of the two branded ids.
+- **What's deferred:** no consumer of any event exists yet, so the payloads are only proven to match what the services emit, not that a handler can use them (M2/M3). The pre-existing "Failed to parse brunch creation request body" lines in the web unit test output are a test deliberately sending bad JSON, not a failure.
+- **How to run it:** `pnpm typecheck` (the payload typing is checked here), `pnpm --filter @brunchsters/core test`, `pnpm test:e2e`.
 
 ---
 

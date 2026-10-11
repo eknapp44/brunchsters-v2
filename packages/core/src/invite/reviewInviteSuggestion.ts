@@ -90,7 +90,7 @@ export async function reviewInviteSuggestion(
   for (const invite of createdInvites) {
     try {
       await eventBus.emit('invite/sent', {
-        brunchId: suggestion.brunchId,
+        brunchId: suggestion.brunchId as BrunchId,
         inviteId: invite.id,
         invitedEmail: invite.invitedEmail,
       });

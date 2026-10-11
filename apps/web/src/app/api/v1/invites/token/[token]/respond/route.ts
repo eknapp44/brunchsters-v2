@@ -1,10 +1,9 @@
-import { NoopEventBus, respondToInvite, respondToInviteRequestSchema } from '@brunchsters/core';
+import { respondToInvite, respondToInviteRequestSchema } from '@brunchsters/core';
 import type { InviteToken, UserId } from '@brunchsters/shared';
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
-
-const eventBus = new NoopEventBus();
+import { eventBus } from '@/lib/services';
 
 export async function POST(
   request: Request,

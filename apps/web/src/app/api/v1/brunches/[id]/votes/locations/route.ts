@@ -1,11 +1,11 @@
-import { castBallotRequestSchema, castLocationBallot, NoopEventBus } from '@brunchsters/core';
+import { castBallotRequestSchema, castLocationBallot } from '@brunchsters/core';
 import type { BrunchId, BrunchLocationId, UserId } from '@brunchsters/shared';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
+import { eventBus } from '@/lib/services';
 
-const eventBus = new NoopEventBus();
 const brunchIdSchema = z.uuid();
 
 export async function PUT(
