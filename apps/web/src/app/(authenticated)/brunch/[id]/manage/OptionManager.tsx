@@ -180,6 +180,7 @@ export function OptionManager({
       </ul>
       <input
         type="datetime-local"
+        aria-label="Date and time to add"
         value={timeInput}
         disabled={adding}
         onChange={(event) => setTimeInput(event.target.value)}
