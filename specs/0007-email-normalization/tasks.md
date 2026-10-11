@@ -29,15 +29,21 @@ Four small milestones, each green on its own. Testing notes are filled in as eac
 
 ## M2 — Migration: backfill and check constraints
 
-- [ ] Migration `<ts>_normalize_emails`: collision check (readable error), `UPDATE … lower(btrim(…))` on the four columns, `CHECK (col = lower(col))` on each
-- [ ] Verify against a scratch database with mixed-case rows: (a) clean backfill, (b) a deliberate collision stops with the readable message and changes nothing, (c) the constraint rejects a direct mixed-case insert afterwards; record the script and results
-- [ ] Apply to the local dev database and the e2e database (`pnpm e2e:db:reset`); seeds still run
-- [ ] Update any test or script that inserts a mixed-case address directly
-- [ ] An integration test that a direct mixed-case insert fails the constraint
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm --filter @brunchsters/core test:integration && pnpm test:e2e` pass
-- [ ] Commit: `feat: lowercase existing emails and enforce it in the database (M2)`
+- [x] Migration `20261011120000_normalize_emails`: collision check (readable error), `UPDATE … lower(btrim(…))` on the four columns, `CHECK (col = lower(btrim(col)))` on each (**diverged slightly from the plan:** the check also rejects surrounding whitespace, matching what `normalizeEmail` produces)
+- [x] Verify against a scratch database with mixed-case rows: (a) clean backfill, (b) a deliberate collision stops with the readable message and changes nothing — checked for all three unique keys, (c) the constraint rejects a direct mixed-case insert afterwards; script and results in the notes
+- [x] Apply to the local dev database and the e2e database (`pnpm e2e:db:reset`); seeds still run
+- [x] Update any test or script that inserts a mixed-case address directly — none were left after M1's constant fixes; nothing failed against the constraints
+- [x] An integration test that a direct mixed-case insert fails the constraint (5 tests, one per column plus "a canonical address is still accepted")
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm --filter @brunchsters/core test:integration && pnpm test:e2e` pass
+- [x] Commit: `feat: lowercase existing emails and enforce it in the database (M2)`
 
-**Testing notes:** _(fill on completion)_
+**Testing notes:**
+
+- **What was tested:** The migration was run against a throwaway database (`brunchsters_migtest`, created from every earlier migration plus the seeded lookup tables, then dropped) holding deliberately awkward data. **(a) Clean backfill:** with `Host@Example.COM`, `Guest@Example.com` (user and provider), invites `Guest@Example.com`, `already-lower@example.com` and ` Padded@Example.com` (note the whitespace), and a suggestion `Friend@Example.com`, the row counts were identical before and after (2 users, 1 provider, 3 invites, 1 suggestion) and the number of non-canonical rows went from 2 / 1 / 2 / 1 to 0 / 0 / 0 / 0; the padded invite became `padded@example.com`. **(c) Constraints:** afterwards a direct insert of `Mixed@Example.com` and of ` padded@example.com` each failed with `violates check constraint "User_email_normalized"`, and a canonical address was still accepted. **(b) Collisions:** with `Dup@Example.com` and `dup@example.com` as two users the migration stopped with `Cannot normalize "User"."email": these addresses appear more than once when case and surrounding whitespace are ignored: dup@example.com. Merge or remove the duplicate users by hand, then re-run the migration.`; with two invites for one brunch differing only by case it named the `brunchId / address` pair, and likewise for suggestions; in each case the data afterwards was byte-for-byte what it was before (no row changed, **no constraint added**). The collision check runs first inside one `DO` block, so it cannot half-apply. Then against real databases: the migration applied cleanly to the local dev database (0 mixed-case rows there beforehand, confirmed first) and to a freshly created e2e database (`pnpm test:e2e` resets and migrates it every run); `prisma migrate diff` reports **no drift** (Prisma ignores check constraints, as with the partial unique indexes from spec 0005).
+- **How:** the scratch-database verification is a script (kept out of the repo: it only exists to prove this one migration; its exact steps are described above and reproducible with `docker exec … psql`). Committed tests: `emailConstraints.integration.test.ts` (5 tests, real Postgres) asserts each of the four columns rejects a mixed-case address with the constraint's name and that a canonical address still goes in. Suites: unit unchanged (shared 7, core 359, web 216); core integration 88 (+5); e2e 65/65 in dev mode against the freshly migrated e2e database.
+- **Design choices the spec left open:** the constraint uses `lower(btrim(col))`, not just `lower(col)`, so a padded address is refused as well. The error text for a collision names the offending values so an operator can act without reading SQL. Rolling back means dropping the four `*_normalized` constraints; the lowercased data stays (the original casing is not recoverable and not worth keeping — ADR 0008).
+- **What's deferred:** There is no production data and the dev database had no mixed-case rows, so the backfill's real-world path has only been exercised on the scratch data above. CI's `Integration Tests` job applies the migration to a fresh Postgres 17 for the first time when this branch is pushed. The journey that shows the behavior to a user (I7) is M3.
+- **How to run it:** `pnpm --filter @brunchsters/database exec prisma migrate deploy` (applies it to a database), `pnpm --filter @brunchsters/core test:integration` (constraint tests), `pnpm test:e2e` (resets and migrates the e2e database).
 
 ---
 
