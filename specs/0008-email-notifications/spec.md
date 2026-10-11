@@ -84,6 +84,7 @@ Grounded in the current code:
 
 ### API routes
 
+- [ ] `sendInvitesRequestSchema` rejects a request with more than 50 addresses (422, clear message); this bounds the email fan-out and is not an attendee cap
 - [ ] No route's request or response changes. Existing handler tests pass against the typed bus
 
 ### UI
@@ -124,6 +125,7 @@ N1–N3 are multi-person flows; N2 is the historic-bug class (stale token). "Rev
 - Realtime / presence-aware notifications (Supabase Realtime is not wired anywhere yet)
 - Emails to the host for RSVPs, votes, option or invite suggestions, and the 66% close-voting nudge; deadline-approaching reminders (these need scheduled jobs)
 - Cancel-with-5-second-undo, running-late and host transfer: the services and UI do not exist yet, so they are their own feature specs (their notification types stay seeded and unused)
+- An attendee/brunch size cap (the 50-addresses-per-request limit above is only an input guard; the real cap is a separate feature, logged in PLANNING §17)
 - A transactional outbox (ADR 0009 — accepted risk of a rare lost event)
 - Bounce/complaint webhooks, unsubscribe links, email rate limiting
 - Calendar attachments (`.ics`) and the Google Calendar chip

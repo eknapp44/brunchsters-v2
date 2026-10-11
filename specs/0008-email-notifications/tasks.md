@@ -41,6 +41,7 @@ Four milestones, each green on its own. Testing notes are filled in as each comp
 - [ ] Adapters: `ResendEmailService`, `FileEmailService`, `InngestEventBus` with unit tests using fake clients
 - [ ] `apps/web/src/inngest/`: client, and thin function wrappers for `invite/sent` + `invite/resent` → `sendInviteEmail`, and `brunch/confirmed` → recipients then one `step.run` per recipient; retry vs `NonRetriableError` mapping tested
 - [ ] `apps/web/src/app/api/inngest/route.ts` (`serve`) and the `middleware.ts` allowance; route test that an unsigned request is refused in production mode
+- [ ] `sendInvitesRequestSchema` accepts at most 50 addresses per request (`.max(50)`, a clear validation message); unit test at 50 (accepted) and 51 (rejected). This guards the email fan-out without deciding what a brunch size limit means
 - [ ] Composition root selects adapters per ADR 0009; production boot check with a Zod-validated env function (tests for each missing variable)
 - [ ] `.env.example`, `.gitignore` (`.mail-outbox/`), `docs/SETUP.md` (Inngest dev server, outbox, env table, **Resend domain verification walkthrough**), `docs/PLANNING.md` §7/§10/§16 updated
 - [ ] Manual check, recorded in the note: with `inngest-cli dev` running, send an invite from the app and see the file in the outbox and the run in the Inngest dev UI
