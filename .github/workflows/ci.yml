@@ -226,7 +226,8 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # The release commit it pushes carries [skip ci], so this does not loop.
+      # Creates a version tag and a GitHub Release with generated notes. It commits nothing to
+      # main (ADR 0004 amendment), so there is no release commit to trigger another run.
       - run: pnpm exec semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
