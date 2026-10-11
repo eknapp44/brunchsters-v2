@@ -1,10 +1,11 @@
 import { createDb } from '@brunchsters/database';
-import type {
-  BrunchId,
-  BrunchLocationId,
-  BrunchTimeId,
-  InviteToken,
-  UserId,
+import {
+  normalizeEmail,
+  type BrunchId,
+  type BrunchLocationId,
+  type BrunchTimeId,
+  type InviteToken,
+  type UserId,
 } from '@brunchsters/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { respondToInvite } from '../invite/respondToInvite';
@@ -23,8 +24,8 @@ import { suggestTime } from './suggestTime';
 
 // Requires: supabase start + seeded lookup tables (pnpm db:seed).
 const RUN_ID = Date.now();
-const HOST_EMAIL = `integration-optionsuggest-host-${RUN_ID}@example.com`;
-const VOTER_EMAIL = `integration-optionsuggest-voter-${RUN_ID}@example.com`;
+const HOST_EMAIL = normalizeEmail(`integration-optionsuggest-host-${RUN_ID}@example.com`);
+const VOTER_EMAIL = normalizeEmail(`integration-optionsuggest-voter-${RUN_ID}@example.com`);
 
 const db = createDb();
 const eventBus = new NoopEventBus();

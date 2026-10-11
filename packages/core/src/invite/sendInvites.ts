@@ -1,5 +1,11 @@
 import type { DbClient } from '@brunchsters/database';
-import type { BrunchId, Email, InviteId, UserId } from '@brunchsters/shared';
+import {
+  normalizeEmail,
+  type BrunchId,
+  type Email,
+  type InviteId,
+  type UserId,
+} from '@brunchsters/shared';
 import { err, ok, type Result } from 'neverthrow';
 import { z } from 'zod';
 import { LookupNotFoundError } from '../errors/LookupNotFoundError';
@@ -9,7 +15,8 @@ import { isBrunchMember } from '../brunch/guards/isBrunchMember';
 const INVITE_EXPIRY_DAYS = 30;
 
 export const sendInvitesRequestSchema = z.object({
-  emails: z.array(z.email()).min(1),
+  // Addresses are normalized here, at the boundary (ADR 0008): the output type is Email.
+  emails: z.array(z.email().transform(normalizeEmail)).min(1),
 });
 
 export type SendInvitesRequest = z.infer<typeof sendInvitesRequestSchema>;

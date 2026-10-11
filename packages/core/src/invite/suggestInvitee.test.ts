@@ -1,5 +1,5 @@
 import type { DbClient } from '@brunchsters/database';
-import type { BrunchId, UserId } from '@brunchsters/shared';
+import { normalizeEmail, type Email, type BrunchId, type UserId } from '@brunchsters/shared';
 import { err, ok } from 'neverthrow';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -17,7 +17,7 @@ const OPEN_BRUNCH = {
   hostId: HOST_ID,
   allowInviteSuggestions: true,
   requireHostApprovalToInvite: true,
-  host: { email: 'host@example.com' },
+  host: { email: normalizeEmail('host@example.com') },
 };
 
 function makeMockDb(
@@ -52,7 +52,11 @@ beforeEach(() => {
   vi.mocked(reviewInviteSuggestion).mockReset();
 });
 
-const BASE_INPUT = { brunchId: BRUNCH_ID, suggestedById: ATTENDEE_ID, email: 'carol@example.com' };
+const BASE_INPUT = {
+  brunchId: BRUNCH_ID,
+  suggestedById: ATTENDEE_ID,
+  email: normalizeEmail('carol@example.com'),
+};
 
 describe('suggestInvitee', () => {
   it('creates a pending suggestion when host approval is required', async () => {
@@ -163,7 +167,7 @@ describe('suggestInvitee', () => {
 
     const turnedOff = await suggestInvitee(BASE_INPUT, { db: off, eventBus: { emit: vi.fn() } });
     const probe = await suggestInvitee(
-      { ...BASE_INPUT, email: 'host@example.com' },
+      { ...BASE_INPUT, email: normalizeEmail('host@example.com') },
       { db: hostEmail, eventBus: { emit: vi.fn() } },
     );
 
@@ -176,7 +180,7 @@ describe('suggestInvitee', () => {
     const db = makeMockDb();
 
     const result = await suggestInvitee(
-      { ...BASE_INPUT, email: 'host@example.com' },
+      { ...BASE_INPUT, email: normalizeEmail('host@example.com') },
       { db, eventBus: { emit: vi.fn() } },
     );
 
@@ -188,7 +192,7 @@ describe('suggestInvitee', () => {
     const db = makeMockDb();
 
     const result = await suggestInvitee(
-      { ...BASE_INPUT, email: 'Host@Example.com' },
+      { ...BASE_INPUT, email: 'Host@Example.com' as Email },
       { db, eventBus: { emit: vi.fn() } },
     );
 
@@ -244,6 +248,12 @@ describe('suggestInvitee', () => {
 });
 
 describe('suggestInviteeRequestSchema', () => {
+  it('normalizes the address to its canonical lowercase form (ADR 0008)', () => {
+    const parsed = suggestInviteeRequestSchema.parse({ email: 'Friend@Example.COM' });
+
+    expect(parsed.email).toBe('friend@example.com');
+  });
+
   it('rejects an invalid email', () => {
     expect(suggestInviteeRequestSchema.safeParse({ email: 'not-an-email' }).success).toBe(false);
   });

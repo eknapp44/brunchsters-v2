@@ -1,5 +1,11 @@
 import { createDb } from '@brunchsters/database';
-import type { BrunchLocationId, BrunchTimeId, InviteToken, UserId } from '@brunchsters/shared';
+import {
+  normalizeEmail,
+  type BrunchLocationId,
+  type BrunchTimeId,
+  type InviteToken,
+  type UserId,
+} from '@brunchsters/shared';
 import { afterAll, describe, expect, it } from 'vitest';
 import { respondToInvite } from '../invite/respondToInvite';
 import { sendInvites } from '../invite/sendInvites';
@@ -21,9 +27,9 @@ import { getBrunchVoting } from './getBrunchVoting';
 // missing chain: a single brunch, carried through every stage in order,
 // checked at each step with the real services and real Postgres.
 const RUN_ID = Date.now();
-const HOST_EMAIL = `integration-lifecycle-host-${RUN_ID}@example.com`;
-const VOTER_1_EMAIL = `integration-lifecycle-voter1-${RUN_ID}@example.com`;
-const VOTER_2_EMAIL = `integration-lifecycle-voter2-${RUN_ID}@example.com`;
+const HOST_EMAIL = normalizeEmail(`integration-lifecycle-host-${RUN_ID}@example.com`);
+const VOTER_1_EMAIL = normalizeEmail(`integration-lifecycle-voter1-${RUN_ID}@example.com`);
+const VOTER_2_EMAIL = normalizeEmail(`integration-lifecycle-voter2-${RUN_ID}@example.com`);
 
 const db = createDb();
 const eventBus = new NoopEventBus();

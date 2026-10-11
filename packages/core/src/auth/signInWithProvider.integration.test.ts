@@ -94,4 +94,38 @@ describe('signInWithProvider (integration — real Postgres)', () => {
     const userCount = await db.user.count({ where: { email: TEST_EMAIL } });
     expect(userCount).toBe(1);
   });
+
+  // ADR 0008: the address a provider reports may have capitals; accounts are stored normalized,
+  // so the same person signing in with a differently-cased address is the same account.
+  it('stores the address normalized and recognizes the same person in any case', async () => {
+    const lower = `integration-auth-case-${RUN_ID}@example.com`;
+    const reported = `Integration-Auth-Case-${RUN_ID}@Example.COM`;
+    try {
+      const first = await signInWithProvider({
+        provider: GOOGLE_PROVIDER,
+        providerUserId: `google-case-a-${RUN_ID}`,
+        email: reported,
+        name: 'Capitalized Address',
+        avatarUrl: undefined,
+        db,
+      });
+      const stored = await db.user.findFirst({ where: { id: first._unsafeUnwrap().userId } });
+      expect(stored?.email).toBe(lower);
+
+      // Another sign-in method reports it in lowercase: it links to the same account.
+      const second = await signInWithProvider({
+        provider: APPLE_PROVIDER,
+        providerUserId: `apple-case-b-${RUN_ID}`,
+        email: lower,
+        name: 'Capitalized Address',
+        avatarUrl: undefined,
+        db,
+      });
+      expect(second._unsafeUnwrap().userId).toBe(first._unsafeUnwrap().userId);
+      expect(await db.user.count({ where: { email: lower } })).toBe(1);
+    } finally {
+      await db.userAuthProvider.deleteMany({ where: { email: lower } });
+      await db.user.deleteMany({ where: { email: lower } });
+    }
+  });
 });

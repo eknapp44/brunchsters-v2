@@ -1,5 +1,12 @@
 import { createDb } from '@brunchsters/database';
-import type { BrunchId, InviteId, InviteToken, UserId } from '@brunchsters/shared';
+import {
+  normalizeEmail,
+  type BrunchId,
+  type Email,
+  type InviteId,
+  type InviteToken,
+  type UserId,
+} from '@brunchsters/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { NoopEventBus } from '../../events/NoopEventBus';
 import { respondToInvite } from '../../invite/respondToInvite';
@@ -15,7 +22,8 @@ import { isBrunchMember } from './isBrunchMember';
 // guards answer an outsider exactly as they would for something that does not exist, so an
 // unrelated user cannot confirm that a brunch id is real (found by the e2e suite, spec 0006).
 const RUN_ID = Date.now();
-const email = (label: string): string => `integration-outsiders-${label}-${RUN_ID}@example.com`;
+const email = (label: string): Email =>
+  normalizeEmail(`integration-outsiders-${label}-${RUN_ID}@example.com`);
 
 const db = createDb();
 const eventBus = new NoopEventBus();

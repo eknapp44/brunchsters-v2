@@ -1,5 +1,5 @@
 import { createDb } from '@brunchsters/database';
-import type { BrunchId, InviteToken, UserId } from '@brunchsters/shared';
+import { normalizeEmail, type BrunchId, type InviteToken, type UserId } from '@brunchsters/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createBrunch } from '../brunch/createBrunch';
 import { NoopEventBus } from '../events/NoopEventBus';
@@ -8,9 +8,9 @@ import { sendInvites } from './sendInvites';
 
 // Requires: supabase start + seeded lookup tables (pnpm db:seed).
 const RUN_ID = Date.now();
-const HOST_EMAIL = `integration-respond-host-${RUN_ID}@example.com`;
-const KNOWN_INVITEE_EMAIL = `integration-respond-known-${RUN_ID}@example.com`;
-const NEW_INVITEE_EMAIL = `integration-respond-new-${RUN_ID}@example.com`;
+const HOST_EMAIL = normalizeEmail(`integration-respond-host-${RUN_ID}@example.com`);
+const KNOWN_INVITEE_EMAIL = normalizeEmail(`integration-respond-known-${RUN_ID}@example.com`);
+const NEW_INVITEE_EMAIL = normalizeEmail(`integration-respond-new-${RUN_ID}@example.com`);
 
 const db = createDb();
 const eventBus = new NoopEventBus();
@@ -150,7 +150,7 @@ describe('respondToInvite integration', () => {
     // tries to create one for the host, colliding with the host's existing
     // attendee row (from brunch creation) on the (brunchId, userId) unique
     // constraint.
-    const thirdPartyEmail = `integration-respond-third-${RUN_ID}@example.com`;
+    const thirdPartyEmail = normalizeEmail(`integration-respond-third-${RUN_ID}@example.com`);
     const sent = await sendInvites(
       { brunchId, invitedById: hostId, emails: [thirdPartyEmail] },
       { db, eventBus },
@@ -185,7 +185,7 @@ describe('respondToInvite integration', () => {
     // sendInvites, not the synthetic host invite from brunch creation —
     // a genuinely different setup path than the host case above, even
     // though respondToInvite's own logic doesn't distinguish them.
-    const fourthPartyEmail = `integration-respond-fourth-${RUN_ID}@example.com`;
+    const fourthPartyEmail = normalizeEmail(`integration-respond-fourth-${RUN_ID}@example.com`);
     const sent = await sendInvites(
       { brunchId, invitedById: hostId, emails: [fourthPartyEmail] },
       { db, eventBus },

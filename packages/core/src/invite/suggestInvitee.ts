@@ -1,12 +1,18 @@
 import type { DbClient } from '@brunchsters/database';
-import type { BrunchId, InviteSuggestionId, UserId } from '@brunchsters/shared';
+import {
+  normalizeEmail,
+  type BrunchId,
+  type InviteSuggestionId,
+  type UserId,
+} from '@brunchsters/shared';
 import { err, ok, type Result } from 'neverthrow';
 import { z } from 'zod';
 import type { EventBus } from '../events/EventBus';
 import { reviewInviteSuggestion } from './reviewInviteSuggestion';
 
 export const suggestInviteeRequestSchema = z.object({
-  email: z.email(),
+  // Normalized here, at the boundary (ADR 0008): the output type is Email.
+  email: z.email().transform(normalizeEmail),
 });
 
 export type SuggestInviteeRequest = z.infer<typeof suggestInviteeRequestSchema>;
