@@ -47,8 +47,8 @@ export async function POST(
 
   if (result.isErr()) {
     switch (result.error.kind) {
-      case 'not_attendee':
-        return NextResponse.json({ error: 'Only attendees can RSVP' }, { status: 403 });
+      case 'brunch_not_found':
+        return NextResponse.json({ error: 'Brunch not found' }, { status: 404 });
       default:
         console.error('updateRsvp failed', result.error);
         return NextResponse.json({ error: 'Failed to update RSVP' }, { status: 500 });

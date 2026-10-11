@@ -52,11 +52,11 @@ describe('assertCanVote', () => {
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'cannot_vote' });
   });
 
-  it('rejects a non-attendee with not_an_attendee', async () => {
+  it('treats someone who is not a member as if the brunch does not exist', async () => {
     const db = makeMockDb(vi.fn().mockResolvedValue(null));
 
     const result = await assertCanVote({ brunchId: BRUNCH_ID, userId: USER_ID }, { db });
 
-    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'not_an_attendee' });
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_found' });
   });
 });

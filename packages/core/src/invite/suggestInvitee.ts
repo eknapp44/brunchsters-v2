@@ -24,7 +24,6 @@ export type SuggestInviteeResult = {
 export type SuggestInviteeError =
   | { readonly kind: 'brunch_not_found' }
   | { readonly kind: 'suggestions_disabled' }
-  | { readonly kind: 'not_attendee' }
   | { readonly kind: 'cannot_suggest_host' }
   | { readonly kind: 'already_suggested' }
   | { readonly kind: 'lookup_not_found'; readonly code: string }
@@ -46,17 +45,20 @@ export async function suggestInvitee(
     include: { host: true },
   });
   if (brunch === null) return err({ kind: 'brunch_not_found' });
-  if (!brunch.allowInviteSuggestions) return err({ kind: 'suggestions_disabled' });
-  if (input.email.toLowerCase() === brunch.host.email.toLowerCase()) {
-    return err({ kind: 'cannot_suggest_host' });
-  }
 
+  // Membership first: an outsider must not learn anything about the brunch — not whether
+  // suggestions are on, and not whether an email is its host's (cannot_suggest_host).
   const isHost = brunch.hostId === input.suggestedById;
   if (!isHost) {
     const attendee = await db.brunchAttendee.findFirst({
       where: { brunchId: input.brunchId, userId: input.suggestedById },
     });
-    if (attendee === null) return err({ kind: 'not_attendee' });
+    if (attendee === null) return err({ kind: 'brunch_not_found' });
+  }
+
+  if (!brunch.allowInviteSuggestions) return err({ kind: 'suggestions_disabled' });
+  if (input.email.toLowerCase() === brunch.host.email.toLowerCase()) {
+    return err({ kind: 'cannot_suggest_host' });
   }
 
   // No soft-delete field on this model — findUnique/findFirst behave the same here.

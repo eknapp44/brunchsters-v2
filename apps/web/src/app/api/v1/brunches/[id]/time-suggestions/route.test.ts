@@ -102,15 +102,15 @@ describe('POST /api/v1/brunches/[id]/time-suggestions', () => {
     expect(response.status).toBe(403);
   });
 
-  it('returns 403 when the requester is not an attendee', async () => {
+  it('returns 404 when the requester is not a member (an outsider cannot tell the brunch exists)', async () => {
     mockAuth.mockResolvedValue(SESSION);
-    mockSuggestTime.mockResolvedValue(err({ kind: 'not_attendee' }));
+    mockSuggestTime.mockResolvedValue(err({ kind: 'brunch_not_found' }));
 
     const response = await POST(postRequest({ scheduledAt: FUTURE_ISO }), {
       params: params(VALID_BRUNCH_ID),
     });
 
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(404);
   });
 
   it('returns 409 when the brunch is not active', async () => {

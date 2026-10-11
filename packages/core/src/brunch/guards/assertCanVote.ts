@@ -8,7 +8,7 @@ export type VotingAttendee = BrunchAttendee & {
 };
 
 export type AssertCanVoteError =
-  | { readonly kind: 'not_an_attendee' }
+  | { readonly kind: 'brunch_not_found' }
   | { readonly kind: 'cannot_vote' };
 
 type AssertCanVoteInput = {
@@ -27,7 +27,8 @@ export async function assertCanVote(
     where: { brunchId: input.brunchId, userId: input.userId },
     include: { rsvpStatus: true },
   });
-  if (attendee === null) return err({ kind: 'not_an_attendee' });
+  // Not a member: indistinguishable from a brunch that does not exist.
+  if (attendee === null) return err({ kind: 'brunch_not_found' });
   if (!attendee.rsvpStatus.canVote) return err({ kind: 'cannot_vote' });
 
   return ok(attendee);

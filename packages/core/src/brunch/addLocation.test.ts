@@ -82,12 +82,31 @@ describe('addLocation', () => {
     expect(db.brunchLocation.create).not.toHaveBeenCalled();
   });
 
-  it('rejects a non-host', async () => {
+  it('refuses a member who is not the host (they may know the brunch exists)', async () => {
     const db = makeMockDb({});
+
+    // Membership is looked up only on this path.
+    Object.assign(db, {
+      brunchAttendee: { findFirst: vi.fn().mockResolvedValue({ id: 'attendee-id' }) },
+    });
 
     const result = await addLocation({ ...BASE_INPUT, requestedById: OTHER_ID }, { db });
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'not_host' });
+    expect(db.brunchLocation.create).not.toHaveBeenCalled();
+  });
+
+  it('treats an outsider as if it does not exist (no 403 that confirms it is real)', async () => {
+    const db = makeMockDb({});
+
+    // Membership is looked up only on this path.
+    Object.assign(db, {
+      brunchAttendee: { findFirst: vi.fn().mockResolvedValue(null) },
+    });
+
+    const result = await addLocation({ ...BASE_INPUT, requestedById: OTHER_ID }, { db });
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_found' });
     expect(db.brunchLocation.create).not.toHaveBeenCalled();
   });
 

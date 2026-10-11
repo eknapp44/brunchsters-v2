@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { addLocationInTransaction } from './addLocation';
 import { assertBrunchActive, type AssertBrunchActiveError } from './guards/assertBrunchActive';
 import { assertVotingOpen, type AssertVotingOpenError } from './guards/assertVotingOpen';
+import { isBrunchMember } from './guards/isBrunchMember';
 
 export const reviewLocationSuggestionRequestSchema = z.object({
   decision: z.enum(['approve', 'decline']),
@@ -38,7 +39,14 @@ export async function reviewLocationSuggestion(
     include: { brunch: { include: { status: true } }, status: true },
   });
   if (suggestion === null) return err({ kind: 'suggestion_not_found' });
-  if (suggestion.brunch.hostId !== input.reviewedById) return err({ kind: 'not_host' });
+  if (suggestion.brunch.hostId !== input.reviewedById) {
+    // A member may know the suggestion exists; anyone else gets the same answer as for a made-up id.
+    const member = await isBrunchMember(
+      { brunchId: suggestion.brunchId as BrunchId, userId: input.reviewedById },
+      { db },
+    );
+    return err({ kind: member ? 'not_host' : 'suggestion_not_found' });
+  }
 
   // A suggestion can sit pending from before the brunch was confirmed (or
   // cancelled) — without this, approving it after the fact would silently

@@ -1,6 +1,7 @@
 import type { DbClient } from '@brunchsters/database';
 import type { BrunchId, Email, InviteId, InviteToken, UserId } from '@brunchsters/shared';
 import { err, ok, type Result } from 'neverthrow';
+import { isBrunchMember } from '../brunch/guards/isBrunchMember';
 
 export type InviteStatus = 'pending' | 'yes' | 'no' | 'maybe';
 
@@ -42,7 +43,14 @@ export async function getInvitesForBrunch(
     include: { host: true },
   });
   if (brunch === null) return err({ kind: 'brunch_not_found' });
-  if (brunch.hostId !== input.requestedById) return err({ kind: 'not_host' });
+  if (brunch.hostId !== input.requestedById) {
+    // A member may know the brunch exists; anyone else gets the same answer as for a made-up id.
+    const member = await isBrunchMember(
+      { brunchId: input.brunchId, userId: input.requestedById },
+      ctx,
+    );
+    return err({ kind: member ? 'not_host' : 'brunch_not_found' });
+  }
 
   const invites = await ctx.db.brunchInvite.findMany({
     where: {

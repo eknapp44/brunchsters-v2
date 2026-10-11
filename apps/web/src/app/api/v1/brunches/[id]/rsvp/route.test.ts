@@ -92,15 +92,15 @@ describe('POST /api/v1/brunches/[id]/rsvp', () => {
     );
   });
 
-  it('returns 403 when the viewer is not an attendee', async () => {
+  it('returns 404 when the requester is not a member (an outsider cannot tell the brunch exists)', async () => {
     mockAuth.mockResolvedValue(SESSION);
-    mockUpdateRsvp.mockResolvedValue(err({ kind: 'not_attendee' }));
+    mockUpdateRsvp.mockResolvedValue(err({ kind: 'brunch_not_found' }));
 
     const response = await POST(postRequest({ response: 'yes' }), {
       params: params(VALID_BRUNCH_ID),
     });
 
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(404);
   });
 
   it('returns 500 on a db_error', async () => {

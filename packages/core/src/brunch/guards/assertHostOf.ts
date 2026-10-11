@@ -1,6 +1,7 @@
 import type { Brunch, DbClient } from '@brunchsters/database';
 import type { BrunchId, UserId } from '@brunchsters/shared';
 import { err, ok, type Result } from 'neverthrow';
+import { isBrunchMember } from './isBrunchMember';
 
 // Includes status so callers (assertBrunchActive, assertVotingOpen in M4)
 // don't have to re-query it.
@@ -26,7 +27,11 @@ export async function assertHostOf(
     include: { status: true },
   });
   if (brunch === null) return err({ kind: 'brunch_not_found' });
-  if (brunch.hostId !== input.userId) return err({ kind: 'not_host' });
+  if (brunch.hostId !== input.userId) {
+    // A member may know the brunch exists; anyone else gets the same answer as for a made-up id.
+    if (await isBrunchMember(input, ctx)) return err({ kind: 'not_host' });
+    return err({ kind: 'brunch_not_found' });
+  }
 
   return ok(brunch);
 }

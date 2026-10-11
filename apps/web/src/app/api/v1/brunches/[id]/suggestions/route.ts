@@ -54,8 +54,6 @@ export async function POST(
           { error: 'Suggestions are disabled for this brunch' },
           { status: 403 },
         );
-      case 'not_attendee':
-        return NextResponse.json({ error: 'Only attendees can suggest invitees' }, { status: 403 });
       case 'cannot_suggest_host':
         return NextResponse.json({ error: 'Cannot suggest the host' }, { status: 422 });
       case 'already_suggested':

@@ -31,14 +31,34 @@ describe('assertHostOf', () => {
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_found' });
   });
 
-  it('returns not_host when the caller is not the host', async () => {
+  it('refuses a member who is not the host (they may know the brunch exists)', async () => {
     const brunch = { id: BRUNCH_ID, hostId: HOST_ID, status: { code: 'active' } };
     const db = makeMockDb(vi.fn().mockResolvedValue(brunch));
+
+    // Membership is looked up only on this path.
+    Object.assign(db, {
+      brunchAttendee: { findFirst: vi.fn().mockResolvedValue({ id: 'attendee-id' }) },
+    });
 
     const result = await assertHostOf({ brunchId: BRUNCH_ID, userId: OTHER_ID }, { db });
 
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'not_host' });
+  });
+
+  it('treats an outsider as if it does not exist (no 403 that confirms it is real)', async () => {
+    const brunch = { id: BRUNCH_ID, hostId: HOST_ID, status: { code: 'active' } };
+    const db = makeMockDb(vi.fn().mockResolvedValue(brunch));
+
+    // Membership is looked up only on this path.
+    Object.assign(db, {
+      brunchAttendee: { findFirst: vi.fn().mockResolvedValue(null) },
+    });
+
+    const result = await assertHostOf({ brunchId: BRUNCH_ID, userId: OTHER_ID }, { db });
+
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_found' });
   });
 
   it('includes status in the query so callers can read it without a re-query', async () => {

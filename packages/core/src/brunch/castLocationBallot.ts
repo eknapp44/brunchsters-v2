@@ -54,6 +54,13 @@ export async function castLocationBallot(
   });
   if (brunch === null) return err({ kind: 'brunch_not_found' });
 
+  // Membership first: an outsider must not learn anything (active? open?) about the brunch.
+  const canVoteResult = await assertCanVote(
+    { brunchId: input.brunchId, userId: input.voterId },
+    { db },
+  );
+  if (canVoteResult.isErr()) return err(canVoteResult.error);
+
   const activeResult = assertBrunchActive(brunch as HostBrunch);
   if (activeResult.isErr()) return err(activeResult.error);
 
@@ -65,12 +72,6 @@ export async function castLocationBallot(
   // createMany and throw on the (brunchLocationId, userId) unique index
   // (architect review).
   const optionIds = Array.from(new Set(input.optionIds));
-
-  const canVoteResult = await assertCanVote(
-    { brunchId: input.brunchId, userId: input.voterId },
-    { db },
-  );
-  if (canVoteResult.isErr()) return err(canVoteResult.error);
 
   const mode = await deriveDecisionMode({ brunchId: input.brunchId, kind: 'location' }, { db });
   if (mode === 'host_decides') return err({ kind: 'not_a_vote' });

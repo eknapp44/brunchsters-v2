@@ -49,7 +49,7 @@ describe('updateRsvp', () => {
     );
   });
 
-  it('returns not_attendee when the viewer has no attendee row for this brunch', async () => {
+  it('treats someone who is not a member as if the brunch does not exist', async () => {
     const db = makeMockDb({ attendeeFindFirst: vi.fn().mockResolvedValue(null) });
 
     const result = await updateRsvp(
@@ -58,7 +58,7 @@ describe('updateRsvp', () => {
     );
 
     expect(result.isErr()).toBe(true);
-    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'not_attendee' });
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_found' });
   });
 
   it('returns lookup_not_found when the RsvpStatus row is missing', async () => {

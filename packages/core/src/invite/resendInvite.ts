@@ -1,7 +1,8 @@
 import type { DbClient } from '@brunchsters/database';
-import type { InviteId, UserId } from '@brunchsters/shared';
+import type { BrunchId, InviteId, UserId } from '@brunchsters/shared';
 import { err, ok, type Result } from 'neverthrow';
 import type { EventBus } from '../events/EventBus';
+import { isBrunchMember } from '../brunch/guards/isBrunchMember';
 
 const INVITE_EXPIRY_DAYS = 30;
 
@@ -31,7 +32,14 @@ export async function resendInvite(
     include: { brunch: true },
   });
   if (invite === null) return err({ kind: 'invite_not_found' });
-  if (invite.brunch.hostId !== input.requestedById) return err({ kind: 'not_host' });
+  if (invite.brunch.hostId !== input.requestedById) {
+    // A member may know the invite exists; anyone else gets the same answer as for a made-up id.
+    const member = await isBrunchMember(
+      { brunchId: invite.brunchId as BrunchId, userId: input.requestedById },
+      ctx,
+    );
+    return err({ kind: member ? 'not_host' : 'invite_not_found' });
+  }
 
   let updatedId: InviteId;
   try {

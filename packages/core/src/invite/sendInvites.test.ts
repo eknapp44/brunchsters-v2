@@ -285,9 +285,14 @@ describe('sendInvites', () => {
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_found' });
   });
 
-  it('returns not_host when the requester is not the brunch host', async () => {
+  it('refuses a member who is not the host (they may know the brunch exists)', async () => {
     const tx = makeMockTx();
     const db = makeMockDb(tx, DRAFT_BRUNCH);
+
+    // Membership is looked up only on this path.
+    Object.assign(db, {
+      brunchAttendee: { findFirst: vi.fn().mockResolvedValue({ id: 'attendee-id' }) },
+    });
 
     const result = await sendInvites(
       { ...BASE_INPUT, invitedById: 'someone-else-uuid' as UserId },
@@ -296,6 +301,24 @@ describe('sendInvites', () => {
 
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'not_host' });
+  });
+
+  it('treats an outsider as if it does not exist (no 403 that confirms it is real)', async () => {
+    const tx = makeMockTx();
+    const db = makeMockDb(tx, DRAFT_BRUNCH);
+
+    // Membership is looked up only on this path.
+    Object.assign(db, {
+      brunchAttendee: { findFirst: vi.fn().mockResolvedValue(null) },
+    });
+
+    const result = await sendInvites(
+      { ...BASE_INPUT, invitedById: 'someone-else-uuid' as UserId },
+      { db, eventBus: makeMockEventBus() },
+    );
+
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_found' });
   });
 
   it("filters out the host's own email rather than rejecting the whole batch", async () => {

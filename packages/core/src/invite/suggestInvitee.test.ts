@@ -144,13 +144,32 @@ describe('suggestInvitee', () => {
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'suggestions_disabled' });
   });
 
-  it('returns not_attendee when the suggester is neither host nor attendee', async () => {
+  it('treats someone who is not a member as if the brunch does not exist', async () => {
     const db = makeMockDb({ attendeeFindFirst: vi.fn().mockResolvedValue(null) });
 
     const result = await suggestInvitee(BASE_INPUT, { db, eventBus: { emit: vi.fn() } });
 
     expect(result.isErr()).toBe(true);
-    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'not_attendee' });
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_found' });
+  });
+
+  it('tells an outsider nothing about the brunch: not that suggestions are off, not who the host is', async () => {
+    const outsider = vi.fn().mockResolvedValue(null);
+    const off = makeMockDb({
+      attendeeFindFirst: outsider,
+      brunchFindFirst: vi.fn().mockResolvedValue({ ...OPEN_BRUNCH, allowInviteSuggestions: false }),
+    });
+    const hostEmail = makeMockDb({ attendeeFindFirst: outsider });
+
+    const turnedOff = await suggestInvitee(BASE_INPUT, { db: off, eventBus: { emit: vi.fn() } });
+    const probe = await suggestInvitee(
+      { ...BASE_INPUT, email: 'host@example.com' },
+      { db: hostEmail, eventBus: { emit: vi.fn() } },
+    );
+
+    expect(turnedOff._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_found' });
+    // cannot_suggest_host would let a stranger test whether an address belongs to a brunch's host.
+    expect(probe._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_found' });
   });
 
   it("returns cannot_suggest_host when the suggested email is the host's own", async () => {

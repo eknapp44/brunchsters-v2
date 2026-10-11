@@ -192,7 +192,7 @@ describe('castLocationBallot', () => {
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'empty_ballot' });
   });
 
-  it('rejects a non-attendee', async () => {
+  it('treats someone who is not a member as if the brunch does not exist', async () => {
     const db = makeMockDb({ findFirstAttendee: vi.fn().mockResolvedValue(null) });
 
     const result = await castLocationBallot(
@@ -200,7 +200,24 @@ describe('castLocationBallot', () => {
       { db, eventBus: makeMockEventBus() },
     );
 
-    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'not_an_attendee' });
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_found' });
+  });
+
+  it('tells an outsider nothing about the brunch: not that it is a draft or already confirmed', async () => {
+    const outsider = vi.fn().mockResolvedValue(null);
+    for (const code of ['draft', 'confirmed']) {
+      const db = makeMockDb({
+        findFirstAttendee: outsider,
+        findFirstBrunch: vi.fn().mockResolvedValue({ ...OPEN_BRUNCH, status: { code } }),
+      });
+
+      const result = await castLocationBallot(
+        { brunchId: BRUNCH_ID, voterId: VOTER_ID, optionIds: [OPTION_A] },
+        { db, eventBus: makeMockEventBus() },
+      );
+
+      expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_found' });
+    }
   });
 
   it('rejects an attendee whose RSVP cannot vote', async () => {
