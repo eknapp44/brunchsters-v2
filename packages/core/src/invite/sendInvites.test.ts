@@ -484,6 +484,17 @@ describe('sendInvitesRequestSchema', () => {
     expect(sendInvitesRequestSchema.safeParse({ emails: [] }).success).toBe(false);
   });
 
+  it('accepts exactly 50 addresses and rejects 51, with a message that says why', () => {
+    const emails = (count: number): string[] =>
+      Array.from({ length: count }, (_, index) => `guest-${index}@example.com`);
+
+    expect(sendInvitesRequestSchema.safeParse({ emails: emails(50) }).success).toBe(true);
+
+    const tooMany = sendInvitesRequestSchema.safeParse({ emails: emails(51) });
+    expect(tooMany.success).toBe(false);
+    expect(tooMany.error?.issues[0]?.message).toBe('You can invite at most 50 people at a time');
+  });
+
   it('rejects an invalid email', () => {
     expect(sendInvitesRequestSchema.safeParse({ emails: ['not-an-email'] }).success).toBe(false);
   });

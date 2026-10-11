@@ -14,9 +14,19 @@ import { isBrunchMember } from '../brunch/guards/isBrunchMember';
 
 const INVITE_EXPIRY_DAYS = 30;
 
+// An input guard, not an attendee limit (that is a separate feature): every address
+// becomes an email, so one request must not be able to fan out without bound (spec 0008).
+export const MAX_INVITES_PER_REQUEST = 50;
+
 export const sendInvitesRequestSchema = z.object({
   // Addresses are normalized here, at the boundary (ADR 0008): the output type is Email.
-  emails: z.array(z.email().transform(normalizeEmail)).min(1),
+  emails: z
+    .array(z.email().transform(normalizeEmail))
+    .min(1)
+    .max(
+      MAX_INVITES_PER_REQUEST,
+      `You can invite at most ${MAX_INVITES_PER_REQUEST} people at a time`,
+    ),
 });
 
 export type SendInvitesRequest = z.infer<typeof sendInvitesRequestSchema>;

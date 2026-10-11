@@ -117,8 +117,9 @@ pnpm db:generate
 pnpm db:seed
 
 # 8. (Optional) Start the Inngest local dev server in a second terminal
-npx inngest-cli dev
-#    -> when building queued side effects; not needed for most early work
+npx inngest-cli@1.46.0 dev --no-discovery -u http://localhost:3000/api/inngest
+#    -> needed to actually deliver emails locally (see 'Email and the job queue' below);
+#       set INNGEST_DEV=1 in apps/web/.env.local. Dev UI: http://localhost:8288
 
 # 9. Run the app
 pnpm dev
@@ -138,23 +139,59 @@ Maintain a committed `.env.example` at the repo root (no secrets) as the canonic
 
 Update `.env.example` whenever a new var is introduced.
 
-| Variable                                    | Purpose                                        | Where to get it (local)                                                                        |
-| ------------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`                              | Pooled Postgres connection (app runtime)       | `DB_URL` from `supabase start` output                                                          |
-| `DIRECT_URL`                                | Direct Postgres connection (Prisma migrations) | same as `DATABASE_URL` for local dev                                                           |
-| `NEXT_PUBLIC_SUPABASE_URL`                  | Supabase URL for the Realtime client           | `API_URL` from `supabase start` output                                                         |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY`             | Public anon key for client-side Realtime       | `ANON_KEY` from `supabase start` output                                                        |
-| `SUPABASE_SERVICE_ROLE_KEY`                 | Server-side privileged key                     | `SERVICE_ROLE_KEY` from `supabase start` output                                                |
-| `AUTH_SECRET`                               | NextAuth/Auth.js session encryption            | `openssl rand -base64 32`                                                                      |
-| `AUTH_URL`                                  | Base URL for auth callbacks                    | `http://localhost:3000` locally                                                                |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth                                   | Google Cloud Console → Credentials (when you reach auth)                                       |
-| `APPLE_CLIENT_ID` / `APPLE_CLIENT_SECRET`   | Apple Sign-In                                  | Deferred — leave unset until Apple work begins                                                 |
-| `RESEND_API_KEY`                            | Email sending                                  | Resend dashboard (mock locally until then)                                                     |
-| `GOOGLE_PLACES_API_KEY`                     | Location search + timezone lookup              | Google Cloud Console (mock locally until then) — server-only, never exposed to the client      |
-| `INNGEST_EVENT_KEY` / `INNGEST_SIGNING_KEY` | Job queue auth                                 | Inngest dashboard; local dev server runs without them                                          |
-| `TOKEN_ENCRYPTION_KEY`                      | AES-256-GCM key for OAuth token encryption     | `openssl rand -base64 32` — 32 bytes. **Never commit. Rotating it invalidates stored tokens.** |
+| Variable                                    | Purpose                                                        | Where to get it (local)                                                                        |
+| ------------------------------------------- | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                              | Pooled Postgres connection (app runtime)                       | `DB_URL` from `supabase start` output                                                          |
+| `DIRECT_URL`                                | Direct Postgres connection (Prisma migrations)                 | same as `DATABASE_URL` for local dev                                                           |
+| `NEXT_PUBLIC_SUPABASE_URL`                  | Supabase URL for the Realtime client                           | `API_URL` from `supabase start` output                                                         |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY`             | Public anon key for client-side Realtime                       | `ANON_KEY` from `supabase start` output                                                        |
+| `SUPABASE_SERVICE_ROLE_KEY`                 | Server-side privileged key                                     | `SERVICE_ROLE_KEY` from `supabase start` output                                                |
+| `AUTH_SECRET`                               | NextAuth/Auth.js session encryption                            | `openssl rand -base64 32`                                                                      |
+| `AUTH_URL`                                  | Base URL for auth callbacks                                    | `http://localhost:3000` locally                                                                |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth                                                   | Google Cloud Console → Credentials (when you reach auth)                                       |
+| `APPLE_CLIENT_ID` / `APPLE_CLIENT_SECRET`   | Apple Sign-In                                                  | Deferred — leave unset until Apple work begins                                                 |
+| `RESEND_API_KEY`                            | Email sending through Resend                                   | Resend dashboard. Leave **blank** locally: emails then go to the local outbox instead          |
+| `EMAIL_FROM`                                | Sending address, e.g. `Brunchsters <invites@mail.example.com>` | Your verified Resend domain (see below). Unset = Resend's sandbox sender                       |
+| `EMAIL_OUTBOX_DIR`                          | Where the local outbox writes emails                           | Optional; defaults to `.mail-outbox/` (git-ignored)                                            |
+| `GOOGLE_PLACES_API_KEY`                     | Location search + timezone lookup                              | Google Cloud Console (mock locally until then) — server-only, never exposed to the client      |
+| `INNGEST_DEV`                               | Use the local Inngest dev server                               | `1` locally. Leave unset in production                                                         |
+| `INNGEST_EVENT_KEY` / `INNGEST_SIGNING_KEY` | Inngest Cloud auth (production)                                | Inngest dashboard. **Leave blank locally**; a set event key sends events to Inngest Cloud      |
+| `TOKEN_ENCRYPTION_KEY`                      | AES-256-GCM key for OAuth token encryption                     | `openssl rand -base64 32` — 32 bytes. **Never commit. Rotating it invalidates stored tokens.** |
 
 **Rule:** every var above must exist in `.env.example` with a placeholder/empty value and a one-line comment. The app should fail fast on startup with a clear message if a required var is missing (validate env with Zod at boot).
+
+### Email and the job queue
+
+Emails are sent by queued handlers (ADR 0009, spec 0008). Which implementation runs is decided by configuration alone:
+
+| Where                          | Queue                              | Email                                         |
+| ------------------------------ | ---------------------------------- | --------------------------------------------- |
+| Local dev, nothing set         | none: events are dropped, no email | would go to the outbox, but nothing queues it |
+| Local dev with `INNGEST_DEV=1` | Inngest dev server                 | JSON files in `.mail-outbox/`                 |
+| Unit / integration tests       | none                               | `MockEmailService`                            |
+| E2E                            | none until spec 0008 M4            | files in a temp outbox (`EMAIL_OUTBOX_DIR`)   |
+| Production deployment          | Inngest Cloud                      | Resend                                        |
+
+**See an invite email locally**
+
+1. In `apps/web/.env.local` set `INNGEST_DEV=1`, and leave `RESEND_API_KEY`, `INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY` **blank**.
+   A real Resend key would send real mail (to your own address only, until a domain is verified); a real event key would send events to Inngest Cloud, which cannot reach your laptop.
+2. Run `pnpm dev`, and in a second terminal `npx inngest-cli@1.46.0 dev --no-discovery -u http://localhost:3000/api/inngest`.
+3. Invite someone from the app. The newest file in `.mail-outbox/` is the email: open it and copy the `href` out of the `html` field (or read the `subject` and `to`). Runs and retries show in the Inngest dev UI at <http://localhost:8288>.
+
+**Production deployment.** A Vercel production deployment (`VERCEL_ENV=production`) refuses to start unless `AUTH_URL`, `RESEND_API_KEY`, `INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY` are set, and the error names whichever is missing. Set `EMAIL_FROM` too, otherwise Resend's sandbox sender is used. Point Inngest Cloud at `https://<your-domain>/api/inngest` (the Vercel integration does this for you). `NODE_ENV=production` alone is deliberately not enough to trigger the check: CI and the e2e suite serve a production build that is not a deployment.
+
+#### Verifying a sending domain in Resend
+
+Until you do this, Resend only delivers to the email address of your own Resend account, so an invite to anyone else fails. Nothing in the code changes when you do it, only `EMAIL_FROM`.
+
+1. **Buy a domain** (about $10-12 a year) from a registrar such as Cloudflare Registrar, Porkbun or Namecheap. It can double as the custom domain for the Vercel deployment later.
+2. In Resend open **Domains → Add Domain**. Use a **subdomain** such as `mail.yourdomain.com`: it keeps the sending reputation separate from anything else on the domain.
+3. Resend shows the DNS records to create: an SPF record (a TXT and an MX on the sending subdomain) and a DKIM TXT record. Copy them **exactly as the dashboard shows them** into your DNS provider's panel. Also add a `_dmarc` TXT record with the value `v=DMARC1; p=none;` so receivers know what to do with failures.
+4. Back in Resend click **Verify**. It usually takes minutes; occasionally a few hours while DNS propagates.
+5. Create an API key with **sending access only** (Resend → API Keys) and set it in Vercel as `RESEND_API_KEY`.
+6. Set `EMAIL_FROM` in Vercel to an address on the verified subdomain, for example `Brunchsters <invites@mail.yourdomain.com>`, then redeploy.
+7. Send yourself an invite from the deployed app and check that it arrives in the inbox, not spam. The message's "show original" view should report SPF, DKIM and DMARC as passing.
 
 ---
 
@@ -163,7 +200,7 @@ Update `.env.example` whenever a new var is introduced.
 ```bash
 supabase start            # if not already running
 pnpm dev                  # app on :3000
-npx inngest-cli dev       # second terminal, only if working on queued jobs
+npx inngest-cli@1.46.0 dev --no-discovery -u http://localhost:3000/api/inngest   # second terminal; only if you want emails delivered locally
 
 # ... make changes on a feature branch ...
 
@@ -294,17 +331,21 @@ Per the workflow in `CLAUDE.md`, every milestone records a short testing note (w
 
 ## 9. Troubleshooting
 
-| Symptom                                                            | Likely cause                                                                                                                                                   | Fix                                                                                                                             |
-| ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `supabase start` fails with pipe error                             | Docker Desktop not running (Windows)                                                                                                                           | Open Docker Desktop, wait for whale icon to be steady, retry                                                                    |
-| `supabase start` fails with port conflict                          | Stale containers or another process on :54322                                                                                                                  | `supabase stop`, check for other processes, retry                                                                               |
-| Prisma can't connect                                               | `DATABASE_URL` / `DIRECT_URL` not matching `supabase start` output                                                                                             | Re-copy `DB_URL` from the CLI output into `apps/web/.env.local` and `packages/database/.env`                                    |
-| Auth.js `MissingSecret` error at runtime                           | `AUTH_SECRET` not found — Next.js reads `.env.local` from the app directory, not the monorepo root                                                             | Ensure `apps/web/.env.local` exists and contains `AUTH_SECRET`                                                                  |
-| Turbopack `@prisma/client can't be external`                       | `@prisma/client` not installed as a direct dep of `apps/web`                                                                                                   | `pnpm add --filter @brunchsters/web @prisma/client`                                                                             |
-| Google OAuth `invalid_client` / "OAuth client was not found"       | App sends `client_id=undefined` — a bare Auth.js v5 provider reads `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET`, but we use `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` | Credentials are wired explicitly in `auth.ts`; ensure both vars are set in `apps/web/.env.local`                                |
-| `pnpm install` blocked by build scripts                            | pnpm 11 requires explicit allowBuilds approval                                                                                                                 | Run `pnpm approve-builds` and set new entries to `true` in `pnpm-workspace.yaml`                                                |
-| Migration drift errors                                             | Schema changed without a migration                                                                                                                             | `pnpm db:migrate` to generate a migration; never edit the DB by hand                                                            |
-| App boots then crashes on a missing key                            | Required env var unset                                                                                                                                         | Check `.env.local` against `.env.example`; the boot-time Zod validation message names the missing var                           |
-| `pnpm test:e2e` fails with "http://localhost:3100 is already used" | Something is already listening on the e2e port (a stuck earlier run)                                                                                           | Find and stop it: `netstat -ano \| findstr :3100`, then `taskkill /F /PID <pid>`; Playwright deliberately will not attach to it |
-| `pnpm test:e2e` fails with "Refusing to run e2e against…"          | `E2E_DATABASE_URL` points at a non-local host or a database not named `e2e`/`*_e2e`                                                                            | Unset `E2E_DATABASE_URL` to use the default, or point it at a local `*_e2e` database                                            |
-| Integration tests pass locally, fail in CI                         | CI's Postgres container starts empty — migrations/seed run fresh each time in `test-integration`                                                               | Check the migration is committed (`pnpm db:migrate` generates it); keep `packages/database/src/seed.ts` deterministic           |
+| Symptom                                                                                         | Likely cause                                                                                                                                                   | Fix                                                                                                                                                                            |
+| ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `supabase start` fails with pipe error                                                          | Docker Desktop not running (Windows)                                                                                                                           | Open Docker Desktop, wait for whale icon to be steady, retry                                                                                                                   |
+| `supabase start` fails with port conflict                                                       | Stale containers or another process on :54322                                                                                                                  | `supabase stop`, check for other processes, retry                                                                                                                              |
+| Prisma can't connect                                                                            | `DATABASE_URL` / `DIRECT_URL` not matching `supabase start` output                                                                                             | Re-copy `DB_URL` from the CLI output into `apps/web/.env.local` and `packages/database/.env`                                                                                   |
+| Auth.js `MissingSecret` error at runtime                                                        | `AUTH_SECRET` not found — Next.js reads `.env.local` from the app directory, not the monorepo root                                                             | Ensure `apps/web/.env.local` exists and contains `AUTH_SECRET`                                                                                                                 |
+| Turbopack `@prisma/client can't be external`                                                    | `@prisma/client` not installed as a direct dep of `apps/web`                                                                                                   | `pnpm add --filter @brunchsters/web @prisma/client`                                                                                                                            |
+| Google OAuth `invalid_client` / "OAuth client was not found"                                    | App sends `client_id=undefined` — a bare Auth.js v5 provider reads `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET`, but we use `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` | Credentials are wired explicitly in `auth.ts`; ensure both vars are set in `apps/web/.env.local`                                                                               |
+| `pnpm install` blocked by build scripts                                                         | pnpm 11 requires explicit allowBuilds approval                                                                                                                 | Run `pnpm approve-builds` and set new entries to `true` in `pnpm-workspace.yaml`                                                                                               |
+| Migration drift errors                                                                          | Schema changed without a migration                                                                                                                             | `pnpm db:migrate` to generate a migration; never edit the DB by hand                                                                                                           |
+| App boots then crashes on a missing key                                                         | Required env var unset                                                                                                                                         | Check `.env.local` against `.env.example`; the boot-time Zod validation message names the missing var                                                                          |
+| `pnpm test:e2e` fails with "http://localhost:3100 is already used"                              | Something is already listening on the e2e port (a stuck earlier run)                                                                                           | Find and stop it: `netstat -ano \| findstr :3100`, then `taskkill /F /PID <pid>`; Playwright deliberately will not attach to it                                                |
+| `pnpm test:e2e` fails with "Refusing to run e2e against…"                                       | `E2E_DATABASE_URL` points at a non-local host or a database not named `e2e`/`*_e2e`                                                                            | Unset `E2E_DATABASE_URL` to use the default, or point it at a local `*_e2e` database                                                                                           |
+| Integration tests pass locally, fail in CI                                                      | CI's Postgres container starts empty — migrations/seed run fresh each time in `test-integration`                                                               | Check the migration is committed (`pnpm db:migrate` generates it); keep `packages/database/src/seed.ts` deterministic                                                          |
+| Invite sent but no email file appears in `.mail-outbox/`                                        | `INNGEST_DEV` is not set (the no-op bus drops events), the Inngest dev server is not running, or it has not synced with the app                                | Set `INNGEST_DEV=1`, restart `pnpm dev`, run the `inngest-cli dev -u http://localhost:3000/api/inngest` command, and check the app shows under Apps in <http://localhost:8288> |
+| Locally, emails are really sent or events never arrive                                          | `.env.local` has a real `RESEND_API_KEY` or `INNGEST_EVENT_KEY`                                                                                                | Blank them for local work (see 'Email and the job queue'); the e2e suite blanks them for you                                                                                   |
+| Server refuses to start: `Missing required environment variable(s) for a production deployment` | `VERCEL_ENV=production` without the email and queue settings                                                                                                   | Set the variables the message names in Vercel and redeploy                                                                                                                     |
+| Resend returns an error for a friend's address                                                  | The sandbox sender only delivers to your own account address                                                                                                   | Verify a sending domain (see above) and set `EMAIL_FROM`                                                                                                                       |

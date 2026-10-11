@@ -1,8 +1,13 @@
+import os from 'node:os';
+import path from 'node:path';
 import { defineConfig, devices } from '@playwright/test';
 import { baseUrl, E2E_AUTH_SECRET, E2E_PORT, getE2eDatabaseUrl } from './e2e/support/env';
 
 const isCi = process.env.CI !== undefined && process.env.CI !== '';
 const databaseUrl = getE2eDatabaseUrl();
+// Fixed, not per-process: this config is also loaded by every test worker, and the server
+// and the workers must agree on where emails land. M4's global setup empties it each run.
+const e2eOutboxDir = path.join(os.tmpdir(), 'brunchsters-e2e-mail');
 
 export default defineConfig({
   testDir: './e2e/journeys',
@@ -43,6 +48,14 @@ export default defineConfig({
       // Empty (not absent) so .env.local's real key cannot leak in: a Places request that is
       // not intercepted in the browser fails with 502 instead of calling Google.
       GOOGLE_PLACES_API_KEY: '',
+      // Same reason, for spec 0008: .env.local carries the developer's real Resend and
+      // Inngest keys, and the e2e server must never email anyone or queue to Inngest Cloud.
+      // Blank keys select the no-op bus and the file outbox (lib/serverConfig.ts).
+      RESEND_API_KEY: '',
+      INNGEST_EVENT_KEY: '',
+      INNGEST_SIGNING_KEY: '',
+      INNGEST_DEV: '',
+      EMAIL_OUTBOX_DIR: e2eOutboxDir,
     },
   },
 });

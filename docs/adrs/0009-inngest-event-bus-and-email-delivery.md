@@ -29,13 +29,15 @@ Spec 0008 delivers the first real consequences (an email to a new invitee; an em
 
 **Adapters are selected by configuration, never by test flags.**
 
-| Setting                                                     | `EmailService`                                                         | `EventBus`        |
-| ----------------------------------------------------------- | ---------------------------------------------------------------------- | ----------------- |
-| `RESEND_API_KEY` set                                        | `ResendEmailService`                                                   | —                 |
-| `RESEND_API_KEY` unset                                      | `FileEmailService` (writes one JSON file per email into an outbox dir) | —                 |
-| `INNGEST_EVENT_KEY` or `INNGEST_DEV` set                    | —                                                                      | `InngestEventBus` |
-| neither set                                                 | —                                                                      | `NoopEventBus`    |
-| `NODE_ENV=production` with any of the required keys missing | boot fails                                                             | boot fails        |
+| Setting                                                           | `EmailService`                                                         | `EventBus`        |
+| ----------------------------------------------------------------- | ---------------------------------------------------------------------- | ----------------- |
+| `RESEND_API_KEY` set                                              | `ResendEmailService`                                                   | —                 |
+| `RESEND_API_KEY` unset                                            | `FileEmailService` (writes one JSON file per email into an outbox dir) | —                 |
+| `INNGEST_EVENT_KEY` or `INNGEST_DEV` set                          | —                                                                      | `InngestEventBus` |
+| neither set                                                       | —                                                                      | `NoopEventBus`    |
+| `VERCEL_ENV=production` with any of the required settings missing | startup fails                                                          | startup fails     |
+
+"Production" means a deployment (`VERCEL_ENV=production`), not `NODE_ENV=production`: CI and the e2e suite serve a production _build_ with `next start`, which is not a deployment and must not need Resend or Inngest keys. The check runs in `instrumentation.ts`, which Next executes once at server start, so a misconfigured deployment fails to start with the missing variable named; the adapters themselves are built on first use so `next build` needs no keys.
 
 `FileEmailService` is a real local-development feature (it lets you see the invite link without any account) and it is also how the e2e suite reads emails across the process boundary. E2E runs the real Inngest dev server and the real handlers; the only thing it substitutes is the final network hop to Resend, chosen the same way local dev chooses it.
 

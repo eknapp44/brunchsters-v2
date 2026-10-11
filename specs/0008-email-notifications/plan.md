@@ -61,7 +61,7 @@ The exact payload shapes are copied from what each service emits today (read, no
 
 ### Composition root (M1 → M3)
 
-`apps/web/src/lib/services.ts` exports `eventBus` (M1, a module-level constant like `lib/db.ts`) and, from M3, `getEmailService()`, as singletons (module scope, so Next.js hot reload does not create a new client per request). M1 returns `NoopEventBus` everywhere (no behavior change, eleven call sites collapse to one import). M3 adds the selection table from ADR 0009 and the production boot check, which validates env in one function with Zod (the repo's existing boot-time validation style).
+`apps/web/src/lib/services.ts` exports `eventBus` (M1, a module-level constant like `lib/db.ts`) and, from M3, `getEmailService()`, as singletons (module scope, so Next.js hot reload does not create a new client per request). M1 returns `NoopEventBus` everywhere (no behavior change, eleven call sites collapse to one import). M3 adds the selection table from ADR 0009 (`lib/serverConfig.ts`, a pure `resolveServerConfig(env)`; plain checks, not Zod, since it is a handful of presence tests) built lazily on first use, and the production check in `instrumentation.ts`, which runs once at server start. "Production" is `VERCEL_ENV=production`, because CI and the e2e suite run a production _build_ that is not a deployment.
 
 ### Handlers: logic in core, wiring in the app
 

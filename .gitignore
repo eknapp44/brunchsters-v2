@@ -25,6 +25,9 @@ supabase/.branches/
 # Test outputs
 coverage/
 
+# Local email outbox (FileEmailService)
+.mail-outbox/
+
 # Editor
 .DS_Store
 *.pem

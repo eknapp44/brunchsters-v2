@@ -17,7 +17,7 @@ export type {
   ResolveConfirmationRecipientsError,
   SendConfirmationEmailError,
 } from './email/sendBrunchConfirmedEmails';
-export type { BrunchEventName, EventBus } from './events/EventBus';
+export type { BrunchEventName, BrunchEventPayloads, EventBus } from './events/EventBus';
 export { NoopEventBus } from './events/NoopEventBus';
 export type { PlaceResult, PlaceDetails, PlaceProvider } from './places/PlaceProvider';
 export { signInWithProvider } from './auth/signInWithProvider';
