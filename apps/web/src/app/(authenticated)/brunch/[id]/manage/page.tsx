@@ -86,11 +86,26 @@ export default async function ManageBrunchPage({
   const noOneElseAccepted = invites.isOk()
     ? !invites.value.some((invite) => invite.status === 'yes')
     : false;
+  // A draft brunch has had no invites sent yet. Adding or removing options and confirming all
+  // need an active brunch (the first invite activates it), so those controls are shown but
+  // disabled, with an explanation, instead of failing with a generic error.
+  const isDraft = brunch.statusCode === 'draft';
 
   return (
     <main>
       <h1>Manage: {brunch.title}</h1>
       <Link href={`/brunch/${brunchId}`}>← Back to brunch</Link>
+
+      {isDraft && (
+        <section>
+          <h2>Send an invite first</h2>
+          <p>
+            This brunch is still a draft. You can add or remove places and times, close voting, and
+            confirm, once you have invited at least one person.
+          </p>
+          <Link href={`/brunch/${brunchId}`}>Invite people from the brunch page</Link>
+        </section>
+      )}
 
       {voting !== undefined && (
         <>
@@ -98,6 +113,7 @@ export default async function ManageBrunchPage({
             brunchId={brunchId}
             locations={voting.locations.options}
             times={voting.times.options}
+            disabled={isDraft}
           />
 
           <VotingControls
@@ -106,13 +122,15 @@ export default async function ManageBrunchPage({
             closed={voting.locations.closed}
             locationsShouldSuggestClosing={voting.locations.shouldSuggestClosing}
             timesShouldSuggestClosing={voting.times.shouldSuggestClosing}
+            canClose={!isDraft}
           />
 
           <ConfirmControl
             brunchId={brunchId}
             locations={voting.locations.options}
             times={voting.times.options}
-            noOneElseAccepted={noOneElseAccepted}
+            noOneElseAccepted={noOneElseAccepted && !isDraft}
+            disabled={isDraft}
           />
 
           <OptionSuggestionReview

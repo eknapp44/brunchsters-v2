@@ -1,3 +1,5 @@
+> **This file is frozen at 1.4.0.** Releases no longer commit to `main` (ADR 0004, amendment of 2026-10-11); release notes are published as GitHub Releases: https://github.com/eknapp44/brunchsters-v2/releases
+
 # [1.4.0](https://github.com/eknapp44/brunchsters-v2/compare/v1.3.0...v1.4.0) (2026-10-10)
 
 ### Bug Fixes

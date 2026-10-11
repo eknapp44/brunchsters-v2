@@ -152,12 +152,31 @@ describe('suggestTime', () => {
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_active' });
   });
 
-  it('returns not_attendee when the suggester is neither host nor attendee', async () => {
+  it('treats someone who is not a member as if the brunch does not exist', async () => {
     const db = makeMockDb({ attendeeFindFirst: vi.fn().mockResolvedValue(null) });
 
     const result = await suggestTime(BASE_INPUT, { db });
 
-    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'not_attendee' });
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_found' });
+  });
+
+  it('tells an outsider nothing about the brunch: not that suggestions are off, not that it is closed', async () => {
+    const outsider = vi.fn().mockResolvedValue(null);
+    const off = makeMockDb({
+      attendeeFindFirst: outsider,
+      brunchFindFirst: vi.fn().mockResolvedValue({ ...OPEN_BRUNCH, allowTimeSuggestions: false }),
+    });
+    const confirmed = makeMockDb({
+      attendeeFindFirst: outsider,
+      brunchFindFirst: vi.fn().mockResolvedValue({ ...OPEN_BRUNCH, status: { code: 'confirmed' } }),
+    });
+
+    expect((await suggestTime(BASE_INPUT, { db: off }))._unsafeUnwrapErr()).toEqual({
+      kind: 'brunch_not_found',
+    });
+    expect((await suggestTime(BASE_INPUT, { db: confirmed }))._unsafeUnwrapErr()).toEqual({
+      kind: 'brunch_not_found',
+    });
   });
 
   it('returns already_suggested when the time was already suggested for this brunch', async () => {

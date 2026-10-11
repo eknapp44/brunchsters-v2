@@ -61,8 +61,13 @@ describe('updateVotingDeadline', () => {
     });
   });
 
-  it('rejects a non-host', async () => {
+  it('refuses a member who is not the host (they may know the brunch exists)', async () => {
     const db = makeMockDb({});
+
+    // Membership is looked up only on this path.
+    Object.assign(db, {
+      brunchAttendee: { findFirst: vi.fn().mockResolvedValue({ id: 'attendee-id' }) },
+    });
 
     const result = await updateVotingDeadline(
       { brunchId: BRUNCH_ID, requestedById: OTHER_ID, votingDeadline: FUTURE_ISO },
@@ -70,6 +75,23 @@ describe('updateVotingDeadline', () => {
     );
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'not_host' });
+    expect(db.brunch.update).not.toHaveBeenCalled();
+  });
+
+  it('treats an outsider as if it does not exist (no 403 that confirms it is real)', async () => {
+    const db = makeMockDb({});
+
+    // Membership is looked up only on this path.
+    Object.assign(db, {
+      brunchAttendee: { findFirst: vi.fn().mockResolvedValue(null) },
+    });
+
+    const result = await updateVotingDeadline(
+      { brunchId: BRUNCH_ID, requestedById: OTHER_ID, votingDeadline: FUTURE_ISO },
+      { db },
+    );
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_found' });
     expect(db.brunch.update).not.toHaveBeenCalled();
   });
 
@@ -114,12 +136,10 @@ describe('updateVotingDeadline', () => {
 
   it('allows extending a deadline that merely lapsed — it was never manually closed or confirmed', async () => {
     const db = makeMockDb({
-      findFirstBrunch: vi
-        .fn()
-        .mockResolvedValue({
-          ...OPEN_BRUNCH,
-          votingDeadline: new Date('2000-01-01T00:00:00.000Z'),
-        }),
+      findFirstBrunch: vi.fn().mockResolvedValue({
+        ...OPEN_BRUNCH,
+        votingDeadline: new Date('2000-01-01T00:00:00.000Z'),
+      }),
     });
 
     const result = await updateVotingDeadline(

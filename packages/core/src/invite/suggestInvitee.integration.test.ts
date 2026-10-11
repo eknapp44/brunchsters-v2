@@ -159,7 +159,7 @@ describe('suggestInvitee + reviewInviteSuggestion integration', () => {
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'already_suggested' });
   });
 
-  it('rejects a suggestion from a non-attendee, non-host user', async () => {
+  it('treats a suggestion from an outsider as if the brunch does not exist', async () => {
     const outsider = await db.user.create({
       data: { name: 'Integration Outsider', email: `integration-outsider-${RUN_ID}@example.com` },
     });
@@ -170,7 +170,7 @@ describe('suggestInvitee + reviewInviteSuggestion integration', () => {
     );
 
     expect(result.isErr()).toBe(true);
-    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'not_attendee' });
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_found' });
 
     await db.user.delete({ where: { id: outsider.id } });
   });

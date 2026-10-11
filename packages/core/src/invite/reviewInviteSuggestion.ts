@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { LookupNotFoundError } from '../errors/LookupNotFoundError';
 import type { EventBus } from '../events/EventBus';
 import { sendInvitesInTransaction, type InviteSummary } from './sendInvites';
+import { isBrunchMember } from '../brunch/guards/isBrunchMember';
 
 export const reviewInviteSuggestionRequestSchema = z.object({
   decision: z.enum(['approve', 'decline']),
@@ -40,7 +41,14 @@ export async function reviewInviteSuggestion(
     include: { brunch: { include: { status: true } }, status: true },
   });
   if (suggestion === null) return err({ kind: 'suggestion_not_found' });
-  if (suggestion.brunch.hostId !== input.reviewedById) return err({ kind: 'not_host' });
+  if (suggestion.brunch.hostId !== input.reviewedById) {
+    // A member may know the suggestion exists; anyone else gets the same answer as for a made-up id.
+    const member = await isBrunchMember(
+      { brunchId: suggestion.brunchId as BrunchId, userId: input.reviewedById },
+      { db },
+    );
+    return err({ kind: member ? 'not_host' : 'suggestion_not_found' });
+  }
   if (suggestion.status.code !== 'pending') return err({ kind: 'already_reviewed' });
 
   const newStatusCode = input.decision === 'approve' ? 'approved' : 'declined';

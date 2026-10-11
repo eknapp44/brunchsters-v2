@@ -53,8 +53,6 @@ export async function PUT(
         return NextResponse.json({ error: 'Brunch is not open for voting' }, { status: 409 });
       case 'empty_ballot':
         return NextResponse.json({ error: 'Select at least one option' }, { status: 422 });
-      case 'not_an_attendee':
-        return NextResponse.json({ error: 'Only attendees can vote' }, { status: 403 });
       case 'cannot_vote':
         return NextResponse.json({ error: 'Your RSVP does not allow voting' }, { status: 403 });
       case 'voting_closed':

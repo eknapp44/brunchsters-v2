@@ -43,12 +43,31 @@ describe('closeVoting', () => {
     });
   });
 
-  it('rejects a non-host', async () => {
+  it('refuses a member who is not the host (they may know the brunch exists)', async () => {
     const db = makeMockDb({});
+
+    // Membership is looked up only on this path.
+    Object.assign(db, {
+      brunchAttendee: { findFirst: vi.fn().mockResolvedValue({ id: 'attendee-id' }) },
+    });
 
     const result = await closeVoting({ brunchId: BRUNCH_ID, requestedById: OTHER_ID }, { db });
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'not_host' });
+    expect(db.brunch.update).not.toHaveBeenCalled();
+  });
+
+  it('treats an outsider as if it does not exist (no 403 that confirms it is real)', async () => {
+    const db = makeMockDb({});
+
+    // Membership is looked up only on this path.
+    Object.assign(db, {
+      brunchAttendee: { findFirst: vi.fn().mockResolvedValue(null) },
+    });
+
+    const result = await closeVoting({ brunchId: BRUNCH_ID, requestedById: OTHER_ID }, { db });
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_found' });
     expect(db.brunch.update).not.toHaveBeenCalled();
   });
 
@@ -92,6 +111,29 @@ describe('closeVoting', () => {
     const result = await closeVoting({ brunchId: BRUNCH_ID, requestedById: HOST_ID }, { db });
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'already_closed' });
+  });
+
+  it('rejects closing a draft brunch, and does not touch it', async () => {
+    const update = vi.fn();
+    const db = makeMockDb({
+      findFirstBrunch: vi.fn().mockResolvedValue({ ...OPEN_BRUNCH, status: { code: 'draft' } }),
+      update,
+    });
+
+    const result = await closeVoting({ brunchId: BRUNCH_ID, requestedById: HOST_ID }, { db });
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_active' });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('rejects closing a cancelled brunch', async () => {
+    const db = makeMockDb({
+      findFirstBrunch: vi.fn().mockResolvedValue({ ...OPEN_BRUNCH, status: { code: 'cancelled' } }),
+    });
+
+    const result = await closeVoting({ brunchId: BRUNCH_ID, requestedById: HOST_ID }, { db });
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_active' });
   });
 
   it('maps a db error on update', async () => {

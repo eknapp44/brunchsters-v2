@@ -35,6 +35,8 @@ export async function POST(
         return NextResponse.json({ error: 'Only the host can close voting' }, { status: 403 });
       case 'already_closed':
         return NextResponse.json({ error: 'Voting is already closed' }, { status: 409 });
+      case 'brunch_not_active':
+        return NextResponse.json({ error: 'Brunch is not open for voting' }, { status: 409 });
       default:
         console.error('closeVoting failed', result.error);
         return NextResponse.json({ error: 'Failed to close voting' }, { status: 500 });

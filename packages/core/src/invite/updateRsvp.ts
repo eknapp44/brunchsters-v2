@@ -17,7 +17,7 @@ export type UpdateRsvpInput = UpdateRsvpRequest & {
 };
 
 export type UpdateRsvpError =
-  | { readonly kind: 'not_attendee' }
+  | { readonly kind: 'brunch_not_found' }
   | { readonly kind: 'lookup_not_found'; readonly code: string }
   | { readonly kind: 'db_error'; readonly cause: unknown };
 
@@ -41,7 +41,8 @@ export async function updateRsvp(
   const attendee = await db.brunchAttendee.findFirst({
     where: { brunchId: input.brunchId, userId: input.viewerId },
   });
-  if (attendee === null) return err({ kind: 'not_attendee' });
+  // Not a member: indistinguishable from a brunch that does not exist.
+  if (attendee === null) return err({ kind: 'brunch_not_found' });
 
   try {
     const rsvpStatus = await db.rsvpStatus.findFirst({ where: { code: input.response } });

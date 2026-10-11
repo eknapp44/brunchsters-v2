@@ -4,6 +4,7 @@ import { err, ok, type Result } from 'neverthrow';
 import { z } from 'zod';
 import { LookupNotFoundError } from '../errors/LookupNotFoundError';
 import type { EventBus } from '../events/EventBus';
+import { isBrunchMember } from '../brunch/guards/isBrunchMember';
 
 const INVITE_EXPIRY_DAYS = 30;
 
@@ -165,7 +166,14 @@ export async function sendInvites(
     include: { status: true, host: true },
   });
   if (brunch === null) return err({ kind: 'brunch_not_found' });
-  if (brunch.hostId !== input.invitedById) return err({ kind: 'not_host' });
+  if (brunch.hostId !== input.invitedById) {
+    // A member may know the brunch exists; anyone else gets the same answer as for a made-up id.
+    const member = await isBrunchMember(
+      { brunchId: input.brunchId, userId: input.invitedById },
+      ctx,
+    );
+    return err({ kind: member ? 'not_host' : 'brunch_not_found' });
+  }
 
   // Inviting yourself is a no-op, not an error — the host already has the
   // synthetic invite. Filtering it out (rather than rejecting the whole

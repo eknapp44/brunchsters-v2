@@ -3,6 +3,10 @@ name: CI
 on:
   pull_request:
     branches: [main]
+  # Also on every push to main: it re-checks the merge result (a PR that was green against an
+  # older main can still break on merge) and it is what the release job below hangs off.
+  push:
+    branches: [main]
 
 jobs:
   lint:
@@ -89,6 +93,74 @@ jobs:
       - run: pnpm db:seed
       - run: pnpm --filter @brunchsters/core test:integration
 
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Same Postgres major version as local Supabase and the integration job. The e2e
+    # database itself (brunchsters_e2e) is created by `pnpm test:e2e` (ADR 0007).
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      # The suite's own variable. The name must be `e2e` or end in `_e2e` (global-setup guard).
+      E2E_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/brunchsters_e2e
+      # Needed so `prisma generate` and `next build` have a datasource; the e2e server
+      # itself is started with E2E_DATABASE_URL.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      # `next build` imports auth.ts, which fails fast without these. Placeholders only.
+      GOOGLE_CLIENT_ID: ci-placeholder-client-id
+      GOOGLE_CLIENT_SECRET: ci-placeholder-client-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      # Playwright serves the production build in CI (`next start`), not `next dev`.
+      - run: pnpm build
+      - name: Get Playwright version
+        id: playwright-version
+        run: echo "version=$(pnpm --filter @brunchsters/web exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
+      - name: Install Playwright browser and system dependencies
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm --filter @brunchsters/web exec playwright install --with-deps chromium
+      # Browsers are cached but the OS packages they need are not.
+      - name: Install Playwright system dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: pnpm --filter @brunchsters/web exec playwright install-deps chromium
+      - run: pnpm test:e2e
+      - name: Upload Playwright report and traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            apps/web/playwright-report/
+            apps/web/test-results/
+          retention-days: 7
+
   validate:
     name: Prisma Validate
     runs-on: ubuntu-latest
@@ -126,3 +198,36 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:generate
       - run: pnpm build
+
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    # A release is only ever cut from a commit every check above passed on: this job is in the
+    # same workflow run as them, so `needs` is exact (same commit, no race with a later push).
+    # Pull requests run the checks and skip this job.
+    needs: [lint, typecheck, test, test-integration, e2e, validate, build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    # Two quick merges must not release at the same time.
+    concurrency:
+      group: release
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Creates a version tag and a GitHub Release with generated notes. It commits nothing to
+      # main (ADR 0004 amendment), so there is no release commit to trigger another run.
+      - run: pnpm exec semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

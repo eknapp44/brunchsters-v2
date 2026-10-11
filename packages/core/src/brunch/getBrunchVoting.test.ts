@@ -97,6 +97,7 @@ describe('getBrunchVoting', () => {
     await getBrunchVoting({ brunchId: BRUNCH_ID, viewerId: VIEWER_ID }, { db });
 
     const voteSelect = { userId: true, user: { select: { name: true } } };
+    const votesOrder = [{ user: { name: 'asc' } }, { userId: 'asc' }];
     expect(findManyLocations).toHaveBeenCalledWith({
       where: { brunchId: BRUNCH_ID },
       select: {
@@ -107,12 +108,19 @@ describe('getBrunchVoting', () => {
         placeUrl: true,
         timezone: true,
         isConfirmed: true,
-        votes: { select: voteSelect },
+        votes: { select: voteSelect, orderBy: votesOrder },
       },
+      orderBy: [{ createdAt: 'asc' }, { placeName: 'asc' }, { id: 'asc' }],
     });
     expect(findManyTimes).toHaveBeenCalledWith({
       where: { brunchId: BRUNCH_ID },
-      select: { id: true, scheduledAt: true, isConfirmed: true, votes: { select: voteSelect } },
+      select: {
+        id: true,
+        scheduledAt: true,
+        isConfirmed: true,
+        votes: { select: voteSelect, orderBy: votesOrder },
+      },
+      orderBy: [{ scheduledAt: 'asc' }, { id: 'asc' }],
     });
   });
 

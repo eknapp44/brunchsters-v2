@@ -59,7 +59,7 @@ Locations and times are optional — the host can create a brunch and add them l
 
 ### Brunch detail — access rule
 
-Only the host or a (non-deleted) attendee can view `/brunch/[id]`. Anyone else — including other authenticated users — gets a 404 (not 403; don't leak existence). The invite-token entry path arrives in spec 0004 with its own access rule.
+Only the host or a (non-deleted) attendee can view `/brunch/[id]`. Anyone else — including other authenticated users — gets a 404 (not 403; don't leak existence). _(The API follows the same rule since spec 0006's follow-up: an outsider calling any brunch-scoped endpoint gets exactly the response a made-up id would get, while a member who merely lacks the privilege — an attendee calling a host-only action — still gets 403.)_ The invite-token entry path arrives in spec 0004 with its own access rule.
 
 ---
 

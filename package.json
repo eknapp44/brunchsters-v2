@@ -11,6 +11,8 @@
     "typecheck": "turbo typecheck",
     "lint": "eslint . --max-warnings 0",
     "test": "turbo test",
+    "test:e2e": "pnpm --filter @brunchsters/web test:e2e",
+    "e2e:db:reset": "pnpm --filter @brunchsters/web e2e:db:reset",
     "dev": "turbo dev",
     "db:migrate": "pnpm --filter @brunchsters/database exec prisma migrate dev",
     "db:generate": "pnpm --filter @brunchsters/database exec prisma generate",
@@ -23,9 +25,7 @@
     "*.{ts,tsx,js,jsx,json,md,yaml,yml}": "prettier --write"
   },
   "devDependencies": {
-    "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/commit-analyzer": "^13.0.1",
-    "@semantic-release/git": "^10.0.1",
     "@semantic-release/github": "^12.0.8",
     "@semantic-release/release-notes-generator": "^14.1.1",
     "eslint": "^9.15.0",

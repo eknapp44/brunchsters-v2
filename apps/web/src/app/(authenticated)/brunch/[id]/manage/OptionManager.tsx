@@ -26,10 +26,13 @@ export function OptionManager({
   brunchId,
   locations,
   times,
+  disabled,
 }: {
   readonly brunchId: string;
   readonly locations: readonly LocationOption[];
   readonly times: readonly TimeOption[];
+  // True while the brunch is a draft: every change here needs an active brunch.
+  readonly disabled: boolean;
 }) {
   const router = useRouter();
   const [timeInput, setTimeInput] = useState('');
@@ -146,7 +149,7 @@ export function OptionManager({
             <button
               type="button"
               onClick={() => void removeLocation(location.id)}
-              disabled={pendingId === location.id}
+              disabled={disabled || pendingId === location.id}
             >
               Remove
             </button>
@@ -156,7 +159,7 @@ export function OptionManager({
       <PlaceSearchInput
         onSelect={(details) => void addLocation(details)}
         onError={() => setError('Failed to add location')}
-        disabled={adding}
+        disabled={disabled || adding}
       />
 
       <h2>Times</h2>
@@ -171,7 +174,7 @@ export function OptionManager({
             <button
               type="button"
               onClick={() => void removeTime(time.id)}
-              disabled={pendingId === time.id}
+              disabled={disabled || pendingId === time.id}
             >
               Remove
             </button>
@@ -180,11 +183,12 @@ export function OptionManager({
       </ul>
       <input
         type="datetime-local"
+        aria-label="Date and time to add"
         value={timeInput}
-        disabled={adding}
+        disabled={disabled || adding}
         onChange={(event) => setTimeInput(event.target.value)}
       />
-      <button type="button" onClick={() => void addTime()} disabled={adding}>
+      <button type="button" onClick={() => void addTime()} disabled={disabled || adding}>
         Add Time
       </button>
 

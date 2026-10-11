@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url';
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 
 export default defineConfig({
   resolve: {
@@ -9,5 +9,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     passWithNoTests: true,
+    // Playwright specs are *.spec.ts; keep them out of vitest. e2e/support/*.test.ts still runs.
+    exclude: [...configDefaults.exclude, 'e2e/journeys/**'],
   },
 });

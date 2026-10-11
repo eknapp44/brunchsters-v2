@@ -16,7 +16,7 @@ Always-loaded baseline is in this file. For deeper context, reference these on d
 - `@docs/adrs/` — historical decision rationale
 - `@specs/NNNN-feature/` — per-feature spec, plan, and tasks
 
-When in doubt about *why* something is done a certain way, check the ADRs before assuming.
+When in doubt about _why_ something is done a certain way, check the ADRs before assuming.
 
 ## Stack
 
@@ -53,6 +53,7 @@ Each major directory may have its own scoped `CLAUDE.md` with local conventions.
 - **Zod schemas live next to the types they validate.** Infer TypeScript types from Zod schemas (`z.infer<typeof schema>`) — schema is the source of truth.
 
 ### Function parameters
+
 - **2+ params → single object parameter.** Named arguments via destructuring. 1-param functions stay positional.
 - **Naming convention:** `input` for service-layer functions (matches input/output mental model and pairs with Zod schemas). `params` for utilities/helpers. `props` for React components (already an object by convention).
 - **Why:** readability at call sites, no positional ordering bugs, additive changes don't break callers.
@@ -75,6 +76,7 @@ function createBrunch(input: CreateBrunchInput): Promise<Result<Brunch, CreateBr
 ### Type categories (replaces Spring's "DTO" catch-all)
 
 Split DTOs by purpose:
+
 - **Domain types** — what services pass around (`Brunch`, `BrunchAttendee`). Branded IDs, discriminated unions.
 - **Input types** — what enters a function or API (`CreateBrunchInput`). Validated by Zod.
 - **Output types** — what leaves an API (`BrunchResponse`). Stripped of internal-only fields.
@@ -86,10 +88,12 @@ Split DTOs by purpose:
 - **`packages/core` imports nothing framework-specific.** No `next`, no `react`, no `prisma/client` directly (Prisma is injected). It must be runnable from Node, browser, or React Native.
 - **External providers are accessed through interfaces.** `PlaceProvider`, `EmailService`, `RealtimeProvider`, `EventBus`. Direct calls to Google/Resend/Supabase happen only in adapter implementations.
 - **Synchronous APIs handle the DB transaction. Side effects go to the queue.** Never make an API response depend on email delivery or notification creation.
+- **Outsiders get 404; members who lack the privilege get 403.** Anyone who is neither a brunch's host nor a current attendee must get exactly the response a made-up id would get, so an unrelated user cannot confirm a brunch (or an invite, or a suggestion) exists. Establish membership **first** — before any check that could reveal something (is it a draft? are suggestions on? who is the host?) — using `isBrunchMember` / `assertHostOf` in `packages/core/src/brunch/guards/`. A member (including one who cannot vote) may be told "not allowed". New brunch-scoped endpoints need a case in the API-authorization e2e test showing real and made-up ids are indistinguishable.
 - **Soft delete is the default.** Major entities have `deletedAt`/`deletedBy`. Queries filter `deletedAt IS NULL` automatically via Prisma middleware. Hard deletes require justification.
 - **Lookup tables, not enums, for configurable values.** Status, type, and category fields are FKs to lookup tables.
 
 ### Interface + Implementation pattern
+
 Every external dependency has an interface and 1+ implementations:
 
 ```typescript
@@ -112,6 +116,7 @@ export class MockEmailService implements EmailService {
 Naming: interface is the bare role (`EmailService`); implementations prefix with provider/purpose (`ResendEmailService`, `MockEmailService`, `LoggingEmailService`).
 
 ### Dependency injection (no framework needed)
+
 Services receive dependencies via parameters, not via global imports.
 
 ```typescript
@@ -130,15 +135,15 @@ This is Spring's DI pattern without the framework. Same benefits.
 
 ### Layering (Spring Boot mental model → Brunchsters mapping)
 
-| Spring Boot | Brunchsters | Where it lives |
-|-------------|-------------|----------------|
-| `@RestController` | Next.js route handler | `apps/web/src/app/api/v1/.../route.ts` |
-| `@Service` | Service function | `packages/core/src/<domain>/<action>.ts` |
-| `@Repository` | Prisma client (injected) | Don't add a wrapper — Prisma is the repo |
-| `@Entity` | Prisma model (generated) | `packages/database/prisma/schema.prisma` |
-| `@Transactional` | `prisma.$transaction(async tx => ...)` | Wrap multi-step DB writes |
-| DTO | Input / Output / Domain types | Co-located with services |
-| `@Autowired` | Function parameter | Pass `ctx` into services |
+| Spring Boot       | Brunchsters                            | Where it lives                           |
+| ----------------- | -------------------------------------- | ---------------------------------------- |
+| `@RestController` | Next.js route handler                  | `apps/web/src/app/api/v1/.../route.ts`   |
+| `@Service`        | Service function                       | `packages/core/src/<domain>/<action>.ts` |
+| `@Repository`     | Prisma client (injected)               | Don't add a wrapper — Prisma is the repo |
+| `@Entity`         | Prisma model (generated)               | `packages/database/prisma/schema.prisma` |
+| `@Transactional`  | `prisma.$transaction(async tx => ...)` | Wrap multi-step DB writes                |
+| DTO               | Input / Output / Domain types          | Co-located with services                 |
+| `@Autowired`      | Function parameter                     | Pass `ctx` into services                 |
 
 **Don't** create a `BrunchRepository` class wrapping Prisma calls. Prisma is already a typed repository — wrapping it adds overhead with no benefit. This is the most common Spring-to-TS anti-pattern.
 
@@ -155,12 +160,16 @@ This is Spring's DI pattern without the framework. Same benefits.
 - **No tests for framework code.** We don't test that React renders or Next.js routes — those are framework guarantees.
 - **Co-located tests.** `foo.test.ts` next to `foo.ts`.
 - **Vitest** is the runner. Playwright for E2E.
+- **E2E lives in `apps/web/e2e/`** (ADR 0007, `pnpm test:e2e`). It covers user _journeys_, especially multi-identity ones and client-side behavior; rule permutations and rejection matrices stay in unit/integration tests.
+- **E2E tests own their data.** Each test creates its own users and brunch through `e2e/support/factories.ts`, which wraps the real core services (never a Prisma shortcut to a state the app can't reach). No shared dataset, no ordering dependence.
+- **Never change production code just to make it testable for E2E** — no bypass auth provider, no mock-injection seam. Sign-in is a minted session cookie; Google Places is intercepted in the browser.
 - **Test against a real local Postgres for integration tests**, not mocks, where the thing under test is a DB interaction. Use the local Supabase/Postgres instance described in `docs/SETUP.md`. Mock only true external boundaries (Resend, Google Places) via the `MockEmailService` / mock-provider pattern.
 - **Every milestone writes its tests as part of the milestone**, not afterward. Tests-after is not the workflow here; a milestone with no tests is incomplete.
 
 ### Testing notes (required per milestone)
 
 Each milestone records a short **testing note** in the spec's `tasks.md` (or a `TESTING-NOTES.md` in the spec folder) capturing:
+
 - **What was tested** — the behaviors/paths covered
 - **How** — unit, integration (local DB), or E2E; what was mocked
 - **What's deferred** — known gaps, edge cases not yet covered, and why
@@ -174,6 +183,13 @@ These notes are the running record of test coverage and intent. They make it pos
 - **ADR for significant decisions.** New library, new pattern, deviation from constitution — write an ADR. See `docs/adrs/README.md` for the template.
 - **Update docs in the same PR as the change.** Stale docs are worse than no docs.
 - **Constitution overrides convenience.** If a request conflicts with a constitution principle, surface the conflict before complying.
+- **User-facing changes keep the E2E suite honest.** Every feature spec has an **`## E2E Journeys`** section naming the journeys (ID, who is involved, what is asserted) that get a Playwright test, and its milestones add them — see `docs/SETUP.md` ("Adding E2E coverage for a new feature") and spec 0006's inventory for the format. Outside a new spec, a change **needs a new or updated journey in the same PR** when it:
+  - adds or changes a screen, route or control a person operates (copy and pure styling do not count — but a changed accessible name or role does, because the tests find things by role and label);
+  - changes a rule people can observe: who can see or do what, or when something locks, unlocks or closes;
+  - involves more than one signed-in person's data (these are the bugs unit tests keep missing);
+  - adds client-side logic: optimistic updates, rollbacks, debounces, form recovery after an error;
+  - or fixes a bug that was found by hand or in review instead of by a test — that bug gets a regression journey, proven to fail with the fix removed.
+    Pure refactors, backend-only changes already covered by integration tests, and styling that keeps accessible names intact need no new journey, but `pnpm test:e2e` must still pass. A PR that deliberately changes behavior updates the journeys it breaks rather than loosening them. If a change is major and no journey is added, say why in the PR (the PR template asks).
 
 ## Milestone-Driven Implementation (how to actually build)
 
@@ -202,6 +218,7 @@ This is a solo, learning-focused project. The goal is steady, verifiable progres
 ## Things to Always Do
 
 - Run `pnpm typecheck` and `pnpm lint` before considering work done.
+- Run `pnpm test:e2e` before considering work done whenever a change touches anything a user sees or does (needs local Supabase running).
 - When adding a new lookup table, also add the seed entries in the same PR.
 - When changing the Prisma schema, generate the migration and commit it alongside the schema change.
 - When asked for a "quick fix" that violates a principle, push back before complying.

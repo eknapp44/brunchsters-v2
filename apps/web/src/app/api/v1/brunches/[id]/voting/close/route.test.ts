@@ -83,6 +83,18 @@ describe('POST /api/v1/brunches/[id]/voting/close', () => {
     expect(response.status).toBe(409);
   });
 
+  it('returns 409 when the brunch is not active (a draft has no voting to close)', async () => {
+    mockAuth.mockResolvedValue(SESSION);
+    mockCloseVoting.mockResolvedValue(err({ kind: 'brunch_not_active' }));
+
+    const response = await POST(new Request('http://localhost'), {
+      params: params(VALID_BRUNCH_ID),
+    });
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ error: 'Brunch is not open for voting' });
+  });
+
   it('returns 404 when the brunch does not exist', async () => {
     mockAuth.mockResolvedValue(SESSION);
     mockCloseVoting.mockResolvedValue(err({ kind: 'brunch_not_found' }));

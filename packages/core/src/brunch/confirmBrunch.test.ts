@@ -225,8 +225,13 @@ describe('confirmBrunch', () => {
     expect(result.isOk()).toBe(true);
   });
 
-  it('rejects a non-host', async () => {
+  it('refuses a member who is not the host (they may know the brunch exists)', async () => {
     const db = makeMockDb({});
+
+    // Membership is looked up only on this path.
+    Object.assign(db, {
+      brunchAttendee: { findFirst: vi.fn().mockResolvedValue({ id: 'attendee-id' }) },
+    });
 
     const result = await confirmBrunch(
       { ...BASE_INPUT, requestedById: OTHER_ID },
@@ -234,6 +239,23 @@ describe('confirmBrunch', () => {
     );
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'not_host' });
+    expect(db.tx.brunch.update).not.toHaveBeenCalled();
+  });
+
+  it('treats an outsider as if it does not exist (no 403 that confirms it is real)', async () => {
+    const db = makeMockDb({});
+
+    // Membership is looked up only on this path.
+    Object.assign(db, {
+      brunchAttendee: { findFirst: vi.fn().mockResolvedValue(null) },
+    });
+
+    const result = await confirmBrunch(
+      { ...BASE_INPUT, requestedById: OTHER_ID },
+      { db, eventBus: makeMockEventBus() },
+    );
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_found' });
     expect(db.tx.brunch.update).not.toHaveBeenCalled();
   });
 

@@ -112,8 +112,13 @@ describe('reviewLocationSuggestion', () => {
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'suggestion_not_found' });
   });
 
-  it('returns not_host when the reviewer is not the brunch host', async () => {
+  it('refuses a member who is not the host (they may know the brunch exists)', async () => {
     const db = makeMockDb();
+
+    // Membership is looked up only on this path.
+    Object.assign(db, {
+      brunchAttendee: { findFirst: vi.fn().mockResolvedValue({ id: 'attendee-id' }) },
+    });
 
     const result = await reviewLocationSuggestion(
       {
@@ -125,6 +130,26 @@ describe('reviewLocationSuggestion', () => {
     );
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'not_host' });
+  });
+
+  it('treats an outsider as if it does not exist (no 403 that confirms it is real)', async () => {
+    const db = makeMockDb();
+
+    // Membership is looked up only on this path.
+    Object.assign(db, {
+      brunchAttendee: { findFirst: vi.fn().mockResolvedValue(null) },
+    });
+
+    const result = await reviewLocationSuggestion(
+      {
+        suggestionId: SUGGESTION_ID,
+        reviewedById: 'someone-else-uuid' as UserId,
+        decision: 'approve',
+      },
+      { db },
+    );
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'suggestion_not_found' });
   });
 
   it('returns brunch_not_active when the brunch is confirmed, even for a still-pending suggestion', async () => {

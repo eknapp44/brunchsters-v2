@@ -37,8 +37,13 @@ describe('getPendingSuggestionsForBrunch', () => {
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_found' });
   });
 
-  it('returns not_host when the requester is not the host', async () => {
+  it('refuses a member who is not the host (they may know the brunch exists)', async () => {
     const db = makeMockDb();
+
+    // Membership is looked up only on this path.
+    Object.assign(db, {
+      brunchAttendee: { findFirst: vi.fn().mockResolvedValue({ id: 'attendee-id' }) },
+    });
 
     const result = await getPendingSuggestionsForBrunch(
       { brunchId: BRUNCH_ID, requestedById: OTHER_ID },
@@ -47,6 +52,23 @@ describe('getPendingSuggestionsForBrunch', () => {
 
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'not_host' });
+  });
+
+  it('treats an outsider as if it does not exist (no 403 that confirms it is real)', async () => {
+    const db = makeMockDb();
+
+    // Membership is looked up only on this path.
+    Object.assign(db, {
+      brunchAttendee: { findFirst: vi.fn().mockResolvedValue(null) },
+    });
+
+    const result = await getPendingSuggestionsForBrunch(
+      { brunchId: BRUNCH_ID, requestedById: OTHER_ID },
+      { db },
+    );
+
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_found' });
   });
 
   it('returns an empty list when there are no pending suggestions', async () => {

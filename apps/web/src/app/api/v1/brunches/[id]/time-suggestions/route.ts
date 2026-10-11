@@ -55,8 +55,6 @@ export async function POST(
         );
       case 'brunch_not_active':
         return NextResponse.json({ error: 'Brunch is not open for suggestions' }, { status: 409 });
-      case 'not_attendee':
-        return NextResponse.json({ error: 'Only attendees can suggest times' }, { status: 403 });
       case 'already_suggested':
         return NextResponse.json({ error: 'This time was already suggested' }, { status: 409 });
       default:

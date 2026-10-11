@@ -103,13 +103,13 @@ describe('updateRsvp integration', () => {
     expect(attendee.rsvpStatus.code).toBe('no');
   });
 
-  it('returns not_attendee for a user with no attendee row on this brunch', async () => {
+  it('treats a user with no attendee row as if the brunch does not exist', async () => {
     const result = await updateRsvp(
       { brunchId, viewerId: outsiderId, response: 'yes' },
       { db, eventBus },
     );
 
     expect(result.isErr()).toBe(true);
-    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'not_attendee' });
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_found' });
   });
 });

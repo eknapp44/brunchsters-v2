@@ -197,6 +197,7 @@ function StepThree({
     <section>
       <input
         type="datetime-local"
+        aria-label="Date and time"
         value={timeInput}
         onChange={(event) => setTimeInput(event.target.value)}
       />

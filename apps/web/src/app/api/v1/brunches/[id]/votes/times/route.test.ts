@@ -89,15 +89,15 @@ describe('PUT /api/v1/brunches/[id]/votes/times', () => {
     );
   });
 
-  it('returns 403 when the voter is not an attendee', async () => {
+  it('returns 404 when the requester is not a member (an outsider cannot tell the brunch exists)', async () => {
     mockAuth.mockResolvedValue(SESSION);
-    mockCastTimeBallot.mockResolvedValue(err({ kind: 'not_an_attendee' }));
+    mockCastTimeBallot.mockResolvedValue(err({ kind: 'brunch_not_found' }));
 
     const response = await PUT(putRequest({ optionIds: [OPTION_A] }), {
       params: params(VALID_BRUNCH_ID),
     });
 
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(404);
   });
 
   it('returns 403 when the voter cannot vote', async () => {

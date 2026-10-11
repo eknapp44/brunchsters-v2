@@ -21,7 +21,6 @@ export type SuggestTimeError =
   | { readonly kind: 'brunch_not_found' }
   | { readonly kind: 'suggestions_disabled' }
   | { readonly kind: 'brunch_not_active' }
-  | { readonly kind: 'not_attendee' }
   | { readonly kind: 'already_suggested' }
   | { readonly kind: 'lookup_not_found'; readonly code: string }
   | { readonly kind: 'db_error'; readonly cause: unknown };
@@ -37,16 +36,18 @@ export async function suggestTime(
     include: { status: true },
   });
   if (brunch === null) return err({ kind: 'brunch_not_found' });
-  if (!brunch.allowTimeSuggestions) return err({ kind: 'suggestions_disabled' });
-  if (brunch.status.code !== 'active') return err({ kind: 'brunch_not_active' });
 
+  // Membership first: an outsider must not learn anything (suggestions on? active?) about it.
   const isHost = brunch.hostId === input.suggestedById;
   if (!isHost) {
     const attendee = await db.brunchAttendee.findFirst({
       where: { brunchId: input.brunchId, userId: input.suggestedById },
     });
-    if (attendee === null) return err({ kind: 'not_attendee' });
+    if (attendee === null) return err({ kind: 'brunch_not_found' });
   }
+
+  if (!brunch.allowTimeSuggestions) return err({ kind: 'suggestions_disabled' });
+  if (brunch.status.code !== 'active') return err({ kind: 'brunch_not_active' });
 
   // No soft-delete field on this model — findUnique/findFirst behave the same here.
   const existing = await db.brunchTimeSuggestion.findUnique({

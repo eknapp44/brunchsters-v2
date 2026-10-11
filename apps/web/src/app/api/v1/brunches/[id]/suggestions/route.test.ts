@@ -96,15 +96,15 @@ describe('POST /api/v1/brunches/[id]/suggestions', () => {
     expect(response.status).toBe(403);
   });
 
-  it('returns 403 when the requester is not an attendee', async () => {
+  it('returns 404 when the requester is not a member (an outsider cannot tell the brunch exists)', async () => {
     mockAuth.mockResolvedValue(SESSION);
-    mockSuggestInvitee.mockResolvedValue(err({ kind: 'not_attendee' }));
+    mockSuggestInvitee.mockResolvedValue(err({ kind: 'brunch_not_found' }));
 
     const response = await POST(postRequest({ email: 'a@example.com' }), {
       params: params(VALID_BRUNCH_ID),
     });
 
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(404);
   });
 
   it("returns 422 when suggesting the host's own email", async () => {

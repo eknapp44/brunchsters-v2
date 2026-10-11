@@ -27,3 +27,11 @@ Also add **husky + lint-staged** to enforce lint and formatting on staged files 
 - **Manual GitHub releases** — rejected: tedious and easy to skip on a solo project; automating it removes the friction entirely.
 - **`release-please` (Google)** — viable alternative, uses a PR-based flow to propose version bumps. Rejected in favor of semantic-release because semantic-release integrates directly with the existing conventional commits convention and requires no extra PR step.
 - **No releases, rely on Vercel history alone** — rejected: Vercel history is ephemeral and not tied to code intent. A git tag is durable, repo-native, and universally understood.
+
+## Amendment — 2026-10-11: releases no longer commit to `main`
+
+`main` is protected by rulesets that require a pull request for every change (`main-2`). The original setup committed `CHANGELOG.md` and a `chore(release): x.y.z [skip ci]` commit straight to `main` through `@semantic-release/git`, which those rules forbid for anyone who is not on the bypass list. On a repository owned by a personal account GitHub does not allow the "GitHub Actions" app on a ruleset bypass list (that is an organization feature), so the release bot cannot be allowed through.
+
+**Decision:** drop `@semantic-release/changelog` and `@semantic-release/git`. A release now creates a **version tag** and a **GitHub Release carrying the generated notes** — the Releases page is the changelog. Nothing is committed to `main` by the release job; semantic-release's own core only pushes tags and a notes ref (`git push --tags`), neither of which a branch ruleset covers. Versioning, conventional commits and the `GITHUB_TOKEN` setup are unchanged.
+
+**Consequences:** `CHANGELOG.md` is frozen at 1.4.0 (it carries a note saying so) and is no longer a source of truth; release notes live on GitHub. There is no automatic version-bump commit, which also removes the `[skip ci]` commit the old flow pushed. Alternatives rejected: a personal access token stored as a secret (a long-lived credential, and it would require the Admin bypass to stay "always"), and releasing by hand.

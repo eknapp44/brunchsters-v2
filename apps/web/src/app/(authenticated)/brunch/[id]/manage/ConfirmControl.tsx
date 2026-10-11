@@ -36,11 +36,14 @@ export function ConfirmControl({
   locations,
   times,
   noOneElseAccepted,
+  disabled,
 }: {
   readonly brunchId: string;
   readonly locations: readonly LocationOption[];
   readonly times: readonly TimeOption[];
   readonly noOneElseAccepted: boolean;
+  // True while the brunch is a draft: confirming needs an active brunch.
+  readonly disabled: boolean;
 }) {
   const router = useRouter();
   const [locationId, setLocationId] = useState<string | undefined>(() => leaderId(locations));
@@ -94,7 +97,7 @@ export function ConfirmControl({
               type="radio"
               name="confirm-location"
               checked={effectiveLocationId === location.id}
-              disabled={submitting}
+              disabled={disabled || submitting}
               onChange={() => setLocationId(location.id)}
             />
             {location.placeName} — {location.placeAddress} ({voteCountLabel(location.voteCount)})
@@ -110,7 +113,7 @@ export function ConfirmControl({
               type="radio"
               name="confirm-time"
               checked={effectiveTimeId === time.id}
-              disabled={submitting}
+              disabled={disabled || submitting}
               onChange={() => setTimeId(time.id)}
             />
             {time.scheduledAt.toLocaleString(undefined, {
@@ -125,7 +128,12 @@ export function ConfirmControl({
       <button
         type="button"
         onClick={() => void confirm()}
-        disabled={submitting || effectiveLocationId === undefined || effectiveTimeId === undefined}
+        disabled={
+          disabled ||
+          submitting ||
+          effectiveLocationId === undefined ||
+          effectiveTimeId === undefined
+        }
       >
         Confirm brunch
       </button>

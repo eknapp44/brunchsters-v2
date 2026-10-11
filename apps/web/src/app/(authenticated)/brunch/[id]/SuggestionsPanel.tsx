@@ -111,7 +111,12 @@ export function SuggestionsPanel({
             Suggest someone
             <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
           </label>
-          <button type="button" onClick={() => void suggest()} disabled={submitting}>
+          <button
+            type="button"
+            aria-label="Suggest this person"
+            onClick={() => void suggest()}
+            disabled={submitting}
+          >
             {submitting ? 'Sending…' : 'Suggest'}
           </button>
         </>

@@ -191,6 +191,23 @@ describe('closing voting (integration — real Postgres)', () => {
     expect(second._unsafeUnwrapErr()).toEqual({ kind: 'already_closed' });
   });
 
+  // A brunch nobody has been invited to is a draft. Closing its voting would start it with
+  // voting already over and no way to reopen it, so it is refused (found by the e2e suite).
+  it('closeVoting refuses a draft brunch and leaves it untouched', async () => {
+    const created = await createBrunch(
+      { title: 'draft-close', hostId, locations: [], times: [] },
+      { db, eventBus },
+    );
+    const brunchId = created._unsafeUnwrap().id;
+    createdBrunchIds.push(brunchId);
+
+    const result = await closeVoting({ brunchId, requestedById: hostId }, { db });
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_active' });
+    const brunch = await db.brunch.findFirst({ where: { id: brunchId } });
+    expect(brunch?.votingClosedAt).toBeNull();
+  });
+
   it('updateVotingDeadline rejects once voting is closed', async () => {
     const { brunchId } = await createThreeEligibleBrunch('deadline-after-close');
 

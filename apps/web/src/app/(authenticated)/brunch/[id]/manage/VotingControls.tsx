@@ -16,12 +16,15 @@ export function VotingControls({
   closed,
   locationsShouldSuggestClosing,
   timesShouldSuggestClosing,
+  canClose,
 }: {
   readonly brunchId: string;
   readonly votingDeadline: Date | undefined;
   readonly closed: boolean;
   readonly locationsShouldSuggestClosing: boolean;
   readonly timesShouldSuggestClosing: boolean;
+  // False while the brunch is a draft: there is no voting to close until someone is invited.
+  readonly canClose: boolean;
 }) {
   const router = useRouter();
   // Both start empty/undefined during SSR and on first client render, then
@@ -113,7 +116,11 @@ export function VotingControls({
         Save deadline
       </button>
 
-      <button type="button" onClick={() => void closeVotingNow()} disabled={submitting}>
+      <button
+        type="button"
+        onClick={() => void closeVotingNow()}
+        disabled={submitting || !canClose}
+      >
         Close voting now
       </button>
 
