@@ -12,3 +12,4 @@ export type {
   IanaTimezone,
   InviteToken,
 } from './types/ids';
+export { normalizeEmail } from './email';

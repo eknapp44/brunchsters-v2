@@ -1,5 +1,5 @@
 import { createDb } from '@brunchsters/database';
-import type { BrunchId, InviteToken, UserId } from '@brunchsters/shared';
+import { normalizeEmail, type BrunchId, type InviteToken, type UserId } from '@brunchsters/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createBrunch } from '../brunch/createBrunch';
 import { NoopEventBus } from '../events/NoopEventBus';
@@ -9,9 +9,9 @@ import { updateRsvp } from './updateRsvp';
 
 // Requires: supabase start + seeded lookup tables (pnpm db:seed).
 const RUN_ID = Date.now();
-const HOST_EMAIL = `integration-updatersvp-host-${RUN_ID}@example.com`;
-const ATTENDEE_EMAIL = `integration-updatersvp-attendee-${RUN_ID}@example.com`;
-const OUTSIDER_EMAIL = `integration-updatersvp-outsider-${RUN_ID}@example.com`;
+const HOST_EMAIL = normalizeEmail(`integration-updatersvp-host-${RUN_ID}@example.com`);
+const ATTENDEE_EMAIL = normalizeEmail(`integration-updatersvp-attendee-${RUN_ID}@example.com`);
+const OUTSIDER_EMAIL = normalizeEmail(`integration-updatersvp-outsider-${RUN_ID}@example.com`);
 
 const db = createDb();
 const eventBus = new NoopEventBus();

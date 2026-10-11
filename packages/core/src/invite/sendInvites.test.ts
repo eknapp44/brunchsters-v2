@@ -1,5 +1,5 @@
 import type { DbClient } from '@brunchsters/database';
-import type { BrunchId, UserId } from '@brunchsters/shared';
+import { normalizeEmail, type Email, type BrunchId, type UserId } from '@brunchsters/shared';
 import { describe, expect, it, vi } from 'vitest';
 import type { EventBus } from '../events/EventBus';
 import { sendInvites, sendInvitesRequestSchema, type SendInvitesInput } from './sendInvites';
@@ -79,7 +79,7 @@ function makeMockEventBus(emit = vi.fn().mockResolvedValue(undefined)): EventBus
 const BASE_INPUT: SendInvitesInput = {
   brunchId: BRUNCH_ID,
   invitedById: HOST_ID,
-  emails: ['alice@example.com'],
+  emails: [normalizeEmail('alice@example.com')],
 };
 
 describe('sendInvites', () => {
@@ -326,7 +326,10 @@ describe('sendInvites', () => {
     const db = makeMockDb(tx, DRAFT_BRUNCH);
 
     const result = await sendInvites(
-      { ...BASE_INPUT, emails: ['host@example.com', 'alice@example.com'] },
+      {
+        ...BASE_INPUT,
+        emails: [normalizeEmail('host@example.com'), normalizeEmail('alice@example.com')],
+      },
       { db, eventBus: makeMockEventBus() },
     );
 
@@ -342,7 +345,7 @@ describe('sendInvites', () => {
     const db = makeMockDb(tx, DRAFT_BRUNCH); // host email is 'host@example.com'
 
     const result = await sendInvites(
-      { ...BASE_INPUT, emails: ['Host@Example.com', 'alice@example.com'] },
+      { ...BASE_INPUT, emails: ['Host@Example.com' as Email, normalizeEmail('alice@example.com')] },
       { db, eventBus: makeMockEventBus() },
     );
 
@@ -358,7 +361,10 @@ describe('sendInvites', () => {
     const db = makeMockDb(tx, DRAFT_BRUNCH);
 
     const result = await sendInvites(
-      { ...BASE_INPUT, emails: ['alice@example.com', 'alice@example.com'] },
+      {
+        ...BASE_INPUT,
+        emails: [normalizeEmail('alice@example.com'), normalizeEmail('alice@example.com')],
+      },
       { db, eventBus: makeMockEventBus() },
     );
 
@@ -375,7 +381,10 @@ describe('sendInvites', () => {
     const db = makeMockDb(tx, DRAFT_BRUNCH);
 
     const result = await sendInvites(
-      { ...BASE_INPUT, emails: ['Alice@Example.com', 'alice@example.com'] },
+      {
+        ...BASE_INPUT,
+        emails: ['Alice@Example.com' as Email, normalizeEmail('alice@example.com')],
+      },
       { db, eventBus: makeMockEventBus() },
     );
 
@@ -396,7 +405,7 @@ describe('sendInvites', () => {
     const db = makeMockDb(tx, DRAFT_BRUNCH);
 
     const result = await sendInvites(
-      { ...BASE_INPUT, emails: ['host@example.com'] },
+      { ...BASE_INPUT, emails: [normalizeEmail('host@example.com')] },
       { db, eventBus: makeMockEventBus() },
     );
 
@@ -456,6 +465,21 @@ describe('sendInvites', () => {
 });
 
 describe('sendInvitesRequestSchema', () => {
+  it('normalizes every address to its canonical lowercase form (ADR 0008)', () => {
+    const parsed = sendInvitesRequestSchema.parse({
+      emails: ['Alice@Example.COM', 'BOB@example.com', 'carol@example.com'],
+    });
+
+    expect(parsed.emails).toEqual(['alice@example.com', 'bob@example.com', 'carol@example.com']);
+  });
+
+  it('makes the same address typed in two cases come out identical', () => {
+    const [first] = sendInvitesRequestSchema.parse({ emails: ['Case-X@Example.com'] }).emails;
+    const [later] = sendInvitesRequestSchema.parse({ emails: ['case-x@example.com'] }).emails;
+
+    expect(first).toBe(later);
+  });
+
   it('rejects an empty emails array', () => {
     expect(sendInvitesRequestSchema.safeParse({ emails: [] }).success).toBe(false);
   });

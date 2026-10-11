@@ -1,5 +1,10 @@
 import { createDb } from '@brunchsters/database';
-import type { BrunchId, InviteSuggestionId, UserId } from '@brunchsters/shared';
+import {
+  normalizeEmail,
+  type BrunchId,
+  type InviteSuggestionId,
+  type UserId,
+} from '@brunchsters/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createBrunch } from '../brunch/createBrunch';
 import { NoopEventBus } from '../events/NoopEventBus';
@@ -9,12 +14,12 @@ import { suggestInvitee } from './suggestInvitee';
 
 // Requires: supabase start + seeded lookup tables (pnpm db:seed).
 const RUN_ID = Date.now();
-const HOST_EMAIL = `integration-suggest-host-${RUN_ID}@example.com`;
-const ATTENDEE_EMAIL = `integration-suggest-attendee-${RUN_ID}@example.com`;
-const SUGGESTED_EMAIL_1 = `integration-suggested-1-${RUN_ID}@example.com`;
-const SUGGESTED_EMAIL_2 = `integration-suggested-2-${RUN_ID}@example.com`;
-const SUGGESTED_EMAIL_3 = `integration-suggested-3-${RUN_ID}@example.com`;
-const ALREADY_INVITED_EMAIL = `integration-already-invited-${RUN_ID}@example.com`;
+const HOST_EMAIL = normalizeEmail(`integration-suggest-host-${RUN_ID}@example.com`);
+const ATTENDEE_EMAIL = normalizeEmail(`integration-suggest-attendee-${RUN_ID}@example.com`);
+const SUGGESTED_EMAIL_1 = normalizeEmail(`integration-suggested-1-${RUN_ID}@example.com`);
+const SUGGESTED_EMAIL_2 = normalizeEmail(`integration-suggested-2-${RUN_ID}@example.com`);
+const SUGGESTED_EMAIL_3 = normalizeEmail(`integration-suggested-3-${RUN_ID}@example.com`);
+const ALREADY_INVITED_EMAIL = normalizeEmail(`integration-already-invited-${RUN_ID}@example.com`);
 
 const db = createDb();
 const eventBus = new NoopEventBus();
@@ -165,7 +170,11 @@ describe('suggestInvitee + reviewInviteSuggestion integration', () => {
     });
 
     const result = await suggestInvitee(
-      { brunchId, suggestedById: outsider.id as UserId, email: `random-${RUN_ID}@example.com` },
+      {
+        brunchId,
+        suggestedById: outsider.id as UserId,
+        email: normalizeEmail(`random-${RUN_ID}@example.com`),
+      },
       { db, eventBus },
     );
 

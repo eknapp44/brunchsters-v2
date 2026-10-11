@@ -234,6 +234,7 @@ Conventions:
 
 - Each integration test file creates its own uniquely-named fixture data and cleans it up in `afterAll` — see any `*.integration.test.ts` for the pattern.
 - External boundaries (Resend, Google Places) are **always** mocked in tests via the interface + mock-implementation pattern from `CLAUDE.md`. Tests never hit a real third-party API.
+- Email addresses in test data go through `normalizeEmail` (from `@brunchsters/shared`). The database has `CHECK` constraints that refuse a mixed-case or padded address on `User`, `UserAuthProvider`, `BrunchInvite` and `BrunchInviteSuggestion` (ADR 0008), so a fixture that inserts `Mixed@Example.com` directly fails with `violates check constraint "…_normalized"` — which is the point. After pulling a branch with a new migration, apply it with `pnpm --filter @brunchsters/database exec prisma migrate deploy` (the e2e database is rebuilt by `pnpm test:e2e`).
 - Tests are co-located: `createBrunch.test.ts` next to `createBrunch.ts`.
 
 ### End-to-end tests (Playwright)

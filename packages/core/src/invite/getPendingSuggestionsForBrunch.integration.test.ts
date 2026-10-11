@@ -1,5 +1,5 @@
 import { createDb } from '@brunchsters/database';
-import type { BrunchId, UserId } from '@brunchsters/shared';
+import { normalizeEmail, type BrunchId, type UserId } from '@brunchsters/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createBrunch } from '../brunch/createBrunch';
 import { NoopEventBus } from '../events/NoopEventBus';
@@ -10,11 +10,11 @@ import { suggestInvitee } from './suggestInvitee';
 
 // Requires: supabase start + seeded lookup tables (pnpm db:seed).
 const RUN_ID = Date.now();
-const HOST_EMAIL = `integration-pendingsugg-host-${RUN_ID}@example.com`;
-const ATTENDEE_EMAIL = `integration-pendingsugg-attendee-${RUN_ID}@example.com`;
-const OUTSIDER_EMAIL = `integration-pendingsugg-outsider-${RUN_ID}@example.com`;
-const PENDING_EMAIL = `integration-pendingsugg-pending-${RUN_ID}@example.com`;
-const DECLINED_EMAIL = `integration-pendingsugg-declined-${RUN_ID}@example.com`;
+const HOST_EMAIL = normalizeEmail(`integration-pendingsugg-host-${RUN_ID}@example.com`);
+const ATTENDEE_EMAIL = normalizeEmail(`integration-pendingsugg-attendee-${RUN_ID}@example.com`);
+const OUTSIDER_EMAIL = normalizeEmail(`integration-pendingsugg-outsider-${RUN_ID}@example.com`);
+const PENDING_EMAIL = normalizeEmail(`integration-pendingsugg-pending-${RUN_ID}@example.com`);
+const DECLINED_EMAIL = normalizeEmail(`integration-pendingsugg-declined-${RUN_ID}@example.com`);
 
 const db = createDb();
 const eventBus = new NoopEventBus();

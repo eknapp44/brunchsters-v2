@@ -1,6 +1,13 @@
 import { createDb } from '@brunchsters/database';
-import type { BrunchId, InviteId, InviteToken, UserId } from '@brunchsters/shared';
+import {
+  normalizeEmail,
+  type BrunchId,
+  type InviteId,
+  type InviteToken,
+  type UserId,
+} from '@brunchsters/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { signInWithProvider } from '../auth/signInWithProvider';
 import { NoopEventBus } from '../events/NoopEventBus';
 import { createBrunch } from '../brunch/createBrunch';
 import { getInviteByToken } from './getInviteByToken';
@@ -8,13 +15,13 @@ import { getInvitesForBrunch } from './getInvitesForBrunch';
 import { resendInvite } from './resendInvite';
 import { respondToInvite } from './respondToInvite';
 import { revokeInvite } from './revokeInvite';
-import { sendInvites } from './sendInvites';
+import { sendInvites, sendInvitesRequestSchema } from './sendInvites';
 
 // Requires: supabase start + seeded lookup tables (pnpm db:seed).
 const RUN_ID = Date.now();
-const HOST_EMAIL = `integration-invite-host-${RUN_ID}@example.com`;
-const KNOWN_INVITEE_EMAIL = `integration-invite-known-${RUN_ID}@example.com`;
-const UNREGISTERED_INVITEE_EMAIL = `integration-invite-new-${RUN_ID}@example.com`;
+const HOST_EMAIL = normalizeEmail(`integration-invite-host-${RUN_ID}@example.com`);
+const KNOWN_INVITEE_EMAIL = normalizeEmail(`integration-invite-known-${RUN_ID}@example.com`);
+const UNREGISTERED_INVITEE_EMAIL = normalizeEmail(`integration-invite-new-${RUN_ID}@example.com`);
 
 const db = createDb();
 const eventBus = new NoopEventBus();
@@ -292,7 +299,7 @@ describe('sendInvites integration', () => {
   });
 
   it("filters out the host's own email instead of rejecting the whole batch", async () => {
-    const anotherNewEmail = `integration-invite-self-filter-${RUN_ID}@example.com`;
+    const anotherNewEmail = normalizeEmail(`integration-invite-self-filter-${RUN_ID}@example.com`);
 
     const result = await sendInvites(
       { brunchId, invitedById: hostId, emails: [HOST_EMAIL, anotherNewEmail] },
@@ -312,11 +319,78 @@ describe('sendInvites integration', () => {
 
   it('rejects a non-host sender', async () => {
     const result = await sendInvites(
-      { brunchId, invitedById: knownInviteeId, emails: ['someone@example.com'] },
+      { brunchId, invitedById: knownInviteeId, emails: [normalizeEmail('someone@example.com')] },
       { db, eventBus },
     );
 
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'not_host' });
+  });
+
+  // ADR 0008: one address is one person, however it is capitalized. Found by the e2e suite —
+  // inviting `Case-X@Example.com` and then `case-x@example.com` used to create two invites.
+  it('one address typed in two cases is one invite, not two', async () => {
+    const typedFirst = `Case-${RUN_ID}@Example.com`;
+    const typedLater = `case-${RUN_ID}@example.com`;
+    const first = sendInvitesRequestSchema.parse({ emails: [typedFirst] });
+    const later = sendInvitesRequestSchema.parse({ emails: [typedLater] });
+
+    const sentFirst = await sendInvites(
+      { brunchId, invitedById: hostId, emails: first.emails },
+      { db, eventBus },
+    );
+    const sentLater = await sendInvites(
+      { brunchId, invitedById: hostId, emails: later.emails },
+      { db, eventBus },
+    );
+
+    // The second request refreshed the existing invite instead of creating another.
+    expect(sentLater._unsafeUnwrap()[0]?.id).toBe(sentFirst._unsafeUnwrap()[0]?.id);
+    const rows = await db.brunchInvite.findMany({
+      where: { brunchId, invitedEmail: { equals: typedLater, mode: 'insensitive' } },
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.invitedEmail).toBe(typedLater);
+
+    await db.brunchInvite.deleteMany({ where: { brunchId, invitedEmail: typedLater } });
+  });
+
+  it('an invite finds an existing account however the invited address is capitalized', async () => {
+    // Google reported a capitalized address; the account is stored normalized.
+    const providerEmail = `Capital-${RUN_ID}@Example.com`;
+    const signedIn = await signInWithProvider({
+      provider: 'google',
+      providerUserId: `google-case-${RUN_ID}`,
+      email: providerEmail,
+      name: 'Capital Address',
+      avatarUrl: undefined,
+      db,
+    });
+    const accountId = signedIn._unsafeUnwrap().userId;
+    const stored = await db.user.findFirst({ where: { id: accountId } });
+    expect(stored?.email).toBe(providerEmail.toLowerCase());
+
+    // The host types it in yet another case: it is still the same person (the known-user path).
+    const invited = sendInvitesRequestSchema.parse({ emails: [`CAPITAL-${RUN_ID}@example.COM`] });
+    const sent = await sendInvites(
+      { brunchId, invitedById: hostId, emails: invited.emails },
+      { db, eventBus },
+    );
+    expect(sent.isOk()).toBe(true);
+
+    const invite = await db.brunchInvite.findFirst({
+      where: { brunchId, invitedEmail: providerEmail.toLowerCase() },
+    });
+    expect(invite?.invitedUserId).toBe(accountId);
+    // Known users get their attendee row immediately, so the brunch shows on their dashboard.
+    const attendee = await db.brunchAttendee.findFirst({ where: { brunchId, userId: accountId } });
+    expect(attendee).not.toBeNull();
+
+    await db.brunchAttendee.deleteMany({ where: { brunchId, userId: accountId } });
+    await db.brunchInvite.deleteMany({
+      where: { brunchId, invitedEmail: providerEmail.toLowerCase() },
+    });
+    await db.userAuthProvider.deleteMany({ where: { userId: accountId } });
+    await db.user.deleteMany({ where: { id: accountId } });
   });
 });

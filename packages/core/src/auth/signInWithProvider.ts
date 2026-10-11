@@ -1,4 +1,5 @@
 import type { DbClient } from '@brunchsters/database';
+import { normalizeEmail } from '@brunchsters/shared';
 import { err, ok, type Result } from 'neverthrow';
 
 type SignInWithProviderInput = {
@@ -22,7 +23,10 @@ type SignInWithProviderError = {
 export async function signInWithProvider(
   input: SignInWithProviderInput,
 ): Promise<Result<SignInWithProviderResult, SignInWithProviderError>> {
-  const { provider, providerUserId, email, name, avatarUrl, db } = input;
+  const { provider, providerUserId, name, avatarUrl, db } = input;
+  // The address the provider reports may have capitals; accounts, invites and suggestions all
+  // match on the canonical lowercase form (ADR 0008).
+  const email = normalizeEmail(input.email);
 
   try {
     // 1. Check for an existing provider record (repeat sign-in)

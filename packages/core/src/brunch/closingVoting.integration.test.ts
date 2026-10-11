@@ -1,5 +1,11 @@
 import { createDb } from '@brunchsters/database';
-import type { BrunchId, BrunchLocationId, InviteToken, UserId } from '@brunchsters/shared';
+import {
+  normalizeEmail,
+  type BrunchId,
+  type BrunchLocationId,
+  type InviteToken,
+  type UserId,
+} from '@brunchsters/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { respondToInvite } from '../invite/respondToInvite';
 import { sendInvites } from '../invite/sendInvites';
@@ -12,9 +18,9 @@ import { updateVotingDeadline } from './updateVotingDeadline';
 
 // Requires: supabase start + seeded lookup tables (pnpm db:seed).
 const RUN_ID = Date.now();
-const HOST_EMAIL = `integration-closevoting-host-${RUN_ID}@example.com`;
-const VOTER_1_EMAIL = `integration-closevoting-voter1-${RUN_ID}@example.com`;
-const VOTER_2_EMAIL = `integration-closevoting-voter2-${RUN_ID}@example.com`;
+const HOST_EMAIL = normalizeEmail(`integration-closevoting-host-${RUN_ID}@example.com`);
+const VOTER_1_EMAIL = normalizeEmail(`integration-closevoting-voter1-${RUN_ID}@example.com`);
+const VOTER_2_EMAIL = normalizeEmail(`integration-closevoting-voter2-${RUN_ID}@example.com`);
 
 const db = createDb();
 const eventBus = new NoopEventBus();

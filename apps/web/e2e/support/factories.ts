@@ -7,7 +7,13 @@ import {
   signInWithProvider,
   type PlaceDetails,
 } from '@brunchsters/core';
-import type { BrunchId, Email, InviteToken, UserId } from '@brunchsters/shared';
+import {
+  normalizeEmail,
+  type BrunchId,
+  type Email,
+  type InviteToken,
+  type UserId,
+} from '@brunchsters/shared';
 import type { Result } from 'neverthrow';
 import { getDb } from './db';
 import { fixturePlaces } from './places';
@@ -43,10 +49,13 @@ export function uniqueSuffix(): string {
 export async function createUser(input: {
   readonly label: string;
   // For a user who must match an address that was already invited (journey A3).
+  // As the identity provider reports it — may have capitals, as Google's sometimes do. The
+  // account is stored normalized (ADR 0008), exactly like a real first sign-in.
   readonly email?: string;
 }): Promise<TestUser> {
   const suffix = uniqueSuffix();
-  const email = (input.email ?? `${input.label}-${suffix}@example.com`) as Email;
+  const providerEmail = input.email ?? `${input.label}-${suffix}@example.com`;
+  const email = normalizeEmail(providerEmail);
   const name = `E2E ${input.label} ${suffix}`;
 
   // The cookie we mint later skips signInWithProvider, so call it here to get a user
@@ -54,7 +63,7 @@ export async function createUser(input: {
   const result = await signInWithProvider({
     provider: 'google',
     providerUserId: `e2e-${suffix}`,
-    email,
+    email: providerEmail,
     name,
     avatarUrl: AVATAR_URL,
     db: getDb(),
@@ -111,7 +120,7 @@ export async function inviteToBrunch(params: {
     {
       brunchId: params.brunchId,
       invitedById: params.host.id,
-      emails: params.invitees.map((invitee) => invitee.email),
+      emails: params.invitees.map((invitee) => normalizeEmail(invitee.email)),
     },
     { db: getDb(), eventBus },
   );
