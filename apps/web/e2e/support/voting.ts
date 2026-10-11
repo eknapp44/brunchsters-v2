@@ -158,3 +158,14 @@ export async function removeLocationByName(params: {
     'removeLocation',
   );
 }
+
+// Whether voting is closed is decided on the server from its own clock, so a browser clock
+// cannot move a deadline. Only time passing can, and no service sets a past deadline (they
+// all require a future one) — so this reaches state directly, leaving the brunch exactly as
+// it would be minutes after a real deadline: `votingClosedAt` untouched, nobody having acted.
+export async function passVotingDeadline(brunchId: BrunchId): Promise<void> {
+  await getDb().brunch.update({
+    where: { id: brunchId },
+    data: { votingDeadline: new Date(Date.now() - 60_000) },
+  });
+}
