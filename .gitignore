@@ -37,3 +37,6 @@ coverage/
 # Playwright
 playwright-report/
 test-results/
+
+# Claude Code: personal, never committed (the shared skills in .claude/skills are)
+.claude/settings.local.json

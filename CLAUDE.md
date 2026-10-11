@@ -181,6 +181,7 @@ These notes are the running record of test coverage and intent. They make it pos
 ## Process
 
 - **Spec before code for any real feature.** A `specs/NNNN-feature/` directory with spec/plan/tasks comes before the first line of implementation. Trivial changes (typos, dep bumps) skip this.
+- **Use the project skills** (in `.claude/skills/`): start a feature with `/spec-grill <idea>` (reads the code, grills on design gaps with recommendations, writes the ADR and spec/plan/tasks, creates the branch — no implementation code), and close every milestone with `/milestone-done` (green checks, proves the new tests can fail, testing note, docs, commit). Improve a skill when a session teaches it something; they are part of the repo.
 - **ADR for significant decisions.** New library, new pattern, deviation from constitution — write an ADR. See `docs/adrs/README.md` for the template.
 - **Update docs in the same PR as the change.** Stale docs are worse than no docs.
 - **Constitution overrides convenience.** If a request conflicts with a constitution principle, surface the conflict before complying.
