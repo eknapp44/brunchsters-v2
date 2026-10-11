@@ -31,7 +31,7 @@ Found by the e2e suite (spec 0006 M5), logged in PLANNING §17, and decided in A
 
 ### Suggestions
 
-An attendee suggesting `Friend@Example.com` after the host already invited `friend@example.com` is the same address: it is not a new suggestion, and approving one creates no duplicate invite.
+Suggesting an address that was already suggested, in any case, is refused as a repeat (`already_suggested`). Suggesting one the host has already invited is allowed (as today), and approving it refreshes the existing invite instead of creating a second one — one person, one invite.
 
 ---
 
@@ -48,7 +48,7 @@ An attendee suggesting `Friend@Example.com` after the host already invited `frie
 
 - [ ] Inviting the same address in two cases produces one invite row and one link (real-Postgres test)
 - [ ] An existing account is found whatever the case of the invited address, and vice versa (real-Postgres test)
-- [ ] A suggestion for an address already suggested or invited in another case is treated as the same address
+- [ ] A suggestion for an address already suggested in another case is refused as a repeat, and approving a suggestion for an address already invited in another case leaves one invite (e2e)
 - [ ] The host's own address is excluded from their invite list and cannot be invited, in any case (already true within a request; now true everywhere)
 
 ### Data

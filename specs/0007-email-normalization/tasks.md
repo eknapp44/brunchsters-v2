@@ -49,14 +49,20 @@ Four small milestones, each green on its own. Testing notes are filled in as eac
 
 ## M3 — E2E journey I7
 
-- [ ] `factories.ts`: `createUser` can take a capitalized provider address; `inviteToBrunch` / panel inputs exercised in mixed case
-- [ ] **I7** — the host invites an address in two cases (through the invite panel): one invite, one link; an existing user created from a capitalized provider address is recognized when invited in lowercase (appears on their dashboard immediately)
-- [ ] Confirm I7 fails without the fix (temporarily remove the normalization)
-- [ ] The 33 other journeys and the API-authorization tests pass unchanged
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` pass; stress run; CI-mode run
-- [ ] Commit: `test: e2e journey for one address, one person (M3)`
+- [x] `factories.ts` / `fixtures.ts`: `createUser` takes the address as the provider reports it (capitals allowed) and stores it normalized; `makeActor(label, { providerEmail })` exposes it (the first half was done in M1)
+- [x] **I7** — four tests in `same-person.spec.ts`: the same address in two cases through the invite panel is one invite and one working link; both spellings in one wizard submission are one invite; an existing account created from a capitalized provider address is recognized (the brunch is on their dashboard immediately); a repeat suggestion in another case is refused and approving a suggestion for an already-invited address leaves one invite
+- [x] Confirm I7 fails without the fix — **3 of the 4 do** (see notes)
+- [x] The 34 earlier journeys and the API-authorization tests pass unchanged
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` pass; stress run; CI-mode run
+- [x] Commit: `test: e2e journey for one address, one person (M3)`
 
-**Testing notes:** _(fill on completion)_
+**Testing notes:**
+
+- **What was tested:** **Same address, two cases (invite panel):** the host invites `Guest-<s>@Example.COM`, then `guest-<s>@example.com`; afterwards the host's list shows **one** row, Postgres holds **one** invite for that address stored in the canonical lowercase form, the second request rotated the invite's token (the existing "re-invite refreshes it" behavior), the **old link now reads "Invite not found"** and the **current link shows the brunch preview**. **Wizard:** both spellings entered in step 4 of one submission still produce one invite row. **Existing account:** an account created from a Google address reported as `Capital-<s>@Example.COM` (stored lowercase) is invited by the host typing `CAPITAL-<s>@example.com`; the host's list shows it `pending`, the invitee's **dashboard lists the brunch immediately** (the known-user path, with no link opened), the invite carries the account's id, and there is exactly one invite for that address. **Suggestions:** an attendee suggests `Friend-<s>@Example.com` for someone the host already invited in lowercase; suggesting the same person again as `FRIEND-<s>@EXAMPLE.COM` is refused ("Failed to suggest invitee") leaving one suggestion row in Postgres; the host approves the one suggestion and there is still exactly **one invite** for that address.
+- **How:** Playwright against real Postgres and a real server, through the UI (the invite panel, the wizard, the suggestion box, the host's Approve button); nothing mocked beyond the Places interception used elsewhere. Suite totals: **69 tests** in dev mode, **207/207** with 4 workers × 3 repeats, **69/69** in CI mode (production build). Unit (shared 7, core 359, web 216) and core integration (88) unchanged. **Proven to fail without the fix:** with normalization removed from the two request schemas and from sign-in **and** the database constraints dropped on the throwaway e2e database (to reproduce the original behavior, not just a different error), 3 of the 4 tests fail — the two-case panel invite, the existing-account recognition, and the suggestion test; the wizard test still passes, honestly, because `sendInvites` already de-duplicated case-insensitively _within one batch_, so that path was never broken and the test is a guard for it rather than evidence for the fix. The code was restored from copies and the e2e database rebuilt (4 constraints present) before anything else ran.
+- **Spec correction found while writing this:** the spec said a suggestion for an address "already invited" in another case is treated as the same. The actual (and unchanged) behavior is that suggesting an already-_invited_ address is allowed, and it is approving it that refreshes the existing invite; only a repeat _suggestion_ is refused. The spec text and acceptance criterion now say that, and the e2e test asserts exactly that.
+- **What's deferred:** nothing for this spec's scope. Not covered by design (spec "does not cover"): provider-specific aliasing such as Gmail's dots and `+tags`.
+- **How to run it:** `pnpm test:e2e`, or `pnpm --filter @brunchsters/web exec playwright test same-person`.
 
 ---
 
