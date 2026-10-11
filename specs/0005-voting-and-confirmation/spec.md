@@ -74,6 +74,7 @@ PLANNING §5 lists "Manage Brunch" as its own step in the Host Journey, and §1 
 3. Adding a second option to a kind that had one silently turns that kind into a vote (PLANNING §5 — mode emerges from behavior, now derived rather than stored)
 4. Removing an option soft-deletes it; votes cast for it stop counting
 5. The route is unavailable once the brunch is confirmed, apart from a read-only summary (PLANNING §5 Confirmation Lock Rules)
+6. While the brunch is still a **draft** (nobody invited yet) the screen shows a "Send an invite first" notice with a link to the brunch page, and the controls that need an active brunch — adding or removing places and times, and confirming — are disabled instead of failing; setting a deadline is unaffected. _(Added after spec 0006's E2E suite found the controls were offered but always failed; journey H8.)_
 
 ### Host closes voting
 

@@ -98,7 +98,7 @@ The Google OAuth redirect itself is out of scope (ADR 0007); A3 is tested up to 
 | X1  | Host-only API endpoints refuse the signed-out, strangers and attendees, changing nothing           | P0  | Wiring that mocks cannot see; spec 0004's cross-actor bug class     |
 | X2  | Member-only actions refuse outsiders and the signed-out                                            | P0  | Same                                                                |
 
-That makes **33 journeys and 64 tests**; see `tasks.md` M9 for the testing notes, the mutation checks, what was deliberately left out, and two product findings.
+That makes **34 journeys and 65 tests** (H8, the draft-brunch journey, was added later with its fix; see `tasks.md`); see `tasks.md` M9 for the testing notes, the mutation checks, what was deliberately left out, and two product findings.
 
 ---
 

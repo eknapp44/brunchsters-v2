@@ -1,4 +1,4 @@
-import { createBrunch } from '../support/factories';
+import { createBrunch, uniqueSuffix } from '../support/factories';
 import { expect, test } from '../support/fixtures';
 import { fixturePlaces } from '../support/places';
 import { daysFromNow, datetimeLocalIn } from '../support/time';
@@ -150,5 +150,55 @@ test.describe('H5 — historic bug: removing the option selected for confirming'
     await expect(host.page.getByText(fixturePlaces.harborBistro.name)).toBeVisible();
     // (Not getByRole('alert'): Next.js keeps an empty alert region for route announcements.)
     await expect(host.page.getByText('Failed to confirm the brunch')).toHaveCount(0);
+  });
+});
+
+test.describe('H8 — managing a draft brunch', () => {
+  test('explains that an invite comes first, offers nothing that would fail, and unlocks once one is sent', async ({
+    makeActor,
+  }) => {
+    const host = await makeActor('host');
+    const guestEmail = `guest-${uniqueSuffix()}@example.com`;
+    // No invites yet: the state a brunch is left in when the wizard's last step is skipped.
+    const brunchId = await createBrunch({
+      host: host.user,
+      locations: [fixturePlaces.sunnySide],
+      times: [TIMES[0] ?? new Date()],
+    });
+    const heading = host.page.getByRole('heading', { name: 'Send an invite first' });
+    const search = host.page.getByRole('textbox', { name: 'Search for a place' });
+    const confirmButton = host.page.getByRole('button', { name: 'Confirm brunch' });
+
+    await host.page.goto(`/brunch/${brunchId}/manage`);
+
+    // It says why, instead of letting every click end in a generic "Failed to …".
+    await expect(heading).toBeVisible();
+    await expect(host.page.getByText('This brunch is still a draft.')).toBeVisible();
+    await expect(search).toBeDisabled();
+    await expect(host.page.getByLabel('Date and time to add')).toBeDisabled();
+    await expect(host.page.getByRole('button', { name: 'Add Time' })).toBeDisabled();
+    const removeButtons = host.page.getByRole('button', { name: 'Remove' });
+    await expect(removeButtons).toHaveCount(2);
+    for (const remove of await removeButtons.all()) await expect(remove).toBeDisabled();
+    await expect(confirmButton).toBeDisabled();
+    // The old screen also claimed "you can still confirm", which the next click contradicted.
+    await expect(host.page.getByText('No one else has accepted yet')).toHaveCount(0);
+    await expect(host.page.getByRole('alert').filter({ hasText: 'Failed' })).toHaveCount(0);
+
+    // The link goes to where invites are sent; the first one activates the brunch.
+    await host.page.getByRole('link', { name: 'Invite people from the brunch page' }).click();
+    await expect(host.page).toHaveURL(`/brunch/${brunchId}`);
+    await host.page.getByLabel('Invite more people').fill(guestEmail);
+    await host.page.getByRole('button', { name: 'Send Invite' }).click();
+    await expect(host.page.getByText('Active', { exact: true })).toBeVisible();
+
+    // Back on the manage screen everything is available, and confirming works.
+    await host.page.goto(`/brunch/${brunchId}/manage`);
+    await expect(heading).toHaveCount(0);
+    await expect(search).toBeEnabled();
+    await expect(host.page.getByRole('button', { name: 'Add Time' })).toBeEnabled();
+    await expect(confirmButton).toBeEnabled();
+    await confirmButton.click();
+    await expect(host.page.getByRole('heading', { name: 'Confirmed', exact: true })).toBeVisible();
   });
 });
