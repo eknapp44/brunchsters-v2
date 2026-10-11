@@ -17,10 +17,10 @@ packages/core/src/**/{createBrunch,confirmBrunch,sendInvites,
   updateRsvp,castLocationBallot,castTimeBallot}.ts                 (changed — M1: typed payloads only)
 packages/core/src/email/EmailService.ts                            (changed — M2: idempotencyKey)
 packages/core/src/email/MockEmailService.ts                        (new — M2)
-packages/core/src/email/templates/{inviteEmail,confirmedEmail,
-  escapeHtml,safeSubject}.ts                                       (new — M2)
-packages/core/src/email/{sendInviteEmail,
-  sendBrunchConfirmedEmails}.ts                                    (new — M2: handlers as plain functions)
+packages/core/src/email/templates/{inviteEmail,confirmedEmail,layout,
+  escapeHtml,safeSubject,formatBrunchTime}.ts                                       (new — M2)
+packages/core/src/email/{sendInviteEmail,sendBrunchConfirmedEmails,
+  emailKeys}.ts                                    (new — M2: handlers as plain functions)
 
 apps/web/src/lib/services.ts                                       (new — M1: composition root; M3 adds adapter selection)
 apps/web/src/app/api/v1/**/route.ts, invite/[token]/page.tsx       (changed — M1: use the root, drop 11 inline Noop buses)
@@ -70,7 +70,7 @@ The exact payload shapes are copied from what each service emits today (read, no
 sendInviteEmail(input: { inviteId: InviteId },
   ctx: { db: DbClient; emailService: EmailService; appUrl: string })
   : Promise<Result<SendInviteEmailOutcome, SendInviteEmailError>>
-// outcome: 'sent' | 'skipped_revoked' | 'skipped_expired' | 'skipped_gone'
+// outcome: 'sent' | 'skipped_revoked' | 'skipped_expired' | 'skipped_gone' | 'skipped_host'
 // error:   { kind: 'delivery_failed' } | { kind: 'invalid_address' } | { kind: 'db_error' }
 ```
 

@@ -1,4 +1,22 @@
 export type { EmailId, SendEmailInput, EmailError, EmailService } from './email/EmailService';
+export { MockEmailService } from './email/MockEmailService';
+export { sendInviteEmail } from './email/sendInviteEmail';
+export type {
+  SendInviteEmailContext,
+  SendInviteEmailError,
+  SendInviteEmailInput,
+  SendInviteEmailOutcome,
+} from './email/sendInviteEmail';
+export {
+  resolveConfirmationRecipients,
+  sendConfirmationEmail,
+} from './email/sendBrunchConfirmedEmails';
+export type {
+  ConfirmationRecipient,
+  ConfirmedBrunchSummary,
+  ResolveConfirmationRecipientsError,
+  SendConfirmationEmailError,
+} from './email/sendBrunchConfirmedEmails';
 export type { BrunchEventName, EventBus } from './events/EventBus';
 export { NoopEventBus } from './events/NoopEventBus';
 export type { PlaceResult, PlaceDetails, PlaceProvider } from './places/PlaceProvider';
