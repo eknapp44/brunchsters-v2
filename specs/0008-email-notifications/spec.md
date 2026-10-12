@@ -1,6 +1,6 @@
 # Spec 0008 — Email Notifications (Inngest + Resend)
 
-**Status:** Draft  
+**Status:** Complete (pending merge)  
 **Branch:** `feat/0008-email-notifications`  
 **PLANNING.md ref:** §7 Notifications, §10 Async Event Architecture, §16 Build Order #8, §17 Open Questions  
 **ADRs:** [0009 — Inngest-backed EventBus, emit after commit, config-selected adapters](../../docs/adrs/0009-inngest-event-bus-and-email-delivery.md)
@@ -62,30 +62,30 @@ Grounded in the current code:
 
 ### Events and wiring (`packages/core`, `apps/web`)
 
-- [ ] `BrunchEventPayloads` maps each emitted event name to its payload type; `eventBus.emit` is generic over it; names with no producer are removed from the union; all eight emit sites and every test mock compile against the types
-- [ ] A single composition root in `apps/web/src/lib/` provides the `EventBus` (and the `EmailService` for handlers); no route or page constructs a bus inline
-- [ ] `InngestEventBus` (in `apps/web/src/adapters/`) implements `EventBus`; selected when `INNGEST_EVENT_KEY` or `INNGEST_DEV` is set, otherwise `NoopEventBus`
-- [ ] `POST/GET/PUT /api/inngest` serves the registered functions; it is public in `middleware.ts`, and an unsigned request is refused when the app runs in production mode
-- [ ] A production deployment (`VERCEL_ENV=production`; not `NODE_ENV`, which CI's production build also sets) missing `AUTH_URL`, `RESEND_API_KEY`, `INNGEST_EVENT_KEY` or `INNGEST_SIGNING_KEY` fails at server start with a message naming the variable (a silent no-op in production is the worst failure mode)
+- [x] `BrunchEventPayloads` maps each emitted event name to its payload type; `eventBus.emit` is generic over it; names with no producer are removed from the union; all eight emit sites and every test mock compile against the types
+- [x] A single composition root in `apps/web/src/lib/` provides the `EventBus` (and the `EmailService` for handlers); no route or page constructs a bus inline
+- [x] `InngestEventBus` (in `apps/web/src/adapters/`) implements `EventBus`; selected when `INNGEST_EVENT_KEY` or `INNGEST_DEV` is set, otherwise `NoopEventBus`
+- [x] `POST/GET/PUT /api/inngest` serves the registered functions; it is public in `middleware.ts`, and an unsigned request is refused when the app runs in production mode
+- [x] A production deployment (`VERCEL_ENV=production`; not `NODE_ENV`, which CI's production build also sets) missing `AUTH_URL`, `RESEND_API_KEY`, `INNGEST_EVENT_KEY` or `INNGEST_SIGNING_KEY` fails at server start with a message naming the variable (a silent no-op in production is the worst failure mode)
 
 ### Email layer
 
-- [ ] `ResendEmailService` implements `EmailService` (maps provider errors to `EmailError`; passes an idempotency key); `FileEmailService` writes one JSON file per email (to, subject, html, createdAt) into `EMAIL_OUTBOX_DIR` (default `.mail-outbox/`, git-ignored); `MockEmailService` in `packages/core` records sends for tests
-- [ ] `SendEmailInput` gains an optional `idempotencyKey`; `from` defaults to the `EMAIL_FROM` setting
-- [ ] Templates are pure functions in `packages/core`; every user-supplied value (brunch title, description, host name, place name and address) is HTML-escaped, and subject lines have control characters/newlines stripped
+- [x] `ResendEmailService` implements `EmailService` (maps provider errors to `EmailError`; passes an idempotency key); `FileEmailService` writes one JSON file per email (to, subject, html, createdAt) into `EMAIL_OUTBOX_DIR` (default `.mail-outbox/`, git-ignored); `MockEmailService` in `packages/core` records sends for tests
+- [x] `SendEmailInput` gains an optional `idempotencyKey`; `from` defaults to the `EMAIL_FROM` setting
+- [x] Templates are pure functions in `packages/core`; every user-supplied value (brunch title, description, host name, place name and address) is HTML-escaped, and subject lines have control characters/newlines stripped
 
 ### Handlers (`packages/core`, thin Inngest wrappers in `apps/web`)
 
-- [ ] `sendInviteEmail`: triggered by `invite/sent` and `invite/resent`; loads the live invite, brunch, host and **current token** by id; skips (returns a reason) when the invite or brunch is gone or the invite is revoked or expired; sends one email with idempotency key `invite:{inviteId}:{sha256(token) prefix}`
-- [ ] `sendBrunchConfirmedEmails`: triggered by `brunch/confirmed`; resolves recipients as above; one `step.run` per recipient so one failure retries only that email; idempotency key `confirmed:{brunchId}:{recipientKey}`
-- [ ] Delivery failure throws (Inngest retries); invalid address is non-retriable
-- [ ] The synthetic host invite never receives an invite email
-- [ ] Unit tests with `MockEmailService` for every branch above; integration tests (real Postgres) for recipient resolution including a decliner, a revoked invite, a silent no-account invitee, a rotated token, and the host
+- [x] `sendInviteEmail`: triggered by `invite/sent` and `invite/resent`; loads the live invite, brunch, host and **current token** by id; skips (returns a reason) when the invite or brunch is gone or the invite is revoked or expired; sends one email with idempotency key `invite:{inviteId}:{sha256(token) prefix}`
+- [x] `sendBrunchConfirmedEmails`: triggered by `brunch/confirmed`; resolves recipients as above; one `step.run` per recipient so one failure retries only that email; idempotency key `confirmed:{brunchId}:{recipientKey}`
+- [x] Delivery failure throws (Inngest retries); invalid address is non-retriable
+- [x] The synthetic host invite never receives an invite email
+- [x] Unit tests with `MockEmailService` for every branch above; integration tests (real Postgres) for recipient resolution including a decliner, a revoked invite, a silent no-account invitee, a rotated token, and the host
 
 ### API routes
 
-- [ ] `sendInvitesRequestSchema` rejects a request with more than 50 addresses (422, clear message); this bounds the email fan-out and is not an attendee cap
-- [ ] No route's request or response changes. Existing handler tests pass against the typed bus
+- [x] `sendInvitesRequestSchema` rejects a request with more than 50 addresses (422, clear message); this bounds the email fan-out and is not an attendee cap
+- [x] No route's request or response changes. Existing handler tests pass against the typed bus
 
 ### UI
 
@@ -97,10 +97,10 @@ See the section below.
 
 ### Docs
 
-- [ ] `docs/SETUP.md`: running the Inngest dev server, the local outbox, env vars, and a step-by-step **verifying a sending domain in Resend** walkthrough; `.env.example` updated (`EMAIL_FROM`, `EMAIL_OUTBOX_DIR`, `INNGEST_DEV`)
-- [ ] `PLANNING.md` §7, §10, §16 updated (event list, build order #8 split into 0008/0009, `vote.autoclose.prompted` note)
-- [ ] ADR 0009 and the README index row
-- [ ] Testing notes per milestone in `tasks.md`
+- [x] `docs/SETUP.md`: running the Inngest dev server, the local outbox, env vars, and a step-by-step **verifying a sending domain in Resend** walkthrough; `.env.example` updated (`EMAIL_FROM`, `EMAIL_OUTBOX_DIR`, `INNGEST_DEV`)
+- [x] `PLANNING.md` §7, §10, §16 updated (event list, build order #8 split into 0008/0009, `vote.autoclose.prompted` note)
+- [x] ADR 0009 and the README index row
+- [x] Testing notes per milestone in `tasks.md`
 
 ---
 
@@ -108,12 +108,12 @@ See the section below.
 
 The suite runs the **real Inngest dev server and the real handlers**; the only substitution is the final hop to Resend, replaced by `FileEmailService` through configuration (ADR 0009). Tests read emails from the outbox folder. The journey IDs continue spec 0006/0007's numbering.
 
-| ID     | People                                                | What is asserted                                                                                                                                                                                                                                                           |
-| ------ | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **N1** | Host, invitee (new account)                           | Host invites an address through the UI; an email addressed to it appears; following its link as the invitee (signing in) lands on the invite page for that brunch; accepting makes the invitee an attendee the host sees                                                   |
-| **N2** | Host, invitee                                         | Host resends; a second email arrives; the **first** email's link no longer works (invite page shows the invalid-link state) and the second one does — the token-rotation regression, now from the person's side                                                            |
-| **N3** | Host, attendee who said yes, decliner, silent invitee | Host confirms; the host, the attendee and the silent (no-account) invitee each get exactly one email naming the place and the time in the brunch's timezone; the decliner gets none; the silent invitee's link still opens the invite page after confirm (expiry extended) |
-| **N4** | Unauthenticated visitor                               | `/api/inngest` is not reachable without a valid signature in the production-mode CI run (extends the API-authorization case)                                                                                                                                               |
+| ID     | People                                                | What is asserted                                                                                                                                                                                                                                                                                                    |
+| ------ | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **N1** | Host, invitee                                         | Host invites an address through the UI; one email addressed to it appears; following its link as the invitee lands on that brunch already "going" and the host sees it. A second case: an address with no account gets the email and its link is the signed-out preview page                                        |
+| **N2** | Host, invitee                                         | Host resends; a second email arrives; the **first** email's link no longer works (invite page shows the invalid-link state) and the second one does — the token-rotation regression, now from the person's side                                                                                                     |
+| **N3** | Host, attendee who said yes, decliner, silent invitee | Host confirms; the host, the attendee and the silent (no-account) invitee each get exactly one email naming the place and the time in the brunch's timezone; the decliner gets none; the silent invitee's link still opens the invite page after confirm                                                            |
+| **N4** | Unauthenticated visitor                               | `/api/inngest` is reachable without a session (the middleware lets it through to the Inngest SDK) and reports both functions registered. The e2e server runs Inngest in dev mode, which does not enforce signatures, so **refusal of unsigned requests is proven in cloud mode by the route's unit test**, not here |
 
 A fifth journey, **C2 (50-address cap)**, was added after M3 in `create-brunch.spec.ts`: the wizard's invitee list stops at 50 with an explanation, removing one frees a slot, and all 50 are invited. N1–N3 are multi-person flows; N2 is the historic-bug class (stale token). "Revoked before the queued email runs" is deliberately **not** an e2e journey: whether the handler runs before or after the revoke is a race, so it is proven deterministically at the integration level (real Postgres, handler called directly). No client-side behavior changes, so no optimistic-update journeys apply.
 

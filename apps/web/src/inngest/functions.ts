@@ -11,6 +11,8 @@ import { getAppUrl, getEmailService } from '@/lib/services';
 import { inngest } from './client';
 import { unwrapForQueue } from './unwrapForQueue';
 
+const MAX_CONCURRENT_INVITE_EMAILS = 5;
+
 // Event payloads carry ids only. Validating them here means a malformed event fails once,
 // permanently, instead of being retried against a handler that can never succeed.
 const inviteEventSchema = z.object({ inviteId: z.uuid() });
@@ -30,6 +32,10 @@ export const sendInviteEmailFunction = inngest.createFunction(
   {
     id: 'send-invite-email',
     triggers: [{ event: 'invite/sent' }, { event: 'invite/resent' }],
+    // A host can invite 50 people in one request, which queues 50 runs at once. Without a
+    // limit they all call back into the app together, each opening a database connection
+    // and a request to the email provider; a few at a time is plenty for an email.
+    concurrency: MAX_CONCURRENT_INVITE_EMAILS,
   },
   async ({ event, step }) => {
     const { inviteId } = parseEventData(inviteEventSchema, event.data);

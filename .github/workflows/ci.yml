@@ -150,6 +150,11 @@ jobs:
       - name: Install Playwright system dependencies
         if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: pnpm --filter @brunchsters/web exec playwright install-deps chromium
+      # The suite runs the real Inngest dev server next to the app (ADR 0009). Fetch the pinned
+      # binary here so a download problem fails this step by name, not a web server timeout.
+      # Keep the version in step with INNGEST_CLI_VERSION in apps/web/e2e/support/env.ts.
+      - name: Fetch the Inngest dev server
+        run: npx --yes inngest-cli@1.46.0 --version
       - run: pnpm test:e2e
       - name: Upload Playwright report and traces
         if: failure()

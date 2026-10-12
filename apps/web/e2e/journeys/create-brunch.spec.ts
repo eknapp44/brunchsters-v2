@@ -240,7 +240,9 @@ test.describe('C2 — wizard behavior', () => {
 
     // The whole list is accepted by the server: nothing is silently dropped.
     await wizard.create();
-    await expect(host.page).toHaveURL(BRUNCH_URL);
+    // Creating the brunch and then 50 invites (each its own row and queued email) takes a
+    // while, longer in dev mode under the suite's parallel load than the default 5 seconds.
+    await expect(host.page).toHaveURL(BRUNCH_URL, { timeout: 30_000 });
     const brunchId = BRUNCH_URL.exec(host.page.url())?.[1] ?? '';
     const invited = await getDb().brunchInvite.findMany({
       where: { brunchId, NOT: { invitedEmail: host.user.email } },
