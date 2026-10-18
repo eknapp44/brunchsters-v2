@@ -1,6 +1,6 @@
 # Spec 0006 — End-to-End Testing Infrastructure
 
-**Status:** Complete (PR #9, pending merge)  
+**Status:** Complete (merged, PR #9)  
 **Branch:** `feat/0006-e2e-testing-infra`  
 **PLANNING.md ref:** §16 Build Order item 10, §17 Open Questions (E2E testing infra)  
 **ADRs:** [0007 — End-to-end testing stack](../../docs/adrs/0007-e2e-testing-stack.md)
