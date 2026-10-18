@@ -5,7 +5,6 @@ import {
   getPendingSuggestionsForBrunch,
 } from '@brunchsters/core';
 import type { BrunchId, UserId } from '@brunchsters/shared';
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { z } from 'zod';
 import { auth } from '@/auth';
@@ -89,9 +88,10 @@ export default async function BrunchDetailPage({
         <Badge tone={statusTone(brunch.statusCode)}>{brunch.statusLabel}</Badge>
       </div>
       <div className={styles.nav}>
-        <Link className={styles.back} href="/dashboard">
-          ← Back to Dashboard
-        </Link>
+        <ButtonLink className={styles.back} href="/dashboard" variant="ghost" size="sm">
+          <Icon name="arrowLeft" size={16} />
+          Back to Dashboard
+        </ButtonLink>
         {brunch.isHost && (
           <ButtonLink href={`/brunch/${brunchId}/manage`} size="sm">
             <Icon name="arrowRight" size={16} />

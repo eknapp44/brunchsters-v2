@@ -1,9 +1,9 @@
 import { getBrunchById, getBrunchVoting, getInvitesForBrunch } from '@brunchsters/core';
 import type { BrunchId, UserId } from '@brunchsters/shared';
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { z } from 'zod';
 import { auth } from '@/auth';
+import { Icon } from '@/components/icons/Icon';
 import { PopIcon } from '@/components/icons/PopIcon';
 import { ButtonLink } from '@/components/ui/ButtonLink';
 import { Container } from '@/components/ui/Container';
@@ -57,9 +57,10 @@ export default async function ManageBrunchPage({
         <div className={styles.header}>
           <h1>Manage: {brunch.title}</h1>
         </div>
-        <Link className={detail.back} href={`/brunch/${brunchId}`}>
-          ← Back to brunch
-        </Link>
+        <ButtonLink className={detail.back} href={`/brunch/${brunchId}`} variant="ghost" size="sm">
+          <Icon name="arrowLeft" size={16} />
+          Back to brunch
+        </ButtonLink>
 
         <section className={detail.panel}>
           <h2>Confirmed</h2>
@@ -111,9 +112,10 @@ export default async function ManageBrunchPage({
       <div className={styles.header}>
         <h1>Manage: {brunch.title}</h1>
       </div>
-      <Link className={detail.back} href={`/brunch/${brunchId}`}>
-        ← Back to brunch
-      </Link>
+      <ButtonLink className={detail.back} href={`/brunch/${brunchId}`} variant="ghost" size="sm">
+        <Icon name="arrowLeft" size={16} />
+        Back to brunch
+      </ButtonLink>
 
       {isDraft && (
         <section className={detail.panel}>

@@ -115,4 +115,21 @@ test('brunch detail and manage, as host and as invitee', async ({ makeActor }, t
   await host.page.goto(`/brunch/${draftId}/manage`);
   await expect(host.page.getByRole('heading', { name: 'Send an invite first' })).toBeVisible();
   await captureReviewShots(host.page, 'manage-draft', testInfo);
+
+  // real addresses are long: the row must keep its Remove button beside the text on a desktop
+  const longId = await createBrunch({
+    host: host.user,
+    title: 'Long Address Brunch',
+    locations: [
+      {
+        ...fixturePlaces.sunnySide,
+        placeId: 'e2e-place-long-address',
+        name: 'The Mad Rooster Cafe and Bakery',
+        address: '4401 West Greenfield Avenue, West Allis, Milwaukee, WI 53214, United States',
+      },
+    ],
+  });
+  await host.page.goto(`/brunch/${longId}/manage`);
+  await expect(host.page.getByText('The Mad Rooster Cafe and Bakery').first()).toBeVisible();
+  await captureReviewShots(host.page, 'manage-long-address', testInfo);
 });

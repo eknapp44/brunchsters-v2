@@ -254,6 +254,20 @@ test.describe('the app shell', () => {
     await expect(progress).toHaveAttribute('aria-valuenow', '2');
   });
 
+  test('the Back controls on the brunch and manage pages lead back where they say', async ({
+    makeActor,
+  }) => {
+    const host = await makeActor('host');
+    const brunchId = await createBrunch({ host: host.user, title: 'Back Button Brunch' });
+
+    await host.page.goto(`/brunch/${brunchId}/manage`);
+    await host.page.getByRole('link', { name: 'Back to brunch' }).click();
+    await expect(host.page).toHaveURL(`/brunch/${brunchId}`);
+
+    await host.page.getByRole('link', { name: 'Back to Dashboard' }).click();
+    await expect(host.page).toHaveURL('/dashboard');
+  });
+
   test('D4 — the skip link is the first stop, appears when focused, and moves to the page', async ({
     makeActor,
   }) => {
