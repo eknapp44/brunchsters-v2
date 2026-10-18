@@ -19,7 +19,7 @@ Eight milestones, each green on its own and ending in a commit. Review points ar
 - [x] `docs/SETUP.md`: the screenshots command and how to look at the UI (device mode, and what a real phone can and cannot reach before deployment)
 - [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e`, then the stress run and CI mode
 - [x] Commit: `feat: design tokens, fonts, base styles and review tooling (M1)`
-- [ ] **STOP FOR REVIEW 1** — the owner opens the real app (and the screenshots folder) and confirms or changes tokens and fonts, including the Nunito-vs-Inter question. Record feedback in the log below; apply the in-scope changes before M2
+- [x] **STOP FOR REVIEW 1** — the owner opens the real app (and the screenshots folder) and confirms or changes tokens and fonts, including the Nunito-vs-Inter question. Record feedback in the log below; apply the in-scope changes before M2
 
 **Testing notes:**
 
@@ -141,10 +141,13 @@ Eight milestones, each green on its own and ending in a commit. Review points ar
 
 Each item gets one outcome: **In scope** (tokens, spacing, sizing, colors, fonts, layout of existing screens — one polish pass per review point plus M8), **Roadmap** (adds or changes behavior, a screen or a control → parity table, with the feature), or **Copy** (wording and terminology → the follow-up copy spec). Anything that fits none is raised with the owner before it is touched.
 
-| #   | Review      | Feedback                                                                                               | Outcome  | Done in |
-| --- | ----------- | ------------------------------------------------------------------------------------------------------ | -------- | ------- |
-| 1   | M1 (Claude) | Signed-out visitors get an empty bordered bar for the nav                                              | In scope | M2      |
-| 2   | M1 (Claude) | On the brunch detail page "Back to Dashboard" and "Manage brunch" are adjacent links that run together | In scope | M5      |
+| #   | Review      | Feedback                                                                                               | Outcome                                          | Done in |
+| --- | ----------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------ | ------- |
+| 1   | M1 (Claude) | Signed-out visitors get an empty bordered bar for the nav                                              | In scope                                         | M2      |
+| 2   | M1 (Claude) | On the brunch detail page "Back to Dashboard" and "Manage brunch" are adjacent links that run together | In scope                                         | M5      |
+| 3   | Review 1    | Is there a light mode? (Yes: light is the default; dark follows the OS. Explained; no change)          | Answered                                         | n/a     |
+| 4   | Review 1    | Nunito is fine for now; the owner may revisit once more screens are converted                          | Accepted provisionally; Open Question 4 resolved | n/a     |
+| 5   | Review 1    | Nothing to change in tokens, colors or background yet                                                  | Approved; proceed to M2                          | n/a     |
 
 **Copy list (for the follow-up copy spec):** _(none yet)_
 
