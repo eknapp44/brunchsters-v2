@@ -1,7 +1,6 @@
 import { escapeHtml, safeHttpUrl } from './escapeHtml';
 import { formatBrunchTime } from './formatBrunchTime';
-import type { RenderedEmail } from './inviteEmail';
-import { renderEmail } from './layout';
+import { renderEmail, type RenderedEmail } from './layout';
 import { safeSubject } from './safeSubject';
 
 export type ConfirmedEmailParams = {

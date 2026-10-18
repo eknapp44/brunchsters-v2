@@ -28,7 +28,23 @@ describe('InngestEventBus', () => {
     expect(send).not.toHaveBeenCalled();
   });
 
+  it('logs when Inngest is unreachable, because the calling service swallows the error', async () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const send = vi.fn().mockRejectedValue(new Error('inngest unreachable'));
+
+    await expect(
+      new InngestEventBus({ send }, new Set(['brunch/created'])).emit('brunch/created', CREATED),
+    ).rejects.toThrow();
+
+    expect(logged).toHaveBeenCalledWith(
+      'Could not queue event brunch/created:',
+      'inngest unreachable',
+    );
+    logged.mockRestore();
+  });
+
   it('rejects when Inngest is unreachable so the calling service can log and move on', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const send = vi.fn().mockRejectedValue(new Error('inngest unreachable'));
 
     await expect(

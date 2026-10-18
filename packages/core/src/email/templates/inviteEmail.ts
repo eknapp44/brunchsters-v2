@@ -1,6 +1,6 @@
 import { escapeHtml } from './escapeHtml';
 import { formatInstantUtc } from './formatBrunchTime';
-import { renderEmail } from './layout';
+import { renderEmail, type RenderedEmail } from './layout';
 import { safeSubject } from './safeSubject';
 
 export type InviteEmailParams = {
@@ -10,8 +10,6 @@ export type InviteEmailParams = {
   readonly link: string;
   readonly linkExpiresAt: Date;
 };
-
-export type RenderedEmail = { readonly subject: string; readonly html: string };
 
 export function renderInviteEmail(params: InviteEmailParams): RenderedEmail {
   const description =

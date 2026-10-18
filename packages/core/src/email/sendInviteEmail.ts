@@ -1,7 +1,7 @@
 import type { DbClient } from '@brunchsters/database';
 import type { Email, InviteId } from '@brunchsters/shared';
 import { err, ok, type Result } from 'neverthrow';
-import type { EmailError, EmailService } from './EmailService';
+import type { EmailSendFailure, EmailService } from './EmailService';
 import { inviteEmailKey, joinUrl } from './emailKeys';
 import { renderInviteEmail } from './templates/inviteEmail';
 
@@ -24,7 +24,7 @@ export type SendInviteEmailOutcome =
   | 'skipped_duplicate';
 
 export type SendInviteEmailError =
-  | Exclude<EmailError, { readonly kind: 'already_sent' }>
+  | EmailSendFailure
   | { readonly kind: 'db_error'; readonly cause: unknown };
 
 // Runs from a queued event, possibly long after the invite was created and possibly

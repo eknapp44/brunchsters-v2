@@ -10,7 +10,6 @@ import { db } from '@/lib/db';
 import { getAppUrl, getEmailService } from '@/lib/services';
 import { inngest } from './client';
 import { CONFIRMED_EMAIL_EVENTS, INVITE_EMAIL_EVENTS } from './events';
-import { settleConfirmationEmail } from './settleConfirmationEmail';
 import { unwrapForQueue } from './unwrapForQueue';
 
 const MAX_CONCURRENT_INVITE_EMAILS = 5;
@@ -83,7 +82,7 @@ export const sendBrunchConfirmedEmailsFunction = inngest.createFunction(
     for (const recipient of plan.recipients) {
       const stepName = `email-${recipient.key}`;
       outcomes[recipient.key] = await step.run(stepName, async () =>
-        settleConfirmationEmail({
+        unwrapForQueue({
           result: await sendConfirmationEmail(
             {
               brunch,

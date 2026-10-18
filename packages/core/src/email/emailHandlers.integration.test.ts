@@ -18,7 +18,8 @@ import { respondToInvite } from '../invite/respondToInvite';
 import { revokeInvite } from '../invite/revokeInvite';
 import { sendInvites } from '../invite/sendInvites';
 import { MockEmailService } from './MockEmailService';
-import { resolveConfirmationRecipients, sendConfirmationEmail } from './sendBrunchConfirmedEmails';
+import { resolveConfirmationRecipients } from './resolveConfirmationRecipients';
+import { sendConfirmationEmail } from './sendConfirmationEmail';
 import { sendInviteEmail } from './sendInviteEmail';
 
 // Requires: supabase start + seeded lookup tables (pnpm db:seed).

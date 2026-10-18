@@ -1,4 +1,4 @@
-import type { Email } from '@brunchsters/shared';
+import { normalizeEmail, type Email } from '@brunchsters/shared';
 import { createBrunch, inviteToBrunch, uniqueSuffix } from '../support/factories';
 import { expect, test } from '../support/fixtures';
 import { inviteRow } from '../support/invites';
@@ -11,7 +11,7 @@ import { addAttendee } from '../support/voting';
 // dev server and the real handlers. Emails land in a folder instead of being sent (ADR 0009);
 // every wait is for something to arrive, never a sleep.
 
-const newEmail = (label: string): Email => `${label}-${uniqueSuffix()}@example.com` as Email;
+const newEmail = (label: string): Email => normalizeEmail(`${label}-${uniqueSuffix()}@example.com`);
 
 // The wall-clock time in a zone, written independently of the app's own formatter.
 function wallClock(date: Date, timeZone: string): string {

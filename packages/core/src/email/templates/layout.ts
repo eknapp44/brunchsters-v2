@@ -1,5 +1,7 @@
 import { escapeHtml } from './escapeHtml';
 
+export type RenderedEmail = { readonly subject: string; readonly html: string };
+
 // Shared frame for every email. Inline styles only: mail clients ignore <style>.
 export function renderEmail(params: {
   readonly heading: string;

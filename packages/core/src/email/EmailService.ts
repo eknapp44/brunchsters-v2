@@ -22,6 +22,10 @@ export type EmailError =
   // the recipient has it, so callers treat it as done.
   | { readonly kind: 'already_sent' };
 
+// What a handler can be told when a send fails: everything except `already_sent`, which
+// handlers turn into a normal outcome instead of an error.
+export type EmailSendFailure = Exclude<EmailError, { readonly kind: 'already_sent' }>;
+
 export interface EmailService {
   send(input: SendEmailInput): Promise<Result<EmailId, EmailError>>;
 }

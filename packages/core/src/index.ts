@@ -1,4 +1,10 @@
-export type { EmailId, SendEmailInput, EmailError, EmailService } from './email/EmailService';
+export type {
+  EmailId,
+  SendEmailInput,
+  EmailError,
+  EmailSendFailure,
+  EmailService,
+} from './email/EmailService';
 export { MockEmailService } from './email/MockEmailService';
 export { sendInviteEmail } from './email/sendInviteEmail';
 export type {
@@ -7,10 +13,8 @@ export type {
   SendInviteEmailInput,
   SendInviteEmailOutcome,
 } from './email/sendInviteEmail';
-export {
-  resolveConfirmationRecipients,
-  sendConfirmationEmail,
-} from './email/sendBrunchConfirmedEmails';
+export { resolveConfirmationRecipients } from './email/resolveConfirmationRecipients';
+export { sendConfirmationEmail } from './email/sendConfirmationEmail';
 export type {
   ConfirmationDestination,
   ConfirmationRecipient,
@@ -18,7 +22,7 @@ export type {
   ResolveConfirmationRecipientsError,
   SendConfirmationEmailError,
   SendConfirmationEmailOutcome,
-} from './email/sendBrunchConfirmedEmails';
+} from './email/confirmationTypes';
 export type { BrunchEventName, BrunchEventPayloads, EventBus } from './events/EventBus';
 export { NoopEventBus } from './events/NoopEventBus';
 export type { PlaceResult, PlaceDetails, PlaceProvider } from './places/PlaceProvider';

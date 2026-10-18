@@ -1,12 +1,25 @@
+import type {
+  ResolveConfirmationRecipientsError,
+  SendConfirmationEmailError,
+  SendInviteEmailError,
+} from '@brunchsters/core';
 import { NonRetriableError } from 'inngest';
 import type { Result } from 'neverthrow';
 
-// Failures that time cannot fix: retrying wastes attempts and hides the real problem.
-const PERMANENT_FAILURES: ReadonlySet<string> = new Set([
+type FailureKind =
+  | SendInviteEmailError['kind']
+  | ResolveConfirmationRecipientsError['kind']
+  | SendConfirmationEmailError['kind'];
+
+// Failures that time cannot fix: retrying wastes attempts and hides the real problem. Typed
+// against core's error kinds, so a renamed or mistyped kind fails to compile; a kind core adds
+// later is retryable until it is listed here.
+const PERMANENT_FAILURE_KINDS = [
   'invalid_address',
   'brunch_not_found',
   'not_confirmed',
-]);
+] as const satisfies readonly FailureKind[];
+const PERMANENT_FAILURES: ReadonlySet<string> = new Set<string>(PERMANENT_FAILURE_KINDS);
 
 type Failure = { readonly kind: string };
 

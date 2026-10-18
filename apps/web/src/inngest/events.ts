@@ -13,7 +13,7 @@ export const CONFIRMED_EMAIL_EVENTS = [
   'brunch/confirmed',
 ] as const satisfies readonly BrunchEventName[];
 
-export const QUEUED_EVENTS: ReadonlySet<string> = new Set<string>([
+export const QUEUED_EVENTS: ReadonlySet<BrunchEventName> = new Set<BrunchEventName>([
   ...INVITE_EMAIL_EVENTS,
   ...CONFIRMED_EMAIL_EVENTS,
 ]);

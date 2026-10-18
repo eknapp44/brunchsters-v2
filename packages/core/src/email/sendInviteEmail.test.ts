@@ -48,6 +48,17 @@ describe('sendInviteEmail', () => {
     expect(email?.idempotencyKey).toMatch(/^invite:invite-uuid:[0-9a-f]{16}$/);
   });
 
+  it('sends the same idempotency key every time the same event is delivered, so the provider can drop the repeat', async () => {
+    const emailService = new MockEmailService();
+    const ctx = { db: makeDb(makeInvite()), emailService, appUrl: APP_URL };
+
+    await sendInviteEmail({ inviteId: INVITE_ID }, ctx);
+    await sendInviteEmail({ inviteId: INVITE_ID }, ctx);
+
+    expect(emailService.sent).toHaveLength(2);
+    expect(emailService.sent[1]?.idempotencyKey).toBe(emailService.sent[0]?.idempotencyKey);
+  });
+
   it('uses a different idempotency key once the token has rotated', async () => {
     const emailService = new MockEmailService();
 

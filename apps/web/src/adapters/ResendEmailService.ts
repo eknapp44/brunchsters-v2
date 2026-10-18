@@ -1,16 +1,27 @@
 import type { EmailError, EmailId, EmailService, SendEmailInput } from '@brunchsters/core';
 import { err, ok, type Result } from 'neverthrow';
-import type { Resend } from 'resend';
 
 // The slice of the Resend client this adapter uses, so tests can pass a fake.
 export type ResendEmailsClient = {
   readonly emails: {
-    send: (
-      payload: { from: string; to: string; subject: string; html: string },
-      options?: { idempotencyKey?: string },
+    readonly send: (
+      payload: {
+        readonly from: string;
+        readonly to: string;
+        readonly subject: string;
+        readonly html: string;
+      },
+      options?: { readonly idempotencyKey?: string },
     ) => Promise<
-      | { data: { id: string }; error: null }
-      | { data: null; error: { name: string; message: string; statusCode: number | null } }
+      | { readonly data: { readonly id: string }; readonly error: null }
+      | {
+          readonly data: null;
+          readonly error: {
+            readonly name: string;
+            readonly message: string;
+            readonly statusCode: number | null;
+          };
+        }
     >;
   };
 };
@@ -29,7 +40,7 @@ const ALREADY_SENT_ERRORS: ReadonlySet<string> = new Set(['invalid_idempotent_re
 
 export class ResendEmailService implements EmailService {
   constructor(
-    private readonly client: ResendEmailsClient | Resend,
+    private readonly client: ResendEmailsClient,
     private readonly defaultFrom: string,
   ) {}
 
