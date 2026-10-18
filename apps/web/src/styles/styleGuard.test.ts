@@ -13,6 +13,9 @@ const ALLOWED = new Set(
     ['styles', 'tokens.css'],
     ['styles', 'findStyleViolations.ts'],
     ['styles', 'styleGuard.test.ts'],
+    // the contrast checker reads colors out of tokens.css and tests with sample colors
+    ['styles', 'contrast.ts'],
+    ['styles', 'tokenContrast.test.ts'],
   ].map((parts) => join(...parts)),
 );
 
@@ -70,6 +73,7 @@ describe('findStyleViolations', () => {
     ['an in-page link', '<a href="#main-content">Skip</a>'],
     ['a color word in a class name', '.white-space { margin: 0; }'],
     ['a color mentioned in a comment', '/* was #fc8 and white */ .a { margin: 0; }'],
+    ['a variable named like a color inside a style', '<i style={{ width: `${fill}%` }} />'],
     ['a layout inline style', '<div style={{ gridTemplateColumns: "1fr 1fr" }} />'],
   ])('allows %s', (_name, source) => {
     expect(findStyleViolations(source)).toEqual([]);

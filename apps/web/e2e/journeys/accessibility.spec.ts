@@ -1,7 +1,9 @@
 import { COLOR_SCHEMES, expectNoA11yViolations, useColorScheme } from '../support/a11y';
 import { createBrunch } from '../support/factories';
 import { expect, test } from '../support/fixtures';
+import { fixturePlaces } from '../support/places';
 import { createConfirmedBrunch, createVotingBrunch, inviteNewcomer } from '../support/showcase';
+import { BrunchWizard } from '../support/wizard';
 
 // Journeys D1 and D2 (spec 0009): axe (WCAG 2.0/2.1 A and AA) on every screen, in the light
 // and the dark palette. Each styling milestone adds the screens it restyles.
@@ -59,6 +61,43 @@ for (const scheme of COLOR_SCHEMES) {
       await expect(host.page.getByRole('link', { name: 'A Draft Brunch' })).toBeVisible();
       await expectNoA11yViolations(host.page, `dashboard with brunches (${scheme})`);
     });
+
+    test('the creation wizard, every step with its lists and hints', async ({ makeActor }) => {
+      const host = await makeActor('host');
+      await useColorScheme(host.page, scheme);
+      const wizard = new BrunchWizard(host.page);
+      const { page } = host;
+
+      await wizard.open();
+      await page.getByLabel('Title').fill('Accessible Birthday Brunch');
+      await page.getByLabel('Description').fill('Someone is turning thirty.');
+      await expectNoA11yViolations(page, `wizard step 1 (${scheme})`);
+      await wizard.next();
+
+      // the open list of search results, then two chosen places and the vote hint
+      await wizard.searchBox().fill(fixturePlaces.harborBistro.name);
+      await expect(
+        page.getByRole('button', {
+          name: `${fixturePlaces.harborBistro.name} — ${fixturePlaces.harborBistro.address}`,
+        }),
+      ).toBeVisible();
+      await expectNoA11yViolations(page, `wizard step 2, search results (${scheme})`);
+      await wizard.addPlace(fixturePlaces.harborBistro);
+      await wizard.addPlace(fixturePlaces.sunnySide);
+      await expect(page.getByText('Multiple locations will be put to a vote')).toBeVisible();
+      await expectNoA11yViolations(page, `wizard step 2, places chosen (${scheme})`);
+      await wizard.next();
+
+      await wizard.addTime(10);
+      await wizard.addTime(11);
+      await expect(page.getByLabel('Voting closes by')).toBeVisible();
+      await expectNoA11yViolations(page, `wizard step 3 (${scheme})`);
+      await wizard.next();
+
+      await wizard.addEmail('friend-one@example.com');
+      await wizard.addEmail('friend-two@example.com');
+      await expectNoA11yViolations(page, `wizard step 4 (${scheme})`);
+    });
   });
 }
 
@@ -103,6 +142,25 @@ test.describe('the app shell', () => {
     await expect(host.page.getByRole('link', { name: 'Sign in', exact: true })).toHaveCount(0);
     await host.page.getByRole('link', { name: 'Go to dashboard' }).click();
     await expect(host.page).toHaveURL('/dashboard');
+  });
+
+  test('the wizard progress bar names the current step and follows Back and Next', async ({
+    makeActor,
+  }) => {
+    const host = await makeActor('host');
+    const wizard = new BrunchWizard(host.page);
+    await wizard.open();
+    const progress = host.page.getByRole('progressbar', { name: 'Brunch planning progress' });
+    await expect(progress).toHaveAttribute('aria-valuenow', '1');
+    await expect(progress).toHaveAttribute('aria-valuetext', 'Step 1 of 4: What');
+
+    await host.page.getByLabel('Title').fill('Progress Brunch');
+    await wizard.next();
+    await expect(progress).toHaveAttribute('aria-valuetext', 'Step 2 of 4: Where');
+    await wizard.next();
+    await expect(progress).toHaveAttribute('aria-valuetext', 'Step 3 of 4: When');
+    await wizard.back();
+    await expect(progress).toHaveAttribute('aria-valuenow', '2');
   });
 
   test('D4 — the skip link is the first stop, appears when focused, and moves to the page', async ({

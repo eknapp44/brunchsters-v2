@@ -70,19 +70,21 @@ Rule for every primitive: **it must not change an accessible name or role.** If 
 
 Where the prototype and the real app or the accessibility bar disagree, the decision and the reason are recorded here (principle 3, accessibility overrides the prototype).
 
-| Deviation                                                                                                        | Why                                                                                                            |
-| ---------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| Buttons are 44px tall (the prototype's default is 40px); small buttons are 36px, and 44px on touch screens       | The spec's touch-target criterion; the prototype's own accessibility pass bumped only `.sm`                    |
-| Global element defaults for `a` and `button` use `:where()` (zero specificity)                                   | A component's class must win over them on hover and focus; otherwise a primary button turned grey when hovered |
-| The global focus ring sets no `border-radius`                                                                    | It changed a button's shape while focused                                                                      |
-| An initials avatar for a signed-in person with no picture                                                        | The old nav showed nothing; the prototype shows initials                                                       |
-| The name beside the avatar is clipped out of the layout (still read by screen readers) at 30rem and narrower     | Keeps the bar on one line on a phone                                                                           |
-| `Field` is built in M4, and a `danger` button variant only if M5 needs one                                       | No screen uses them before then                                                                                |
-| `--text-sm` is 14px (was 13px)                                                                                   | The prototype's buttons and small text are 14px; 13px read small                                               |
-| `--accent-soft-fg` is a new token                                                                                | The prototype pairs `--accent-fg` with `--accent-soft`; that is only readable in light mode                    |
-| `Hero` sets `max-width: none` itself                                                                             | The global `<main>` width cap still applies to any `<main>` that does not opt out                              |
-| The landing page has a "Sign in" link ("Go to dashboard" when signed in)                                         | A page needs one clear next step (Constitution 24); it was only the text "Coming soon."                        |
-| Only the Pop icons an existing screen has a place for are ported (calendar, pin, users, clock, check, plus, egg) | Avoids dead artwork; sparkle and share arrive with their uses                                                  |
+| Deviation                                                                                                        | Why                                                                                                                                                                          |
+| ---------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Buttons are 44px tall (the prototype's default is 40px); small buttons are 36px, and 44px on touch screens       | The spec's touch-target criterion; the prototype's own accessibility pass bumped only `.sm`                                                                                  |
+| Global element defaults for `a` and `button` use `:where()` (zero specificity)                                   | A component's class must win over them on hover and focus; otherwise a primary button turned grey when hovered                                                               |
+| The global focus ring sets no `border-radius`                                                                    | It changed a button's shape while focused                                                                                                                                    |
+| An initials avatar for a signed-in person with no picture                                                        | The old nav showed nothing; the prototype shows initials                                                                                                                     |
+| The name beside the avatar is clipped out of the layout (still read by screen readers) at 30rem and narrower     | Keeps the bar on one line on a phone                                                                                                                                         |
+| `Field` is built in M4, and a `danger` button variant only if M5 needs one                                       | No screen uses them before then                                                                                                                                              |
+| `--text-sm` is 14px (was 13px)                                                                                   | The prototype's buttons and small text are 14px; 13px read small                                                                                                             |
+| `--accent-soft-fg` is a new token                                                                                | The prototype pairs `--accent-fg` with `--accent-soft`; that is only readable in light mode                                                                                  |
+| `--control-border` is a new token, and placeholder text uses `--fg-muted`                                        | The prototype's input border (`--line`) is 1.3:1 against the page (WCAG 1.4.11 asks 3:1) and its placeholder (`--fg-subtle`) is 3.5:1 (1.4.3 asks 4.5:1); axe checks neither |
+| Upcoming wizard steps dim the icon only, not the label                                                           | Faded labels measured 2.1:1 (light) and 2.4:1 (dark); found by axe in M4                                                                                                     |
+| `Hero` sets `max-width: none` itself                                                                             | The global `<main>` width cap still applies to any `<main>` that does not opt out                                                                                            |
+| The landing page has a "Sign in" link ("Go to dashboard" when signed in)                                         | A page needs one clear next step (Constitution 24); it was only the text "Coming soon."                                                                                      |
+| Only the Pop icons an existing screen has a place for are ported (calendar, pin, users, clock, check, plus, egg) | Avoids dead artwork; sparkle and share arrive with their uses                                                                                                                |
 
 ### Layout and breakpoints
 
@@ -90,7 +92,7 @@ Mobile-first: base styles are the phone layout; `@media (min-width: …)` adds t
 
 ### Step indicator
 
-The wizard already has the step in its reducer state (`state.step: 1 | 2 | 3 | 4`). The indicator is a presentational list that reads that value, with `aria-current="step"` on the current one. It adds no state and no event.
+The wizard already has the step in its reducer state (`state.step: 1 | 2 | 3 | 4`). The indicator is a presentational **progress bar** (`role="progressbar"`, with `aria-valuenow` and an `aria-valuetext` such as "Step 2 of 4: Where") that reads that value. It adds no state and no event. It is a progress bar and not a list because the journeys count the page's list items, and its step names (What, Where, When, Who) avoid the field labels the journeys look up ("Title", "Description"). Upcoming steps are dimmed by fading only the icon: faded label text failed contrast.
 
 ### Style guard (`styleGuard.test.ts`)
 
@@ -161,7 +163,7 @@ Likely candidates, to check rather than assume: `--fg-subtle` text on `--bg`/`--
 
 Per CLAUDE.md, no unit tests for framework or presentational code. What is checked, and how:
 
-- **The look stays maintainable:** `styleGuard.test.ts` (unit, `pnpm test`).
+- **The look stays maintainable:** `styleGuard.test.ts` (unit, `pnpm test`), and `tokenContrast.test.ts`, which checks the contrast of the token pairs the app draws in both palettes, so a token edit that hurts readability fails immediately (added in M4).
 - **Behavior and accessible names are unchanged:** the full existing e2e suite (`pnpm test:e2e`) at every milestone, then the stress run (`--workers=4 --repeat-each=3`) and CI mode (`CI=true pnpm build && CI=true pnpm test:e2e`) because a restyle is a user-facing change and dev and production builds differ (CSS Modules and font loading especially).
 - **Accessibility:** axe in journeys D1/D2 (each milestone adds its screens), keyboard and reduced-motion in D4.
 - **Phone layout:** the `mobile` project plus D3's no-horizontal-scroll assertion.

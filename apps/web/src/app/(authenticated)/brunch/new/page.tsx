@@ -4,7 +4,14 @@ import type { PlaceDetails } from '@brunchsters/core';
 import { MAX_INVITES_PER_REQUEST } from '@brunchsters/shared';
 import { useRouter } from 'next/navigation';
 import { type Dispatch, useReducer, useState } from 'react';
+import { PopIcon } from '@/components/icons/PopIcon';
+import { Button } from '@/components/ui/Button';
+import { Container } from '@/components/ui/Container';
+import { Field } from '@/components/ui/Field';
+import { InlineAlert } from '@/components/ui/InlineAlert';
 import { PlaceSearchInput } from '../PlaceSearchInput';
+import { StepIndicator } from './StepIndicator';
+import styles from './wizard.module.css';
 
 type WizardState = {
   readonly step: 1 | 2 | 3 | 4;
@@ -110,18 +117,16 @@ function StepOne({
   readonly dispatch: Dispatch<WizardAction>;
 }) {
   return (
-    <section>
-      <label>
-        Title
+    <section className={styles.step}>
+      <Field label="Title">
         <input
           type="text"
           value={state.title}
           maxLength={TITLE_MAX_LENGTH}
           onChange={(event) => dispatch({ type: 'SET_TITLE', title: event.target.value })}
         />
-      </label>
-      <label>
-        Description
+      </Field>
+      <Field label="Description">
         <textarea
           value={state.description}
           maxLength={DESCRIPTION_MAX_LENGTH}
@@ -129,14 +134,17 @@ function StepOne({
             dispatch({ type: 'SET_DESCRIPTION', description: event.target.value })
           }
         />
-      </label>
-      <button
-        type="button"
-        disabled={state.title.trim().length === 0}
-        onClick={() => dispatch({ type: 'GO_TO_STEP', step: 2 })}
-      >
-        Next
-      </button>
+      </Field>
+      <div className={`${styles.actions} ${styles.actionsEnd}`}>
+        <Button
+          type="button"
+          variant="primary"
+          disabled={state.title.trim().length === 0}
+          onClick={() => dispatch({ type: 'GO_TO_STEP', step: 2 })}
+        >
+          Next
+        </Button>
+      </div>
     </section>
   );
 }
@@ -149,33 +157,48 @@ function StepTwo({
   readonly dispatch: Dispatch<WizardAction>;
 }) {
   return (
-    <section>
+    <section className={styles.step}>
       <PlaceSearchInput onSelect={(location) => dispatch({ type: 'ADD_LOCATION', location })} />
 
       {state.locations.length > 0 && (
-        <ul>
+        <ul className={styles.items} role="list">
           {state.locations.map((location) => (
             <li key={location.placeId}>
-              {location.name}
-              <button
+              <span className={styles.itemText}>
+                <PopIcon name="pin" size={22} />
+                {location.name}
+              </span>
+              <Button
                 type="button"
+                variant="ghost"
+                size="sm"
                 onClick={() => dispatch({ type: 'REMOVE_LOCATION', placeId: location.placeId })}
               >
                 Remove
-              </button>
+              </Button>
             </li>
           ))}
         </ul>
       )}
 
-      {state.locations.length > 1 && <p>Multiple locations will be put to a vote</p>}
+      {state.locations.length > 1 && (
+        <InlineAlert>
+          <p className={styles.hint}>Multiple locations will be put to a vote</p>
+        </InlineAlert>
+      )}
 
-      <button type="button" onClick={() => dispatch({ type: 'GO_TO_STEP', step: 1 })}>
-        Back
-      </button>
-      <button type="button" onClick={() => dispatch({ type: 'GO_TO_STEP', step: 3 })}>
-        Next
-      </button>
+      <div className={styles.actions}>
+        <Button type="button" onClick={() => dispatch({ type: 'GO_TO_STEP', step: 1 })}>
+          Back
+        </Button>
+        <Button
+          type="button"
+          variant="primary"
+          onClick={() => dispatch({ type: 'GO_TO_STEP', step: 3 })}
+        >
+          Next
+        </Button>
+      </div>
     </section>
   );
 }
@@ -197,35 +220,48 @@ function StepThree({
   }
 
   return (
-    <section>
-      <input
-        type="datetime-local"
-        aria-label="Date and time"
-        value={timeInput}
-        onChange={(event) => setTimeInput(event.target.value)}
-      />
-      <button type="button" onClick={addTime}>
-        Add Time
-      </button>
+    <section className={styles.step}>
+      <div className={styles.addRow}>
+        <input
+          type="datetime-local"
+          aria-label="Date and time"
+          value={timeInput}
+          onChange={(event) => setTimeInput(event.target.value)}
+        />
+        <Button type="button" onClick={addTime}>
+          Add Time
+        </Button>
+      </div>
 
       {state.times.length > 0 && (
-        <ul>
+        <ul className={styles.items} role="list">
           {state.times.map((time, index) => (
             <li key={time.toISOString()}>
-              {time.toLocaleString()}
-              <button type="button" onClick={() => dispatch({ type: 'REMOVE_TIME', index })}>
+              <span className={styles.itemText}>
+                <PopIcon name="clock" size={22} />
+                {time.toLocaleString()}
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => dispatch({ type: 'REMOVE_TIME', index })}
+              >
                 Remove
-              </button>
+              </Button>
             </li>
           ))}
         </ul>
       )}
 
-      {state.times.length > 1 && <p>Multiple times will be put to a vote</p>}
+      {state.times.length > 1 && (
+        <InlineAlert>
+          <p className={styles.hint}>Multiple times will be put to a vote</p>
+        </InlineAlert>
+      )}
 
       {showVotingDeadline && (
-        <label>
-          Voting closes by
+        <Field label="Voting closes by">
           <input
             type="datetime-local"
             value={state.votingDeadline}
@@ -234,15 +270,21 @@ function StepThree({
               dispatch({ type: 'SET_VOTING_DEADLINE', value: event.target.value })
             }
           />
-        </label>
+        </Field>
       )}
 
-      <button type="button" onClick={() => dispatch({ type: 'GO_TO_STEP', step: 2 })}>
-        Back
-      </button>
-      <button type="button" onClick={() => dispatch({ type: 'GO_TO_STEP', step: 4 })}>
-        Next
-      </button>
+      <div className={styles.actions}>
+        <Button type="button" onClick={() => dispatch({ type: 'GO_TO_STEP', step: 2 })}>
+          Back
+        </Button>
+        <Button
+          type="button"
+          variant="primary"
+          onClick={() => dispatch({ type: 'GO_TO_STEP', step: 4 })}
+        >
+          Next
+        </Button>
+      </div>
     </section>
   );
 }
@@ -271,45 +313,63 @@ function StepFour({
   }
 
   return (
-    <section>
-      <input
-        type="email"
-        value={emailInput}
-        onChange={(event) => setEmailInput(event.target.value)}
-        placeholder="Email address"
-        disabled={isListFull}
-      />
-      <button type="button" onClick={addEmail} disabled={isListFull}>
-        Add
-      </button>
+    <section className={styles.step}>
+      <div className={styles.addRow}>
+        <input
+          type="email"
+          value={emailInput}
+          onChange={(event) => setEmailInput(event.target.value)}
+          placeholder="Email address"
+          disabled={isListFull}
+        />
+        <Button type="button" onClick={addEmail} disabled={isListFull}>
+          Add
+        </Button>
+      </div>
       {isListFull && (
-        <p>
-          You can add up to {MAX_INVITES_PER_REQUEST} people here. Invite the rest from the brunch
-          page after you create it.
-        </p>
+        <InlineAlert>
+          <p className={styles.hint}>
+            You can add up to {MAX_INVITES_PER_REQUEST} people here. Invite the rest from the brunch
+            page after you create it.
+          </p>
+        </InlineAlert>
       )}
 
       {state.emails.length > 0 && (
-        <ul>
+        <ul className={styles.items} role="list">
           {state.emails.map((email) => (
             <li key={email}>
-              {email}
-              <button type="button" onClick={() => dispatch({ type: 'REMOVE_EMAIL', email })}>
+              <span className={styles.itemText}>
+                <PopIcon name="users" size={22} />
+                {email}
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => dispatch({ type: 'REMOVE_EMAIL', email })}
+              >
                 Remove
-              </button>
+              </Button>
             </li>
           ))}
         </ul>
       )}
 
-      {submitError !== undefined && <p role="alert">{submitError}</p>}
+      {submitError !== undefined && (
+        <InlineAlert tone="error" role="alert">
+          <p className={styles.hint}>{submitError}</p>
+        </InlineAlert>
+      )}
 
-      <button type="button" onClick={() => dispatch({ type: 'GO_TO_STEP', step: 3 })}>
-        Back
-      </button>
-      <button type="button" onClick={onSubmit} disabled={submitting}>
-        {submitting ? 'Creating…' : 'Create Brunch'}
-      </button>
+      <div className={styles.actions}>
+        <Button type="button" onClick={() => dispatch({ type: 'GO_TO_STEP', step: 3 })}>
+          Back
+        </Button>
+        <Button type="button" variant="primary" onClick={onSubmit} disabled={submitting}>
+          {submitting ? 'Creating…' : 'Create Brunch'}
+        </Button>
+      </div>
     </section>
   );
 }
@@ -376,8 +436,9 @@ export default function NewBrunchPage() {
   }
 
   return (
-    <main>
+    <Container as="main">
       <h1>Plan a Brunch</h1>
+      <StepIndicator step={state.step} />
       {state.step === 1 && <StepOne state={state} dispatch={dispatch} />}
       {state.step === 2 && <StepTwo state={state} dispatch={dispatch} />}
       {state.step === 3 && <StepThree state={state} dispatch={dispatch} />}
@@ -390,6 +451,6 @@ export default function NewBrunchPage() {
           submitError={submitError}
         />
       )}
-    </main>
+    </Container>
   );
 }

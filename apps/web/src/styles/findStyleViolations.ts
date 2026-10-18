@@ -58,7 +58,8 @@ const RULES: readonly { readonly rule: string; readonly pattern: RegExp }[] = [
   { rule: 'fontFamily in code', pattern: /\bfontFamily\b/ },
   {
     rule: 'inline color style',
-    pattern: /style=\{\{[^}]*\b(?:color|background|backgroundColor|borderColor|fill|stroke)\b/,
+    // A property key (followed by a colon), not a variable that happens to be named `fill`.
+    pattern: /style=\{\{[^}]*\b(?:color|background|backgroundColor|borderColor|fill|stroke)\s*:/,
   },
 ];
 

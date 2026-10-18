@@ -77,7 +77,7 @@ Eight milestones, each green on its own and ending in a commit. Review points ar
 - [x] **Prove the new tests can fail:** axe itself failed on a real contrast problem in these screens (see the testing note), which is a stronger proof than a planted one
 - [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e`, stress run, CI mode
 - [x] Commit: `feat: style sign-in, landing, dashboard and invite pages (M3)`
-- [ ] **STOP FOR REVIEW 2** — the screens friends see first. Layout feedback is cheapest here, before the wizard, detail and manage screens copy these patterns. Triage into the log below; apply in-scope changes before M4
+- [x] **STOP FOR REVIEW 2** — the screens friends see first. Layout feedback is cheapest here, before the wizard, detail and manage screens copy these patterns. Triage into the log below; apply in-scope changes before M4
 
 **Testing notes:**
 
@@ -98,15 +98,29 @@ Eight milestones, each green on its own and ending in a commit. Review points ar
 
 ## M4 — Creation wizard
 
-- [ ] Restyle `brunch/new/page.tsx` (four steps) and `PlaceSearchInput` (combobox, listbox, selected place) with primitives; the step indicator reads `state.step` and sets `aria-current="step"`
-- [ ] The invitee list and its 50-address stop message (spec 0008) keep their text and roles
-- [ ] Add each step to the screenshot set and to D2 axe coverage
-- [ ] Existing journeys pass unmodified (`create-brunch.spec.ts`, `failure-paths.spec.ts`)
-- [ ] **Prove the new tests can fail:** remove `aria-current` and confirm no existing journey notices (it is a gap), so add an assertion for it to the D4/keyboard journey, then show it fails when the attribute is removed
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e`, stress run, CI mode
-- [ ] Commit: `feat: style the brunch creation wizard (M4)`
+- [x] Restyle `brunch/new/page.tsx` (four steps) and `PlaceSearchInput` (combobox, listbox, selected place) with primitives; the step indicator reads `state.step` and is a progress bar (`role="progressbar"`, with the step in `aria-valuenow` and `aria-valuetext`) rather than a list; `Field` is built here
+- [x] The invitee list and its 50-address stop message (spec 0008) keep their text and roles
+- [x] Add each step to the screenshot set and to D2 axe coverage
+- [x] Existing journeys pass unmodified (`create-brunch.spec.ts`, `failure-paths.spec.ts`)
+- [x] **Prove the new tests can fail:** no existing journey looks at the step indicator, so one was added (the progress bar names the current step and follows Back and Next); freezing `aria-valuenow` made it fail
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e`, stress run, CI mode
+- [x] Commit: `feat: style the brunch creation wizard (M4)`
 
-**Testing notes:** _(fill on completion)_
+**Testing notes:**
+
+- **What was tested:** Axe (D2, light and dark) now scans the wizard in every step: the title and description fields, the open list of place-search results, two chosen places with the "put to a vote" hint, two times with the deadline field, and two invitee addresses. A new journey asserts the progress bar: it is named "Brunch planning progress", reports "Step 1 of 4: What", and follows Next and Back. The existing wizard journeys passed **unmodified**: `create-brunch` (including the 50-address limit that counts `listitem`s and the place, time and email lists), `failure-paths` (a failed create keeps everything entered), `same-person`, `invitations-host`.
+- **A new unit guard for the colors themselves:** `tokenContrast.test.ts` (35 tests) reads `tokens.css`, converts each color, and checks 16 foreground and background pairs the app actually draws (body, secondary and card text, the primary button label, accent and confirmed badges, error text, form control borders, and the Pop icons) in the light **and** the dark palette against WCAG AA (4.5:1 for text, 3:1 for graphics and control borders). It exists because you plan to tune the look: a token edit that breaks contrast now fails `pnpm test` in a second, without needing a page to render in axe, and it covers `--control-border`, which axe cannot see. The calculator is also checked against known values (21:1 for black on white; the 1.55:1 axe reported in M3).
+- **How:** unit (web 319; core 429, shared 7, database 1), full e2e on the dev server (88, 3 new), a 264-run stress (`--workers=4 --repeat-each=3`) and CI mode (`CI=true pnpm build`, then `CI=true pnpm test:e2e`, 88 of 88, nothing left listening). Typecheck and lint clean. All logs were kept this time.
+- **Proving the new tests can fail:** (1) the new axe wizard scan caught a real defect on its first run: the prototype fades upcoming steps (labels and icons) to 45% opacity, which put the labels at **2.1:1 in light and 2.4:1 in dark**; the fix dims only the icon. (2) Freezing `aria-valuenow` made the progress-bar journey fail; restored. (3) Putting the old pale border colour into `--control-border` and the old dark `--accent-soft-fg` back made exactly three token pairs fail with their ratios (1.27:1, 1.30:1, 1.56:1), and nothing else; restored.
+- **Findings:**
+  1. **Form control borders were too faint (a design-token finding axe cannot see):** the prototype draws inputs with `--line`, 1.3:1 against the page; WCAG 1.4.11 asks 3:1 for a control's boundary. New `--control-border` (3.5:1 light, 4.2:1 dark) is used for inputs, textareas and selects. Placeholder text moved from `--fg-subtle` (3.5:1) to `--fg-muted`, because placeholder text is text (1.4.3).
+  2. **A screenshot artifact, not a product bug:** the first wizard pictures showed Back and Add as solid dark grey. The real computed background was the correct light surface; the picture was taken mid-fade, because the helper switches palette and the buttons animate their color over 200 ms. The helper now turns transitions off. (Caught by checking the browser's computed style instead of editing CSS to match a picture.)
+  3. **The style guard had a second false positive:** a variable named `fill` inside `style={{ width: `${fill}%` }}` matched the inline-color rule. It now needs a property key followed by a colon, with a test for it. The contrast tooling is on the guard's allowlist because it must contain color literals.
+  4. **Why a progress bar and not a list:** the wizard journeys count the page's `listitem`s (1 and 50) and look up fields by label, so the indicator may add neither list items nor words like "Title" or "Description". Its steps are labelled What, Where, When and Who (from the spec's own step names) and are hidden from assistive technology; the bar's `aria-valuetext` carries the same information.
+  5. **No intermittent failure this time** in the full run (88/88), the stress run (264/264) or CI (88/88); the two earlier unexplained failures (M2, M3) remain unexplained.
+- **Deviations (all in the plan):** `--control-border` and the placeholder color (above); dimming only the icon of upcoming steps; the step indicator is a progress bar, not `aria-current` on a list (the spec and plan were updated).
+- **What's deferred:** the 3:1 border for a few non-wizard controls (checkboxes on the brunch page) comes with M5; the search results are a plain list of buttons, not an ARIA combobox (behavior the journeys rely on; a change is a behavior change); invalid-email feedback and other wizard validation stay as they were.
+- **How to run it:** `pnpm --filter @brunchsters/web test` (style guard and token contrast), `pnpm test:e2e`, `pnpm --filter @brunchsters/web screenshots`.
 
 ---
 
@@ -168,13 +182,14 @@ Eight milestones, each green on its own and ending in a commit. Review points ar
 
 Each item gets one outcome: **In scope** (tokens, spacing, sizing, colors, fonts, layout of existing screens — one polish pass per review point plus M8), **Roadmap** (adds or changes behavior, a screen or a control → parity table, with the feature), or **Copy** (wording and terminology → the follow-up copy spec). Anything that fits none is raised with the owner before it is touched.
 
-| #   | Review      | Feedback                                                                                               | Outcome                                          | Done in |
-| --- | ----------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------ | ------- |
-| 1   | M1 (Claude) | Signed-out visitors get an empty bordered bar for the nav                                              | In scope                                         | M2      |
-| 2   | M1 (Claude) | On the brunch detail page "Back to Dashboard" and "Manage brunch" are adjacent links that run together | In scope                                         | M5      |
-| 3   | Review 1    | Is there a light mode? (Yes: light is the default; dark follows the OS. Explained; no change)          | Answered                                         | n/a     |
-| 4   | Review 1    | Nunito is fine for now; the owner may revisit once more screens are converted                          | Accepted provisionally; Open Question 4 resolved | n/a     |
-| 5   | Review 1    | Nothing to change in tokens, colors or background yet                                                  | Approved; proceed to M2                          | n/a     |
+| #   | Review      | Feedback                                                                                               | Outcome                                                                                                    | Done in |
+| --- | ----------- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- | ------- |
+| 1   | M1 (Claude) | Signed-out visitors get an empty bordered bar for the nav                                              | In scope                                                                                                   | M2      |
+| 2   | M1 (Claude) | On the brunch detail page "Back to Dashboard" and "Manage brunch" are adjacent links that run together | In scope                                                                                                   | M5      |
+| 3   | Review 1    | Is there a light mode? (Yes: light is the default; dark follows the OS. Explained; no change)          | Answered                                                                                                   | n/a     |
+| 4   | Review 1    | Nunito is fine for now; the owner may revisit once more screens are converted                          | Accepted provisionally; Open Question 4 resolved                                                           | n/a     |
+| 5   | Review 1    | Nothing to change in tokens, colors or background yet                                                  | Approved; proceed to M2                                                                                    | n/a     |
+| 6   | Review 2    | The first real screens (landing, sign-in, invite, dashboard) are approved as they are                  | Approved; proceed to M4 (the alignment, gradient and card questions were put to the owner and not changed) | n/a     |
 
 **Copy list (for the follow-up copy spec):** _(none yet)_
 

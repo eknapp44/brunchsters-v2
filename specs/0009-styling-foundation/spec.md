@@ -80,13 +80,14 @@ No flow changes. The same journeys, with the intended look:
 ### Screens (restyle only)
 
 - [ ] Root layout/nav, sign-in, landing (`/`), dashboard (empty and populated), invite landing (signed-out preview, invalid-link and error states)
-- [ ] Creation wizard (all four steps, including place search and the invitee list), with a step indicator derived from the existing step state
+- [ ] Creation wizard (all four steps, including place search and the invitee list), with a progress bar derived from the existing step state
 - [ ] Brunch detail (host and invitee views; RSVP, ballots, invite panel, suggestions)
 - [ ] Manage page (options, voting controls, confirm, suggestion review)
 - [ ] No role, accessible name, route, request or response changes; the pre-existing journeys pass **unmodified**
 
 ### Accessibility and responsive verification
 
+- [ ] A unit test over `tokens.css` (`tokenContrast.test.ts`) checks the contrast of the token pairs the app draws, in both palettes, so a token edit cannot silently break readability
 - [ ] An axe scan (`@axe-core/playwright`, WCAG 2.0/2.1 A and AA rules) reports no violations on every screen and state listed in the E2E section, in light and dark; token pairs that fail contrast are changed and recorded in `plan.md`
 - [ ] A Playwright `mobile` project (emulated phone, Chromium) runs the core journeys alongside the desktop project, in CI
 - [ ] `pnpm --filter @brunchsters/web screenshots` produces the review screenshots (not a regression test; no committed baselines)

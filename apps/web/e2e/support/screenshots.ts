@@ -14,7 +14,11 @@ export async function captureReviewShots(
   for (const scheme of COLOR_SCHEMES) {
     await useColorScheme(page, scheme);
     // The Next.js dev badge is not part of the app and would sit on top of the page.
-    await page.addStyleTag({ content: 'nextjs-portal { display: none !important; }' });
+    // Switching palettes would otherwise be photographed mid-fade (buttons animate their color).
+    await page.addStyleTag({
+      content:
+        'nextjs-portal { display: none !important; } *, *::before, *::after { transition: none !important; }',
+    });
     // Web fonts are part of the look; do not photograph the fallback.
     await page.evaluate(() => document.fonts.ready);
     await page.screenshot({

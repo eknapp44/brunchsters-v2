@@ -123,16 +123,17 @@ select {
   font-size: var(--text-base);
   color: var(--fg);
   background: var(--surface);
-  border: 1px solid var(--line);
+  border: 1px solid var(--control-border);
   border-radius: var(--r-2);
   padding: var(--space-2) var(--space-3);
   min-height: var(--touch-target);
   max-width: 100%;
 }
 
+/* --fg-subtle is too faint for text (3.5:1); placeholders are text (WCAG 1.4.3). */
 input::placeholder,
 textarea::placeholder {
-  color: var(--fg-subtle);
+  color: var(--fg-muted);
 }
 
 input[type='checkbox'],
