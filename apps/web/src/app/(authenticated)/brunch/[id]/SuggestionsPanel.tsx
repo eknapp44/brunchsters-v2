@@ -76,45 +76,45 @@ export function SuggestionsPanel({
     }
   }
 
-  if (!canSuggest && pendingSuggestions === undefined) return null;
+  // Nothing to suggest and nothing waiting for the host: no card.
+  if (!canSuggest && (pendingSuggestions === undefined || pendingSuggestions.length === 0)) {
+    return null;
+  }
 
   return (
     <section className={styles.panel}>
       <h2>Invite Suggestions</h2>
 
-      {pendingSuggestions !== undefined &&
-        (pendingSuggestions.length === 0 ? (
-          <p className={styles.muted}>No pending suggestions.</p>
-        ) : (
-          <ul className={styles.rows} role="list">
-            {pendingSuggestions.map((suggestion) => (
-              <li key={suggestion.id} className={styles.row}>
-                <span className={styles.rowMain}>
-                  <span>{suggestion.suggestedEmail}</span>{' '}
-                  <span className={styles.detail}>suggested by {suggestion.suggestedByName}</span>
-                </span>
-                <span className={styles.rowActions}>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => void review(suggestion.id, 'approve')}
-                    disabled={pendingSuggestionId === suggestion.id}
-                  >
-                    Approve
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => void review(suggestion.id, 'decline')}
-                    disabled={pendingSuggestionId === suggestion.id}
-                  >
-                    Decline
-                  </Button>
-                </span>
-              </li>
-            ))}
-          </ul>
-        ))}
+      {pendingSuggestions !== undefined && pendingSuggestions.length > 0 && (
+        <ul className={styles.rows} role="list">
+          {pendingSuggestions.map((suggestion) => (
+            <li key={suggestion.id} className={styles.row}>
+              <span className={styles.rowMain}>
+                <span>{suggestion.suggestedEmail}</span>{' '}
+                <span className={styles.detail}>suggested by {suggestion.suggestedByName}</span>
+              </span>
+              <span className={styles.rowActions}>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => void review(suggestion.id, 'approve')}
+                  disabled={pendingSuggestionId === suggestion.id}
+                >
+                  Approve
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => void review(suggestion.id, 'decline')}
+                  disabled={pendingSuggestionId === suggestion.id}
+                >
+                  Decline
+                </Button>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
 
       {canSuggest && (
         <div className={styles.addRow}>

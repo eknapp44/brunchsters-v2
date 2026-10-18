@@ -38,13 +38,13 @@ test.describe('F1 — a ballot that fails to save', () => {
       await box.click();
       await expect(voter.page.getByRole('alert').filter({ hasText: SAVE_FAILED })).toBeVisible();
       await expect(box).not.toBeChecked();
-      await expect(box).toHaveAccessibleName(/\(0 votes\)/);
+      await expect(box).toHaveAccessibleName(/\b0 votes\b/);
 
       // Once the problem clears, the same click goes through and the error is gone.
       await voter.page.unroute(endpoint);
       await box.click();
       await expect(box).toBeChecked();
-      await expect(box).toHaveAccessibleName(/\(1 vote\)/);
+      await expect(box).toHaveAccessibleName(/\b1 vote\b/);
       await expect(voter.page.getByText(SAVE_FAILED)).toHaveCount(0);
     });
   }

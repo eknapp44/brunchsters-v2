@@ -64,7 +64,7 @@ test.describe('I5 — suggesting someone to invite', () => {
     await declinedRow.getByRole('button', { name: 'Decline' }).click();
     await expect(declinedRow).toHaveCount(0);
     await expect(inviteRow(host.page, declined)).toHaveCount(0);
-    await expect(host.page.getByText('No pending suggestions.')).toBeVisible();
+    await expect(host.page.getByRole('heading', { name: 'Invite Suggestions' })).toHaveCount(0);
 
     const db = getDb();
     expect(await db.brunchInvite.count({ where: { brunchId, invitedEmail: approved } })).toBe(1);
@@ -106,6 +106,6 @@ test.describe('I5 — suggesting someone to invite', () => {
     await host.page.goto(`/brunch/${brunchId}`);
     await expect(inviteRow(host.page, suggested)).toContainText('pending');
     await expect(host.page.getByText('suggested by')).toHaveCount(0);
-    await expect(host.page.getByText('No pending suggestions.')).toBeVisible();
+    await expect(host.page.getByRole('heading', { name: 'Invite Suggestions' })).toHaveCount(0);
   });
 });

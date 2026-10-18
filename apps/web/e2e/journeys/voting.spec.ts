@@ -30,19 +30,19 @@ test.describe('V1 — an attendee votes', () => {
     // Places list in name order, times chronologically: stable, so these names are safe.
     const harbor = locations.getByRole('checkbox', { name: /^Harbor Bistro/ });
     const sunny = locations.getByRole('checkbox', { name: /^Sunny Side Cafe/ });
-    await expect(harbor).toHaveAccessibleName(/\(0 votes\)/);
-    await expect(sunny).toHaveAccessibleName(/\(0 votes\)/);
+    await expect(harbor).toHaveAccessibleName(/\b0 votes\b/);
+    await expect(sunny).toHaveAccessibleName(/\b0 votes\b/);
 
     // Check one: the ballot saves and the count refreshes.
     await sunny.check();
-    await expect(sunny).toHaveAccessibleName(/\(1 vote\)/);
+    await expect(sunny).toHaveAccessibleName(/\b1 vote\b/);
     expect(saves).toHaveLength(1);
 
     // Add a second, then revise by dropping the first — each change saves the whole ballot.
     await harbor.check();
-    await expect(harbor).toHaveAccessibleName(/\(1 vote\)/);
+    await expect(harbor).toHaveAccessibleName(/\b1 vote\b/);
     await sunny.uncheck();
-    await expect(sunny).toHaveAccessibleName(/\(0 votes\)/);
+    await expect(sunny).toHaveAccessibleName(/\b0 votes\b/);
     await expect(harbor).toBeChecked();
     expect(saves).toHaveLength(3);
 
@@ -56,12 +56,12 @@ test.describe('V1 — an attendee votes', () => {
     // Because nothing was sent, the earlier vote is still the one on record.
     await voter.page.reload();
     await expect(harbor).toBeChecked();
-    await expect(harbor).toHaveAccessibleName(/\(1 vote\)/);
+    await expect(harbor).toHaveAccessibleName(/\b1 vote\b/);
 
     // Times work the same way, and the choices persist across a reload.
     const firstTime = times.getByRole('checkbox').first();
     await firstTime.check();
-    await expect(firstTime).toHaveAccessibleName(/\(1 vote\)/);
+    await expect(firstTime).toHaveAccessibleName(/\b1 vote\b/);
     await voter.page.reload();
     await expect(firstTime).toBeChecked();
     await expect(times.getByRole('checkbox').nth(1)).not.toBeChecked();
@@ -94,7 +94,7 @@ test.describe('V2 — attendees who cannot vote', () => {
       for (const box of await times.getByRole('checkbox').all()) await expect(box).toBeDisabled();
       await expect(
         locations.getByRole('checkbox', { name: /^Sunny Side Cafe/ }),
-      ).toHaveAccessibleName(/\(1 vote\)/);
+      ).toHaveAccessibleName(/\b1 vote\b/);
       await expect(locations).toContainText('Your RSVP does not allow voting.');
       await expect(times).toContainText('Your RSVP does not allow voting.');
     }
@@ -107,7 +107,7 @@ test.describe('V2 — attendees who cannot vote', () => {
     const harbor = locations.getByRole('checkbox', { name: /^Harbor Bistro/ });
     await expect(harbor).toBeEnabled();
     await harbor.check();
-    await expect(harbor).toHaveAccessibleName(/\(1 vote\)/);
+    await expect(harbor).toHaveAccessibleName(/\b1 vote\b/);
 
     // The one who never answered is still locked out.
     await waiting.page.reload();
@@ -146,7 +146,7 @@ test.describe('V3 — who can see how people voted', () => {
     await host.page.goto(`/brunch/${brunchId}`);
     const hostView = ballot(host.page);
     const sunnyForHost = hostView.locations.getByRole('checkbox', { name: /^Sunny Side Cafe/ });
-    await expect(sunnyForHost).toHaveAccessibleName(/\(2 votes\)/);
+    await expect(sunnyForHost).toHaveAccessibleName(/\b2 votes\b/);
     await expect(sunnyForHost).toHaveAccessibleName(
       new RegExp(`voted by ${ann.user.name}, ${bob.user.name}`),
     );
@@ -163,7 +163,7 @@ test.describe('V3 — who can see how people voted', () => {
     const bobView = ballot(bob.page);
     await expect(
       bobView.locations.getByRole('checkbox', { name: /^Sunny Side Cafe/ }),
-    ).toHaveAccessibleName(/\(2 votes\)/);
+    ).toHaveAccessibleName(/\b2 votes\b/);
     await expect(bob.page.getByText('voted by')).toHaveCount(0);
     await expect(bob.page.getByText(ann.user.name)).toHaveCount(0);
   });

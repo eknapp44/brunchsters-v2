@@ -44,7 +44,7 @@ export function RsvpControl({
   return (
     <section className={styles.panel}>
       <h2>Your RSVP</h2>
-      <p className={styles.current}>Current: {currentStatus ?? 'no response yet'}</p>
+      <p className={styles.srOnly}>Current: {currentStatus ?? 'no response yet'}</p>
       <div className={styles.choices}>
         {RESPONSES.map((response) => (
           <Button

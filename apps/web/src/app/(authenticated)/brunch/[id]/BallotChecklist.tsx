@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { PopIcon } from '@/components/icons/PopIcon';
+import { Badge } from '@/components/ui/Badge';
 import { InlineAlert } from '@/components/ui/InlineAlert';
 import styles from './detail.module.css';
 
@@ -34,7 +35,7 @@ function voteCountLabel(voteCount: number): string {
 // counts only, so rendering it when present needs no separate isHost prop.
 function VoterNames({ voters }: { readonly voters: readonly string[] | undefined }) {
   if (voters === undefined || voters.length === 0) return null;
-  return <span className={styles.voters}> — voted by {voters.join(', ')}</span>;
+  return <span className={styles.voters}>voted by {voters.join(', ')}</span>;
 }
 
 // The marker keeps its "— Confirmed" text: the brunch's own status badge reads exactly
@@ -213,13 +214,19 @@ export function LocationBallotChecklist({
                 disabled={readOnly || submitting}
                 onChange={() => toggle(option.id)}
               />
-              <span className={styles.optionText}>
-                <a className={styles.name} href={option.placeUrl} target="_blank" rel="noreferrer">
-                  {option.placeName}
-                </a>{' '}
-                <span className={styles.detail}>
-                  — {option.placeAddress} ({voteCountLabel(option.voteCount)})
+              <span className={styles.optionBody}>
+                <span className={styles.optionHead}>
+                  <a
+                    className={styles.name}
+                    href={option.placeUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {option.placeName}
+                  </a>
+                  <Badge>{voteCountLabel(option.voteCount)}</Badge>
                 </span>
+                <span className={styles.detail}>{option.placeAddress}</span>
                 <VoterNames voters={option.voters} />
                 {option.isConfirmed && <ConfirmedMark />}
               </span>
@@ -335,26 +342,33 @@ export function TimeBallotChecklist({
     viewerTimezone !== undefined &&
     locationTimezone !== viewerTimezone;
 
+  function timeText(option: TimeOption): string {
+    return option.scheduledAt.toLocaleString(undefined, {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    });
+  }
+
+  // "(at Harbor Bistro's time: ...)": only when the viewer is in another zone than the place
+  function zoneNote(option: TimeOption): string | undefined {
+    if (!showSubline || locationTimezone === undefined) return undefined;
+    const there = option.scheduledAt.toLocaleString(undefined, {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+      timeZone: locationTimezone,
+    });
+    return `(at ${locationName ?? 'the location'}'s time: ${there})`;
+  }
+
   function timeLabel(option: TimeOption) {
+    const note = zoneNote(option);
     return (
       <>
-        {option.scheduledAt.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
-        {showSubline && locationTimezone !== undefined && (
-          <span className={styles.detail}>
-            {' '}
-            (at {locationName ?? 'the location'}&apos;s time:{' '}
-            {option.scheduledAt.toLocaleString(undefined, {
-              dateStyle: 'medium',
-              timeStyle: 'short',
-              timeZone: locationTimezone,
-            })}
-            )
-          </span>
-        )}
+        {timeText(option)}
+        {note !== undefined && <span className={styles.detail}> {note}</span>}
       </>
     );
   }
-
   if (!votable) {
     return (
       <ul className={styles.rows} role="list">
@@ -397,9 +411,14 @@ export function TimeBallotChecklist({
                 disabled={readOnly || submitting}
                 onChange={() => toggle(option.id)}
               />
-              <span className={styles.optionText}>
-                <span className={styles.name}>{timeLabel(option)}</span>{' '}
-                <span className={styles.detail}>({voteCountLabel(option.voteCount)})</span>
+              <span className={styles.optionBody}>
+                <span className={styles.optionHead}>
+                  <span className={styles.name}>{timeText(option)}</span>
+                  <Badge>{voteCountLabel(option.voteCount)}</Badge>
+                </span>
+                {zoneNote(option) !== undefined && (
+                  <span className={styles.detail}>{zoneNote(option)}</span>
+                )}
                 <VoterNames voters={option.voters} />
                 {option.isConfirmed && <ConfirmedMark />}
               </span>
