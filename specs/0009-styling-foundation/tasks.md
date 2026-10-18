@@ -39,16 +39,16 @@ Eight milestones, each green on its own and ending in a commit. Review points ar
 
 ---
 
-## M2 — Primitives, icons and the app shell
+## M2 — Primitives, icons, logo and the app shell
 
-- [ ] Port the stroke icon set to typed components
+- [ ] Port the stroke icon set and the Pop icons an existing screen has a place for (pin, calendar, people, clock, check, plus, share, sparkle, egg as needed) to decorative inline-SVG components; move the Pop palette from `IconsPop.jsx` into `tokens.css` (light and dark); add `LogoMark` and `Wordmark`
 - [ ] Build `Button`, `ButtonLink`, `Field`, `Card`, `Badge`, `Avatar`, `InlineAlert`, `Container`, `SkipLink` with CSS Modules (only what M3–M6 need; add others in the milestone that needs them)
-- [ ] Root layout shell: skip link, top bar (wordmark, avatar, name, "Sign out" as the same plain button), page container; the nav keeps its current role and names
+- [ ] Root layout shell: skip link, top bar (logo mark and wordmark, avatar, name, "Sign out" as the same plain button), page container; the nav keeps its current role and names
 - [ ] Add the shell to the screenshot set and to D2's axe coverage
 - [ ] Run the full existing suite; the sign-out journey (`sessions.spec.ts`) must pass unmodified (no confirm modal)
 - [ ] **Prove the new tests can fail:** break a primitive's forwarded prop (e.g. drop `disabled`) and see the existing journeys that depend on it fail; confirm the style guard still catches a literal in a new module
 - [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e`, stress run, CI mode
-- [ ] Commit: `feat: ui primitives, icons and app shell (M2)`
+- [ ] Commit: `feat: ui primitives, icons, logo and app shell (M2)`
 
 **Testing notes:** _(fill on completion)_
 
@@ -58,6 +58,7 @@ Eight milestones, each green on its own and ending in a commit. Review points ar
 
 - [ ] Check what `BrunchSummary` carries; decide the dashboard "Next up" hero (Open Question 3); if the data is not there, record it in the parity table and ship the card list
 - [ ] Restyle `/` (a simple styled entry point with the sign-in action, not the marketing page), `/sign-in`, the dashboard (empty and populated; Upcoming and Past as cards, status badges, one primary "Plan a Brunch" action) and the invite landing page (signed-out preview, invalid-link and error states)
+- [ ] Artwork: the butter-to-paper gradient behind sign-in, landing and the invite page; `BreakfastScene` on the empty dashboard (its `--art-*` colors in `tokens.css`); Pop icons on dashboard cards and the empty state where there is a matching spot
 - [ ] Add the screens and their states to the screenshot set; add them to D1/D2 axe coverage
 - [ ] Existing journeys pass unmodified (auth, access-and-dashboard, invitations-invitee, sessions)
 - [ ] **Prove the new tests can fail:** temporarily set a failing contrast pair and see D1/D2 fail on these screens
