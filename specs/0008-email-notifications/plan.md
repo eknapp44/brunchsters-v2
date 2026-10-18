@@ -15,22 +15,27 @@ packages/core/src/events/EventBus.ts                               (changed — 
 packages/core/src/**/{createBrunch,confirmBrunch,sendInvites,
   resendInvite,reviewInviteSuggestion,respondToInvite,
   updateRsvp,castLocationBallot,castTimeBallot}.ts                 (changed — M1: typed payloads only)
-packages/core/src/email/EmailService.ts                            (changed — M2: idempotencyKey)
+packages/core/src/email/EmailService.ts                            (changed — M2: idempotencyKey, already_sent; EmailSendFailure)
 packages/core/src/email/MockEmailService.ts                        (new — M2)
 packages/core/src/email/templates/{inviteEmail,confirmedEmail,layout,
-  escapeHtml,safeSubject,formatBrunchTime}.ts                                       (new — M2)
-packages/core/src/email/{sendInviteEmail,sendBrunchConfirmedEmails,
-  emailKeys}.ts                                    (new — M2: handlers as plain functions)
+  escapeHtml,safeSubject,formatBrunchTime}.ts                      (new — M2)
+packages/core/src/email/{sendInviteEmail,resolveConfirmationRecipients,
+  sendConfirmationEmail,confirmationTypes,emailKeys}.ts            (new — M2: handlers as plain functions, one export per file)
+packages/core/src/invite/sendInvites.ts                            (changed — M3: 50-address cap, parallel emits)
+packages/shared/src/invites.ts                                     (new — the cap constant, shared with the wizard)
 
 apps/web/src/lib/services.ts                                       (new — M1: composition root; M3 adds adapter selection)
 apps/web/src/app/api/v1/**/route.ts, invite/[token]/page.tsx       (changed — M1: use the root, drop 11 inline Noop buses)
 apps/web/src/adapters/{InngestEventBus,ResendEmailService,
   FileEmailService}.ts                                             (new — M3)
-apps/web/src/inngest/{client,functions}.ts                         (new — M3: client + thin wrappers)
+apps/web/src/lib/serverConfig.ts, src/instrumentation.ts           (new — M3: adapter selection, production start-up check)
+apps/web/src/inngest/{client,functions,events,unwrapForQueue}.ts   (new — M3: client, thin wrappers, handled-event list, retry mapping)
 apps/web/src/app/api/inngest/route.ts                              (new — M3: serve())
 apps/web/src/middleware.ts                                         (changed — M3: /api/inngest public)
+apps/web/src/app/(authenticated)/brunch/new/page.tsx               (changed — the wizard stops at 50 invitees)
 
-apps/web/playwright.config.ts, .github/workflows/ci.yml            (changed — M4: Inngest dev server, outbox dir)
+apps/web/playwright.config.ts, e2e/global-setup.ts,
+  e2e/support/env.ts, .github/workflows/ci.yml                     (changed — M4: Inngest dev server, outbox dir, readiness wait)
 apps/web/e2e/support/mailbox.ts                                    (new — M4: read the outbox)
 apps/web/e2e/journeys/email-notifications.spec.ts                  (new — M4: N1–N4)
 
@@ -71,10 +76,11 @@ sendInviteEmail(input: { inviteId: InviteId },
   ctx: { db: DbClient; emailService: EmailService; appUrl: string })
   : Promise<Result<SendInviteEmailOutcome, SendInviteEmailError>>
 // outcome: 'sent' | 'skipped_revoked' | 'skipped_expired' | 'skipped_gone' | 'skipped_host'
-// error:   { kind: 'delivery_failed' } | { kind: 'invalid_address' } | { kind: 'db_error' }
+// outcome also: 'skipped_duplicate' (the provider says this exact send already happened)
+// error:   EmailSendFailure (delivery_failed | invalid_address) | { kind: 'db_error' }
 ```
 
-`sendBrunchConfirmedEmails` is split into `resolveConfirmationRecipients(brunchId, ctx)` (pure DB read, returns `{ recipientKey, email, name?, link }[]`) and `sendConfirmationEmail(recipient, brunchSummary, ctx)` so the Inngest wrapper can run **one `step.run` per recipient**. The wrappers in `apps/web/src/inngest/functions.ts` do nothing but: parse the event, call core, map `delivery_failed` to a thrown error (retry) and `invalid_address` to `NonRetriableError`.
+The confirmation handler is two functions, `resolveConfirmationRecipients({ brunchId }, { db })` (a DB read returning the summary and `{ key, email, name, destination }[]`, where `destination` is the brunch or an invite **id**, never a token) and `sendConfirmationEmail({ brunch, recipient }, { db, emailService, appUrl })`, so the Inngest wrapper can run **one `step.run` per recipient**. `sendConfirmationEmail` reads the invite's current token when it sends. A permanently rejected address is an outcome (`skipped_invalid_address`), not an error, so it cannot end the run for the recipients after it. The wrappers in `apps/web/src/inngest/functions.ts` do nothing but: parse the event, call core, and map failures through `unwrapForQueue` (`delivery_failed` and `db_error` become a thrown error, so Inngest retries; `invalid_address` on an invite email, a missing or unconfirmed brunch become `NonRetriableError`).
 
 ### Recipient resolution for `brunch/confirmed`
 
@@ -85,7 +91,7 @@ All reads go through the soft-delete-aware `db` client.
 3. Live `BrunchInvite`s for the brunch, **excluding the host's synthetic invite** (identified the way `getInvitesForBrunch` and `confirmBrunch` do: `invitedEmail` equals the host's email) — each left-joined to its `BrunchAttendee` (via `inviteId`):
    - attendee exists and RSVP is `no` → skip
    - attendee exists otherwise (`invited`, `yes`, `maybe`) → `/brunch/{id}`
-   - no attendee (no account yet) → `/invite/{token}` using the **current** token and the invite's `invitedEmail`
+   - no attendee (no account yet) → the recipient points at the invite by id; the link `/invite/{token}` is built when the email is sent, from the **current** token, so no token is stored as queue step output and a token rotated meanwhile is the one emailed (a revoked or expired invite gets nothing)
 4. Recipients de-duplicated by lowercase address (the host may also hold an invite for a second address).
 
 The time is rendered in the brunch's location timezone with an explicit zone abbreviation. The only existing code that formats times for display is in `apps/web` (UI); whether core already has a formatter is checked at the start of M2 before writing a new one.
@@ -109,11 +115,11 @@ Handlers run as the system with ids from the event, not on behalf of a user, so 
 
 ### Local, CI and production
 
-| Environment      | Bus                                              | Email                                   |
-| ---------------- | ------------------------------------------------ | --------------------------------------- |
-| Local dev        | Inngest dev server if `INNGEST_DEV=1`, else Noop | outbox files unless a Resend key is set |
-| E2E (local + CI) | Inngest dev server (`INNGEST_DEV=1`)             | `FileEmailService` → temp outbox dir    |
-| Production       | Inngest (`INNGEST_EVENT_KEY`/`SIGNING_KEY`)      | Resend (`RESEND_API_KEY`, `EMAIL_FROM`) |
+| Environment      | Bus                                              | Email                                                               |
+| ---------------- | ------------------------------------------------ | ------------------------------------------------------------------- |
+| Local dev        | Inngest dev server if `INNGEST_DEV=1`, else Noop | outbox files unless a Resend key is set                             |
+| E2E (local + CI) | Inngest dev server (`INNGEST_DEV` = its URL)     | `FileEmailService` → fixed temp outbox dir, emptied by global setup |
+| Production       | Inngest (`INNGEST_EVENT_KEY`/`SIGNING_KEY`)      | Resend (`RESEND_API_KEY`, `EMAIL_FROM`)                             |
 
 Playwright's `webServer` becomes an array (Next server + Inngest dev server) with the outbox directory passed through `env`. The Inngest dev server needs to be told where the app's `/api/inngest` is; exact flags and the SDK's dev-mode detection are verified against the pinned `inngest` and `inngest-cli` versions in M3/M4.
 

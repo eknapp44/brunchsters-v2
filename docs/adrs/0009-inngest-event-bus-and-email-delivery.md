@@ -6,7 +6,7 @@
 
 ## Context
 
-Constitution 12 says the API handles the transaction and side effects go to a queue. Until now that was honored by an `EventBus` interface whose only implementation, `NoopEventBus`, does nothing. Eight services call `eventBus.emit(...)` after their transaction commits (create, confirm, invite sent/resent, RSVP received/changed, vote cast/changed); the payloads are untyped (`Record<string, unknown>`); and `NoopEventBus` is constructed inline in eleven route and page files, so there is no single place to swap an implementation. Invites work only because the host copies a link by hand.
+Constitution 12 says the API handles the transaction and side effects go to a queue. Until now that was honored by an `EventBus` interface whose only implementation, `NoopEventBus`, does nothing. Nine services call `eventBus.emit(...)` after their transaction commits (create, confirm, invite sent/resent, RSVP received/changed, vote cast/changed); the payloads are untyped (`Record<string, unknown>`); and `NoopEventBus` is constructed inline in eleven route and page files, so there is no single place to swap an implementation. Invites work only because the host copies a link by hand.
 
 Spec 0008 delivers the first real consequences (an email to a new invitee; an email to everyone when the brunch is confirmed). That forces four decisions that a future reader would otherwise find surprising:
 
@@ -24,6 +24,8 @@ Spec 0008 delivers the first real consequences (an email to a new invitee; an em
 **Business logic in core, wiring in the app.** The decision "who gets what email" (recipient resolution, templates, skipping revoked invites) is plain functions in `packages/core` taking an injected `EmailService` and database. `apps/web` holds only adapters and wiring: `InngestEventBus`, thin Inngest function wrappers, `ResendEmailService`, `FileEmailService`, the `/api/inngest` route, and one composition root (`apps/web/src/lib/`) that replaces the eleven inline `new NoopEventBus()` calls.
 
 **Idempotency without a table.** Handlers run at least once. The send is its own `step.run` (Inngest memoizes a completed step across retries), and the Resend call carries an `Idempotency-Key` derived from the invite id and a hash of the current token (never the token itself), or from the brunch id and the recipient for confirmations. No schema change.
+
+**Duplicates and rejected addresses are outcomes, not failures.** If Resend refuses a repeat with `409 invalid_idempotent_request` (the same key with a different body, which happens when an invite's expiry moved at confirmation and the event is replayed), the adapter maps it to `already_sent` and the handlers finish with `skipped_duplicate`: the email already went, and retrying can only repeat the 409. A permanently rejected recipient in a confirmation run is recorded as `skipped_invalid_address` so it cannot end the run for the people after them. Found by replaying an event against real Resend, not by the automated suite.
 
 **Handlers read the database; payloads and queue state carry only ids.** What Inngest stores (event data and each step's output, including in Inngest Cloud) must never hold a secret: the confirmation run lists its recipients in a stored step, so an invitee's invite-page link is represented by the invite's id and the token is read from the database in the step that sends the email.
 
@@ -52,11 +54,11 @@ Why handlers read the database: an event can arrive after the invite was revoked
 - Harder: CI gains a second long-running process (the Inngest dev server) for the e2e job.
 - Accepted risk: an event can be lost between commit and emit (see above). Becomes real work only if a notification ever becomes mandatory rather than convenient (for example a legally required notice), at which point an outbox ADR supersedes this one.
 - The `/api/inngest` route must be public (signed requests only): `middleware.ts` currently 401s every unlisted `/api/*` path, so it gets an explicit allowance and a test that an unsigned request is refused in production mode.
-- Resend delivers only to the account owner's address until a sending domain is verified. The code does not change when the domain is added; `EMAIL_FROM` does.
+- Resend delivers only to the account owner's address until a sending domain is verified. The code does not change when the domain is added; `EMAIL_FROM` does. (Verified in practice in October 2026 with `mail.brunchsters.com`.)
 
 ## Alternatives considered
 
-- **Transactional outbox** (an `OutboxEvent` row written in the same transaction, relayed by a job). No lost events, but a new table, a relay, and edits to all eight emit sites for a failure mode that costs a resend click. Deferred, not rejected.
+- **Transactional outbox** (an `OutboxEvent` row written in the same transaction, relayed by a job). No lost events, but a new table, a relay, and edits to all nine emit sites for a failure mode that costs a resend click. Deferred, not rejected.
 - **Send email inline from the services.** Violates Constitution 12 and makes API latency and success depend on Resend.
 - **Record every send in the `Notification` table for dedupe.** It would double as history for a later inbox, but non-user invitees have no `userId` (required FK) and it needs a migration now. The in-app inbox spec can decide its own storage.
 - **An in-process EventBus for e2e/dev** (call handlers inline, no Inngest). Simpler CI, but the Inngest wiring (serve route, function registration, signing) would be untested end to end.
