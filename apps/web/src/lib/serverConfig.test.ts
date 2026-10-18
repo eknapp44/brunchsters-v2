@@ -98,6 +98,16 @@ describe('resolveServerConfig — production deployment', () => {
     );
   });
 
+  it('refuses INNGEST_DEV, which would turn off signature checks on the public queue route', () => {
+    expect(() => resolveServerConfig({ ...FULL_PRODUCTION, INNGEST_DEV: '1' })).toThrow(
+      /INNGEST_DEV must not be set in a production deployment/,
+    );
+  });
+
+  it('accepts a blank INNGEST_DEV, which counts as unset', () => {
+    expect(() => resolveServerConfig({ ...FULL_PRODUCTION, INNGEST_DEV: '' })).not.toThrow();
+  });
+
   it('counts a blank value as missing', () => {
     expect(() => resolveServerConfig({ ...FULL_PRODUCTION, RESEND_API_KEY: '   ' })).toThrow(
       'RESEND_API_KEY',

@@ -49,6 +49,16 @@ export function resolveServerConfig(env: Environment): ServerConfig {
   if (strict && !hasInngestEventKey) missing.push('INNGEST_EVENT_KEY');
   if (strict && present(env.INNGEST_SIGNING_KEY) === undefined) missing.push('INNGEST_SIGNING_KEY');
 
+  // INNGEST_DEV puts the Inngest SDK in dev mode, which does not verify request signatures.
+  // On a deployed production site that would leave the public /api/inngest route open to anyone
+  // who can reach it, so it is refused outright rather than trusted to be unset.
+  if (strict && present(env.INNGEST_DEV) !== undefined) {
+    throw new Error(
+      'INNGEST_DEV must not be set in a production deployment: it turns off signature checks on /api/inngest. ' +
+        'Remove it from the production environment variables.',
+    );
+  }
+
   if (missing.length > 0) {
     throw new Error(
       `Missing required environment variable${missing.length === 1 ? '' : 's'} for a production deployment: ${missing.join(', ')}. ` +

@@ -154,7 +154,7 @@ Update `.env.example` whenever a new var is introduced.
 | `EMAIL_FROM`                                | Sending address, e.g. `Brunchsters <invites@mail.example.com>` | Your verified Resend domain (see below). Unset = Resend's sandbox sender                       |
 | `EMAIL_OUTBOX_DIR`                          | Where the local outbox writes emails                           | Optional; defaults to `.mail-outbox/` (git-ignored)                                            |
 | `GOOGLE_PLACES_API_KEY`                     | Location search + timezone lookup                              | Google Cloud Console (mock locally until then) — server-only, never exposed to the client      |
-| `INNGEST_DEV`                               | Use the local Inngest dev server                               | `1` locally. Leave unset in production                                                         |
+| `INNGEST_DEV`                               | Use the local Inngest dev server                               | `1` locally. **Must be unset in production**: the server refuses to start with it set          |
 | `INNGEST_EVENT_KEY` / `INNGEST_SIGNING_KEY` | Inngest Cloud auth (production)                                | Inngest dashboard. **Leave blank locally**; a set event key sends events to Inngest Cloud      |
 | `TOKEN_ENCRYPTION_KEY`                      | AES-256-GCM key for OAuth token encryption                     | `openssl rand -base64 32` — 32 bytes. **Never commit. Rotating it invalidates stored tokens.** |
 
@@ -179,7 +179,7 @@ Emails are sent by queued handlers (ADR 0009, spec 0008). Which implementation r
 2. Run `pnpm dev`, and in a second terminal `npx inngest-cli@1.46.0 dev --no-discovery -u http://localhost:3000/api/inngest`.
 3. Invite someone from the app. The newest file in `.mail-outbox/` is the email: open it and copy the `href` out of the `html` field (or read the `subject` and `to`). Runs and retries show in the Inngest dev UI at <http://localhost:8288>.
 
-**Production deployment.** A Vercel production deployment (`VERCEL_ENV=production`) refuses to start unless `AUTH_URL`, `RESEND_API_KEY`, `EMAIL_FROM`, `INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY` are set, and the error names whichever is missing. `EMAIL_FROM` is required there because without it Resend's sandbox sender would be used, which can only write to your own account address, so every real recipient would be rejected. Point Inngest Cloud at `https://<your-domain>/api/inngest` (the Vercel integration does this for you). `NODE_ENV=production` alone is deliberately not enough to trigger the check: CI and the e2e suite serve a production build that is not a deployment.
+**Production deployment.** A Vercel production deployment (`VERCEL_ENV=production`) refuses to start unless `AUTH_URL`, `RESEND_API_KEY`, `EMAIL_FROM`, `INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY` are set, and the error names whichever is missing. It also refuses to start if `INNGEST_DEV` is set there, because dev mode turns off signature checks on the public `/api/inngest` route. `EMAIL_FROM` is required there because without it Resend's sandbox sender would be used, which can only write to your own account address, so every real recipient would be rejected. Point Inngest Cloud at `https://<your-domain>/api/inngest` (the Vercel integration does this for you). `NODE_ENV=production` alone is deliberately not enough to trigger the check: CI and the e2e suite serve a production build that is not a deployment.
 
 #### Verifying a sending domain in Resend
 
