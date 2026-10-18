@@ -1,6 +1,6 @@
 # Spec 0008 — Email Notifications (Inngest + Resend)
 
-**Status:** Complete (pending merge)  
+**Status:** Complete (merged, PR #12, released as v1.6.0)  
 **Branch:** `feat/0008-email-notifications`  
 **PLANNING.md ref:** §7 Notifications, §10 Async Event Architecture, §16 Build Order #8, §17 Open Questions  
 **ADRs:** [0009 — Inngest-backed EventBus, emit after commit, config-selected adapters](../../docs/adrs/0009-inngest-event-bus-and-email-delivery.md)

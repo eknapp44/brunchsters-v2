@@ -1,6 +1,6 @@
 # Spec 0007 — Email Normalization
 
-**Status:** Complete (pending merge)  
+**Status:** Complete (merged, PR #10)  
 **Branch:** `feat/0007-email-normalization`  
 **PLANNING.md ref:** §17 Open Questions ("Email addresses are compared case-sensitively across requests")  
 **ADRs:** [0008 — Normalize email addresses to lowercase at the boundary](../../docs/adrs/0008-normalize-email-addresses.md)
