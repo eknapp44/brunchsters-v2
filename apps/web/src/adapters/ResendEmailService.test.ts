@@ -96,6 +96,38 @@ describe('ResendEmailService', () => {
     });
   });
 
+  it('reports a reused idempotency key with different content as already sent, not retryable', async () => {
+    // Seen against real Resend: replaying an invite after confirming changed the email's expiry
+    // line, so the same key came with a different body and Resend answered 409.
+    const { client } = makeClient({
+      data: null,
+      error: {
+        name: 'invalid_idempotent_request',
+        message: 'This idempotency key has been used ... the request body was modified',
+        statusCode: 409,
+      },
+    });
+
+    const result = await new ResendEmailService(client, 'a@b.test').send(INPUT);
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'already_sent' });
+  });
+
+  it('keeps a still-in-flight idempotent request retryable', async () => {
+    const { client } = makeClient({
+      data: null,
+      error: {
+        name: 'concurrent_idempotent_requests',
+        message: 'Another request with this key is in progress',
+        statusCode: 409,
+      },
+    });
+
+    const result = await new ResendEmailService(client, 'a@b.test').send(INPUT);
+
+    expect(result._unsafeUnwrapErr().kind).toBe('delivery_failed');
+  });
+
   it('turns a thrown network error into a delivery failure', async () => {
     const client: ResendEmailsClient = {
       emails: { send: vi.fn().mockRejectedValue(new Error('socket hang up')) },

@@ -21,6 +21,12 @@ export type ResendEmailsClient = {
 // as permanent. Everything else (rate limits, outages, bad keys) may pass with time.
 const PERMANENT_RECIPIENT_ERRORS: ReadonlySet<string> = new Set(['validation_error']);
 
+// Resend answers 409 `invalid_idempotent_request` when this idempotency key was already used
+// within 24 hours but the content differs (a replay after the email's text changed, for
+// example). The original was accepted, retrying can only ever repeat the 409, so it is "done".
+// `concurrent_idempotent_requests` (the same key still in flight) is different: it may pass.
+const ALREADY_SENT_ERRORS: ReadonlySet<string> = new Set(['invalid_idempotent_request']);
+
 export class ResendEmailService implements EmailService {
   constructor(
     private readonly client: ResendEmailsClient | Resend,
@@ -40,6 +46,7 @@ export class ResendEmailService implements EmailService {
       );
 
       if (response.error !== null) {
+        if (ALREADY_SENT_ERRORS.has(response.error.name)) return err({ kind: 'already_sent' });
         return err(
           PERMANENT_RECIPIENT_ERRORS.has(response.error.name)
             ? { kind: 'invalid_address', address: input.to }

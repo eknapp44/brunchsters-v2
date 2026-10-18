@@ -228,6 +228,14 @@ describe('sendConfirmationEmail', () => {
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'delivery_failed', message: 'down' });
   });
 
+  it('treats an email the provider says was already sent as done, not as a failure', async () => {
+    const emailService = new MockEmailService({ kind: 'already_sent' });
+
+    const result = await sendConfirmationEmail({ brunch, recipient }, { emailService });
+
+    expect(result._unsafeUnwrap()).toBe('skipped_duplicate');
+  });
+
   it('returns invalid_address without treating it as retryable', async () => {
     const emailService = new MockEmailService({
       kind: 'invalid_address',

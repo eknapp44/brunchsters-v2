@@ -151,6 +151,17 @@ describe('sendInviteEmail', () => {
     });
   });
 
+  it('treats an email the provider says was already sent as done, not as a failure', async () => {
+    const emailService = new MockEmailService({ kind: 'already_sent' });
+
+    const result = await sendInviteEmail(
+      { inviteId: INVITE_ID },
+      { db: makeDb(makeInvite()), emailService, appUrl: APP_URL },
+    );
+
+    expect(result._unsafeUnwrap()).toBe('skipped_duplicate');
+  });
+
   it('returns invalid_address, a different error from a retryable failure', async () => {
     const emailService = new MockEmailService({
       kind: 'invalid_address',

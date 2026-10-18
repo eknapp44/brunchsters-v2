@@ -19,7 +19,9 @@ export type SendInviteEmailOutcome =
   | 'skipped_gone'
   | 'skipped_revoked'
   | 'skipped_expired'
-  | 'skipped_host';
+  | 'skipped_host'
+  // The provider says this exact send already happened (idempotency key seen before).
+  | 'skipped_duplicate';
 
 export type SendInviteEmailError =
   | { readonly kind: 'delivery_failed'; readonly message: string }
@@ -68,7 +70,10 @@ export async function sendInviteEmail(
     html,
     idempotencyKey: await inviteEmailKey({ inviteId: input.inviteId, token: invite.token }),
   });
-  if (sent.isErr()) return err(sent.error);
+  if (sent.isErr()) {
+    if (sent.error.kind === 'already_sent') return ok('skipped_duplicate');
+    return err(sent.error);
+  }
 
   return ok('sent');
 }

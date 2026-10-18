@@ -131,7 +131,7 @@ export async function sendConfirmationEmail(
     readonly recipient: ConfirmationRecipient;
   },
   ctx: { readonly emailService: EmailService },
-): Promise<Result<'sent', SendConfirmationEmailError>> {
+): Promise<Result<'sent' | 'skipped_duplicate', SendConfirmationEmailError>> {
   const { brunch, recipient } = input;
   const { subject, html } = renderConfirmedEmail({
     recipientName: recipient.name,
@@ -154,7 +154,10 @@ export async function sendConfirmationEmail(
       recipientKey: recipient.key,
     }),
   });
-  if (sent.isErr()) return err(sent.error);
+  if (sent.isErr()) {
+    if (sent.error.kind === 'already_sent') return ok('skipped_duplicate');
+    return err(sent.error);
+  }
 
   return ok('sent');
 }
