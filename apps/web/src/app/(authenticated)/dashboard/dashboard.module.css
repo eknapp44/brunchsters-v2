@@ -1,0 +1,118 @@
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+.header h1 {
+  margin: 0;
+}
+
+.section h2 {
+  margin-top: var(--space-6);
+  margin-bottom: var(--space-3);
+}
+
+.list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.list > li {
+  margin: 0;
+}
+
+/* The whole card is the link: the title's link stretches over it, so the accessible name stays
+   the brunch title while the target is the full card. */
+.title {
+  color: var(--fg);
+  font-family: var(--font-display);
+  font-variation-settings: var(--display-variation);
+  font-size: var(--text-lg);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.title::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--r-3);
+}
+
+.title:focus-visible {
+  outline: none;
+}
+
+.title:focus-visible::after {
+  outline: 3px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+.list > li > div {
+  transition:
+    border-color var(--duration-base) var(--ease),
+    box-shadow var(--duration-base) var(--ease);
+}
+
+.list > li:hover > div {
+  border-color: var(--fg-subtle);
+  box-shadow: var(--shadow-md);
+}
+
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.role {
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.going {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-4);
+  text-align: center;
+  background: linear-gradient(180deg, var(--accent-soft) 0%, var(--surface) 70%);
+  border: 1px solid var(--line);
+  border-radius: var(--r-4);
+  box-shadow: var(--shadow-md);
+}
+
+.empty p {
+  margin: 0;
+  font-size: var(--text-md);
+  color: var(--fg-muted);
+}
+
+.muted {
+  color: var(--fg-muted);
+}

@@ -25,7 +25,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-main {
+:where(main) {
   max-width: var(--content-width);
   margin: 0 auto;
   padding: var(--space-5) var(--page-gutter) var(--space-8);

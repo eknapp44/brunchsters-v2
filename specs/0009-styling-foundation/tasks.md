@@ -69,17 +69,30 @@ Eight milestones, each green on its own and ending in a commit. Review points ar
 
 ## M3 — Sign-in, landing, dashboard, invite landing (REVIEW 2)
 
-- [ ] Check what `BrunchSummary` carries; decide the dashboard "Next up" hero (Open Question 3); if the data is not there, record it in the parity table and ship the card list
-- [ ] Restyle `/` (a simple styled entry point with the sign-in action, not the marketing page), `/sign-in`, the dashboard (empty and populated; Upcoming and Past as cards, status badges, one primary "Plan a Brunch" action) and the invite landing page (signed-out preview, invalid-link and error states)
-- [ ] Artwork: the butter-to-paper gradient behind sign-in, landing and the invite page; `BreakfastScene` on the empty dashboard (its `--art-*` colors in `tokens.css`); Pop icons on dashboard cards and the empty state where there is a matching spot
-- [ ] Add the screens and their states to the screenshot set; add them to D1/D2 axe coverage
-- [ ] Existing journeys pass unmodified (auth, access-and-dashboard, invitations-invitee, sessions)
-- [ ] **Prove the new tests can fail:** temporarily set a failing contrast pair and see D1/D2 fail on these screens
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e`, stress run, CI mode
-- [ ] Commit: `feat: style sign-in, landing, dashboard and invite pages (M3)`
+- [x] Check what `BrunchSummary` carries; decide the dashboard "Next up" hero (Open Question 3); if the data is not there, record it in the parity table and ship the card list
+- [x] Restyle `/` (a simple styled entry point with the sign-in action, not the marketing page), `/sign-in`, the dashboard (empty and populated; Upcoming and Past as cards, status badges, one primary "Plan a Brunch" action) and the invite landing page (signed-out preview, invalid-link and error states)
+- [x] Artwork: the butter-to-paper gradient behind sign-in, landing and the invite page; `BreakfastScene` on the empty dashboard (its `--art-*` colors in `tokens.css`); Pop icons on dashboard cards and the empty state where there is a matching spot
+- [x] Add the screens and their states to the screenshot set; add them to D1/D2 axe coverage
+- [x] Existing journeys pass unmodified (auth, access-and-dashboard, invitations-invitee, sessions)
+- [x] **Prove the new tests can fail:** axe itself failed on a real contrast problem in these screens (see the testing note), which is a stronger proof than a planted one
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e`, stress run, CI mode
+- [x] Commit: `feat: style sign-in, landing, dashboard and invite pages (M3)`
 - [ ] **STOP FOR REVIEW 2** — the screens friends see first. Layout feedback is cheapest here, before the wizard, detail and manage screens copy these patterns. Triage into the log below; apply in-scope changes before M4
 
-**Testing notes:** _(fill on completion)_
+**Testing notes:**
+
+- **What was tested:** Axe (D1/D2, light and dark) now scans the restyled landing, sign-in, invite preview and invalid-invite pages, the empty dashboard (with the illustration) and the dashboard with a draft, an active and a confirmed brunch (cards, status badges, Pop icons). The existing journeys that read these pages passed **unmodified**: `auth`, `access-and-dashboard` (rows still carry the title, "(Host)", the status label and "N going", one `<li>` per brunch), `invitations-invitee`, `invitations-host`, `email-notifications`, `same-person`, `sessions`, `smoke` and `create-brunch`. The review screenshots cover every state.
+- **How:** unit (web 283; core 429, shared 7, database 1), full e2e on the dev server (85, one new), a 252-run stress (`--workers=4 --repeat-each=3`) and CI mode (`CI=true pnpm build`, then `CI=true pnpm test:e2e`, 85 of 85, nothing left listening). Typecheck and lint clean. One journey was added, in the shell group: the landing page's one action goes to `/sign-in` when signed out and to `/dashboard` when signed in (and the Sign in link is absent when signed in); renaming the signed-in link made it fail, then it was restored.
+- **Proving the new tests can fail:** the axe journeys caught a real defect in this milestone. The new accent badge drew dark text on the dark-mode soft accent background at **1.55:1** (4.5:1 required), failing the dark invite-preview and dashboard scans while light mode passed. The fix is a new token (`--accent-soft-fg`), logged in the plan's adjustment table; the same journeys then passed.
+- **Findings:**
+  1. **Contrast token fixed (first one):** the prototype pairs `--accent-fg` with `--accent-soft`, which is right in light mode and wrong in dark (both are dark). Added `--accent-soft-fg` (light unchanged, dark about 9.5:1). A small script that converts oklch to sRGB reproduced axe's number (1.56 against 1.55), so the new value was checked independently, not only by re-running axe.
+  2. **A real layout bug caught by looking, not by a test:** the gradient pages first rendered as a boxed 44rem strip with visible edges on desktop, because the global `<main>` width cap still applied to the hero (making a rule zero-specificity does not remove it). `Hero` now opts out explicitly. No assertion would have noticed; this is what the screenshots are for.
+  3. **The "Next up" hero is not built (Open Question 3, resolved):** `BrunchSummary` carries only title, status, host flag, going count and creation time; it has no date or place. A hero would need a new query, which is a behavior change, so it moves to the parity table.
+  4. **Two unexplained intermittent failures now, both in the e2e suite.** The first full e2e run of this milestone failed four tests on pages this milestone does not touch (`api-authorization` host-only, `closing-voting` H2, `confirm` H3, `failure-paths` F1; the first took 11.9 s, the others 20 to 30 s) and I did not capture the errors. Since then: the four alone (14 of 14), the full suite five more times (84 of 84 each, one with the Next.js cache deleted), a 252-run stress and CI mode all passed. The M2 stress run also failed three tests, including the same `api-authorization` test. The pattern (the slowest, request-heavy journeys; the first run after a batch of changes; never in CI mode) is consistent with dev-server load but is not proven. Local runs have `trace: on-first-retry` with no retries, so a local failure leaves no trace. A cheap fix would be `retain-on-failure` locally; I did not change the shared Playwright config in a styling milestone, and I am flagging it for you to decide.
+  5. **Copy and structure kept as they were:** the dashboard rows still read "(Host)" in parentheses and the headings are unchanged, because journeys assert them; a nicer "Host" badge and any new headline copy go to the Copy list. The Google sign-in button has no Google "G" logo: Google's brand colors would need literals the style guard forbids, so it is a text button for now.
+- **Deviations (all in the plan):** `--text-sm` raised from 13px to 14px (the prototype's button size); `--accent-soft-fg` added; `Hero` opts out of the global `<main>` cap; the landing page gained a "Sign in" link (or "Go to dashboard" when signed in) because a page needs one clear next step (Constitution 24).
+- **What's deferred:** the "Next up" hero (needs data); a Google "G" glyph; centered text alignment on wide screens is the prototype's left-aligned layout and is a Review 2 question; the wizard, detail and manage screens (M4 to M6).
+- **How to run it:** `pnpm test:e2e`, `pnpm --filter @brunchsters/web screenshots`.
 
 ---
 

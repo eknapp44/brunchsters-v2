@@ -15,7 +15,7 @@
 }
 
 .accent {
-  color: var(--accent-fg);
+  color: var(--accent-soft-fg);
   background: var(--accent-soft);
   border-color: transparent;
 }

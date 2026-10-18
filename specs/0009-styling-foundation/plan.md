@@ -78,6 +78,10 @@ Where the prototype and the real app or the accessibility bar disagree, the deci
 | An initials avatar for a signed-in person with no picture                                                        | The old nav showed nothing; the prototype shows initials                                                       |
 | The name beside the avatar is clipped out of the layout (still read by screen readers) at 30rem and narrower     | Keeps the bar on one line on a phone                                                                           |
 | `Field` is built in M4, and a `danger` button variant only if M5 needs one                                       | No screen uses them before then                                                                                |
+| `--text-sm` is 14px (was 13px)                                                                                   | The prototype's buttons and small text are 14px; 13px read small                                               |
+| `--accent-soft-fg` is a new token                                                                                | The prototype pairs `--accent-fg` with `--accent-soft`; that is only readable in light mode                    |
+| `Hero` sets `max-width: none` itself                                                                             | The global `<main>` width cap still applies to any `<main>` that does not opt out                              |
+| The landing page has a "Sign in" link ("Go to dashboard" when signed in)                                         | A page needs one clear next step (Constitution 24); it was only the text "Coming soon."                        |
 | Only the Pop icons an existing screen has a place for are ported (calendar, pin, users, clock, check, plus, egg) | Avoids dead artwork; sparkle and share arrive with their uses                                                  |
 
 ### Layout and breakpoints
@@ -108,9 +112,9 @@ A Vitest test, in the spirit of `e2e/support/guard.test.ts`. It reads every file
 
 ### Accessibility token adjustments (fill as found)
 
-| Date | Token / pair | Was | Now | Ratio before → after | Found by |
-| ---- | ------------ | --- | --- | -------------------- | -------- |
-|      |              |     |     |                      |          |
+| Date       | Token / pair                                                    | Was                            | Now                                                                                | Ratio before → after | Found by            |
+| ---------- | --------------------------------------------------------------- | ------------------------------ | ---------------------------------------------------------------------------------- | -------------------- | ------------------- |
+| 2026-10-18 | `--accent-fg` as text on `--accent-soft` (dark mode: the Badge) | `oklch(0.205 0.08 60)`, 1.55:1 | new token `--accent-soft-fg: oklch(0.93 0.07 85)` (light mode keeps the old value) | 1.55 → about 9.5     | axe, D1/D2 dark, M3 |
 
 Likely candidates, to check rather than assume: `--fg-subtle` text on `--bg`/`--surface`, `--accent` used as text or as a border on `--bg`, `--fg-muted` on `--surface-2/3`, and the dark-mode `--accent-soft` backgrounds.
 

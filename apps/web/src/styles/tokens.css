@@ -18,7 +18,7 @@
   --display-variation: 'SOFT' 100;
 
   --text-xs: 0.75rem;
-  --text-sm: 0.8125rem;
+  --text-sm: 0.875rem;
   --text-base: 1rem; /* 16px: inputs below this zoom the page on iOS when focused */
   --text-md: 1.0625rem;
   --text-lg: 1.25rem;
@@ -45,6 +45,7 @@
   --accent-strong: oklch(0.72 0.165 70);
   --accent-soft: oklch(0.945 0.06 85);
   --accent-fg: oklch(0.26 0.08 60); /* readable on accent */
+  --accent-soft-fg: oklch(0.26 0.08 60); /* readable on accent-soft (a different pairing in dark) */
 
   /* secondary delight color, used very sparingly (confirm states) */
   --mint: oklch(0.84 0.085 165);
@@ -72,6 +73,19 @@
 
   /* artwork-only colors (the egg icon, the breakfast scene) */
   --art-egg-white: oklch(0.97 0.012 85);
+
+  /* the breakfast-scene illustration (empty dashboard): a warm table setting */
+  --art-spot: oklch(0.97 0.02 80);
+  --art-table-top: oklch(0.92 0.018 70);
+  --art-table-bottom: oklch(0.86 0.02 65);
+  --art-edge: oklch(0.78 0.02 60); /* table edge, chair legs, cutlery */
+  --art-chair: oklch(0.84 0.018 65);
+  --art-mat: oklch(0.94 0.012 70);
+  --art-plate: oklch(0.99 0.005 80); /* plate, cup, saucer, glass */
+  --art-plate-inner: oklch(0.985 0.008 80);
+  --art-ware-line: oklch(0.85 0.013 70);
+  --art-coffee: oklch(0.4 0.06 50);
+  --art-coffee-line: oklch(0.3 0.06 50);
 
   /* radii */
   --r-1: 6px;
@@ -124,6 +138,7 @@
     --accent-strong: oklch(0.86 0.165 75);
     --accent-soft: oklch(0.345 0.06 78);
     --accent-fg: oklch(0.205 0.08 60);
+    --accent-soft-fg: oklch(0.93 0.07 85);
 
     --mint: oklch(0.82 0.085 165);
     --mint-fg: oklch(0.22 0.06 165);
@@ -143,6 +158,18 @@
     --pop-peri-fg: oklch(0.2 0.05 265);
     --pop-peach-fg: oklch(0.2 0.06 55);
     --pop-lavender-fg: oklch(0.2 0.05 310);
+
+    --art-spot: oklch(0.36 0.035 80);
+    --art-table-top: oklch(0.3 0.016 70);
+    --art-table-bottom: oklch(0.25 0.014 65);
+    --art-edge: oklch(0.5 0.02 60);
+    --art-chair: oklch(0.33 0.015 65);
+    --art-mat: oklch(0.27 0.012 70);
+    --art-plate: oklch(0.9 0.008 80);
+    --art-plate-inner: oklch(0.86 0.01 80);
+    --art-ware-line: oklch(0.55 0.012 70);
+    --art-coffee: oklch(0.36 0.055 50);
+    --art-coffee-line: oklch(0.26 0.05 50);
 
     --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.3);
     --shadow-md: 0 6px 24px -8px oklch(0 0 0 / 0.5), 0 1px 2px oklch(0 0 0 / 0.2);

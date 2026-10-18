@@ -90,6 +90,21 @@ test.describe('the app shell', () => {
     await expect(host.page.getByRole('button', { name: 'Sign out' })).toBeVisible();
   });
 
+  test('the landing page has one action: Sign in when signed out, Go to dashboard when signed in', async ({
+    page,
+    makeActor,
+  }) => {
+    await page.goto('/');
+    await page.getByRole('link', { name: 'Sign in', exact: true }).click();
+    await expect(page).toHaveURL('/sign-in');
+
+    const host = await makeActor('host');
+    await host.page.goto('/');
+    await expect(host.page.getByRole('link', { name: 'Sign in', exact: true })).toHaveCount(0);
+    await host.page.getByRole('link', { name: 'Go to dashboard' }).click();
+    await expect(host.page).toHaveURL('/dashboard');
+  });
+
   test('D4 — the skip link is the first stop, appears when focused, and moves to the page', async ({
     makeActor,
   }) => {

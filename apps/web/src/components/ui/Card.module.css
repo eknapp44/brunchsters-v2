@@ -1,4 +1,5 @@
 .card {
+  position: relative;
   padding: var(--space-4);
   color: var(--fg);
   background: var(--surface);
