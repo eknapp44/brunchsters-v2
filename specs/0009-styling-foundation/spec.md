@@ -1,6 +1,6 @@
 # Spec 0009 — Styling Foundation
 
-**Status:** In progress (M1 complete, awaiting Review 1)  
+**Status:** In progress (M1 to M7 complete; awaiting Review 3 and the owner's sign-off)  
 **Branch:** `feat/0009-styling-foundation`  
 **PLANNING.md ref:** §1 design principles, §16 Build Order #9 (UI), Constitution V (Design Principles 23–26)  
 **ADRs:** [0010 — CSS Modules and design tokens](../../docs/adrs/0010-css-modules-and-design-tokens.md)
@@ -71,35 +71,36 @@ No flow changes. The same journeys, with the intended look:
 
 ### Foundation (`apps/web`)
 
-- [ ] `apps/web/src/styles/tokens.css` defines the light tokens ported from the prototype and redefines them under `@media (prefers-color-scheme: dark)`; `color-scheme: light dark` is set; the global base styles (reset, body font, focus ring, reduced motion, skip link) are in a global stylesheet imported by the root layout
-- [ ] Fonts load through `next/font/google` (Nunito, Fraunces Soft, JetBrains Mono), exposed as the `--font-sans`, `--font-display` and `--font-mono` tokens
-- [ ] `styleGuard.test.ts` fails if a color literal or a `font-family` appears in any `*.module.css` or `*.tsx` outside the tokens/global files (proven to fail by adding one)
-- [ ] Shared primitives exist in `apps/web/src/components/ui/` for what the screens actually use, and screens compose them; the stroke icons, the Pop icons, the logo mark, the wordmark and the breakfast-scene illustration are ported as typed inline-SVG components (decorative, `aria-hidden`), with their colors as tokens (the Pop palette and an `--art-*` group, light and dark), not literals
-- [ ] Layouts are mobile-first and reflow at phone widths with no horizontal scrolling; touch targets are at least 44px; focus is always visible; `prefers-reduced-motion` removes animation
+- [x] `apps/web/src/styles/tokens.css` defines the light tokens ported from the prototype and redefines them under `@media (prefers-color-scheme: dark)`; `color-scheme: light dark` is set; the global base styles (reset, body font, focus ring, reduced motion, skip link) are in a global stylesheet imported by the root layout
+- [x] Fonts load through `next/font/google` (Nunito, Fraunces Soft, JetBrains Mono), exposed as the `--font-sans`, `--font-display` and `--font-mono` tokens
+- [x] `styleGuard.test.ts` fails if a color literal or a `font-family` appears in any `*.module.css` or `*.tsx` outside the tokens/global files (proven to fail by adding one)
+- [x] Shared primitives exist in `apps/web/src/components/ui/` for what the screens actually use, and screens compose them; the stroke icons, the Pop icons, the logo mark, the wordmark and the breakfast-scene illustration are ported as typed inline-SVG components (decorative, `aria-hidden`), with their colors as tokens (the Pop palette and an `--art-*` group, light and dark), not literals
+- [x] Layouts are mobile-first and reflow at phone widths with no horizontal scrolling; touch targets are at least 44px; focus is always visible; `prefers-reduced-motion` removes animation
 
 ### Screens (restyle only)
 
-- [ ] Root layout/nav, sign-in, landing (`/`), dashboard (empty and populated), invite landing (signed-out preview, invalid-link and error states)
-- [ ] Creation wizard (all four steps, including place search and the invitee list), with a progress bar derived from the existing step state
-- [ ] Brunch detail (host and invitee views; RSVP, ballots, invite panel, suggestions)
-- [ ] Manage page (options, voting controls, confirm, suggestion review)
-- [ ] No role, accessible name, route, request or response changes; the pre-existing journeys pass **unmodified**
+- [x] Root layout/nav, sign-in, landing (`/`), dashboard (empty and populated), invite landing (signed-out preview, invalid-link and error states)
+- [x] Creation wizard (all four steps, including place search and the invitee list), with a progress bar derived from the existing step state
+- [x] Brunch detail (host and invitee views; RSVP, ballots, invite panel, suggestions)
+- [x] Manage page (options, voting controls, confirm, suggestion review)
+- [x] On a wide window (60rem and up) the brunch and manage pages use two columns and the dashboard a card grid; the wizard stays one narrow column; below that every page is one column
+- [x] No role, accessible name, route, request or response changes; the pre-existing journeys pass **unmodified**
 
 ### Accessibility and responsive verification
 
-- [ ] A unit test over `tokens.css` (`tokenContrast.test.ts`) checks the contrast of the token pairs the app draws, in both palettes, so a token edit cannot silently break readability
-- [ ] An axe scan (`@axe-core/playwright`, WCAG 2.0/2.1 A and AA rules) reports no violations on every screen and state listed in the E2E section, in light and dark; token pairs that fail contrast are changed and recorded in `plan.md`
-- [ ] A Playwright `mobile` project (emulated phone, Chromium) runs the core journeys alongside the desktop project, in CI
-- [ ] `pnpm --filter @brunchsters/web screenshots` produces the review screenshots (not a regression test; no committed baselines)
+- [x] A unit test over `tokens.css` (`tokenContrast.test.ts`) checks the contrast of the token pairs the app draws, in both palettes, so a token edit cannot silently break readability
+- [x] An axe scan (`@axe-core/playwright`, WCAG 2.0/2.1 A and AA rules) reports no violations on every screen and state listed in the E2E section, in light and dark; token pairs that fail contrast are changed and recorded in `plan.md`
+- [x] A Playwright `mobile` project (emulated phone, Chromium) runs the core journeys alongside the desktop project, in CI
+- [x] `pnpm --filter @brunchsters/web screenshots` produces the review screenshots (not a regression test; no committed baselines)
 
 ### Docs
 
-- [ ] ADR 0010 and its README index row
-- [ ] A scoped `apps/web/CLAUDE.md` section: UI conventions (tokens only, CSS Modules, primitives, no hardcoded colors/fonts, accessible names are a contract with the e2e suite)
-- [ ] `docs/SETUP.md`: the screenshots command, the axe and mobile projects, trying the app from a phone
-- [ ] `PLANNING.md` §16 (#8 renumbered to 0010, #9 updated) and §17 reference the new numbering; spec 0008's forward references updated
-- [ ] The parity table below is final, and a **Feedback log** with every item's outcome is in `tasks.md`
-- [ ] Testing notes per milestone in `tasks.md`
+- [x] ADR 0010 and its README index row
+- [x] A scoped `apps/web/CLAUDE.md` section: UI conventions (tokens only, CSS Modules, primitives, no hardcoded colors/fonts, accessible names are a contract with the e2e suite)
+- [x] `docs/SETUP.md`: the screenshots command, the axe and mobile projects, trying the app from a phone
+- [x] `PLANNING.md` §16 (#8 renumbered to 0010, #9 updated) and §17 reference the new numbering; spec 0008's forward references updated
+- [x] The parity table below is final, and a **Feedback log** with every item's outcome is in `tasks.md`
+- [x] Testing notes per milestone in `tasks.md`
 
 ### Sign-off
 
@@ -111,12 +112,12 @@ No flow changes. The same journeys, with the intended look:
 
 Existing journeys are the main safeguard: they must pass **unchanged** at every milestone (accessible names and roles are the contract). New coverage is accessibility and phone-width behavior. Journey IDs use `D` (design).
 
-| ID     | People                | What is asserted                                                                                                                                                                                                                                                                                                                                                                                                                |
-| ------ | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **D1** | Signed-out visitor    | axe reports no violations on `/`, `/sign-in`, and an invite landing page (valid signed-out preview and the invalid-link state), in light and dark (`colorScheme` emulated); and the shell: the wordmark goes to `/` when signed out, with no Sign out                                                                                                                                                                           |
-| **D2** | Host, with a brunch   | axe clean on the dashboard (empty, then with a draft, an active and a confirmed brunch), each wizard step, the brunch detail page as host and as invitee (voting open, a closed state, a confirmed state), and the manage page; light and dark; the signed-in shell (the wordmark goes to `/dashboard`, the picture named after the user, Sign out). Screens are added to this journey in the milestone that restyles them      |
-| **D3** | Host, invitee (phone) | On the `mobile` project, the core journeys run at a phone width: sign in and dashboard, create a brunch through the wizard, accept an invite and RSVP, vote, host confirms. Beyond the existing assertions, the page has no horizontal scroll (`scrollWidth <= clientWidth`) and the primary action of each screen is on screen without scrolling sideways. Which existing journey files run on `mobile` is listed in `plan.md` |
-| **D4** | Anyone                | Keyboard only: tab order reaches the primary action on the dashboard, the wizard and the RSVP control, and each focus stop shows a visible focus indicator (computed `outline` is not `none`). Reduced motion: with `prefers-reduced-motion: reduce` emulated, no element on those screens has a running animation or non-zero transition duration                                                                              |
+| ID     | People                            | What is asserted                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ------ | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **D1** | Signed-out visitor                | axe reports no violations on `/`, `/sign-in`, and an invite landing page (valid signed-out preview and the invalid-link state), in light and dark (`colorScheme` emulated); and the shell: the wordmark goes to `/` when signed out, with no Sign out                                                                                                                                                                                                                                                                                                     |
+| **D2** | Host, with a brunch               | axe clean on the dashboard (empty, then with a draft, an active and a confirmed brunch), each wizard step, the brunch detail page as host and as invitee (voting open, a closed state, a confirmed state), and the manage page; light and dark; the signed-in shell (the wordmark goes to `/dashboard`, the picture named after the user, Sign out). Screens are added to this journey in the milestone that restyles them                                                                                                                                |
+| **D3** | Host, invitee (phone and desktop) | Every screen fits its window: no horizontal scroll and the screen's one action on screen, at phone width (the `mobile` project, which also re-runs the core journeys: auth, dashboard, wizard, invitee RSVP, voting, confirm) and at desktop widths; on a phone every button and text field is at least 44px tall; on a desktop the brunch and manage pages are two columns from 60rem up (1440, 1280 and 1024px) and one column below (900 and 768px)                                                                                                    |
+| **D4** | Anyone                            | Keyboard only: tab reaches Plan a Brunch and a brunch card on the dashboard, the title, description and Next in the wizard, and the RSVP buttons, each stop showing a focus indicator (an outline, or a ring on `::after` for stretched card links), and Enter or Space does what a click does. Reduced motion: with `prefers-reduced-motion: reduce` emulated, no element on the dashboard, wizard, brunch page or manage page has a transition or animation longer than 0.01s (and the same screens do animate without it, so the check can see motion) |
 
 No multi-person state is new, so no new cross-identity journeys are needed. The client-side behavior of the wizard (reducer, place search, invitee list) is already covered by the existing journeys, which is why they must pass unchanged; D3 re-runs the core ones at phone width, where layout rather than logic can break them.
 
@@ -130,19 +131,20 @@ The goal is eventual parity with the prototype. This spec builds the foundation 
 
 **Built in this spec (styling of existing behavior)**
 
-| Prototype component                                           | Becomes                                                                                                                                                      |
-| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `tokens.css`, `a11y.css`, typography, motion                  | Tokens, global base styles, focus ring, skip link, reduced motion                                                                                            |
-| `Icons.jsx`, `IconsPop.jsx`, `Logos.jsx`                      | Stroke icons, Pop icons (the ones an existing screen has a place for), logo mark and wordmark, as inline-SVG components; Pop and art colors move into tokens |
-| `EmptyDashboard.jsx` (the `BreakfastScene` illustration only) | The empty-dashboard illustration; the "How it works" strip and join-by-link tile wait for their features (below)                                             |
-| `WelcomeScreen.jsx` background                                | The butter-to-paper gradient behind sign-in, landing and the invite page                                                                                     |
-| `TopBar.jsx`                                                  | Root nav: wordmark, avatar, sign out (no drawer or tabs yet)                                                                                                 |
-| `WelcomeScreen.jsx` / `SignIn.jsx`                            | Sign-in page (the `sessionExpired` variant is not built; no such state exists)                                                                               |
-| `InvitePreview.jsx`                                           | Public invite landing page (signed-out preview, invalid-link and error states)                                                                               |
-| `DashboardV3.jsx` (list and cards)                            | Dashboard as styled brunch cards, Upcoming and Past; empty state                                                                                             |
-| `CreateBrunchWizard.jsx`, `PlateProgressBar.jsx`              | The four existing wizard steps and a step indicator (the plate artwork is plain-icon here)                                                                   |
-| `HostDetailV3.jsx` / `InviteeDetailV3.jsx` (existing parts)   | Brunch detail: RSVP, ballots, invite panel, suggestions, and manage page controls, for what each does today                                                  |
-| Buttons, inputs, cards, badges, inline errors                 | `components/ui` primitives                                                                                                                                   |
+| Prototype component                                                                             | Becomes                                                                                                                                                      |
+| ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `tokens.css`, `a11y.css`, typography, motion                                                    | Tokens, global base styles, focus ring, skip link, reduced motion                                                                                            |
+| `Icons.jsx`, `IconsPop.jsx`, `Logos.jsx`                                                        | Stroke icons, Pop icons (the ones an existing screen has a place for), logo mark and wordmark, as inline-SVG components; Pop and art colors move into tokens |
+| `EmptyDashboard.jsx` (the `BreakfastScene` illustration only)                                   | The empty-dashboard illustration; the "How it works" strip and join-by-link tile wait for their features (below)                                             |
+| `WelcomeScreen.jsx` background                                                                  | The butter-to-paper gradient behind sign-in, landing and the invite page                                                                                     |
+| `TopBar.jsx`                                                                                    | Root nav: wordmark, avatar, sign out (no drawer or tabs yet)                                                                                                 |
+| `WelcomeScreen.jsx` / `SignIn.jsx`                                                              | Sign-in page (the `sessionExpired` variant is not built; no such state exists)                                                                               |
+| `InvitePreview.jsx`                                                                             | Public invite landing page (signed-out preview, invalid-link and error states)                                                                               |
+| `DashboardV3.jsx` (list and cards)                                                              | Dashboard as styled brunch cards, Upcoming and Past; empty state                                                                                             |
+| Desktop layout (`HostDetailV3.jsx`, `InviteeDetailV3.jsx`, `DashboardV3.jsx` at 1080 to 1100px) | A 68rem page; two columns on the brunch and manage pages from 60rem; a card grid on the dashboard; the wizard stays narrow                                   |
+| `CreateBrunchWizard.jsx`, `PlateProgressBar.jsx`                                                | The four existing wizard steps and a step indicator (the plate artwork is plain-icon here)                                                                   |
+| `HostDetailV3.jsx` / `InviteeDetailV3.jsx` (existing parts)                                     | Brunch detail: RSVP, ballots, invite panel, suggestions, and manage page controls, for what each does today                                                  |
+| Buttons, inputs, cards, badges, inline errors                                                   | `components/ui` primitives                                                                                                                                   |
 
 **Ships later, with the feature that needs it**
 

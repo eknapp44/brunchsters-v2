@@ -108,7 +108,8 @@
   --space-8: 4rem;
 
   /* layout */
-  --content-width: 44rem;
+  --content-width: 44rem; /* a single column of reading or form content (the wizard) */
+  --page-width: 68rem; /* app pages on a wide screen; the prototype's are about 1080 to 1100px */
   --page-gutter: var(--space-4);
   --touch-target: 2.75rem; /* 44px */
 

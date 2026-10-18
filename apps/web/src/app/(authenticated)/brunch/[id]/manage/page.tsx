@@ -133,36 +133,40 @@ export default async function ManageBrunchPage({
       )}
 
       {voting !== undefined && (
-        <>
-          <OptionManager
-            brunchId={brunchId}
-            locations={voting.locations.options}
-            times={voting.times.options}
-            disabled={isDraft}
-          />
+        <div className={detail.columns}>
+          <div className={detail.column}>
+            <OptionManager
+              brunchId={brunchId}
+              locations={voting.locations.options}
+              times={voting.times.options}
+              disabled={isDraft}
+            />
+          </div>
 
-          <VotingControls
-            brunchId={brunchId}
-            votingDeadline={brunch.votingDeadline}
-            closed={voting.locations.closed}
-            locationsShouldSuggestClosing={voting.locations.shouldSuggestClosing}
-            timesShouldSuggestClosing={voting.times.shouldSuggestClosing}
-            canClose={!isDraft}
-          />
+          <div className={detail.column}>
+            <VotingControls
+              brunchId={brunchId}
+              votingDeadline={brunch.votingDeadline}
+              closed={voting.locations.closed}
+              locationsShouldSuggestClosing={voting.locations.shouldSuggestClosing}
+              timesShouldSuggestClosing={voting.times.shouldSuggestClosing}
+              canClose={!isDraft}
+            />
 
-          <ConfirmControl
-            brunchId={brunchId}
-            locations={voting.locations.options}
-            times={voting.times.options}
-            noOneElseAccepted={noOneElseAccepted && !isDraft}
-            disabled={isDraft}
-          />
+            <ConfirmControl
+              brunchId={brunchId}
+              locations={voting.locations.options}
+              times={voting.times.options}
+              noOneElseAccepted={noOneElseAccepted && !isDraft}
+              disabled={isDraft}
+            />
 
-          <OptionSuggestionReview
-            locationSuggestions={voting.locations.pendingSuggestions}
-            timeSuggestions={voting.times.pendingSuggestions}
-          />
-        </>
+            <OptionSuggestionReview
+              locationSuggestions={voting.locations.pendingSuggestions}
+              timeSuggestions={voting.times.pendingSuggestions}
+            />
+          </div>
+        </div>
       )}
     </Container>
   );

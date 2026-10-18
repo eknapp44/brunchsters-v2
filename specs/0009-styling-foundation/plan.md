@@ -31,7 +31,8 @@ apps/web/playwright.screenshots.config.ts                             (new — M
 apps/web/e2e/screenshots/review.spec.ts                               (new — M1: captures the review set; grows each milestone)
 apps/web/e2e/support/a11y.ts                                          (new — M1: axe helper)
 apps/web/e2e/journeys/accessibility.spec.ts                           (new — M1, grows each milestone: D1, D2, D4)
-apps/web/e2e/journeys/mobile-layout.spec.ts                           (new — M7: D3's no-horizontal-scroll assertions)
+apps/web/e2e/journeys/responsive-layout.spec.ts                       (new — M7: D3, runs on both projects)
+apps/web/e2e/journeys/keyboard-and-motion.spec.ts                     (new — M7: D4, keyboard paths and reduced motion)
 apps/web/package.json                                                 (changed — `screenshots` script; devDependency @axe-core/playwright)
 .gitignore                                                            (changed — `apps/web/.screenshots/`)
 docs/SETUP.md, docs/PLANNING.md, specs/0008-*/                        (changed — numbering and how-to)
@@ -77,6 +78,7 @@ Where the prototype and the real app or the accessibility bar disagree, the deci
 | The global focus ring sets no `border-radius`                                                                    | It changed a button's shape while focused                                                                                                                                    |
 | An initials avatar for a signed-in person with no picture                                                        | The old nav showed nothing; the prototype shows initials                                                                                                                     |
 | The name beside the avatar is clipped out of the layout (still read by screen readers) at 30rem and narrower     | Keeps the bar on one line on a phone                                                                                                                                         |
+| `--page-width` 68rem for app pages, a 44rem narrow option for the wizard, two columns from 60rem                 | The prototype's desktop pages are 1080 to 1100px; my first 44rem column (M1) was narrower than designed (owner feedback after M6)                                            |
 | `Field` is built in M4, and a `danger` button variant when M5 needed it (Revoke)                                 | No screen used them before then                                                                                                                                              |
 | `--text-sm` is 14px (was 13px)                                                                                   | The prototype's buttons and small text are 14px; 13px read small                                                                                                             |
 | `--accent-soft-fg` is a new token                                                                                | The prototype pairs `--accent-fg` with `--accent-soft`; that is only readable in light mode                                                                                  |
@@ -108,9 +110,11 @@ A Vitest test, in the spirit of `e2e/support/guard.test.ts`. It reads every file
 
 ### Mobile project
 
-`playwright.config.ts` gains `{ name: 'mobile', use: { ...devices['Pixel 7'] }, testMatch: [...] }` next to the existing desktop project. It runs a chosen subset, not the whole suite (every test would double the run time for little extra signal):
+`playwright.config.ts` has `{ name: 'mobile', use: { ...devices['Pixel 7'] }, testMatch: [...] }` next to the desktop project. It runs a chosen subset, not the whole suite (every test would double the run time for little extra signal): `responsive-layout.spec.ts` (journey D3, which runs on both projects), and the core journeys `auth`, `access-and-dashboard`, `create-brunch`, `invitations-invitee`, `voting` and `confirm`. All of them passed at phone width with touch emulation unmodified. The journeys left on the desktop project only are about rules and data (permissions, emails, option management, timezones), which a screen size does not change. CI runs both projects; the local CI-mode run grew from 93 tests in 15.3s to 135 in 21.6s (about 6 seconds, 40%).
 
-`auth.spec.ts`, `access-and-dashboard.spec.ts`, `create-brunch.spec.ts`, `invitations-invitee.spec.ts`, `voting.spec.ts`, `confirm.spec.ts`, plus the new `mobile-layout.spec.ts`. The final list is confirmed in M7 (a journey that depends on a desktop-only interaction is left on the desktop project with a comment saying why). CI runs both projects. The e2e job's time budget is checked in M7.
+### Wide-screen layout
+
+`--page-width` (68rem) is the wide app page, matching the prototype's 1080 to 1100px; `--content-width` (44rem) stays for one column of form content (the wizard, via `Container size="narrow"`). The top bar spans the page width. From 60rem the brunch and manage pages are two columns (`.columns` / `.column` in `detail.module.css`): on the brunch page RSVP, locations and times on the left and suggestions and invites on the right, on the manage page options on the left and voting, confirm and pending suggestions on the right. Each column is a consecutive group in the page order, so reading and tab order are unchanged, and a column with nothing in it disappears (`:empty`) and the other is centered at a reading width. The dashboard is a grid of cards (`repeat(auto-fill, minmax(20rem, 1fr))`). The single-column track is `minmax(0, 1fr)`: without it the track grows to its widest content (a phone date input) and the page scrolls sideways; the new layout check caught that.
 
 ### Accessibility token adjustments (fill as found)
 

@@ -153,6 +153,18 @@ for (const scheme of COLOR_SCHEMES) {
       await expectNoA11yViolations(host.page, `manage, confirmed (${scheme})`);
     });
 
+    test('the not-found page, which anyone who may not see a brunch gets', async ({
+      makeActor,
+    }) => {
+      const host = await makeActor('host');
+      const stranger = await makeActor('stranger');
+      await useColorScheme(stranger.page, scheme);
+      const brunchId = await createBrunch({ host: host.user, title: 'Not For Strangers' });
+      await stranger.page.goto(`/brunch/${brunchId}`);
+      await expect(stranger.page.getByText('This page could not be found.')).toBeVisible();
+      await expectNoA11yViolations(stranger.page, `not found (${scheme})`);
+    });
+
     test('the creation wizard, every step with its lists and hints', async ({ makeActor }) => {
       const host = await makeActor('host');
       await useColorScheme(host.page, scheme);

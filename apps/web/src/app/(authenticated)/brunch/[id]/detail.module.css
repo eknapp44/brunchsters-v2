@@ -195,3 +195,31 @@
   flex: 1;
   min-width: 0;
 }
+
+/* Two columns on a wide screen: what you do on the left, the people on the right (brunch page)
+   or the options on the left and the decisions on the right (manage page). Each column is a
+   consecutive group in the page order, so reading and tab order do not change. A column with
+   nothing in it disappears and the other one is centered at a reading width. */
+.columns {
+  display: grid;
+  /* an explicit track that may shrink: without it the single column grows to its widest content
+     (a date input) and the page scrolls sideways on a phone */
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 0 var(--space-5);
+}
+
+.column:empty {
+  display: none;
+}
+
+@media (min-width: 60rem) {
+  .columns {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  }
+
+  .columns:has(> .column:empty) {
+    grid-template-columns: minmax(0, var(--content-width));
+    justify-content: center;
+  }
+}

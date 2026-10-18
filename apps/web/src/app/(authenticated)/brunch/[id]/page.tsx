@@ -100,37 +100,43 @@ export default async function BrunchDetailPage({
         )}
       </div>
 
-      <RsvpControl brunchId={brunchId} currentStatus={brunch.viewerRsvpStatus} />
+      <div className={styles.columns}>
+        <div className={styles.column}>
+          <RsvpControl brunchId={brunchId} currentStatus={brunch.viewerRsvpStatus} />
 
-      {voting !== undefined && (
-        <>
-          <section className={styles.panel}>
-            <h2>Locations</h2>
-            <LocationBallotChecklist
-              brunchId={brunchId}
-              options={voting.locations.options}
-              canVote={voting.canVote}
-              closed={voting.locations.closed}
-              suggestionsEnabled={!brunch.isHost && brunch.allowLocationSuggestions}
-              votable={voting.locations.mode === 'group_vote'}
-            />
-          </section>
+          {voting !== undefined && (
+            <>
+              <section className={styles.panel}>
+                <h2>Locations</h2>
+                <LocationBallotChecklist
+                  brunchId={brunchId}
+                  options={voting.locations.options}
+                  canVote={voting.canVote}
+                  closed={voting.locations.closed}
+                  suggestionsEnabled={!brunch.isHost && brunch.allowLocationSuggestions}
+                  votable={voting.locations.mode === 'group_vote'}
+                />
+              </section>
 
-          <section className={styles.panel}>
-            <h2>Times</h2>
-            <TimeBallotChecklist
-              brunchId={brunchId}
-              options={voting.times.options}
-              canVote={voting.canVote}
-              closed={voting.times.closed}
-              suggestionsEnabled={!brunch.isHost && brunch.allowTimeSuggestions}
-              locationTimezone={representativeLocation?.timezone}
-              locationName={representativeLocation?.placeName}
-              votable={voting.times.mode === 'group_vote'}
-            />
-          </section>
+              <section className={styles.panel}>
+                <h2>Times</h2>
+                <TimeBallotChecklist
+                  brunchId={brunchId}
+                  options={voting.times.options}
+                  canVote={voting.canVote}
+                  closed={voting.times.closed}
+                  suggestionsEnabled={!brunch.isHost && brunch.allowTimeSuggestions}
+                  locationTimezone={representativeLocation?.timezone}
+                  locationName={representativeLocation?.placeName}
+                  votable={voting.times.mode === 'group_vote'}
+                />
+              </section>
+            </>
+          )}
+        </div>
 
-          {!brunch.isHost && (
+        <div className={styles.column}>
+          {voting !== undefined && !brunch.isHost && (
             <>
               <LocationSuggestionControl
                 brunchId={brunchId}
@@ -144,16 +150,16 @@ export default async function BrunchDetailPage({
               />
             </>
           )}
-        </>
-      )}
 
-      <SuggestionsPanel
-        brunchId={brunchId}
-        canSuggest={!brunch.isHost && brunch.allowInviteSuggestions}
-        pendingSuggestions={pendingSuggestions?.isOk() ? pendingSuggestions.value : undefined}
-      />
+          <SuggestionsPanel
+            brunchId={brunchId}
+            canSuggest={!brunch.isHost && brunch.allowInviteSuggestions}
+            pendingSuggestions={pendingSuggestions?.isOk() ? pendingSuggestions.value : undefined}
+          />
 
-      {invites?.isOk() && <InvitePanel brunchId={brunchId} invites={invites.value} />}
+          {invites?.isOk() && <InvitePanel brunchId={brunchId} invites={invites.value} />}
+        </div>
+      </div>
     </Container>
   );
 }

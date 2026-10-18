@@ -436,7 +436,7 @@ export default function NewBrunchPage() {
   }
 
   return (
-    <Container as="main">
+    <Container as="main" size="narrow">
       <h1>Plan a Brunch</h1>
       <StepIndicator step={state.step} />
       {state.step === 1 && <StepOne state={state} dispatch={dispatch} />}
