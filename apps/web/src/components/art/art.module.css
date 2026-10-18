@@ -1,0 +1,36 @@
+.mark {
+  display: block;
+  flex-shrink: 0;
+}
+
+.ring {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  opacity: 0.35;
+}
+
+.yolk {
+  fill: var(--accent-strong);
+}
+
+.wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-display);
+  font-variation-settings: var(--display-variation);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-size: var(--text-lg);
+  line-height: 1;
+  color: var(--fg);
+}
+
+.lg {
+  font-size: var(--text-2xl);
+}
+
+.xl {
+  font-size: var(--text-3xl);
+}

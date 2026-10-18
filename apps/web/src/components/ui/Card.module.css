@@ -1,0 +1,23 @@
+.card {
+  padding: var(--space-4);
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  box-shadow: var(--shadow-sm);
+}
+
+.accent {
+  background: var(--accent-soft);
+  border-color: transparent;
+}
+
+.raised {
+  box-shadow: var(--shadow-md);
+}
+
+@media (forced-colors: active) {
+  .card {
+    border-color: CanvasText;
+  }
+}

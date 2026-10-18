@@ -64,6 +64,7 @@ describe('findStyleViolations', () => {
 
   it.each([
     ['a token', '.a { color: var(--fg); background: var(--surface); }'],
+    ['a custom property named like a color', '.a { --pop-fill: var(--art-egg-white); }'],
     ['a font token', '.a { font-family: var(--font-sans); }'],
     ['transparent and currentColor', '.a { border-color: transparent; fill: currentColor; }'],
     ['an in-page link', '<a href="#main-content">Skip</a>'],

@@ -31,26 +31,6 @@ main {
   padding: var(--space-5) var(--page-gutter) var(--space-8);
 }
 
-nav {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding: var(--space-3) var(--page-gutter);
-  border-bottom: 1px solid var(--line-soft);
-  min-height: 3.5rem;
-}
-
-nav > div {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-nav img {
-  border-radius: 50%;
-  border: 1px solid var(--line);
-}
-
 h1,
 h2,
 h3 {
@@ -89,18 +69,21 @@ li {
   margin-bottom: var(--space-2);
 }
 
-a {
+/* :where() keeps these element defaults at zero specificity, so a component's own class
+   always wins over them (a link drawn as a button, a button variant on hover). */
+:where(a) {
   color: var(--fg);
   text-decoration-color: var(--accent-strong);
   text-decoration-thickness: 2px;
   text-underline-offset: 0.2em;
 }
 
-a:hover {
+a:where(:hover) {
   text-decoration-color: var(--fg);
 }
 
-button {
+/* Unstyled buttons (screens not converted yet) get a neutral look. */
+:where(button) {
   font: inherit;
   font-size: var(--text-sm);
   font-weight: 600;
@@ -120,15 +103,15 @@ button {
     transform var(--duration-fast) var(--ease);
 }
 
-button:hover:not(:disabled) {
+button:where(:hover:not(:disabled)) {
   background: var(--surface-2);
 }
 
-button:active:not(:disabled) {
+button:where(:active:not(:disabled)) {
   transform: translateY(1px);
 }
 
-button:disabled {
+button:where(:disabled) {
   opacity: 0.55;
   cursor: not-allowed;
 }
@@ -167,7 +150,6 @@ label {
 :focus-visible {
   outline: 3px solid var(--accent-strong);
   outline-offset: 2px;
-  border-radius: var(--r-1);
 }
 
 input:focus-visible,

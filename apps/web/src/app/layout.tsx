@@ -1,6 +1,9 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { auth, signOut } from '@/auth';
+import { MainContent } from '@/components/nav/MainContent';
+import { TopBar } from '@/components/nav/TopBar';
+import { SkipLink } from '@/components/ui/SkipLink';
 import { fontClassNames } from '@/styles/fonts';
 import '@/styles/tokens.css';
 import '@/styles/global.css';
@@ -22,20 +25,20 @@ export default async function RootLayout({ children }: { readonly children: Reac
   return (
     <html lang="en" className={fontClassNames}>
       <body>
-        <nav>
-          {user !== undefined && (
-            <div>
-              {user.image != null && (
-                <img src={user.image} alt={user.name ?? 'User avatar'} width={32} height={32} />
-              )}
-              <span>{user.name ?? user.email}</span>
-              <form action={signOutAction}>
-                <button type="submit">Sign out</button>
-              </form>
-            </div>
-          )}
-        </nav>
-        {children}
+        <SkipLink />
+        <TopBar
+          user={
+            user === undefined
+              ? undefined
+              : {
+                  name: user.name ?? undefined,
+                  email: user.email ?? undefined,
+                  image: user.image ?? undefined,
+                }
+          }
+          signOutAction={signOutAction}
+        />
+        <MainContent>{children}</MainContent>
       </body>
     </html>
   );

@@ -45,9 +45,11 @@ const RULES: readonly { readonly rule: string; readonly pattern: RegExp }[] = [
     pattern: /\b(?:rgb|rgba|hsl|hsla|hwb|lab|lch|oklab|oklch)\(/,
   },
   {
+    // Property and color names must stand alone: `--pop-fill: var(--art-egg-white)` defines a
+    // token, it is not a property named `fill` set to the color white.
     rule: 'named color',
     pattern: new RegExp(
-      `\\b${COLOR_PROPERTIES}\\s*:[^;{}]*\\b(?:${NAMED_COLORS.join('|')})\\b`,
+      `(?<![\\w-])${COLOR_PROPERTIES}\\s*:[^;{}]*(?<![\\w-])(?:${NAMED_COLORS.join('|')})(?![\\w-])`,
       'i',
     ),
   },

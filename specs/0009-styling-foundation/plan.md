@@ -66,6 +66,20 @@ Built only for what the 8 screens need, each a thin typed component with a CSS M
 
 Rule for every primitive: **it must not change an accessible name or role.** If wrapping an element would change what `getByRole` sees, the primitive takes the element as a prop or does not wrap it.
 
+### Deliberate deviations from the prototype
+
+Where the prototype and the real app or the accessibility bar disagree, the decision and the reason are recorded here (principle 3, accessibility overrides the prototype).
+
+| Deviation                                                                                                        | Why                                                                                                            |
+| ---------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Buttons are 44px tall (the prototype's default is 40px); small buttons are 36px, and 44px on touch screens       | The spec's touch-target criterion; the prototype's own accessibility pass bumped only `.sm`                    |
+| Global element defaults for `a` and `button` use `:where()` (zero specificity)                                   | A component's class must win over them on hover and focus; otherwise a primary button turned grey when hovered |
+| The global focus ring sets no `border-radius`                                                                    | It changed a button's shape while focused                                                                      |
+| An initials avatar for a signed-in person with no picture                                                        | The old nav showed nothing; the prototype shows initials                                                       |
+| The name beside the avatar is clipped out of the layout (still read by screen readers) at 30rem and narrower     | Keeps the bar on one line on a phone                                                                           |
+| `Field` is built in M4, and a `danger` button variant only if M5 needs one                                       | No screen uses them before then                                                                                |
+| Only the Pop icons an existing screen has a place for are ported (calendar, pin, users, clock, check, plus, egg) | Avoids dead artwork; sparkle and share arrive with their uses                                                  |
+
 ### Layout and breakpoints
 
 Mobile-first: base styles are the phone layout; `@media (min-width: …)` adds the wider arrangement. The prototype used a container-query hook (`useResponsive`); here plain CSS media queries (or container queries in CSS) do the same without client JavaScript. One content width token and two breakpoints (phone to tablet, tablet to desktop) are expected; add more only when a screen needs it. The nav is a top bar at every width in this spec (no bottom tabs, no drawer).

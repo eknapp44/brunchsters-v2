@@ -41,16 +41,29 @@ Eight milestones, each green on its own and ending in a commit. Review points ar
 
 ## M2 — Primitives, icons, logo and the app shell
 
-- [ ] Port the stroke icon set and the Pop icons an existing screen has a place for (pin, calendar, people, clock, check, plus, share, sparkle, egg as needed) to decorative inline-SVG components; move the Pop palette from `IconsPop.jsx` into `tokens.css` (light and dark); add `LogoMark` and `Wordmark`
-- [ ] Build `Button`, `ButtonLink`, `Field`, `Card`, `Badge`, `Avatar`, `InlineAlert`, `Container`, `SkipLink` with CSS Modules (only what M3–M6 need; add others in the milestone that needs them)
-- [ ] Root layout shell: skip link, top bar (logo mark and wordmark, avatar, name, "Sign out" as the same plain button), page container; the nav keeps its current role and names
-- [ ] Add the shell to the screenshot set and to D2's axe coverage
-- [ ] Run the full existing suite; the sign-out journey (`sessions.spec.ts`) must pass unmodified (no confirm modal)
-- [ ] **Prove the new tests can fail:** break a primitive's forwarded prop (e.g. drop `disabled`) and see the existing journeys that depend on it fail; confirm the style guard still catches a literal in a new module
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e`, stress run, CI mode
-- [ ] Commit: `feat: ui primitives, icons, logo and app shell (M2)`
+- [x] Port the stroke icon set and the Pop icons an existing screen has a place for (pin, calendar, people, clock, check, plus, share, sparkle, egg as needed) to decorative inline-SVG components; move the Pop palette from `IconsPop.jsx` into `tokens.css` (light and dark); add `LogoMark` and `Wordmark`
+- [x] Build `Button`, `ButtonLink`, `Card`, `Badge`, `Avatar`, `InlineAlert`, `Container`, `SkipLink` with CSS Modules (`Field` moves to M4, where the wizard gives it a real use; others are added in the milestone that needs them)
+- [x] Root layout shell: skip link, top bar (logo mark and wordmark, avatar, name, "Sign out" as the same plain button), page container; the nav keeps its current role and names
+- [x] Add the shell to the screenshot set and to D2's axe coverage
+- [x] Run the full existing suite; the sign-out journey (`sessions.spec.ts`) must pass unmodified (no confirm modal)
+- [x] **Prove the new tests can fail:** break the shell's accessible-name contract and see the existing journeys fail (no screen uses `disabled` yet, so the avatar's name was mutated instead); confirm the style guard still catches a literal in a new module
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e`, stress run, CI mode
+- [x] Commit: `feat: ui primitives, icons, logo and app shell (M2)`
 
-**Testing notes:** _(fill on completion)_
+**Testing notes:**
+
+- **What was tested:** The shell's contract with the e2e suite. Three new journeys in `accessibility.spec.ts`: signed out, the wordmark links to `/` and there is no Sign out; signed in, the wordmark links to `/dashboard` and the picture (named after the user) and Sign out are there; and the first slice of D4: Tab reaches the skip link first, it appears on screen when focused, and Enter moves focus to the page (`#main-content`). Every page already scanned by axe (D1/D2, light and dark) now includes the shell, and stays clean. The style guard (20 unit tests, one more than before) covers every new CSS module and component. Presentational components have no unit tests (CLAUDE.md); the journeys and axe are their tests.
+- **How:** unit (web 283; core 429, shared 7, database 1), full e2e on the dev server (84, 3 new), three further stress runs (`--workers=4 --repeat-each=3`, 252 of 252 each) and CI mode (`CI=true pnpm build`, then `CI=true pnpm test:e2e`, 84 of 84, no flaky). Typecheck and lint are clean. The existing journeys needed no edits.
+- **Proving the new tests can fail:** (1) the avatar's `alt` was blanked: the new "signed in" shell test and the existing A2 sign-in journey both failed, and the rest passed; restored from a copy. (2) A `#fff` and then `color: white` appended to `Badge.module.css` each failed the style guard with the file and line. (3) The task named dropping `disabled` from a primitive; no screen uses it yet, so that proof arrives with the first screen that does (M3/M4).
+- **What was built:** `Button`, `ButtonLink`, `Card`, `Badge`, `Avatar`, `InlineAlert`, `Container`, `SkipLink`; the line icons the screens will need (calendar, pin, users, clock, check, plus, close, search, share, arrows) and seven Pop icons (calendar, pin, users, clock, check, plus, egg) as one `Icon` and one `PopIcon` component each; `LogoMark` and `Wordmark`; the `TopBar`; and the Pop palette (`--pop-*`, light and dark) and `--art-egg-white` in `tokens.css`. Only the shell uses any of them so far, so `Card`, `Badge`, `InlineAlert`, `Container`, `ButtonLink` and the icons are first exercised, and first scanned by axe, in M3.
+- **Deviations from the prototype (all deliberate; see the plan):** buttons are 44px tall (the prototype's 40) to meet the touch-target criterion; the global element defaults for links and buttons are zero-specificity (`:where()`) so a component's class always wins; the global focus ring no longer sets a border radius (it changed a button's shape while focused); a signed-in person with no profile picture now gets an initials avatar (before, nothing was shown); the name beside the avatar is hidden from the layout (not from screen readers) at phone widths.
+- **Findings:**
+  1. **The style guard had a false positive on the new CSS**: `--pop-fill: var(--art-egg-white)` matched "fill" and "white" inside names. The detector now requires property and color words to stand alone, with a test for it; every other rule is unchanged.
+  2. **One unexplained failure in a stress run.** The first stress run after the changes failed three tests (`same-person` I7 and two in `api-authorization`, the latter two fast, about 6 s, so not timeouts); the details were not captured. They passed in a targeted 18-run repeat and in three more full stress runs, and CI mode was clean. I could not reproduce it and have no cause. It is recorded here instead of being called a pass; if it appears again, capture the log first.
+  3. **Axe still finds nothing and no token changed**, but nothing accent-colored is on screen yet except the logo (decorative), so the primary button, badges and soft backgrounds get their first real contrast test in M3.
+  4. The shell adds one new link (the wordmark, named "brunchsters") and one new control (the skip link). No existing locator is affected: the test suite counts `listitem`s, so the shell deliberately contains no list, and the logo is not a heading, because tests find the landing heading by role.
+- **What's deferred:** `Field` (M4); a `danger` button variant (M5, if the revoke/remove buttons want it); the screens themselves (M3–M6); real-screen use of every primitive but the sign-out button; D3 and the rest of D4 (M7).
+- **How to run it:** `pnpm --filter @brunchsters/web test` (style guard), `pnpm test:e2e` (shell journeys are in `accessibility.spec.ts`), `pnpm --filter @brunchsters/web screenshots`.
 
 ---
 

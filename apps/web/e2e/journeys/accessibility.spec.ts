@@ -61,3 +61,48 @@ for (const scheme of COLOR_SCHEMES) {
     });
   });
 }
+
+// D1/D2 (shell) and D4 (skip link, first slice; the rest of D4 arrives in M7): the bar across
+// the top is the same on every page, so it is checked once here and scanned by axe with every
+// page above.
+test.describe('the app shell', () => {
+  test('signed out: the wordmark goes to the landing page and there is no Sign out', async ({
+    page,
+  }) => {
+    await page.goto('/sign-in');
+    const home = page.getByRole('link', { name: 'brunchsters' });
+    await expect(home).toHaveAttribute('href', '/');
+    await expect(page.getByRole('button', { name: 'Sign out' })).toHaveCount(0);
+    await home.click();
+    await expect(page).toHaveURL('/');
+  });
+
+  test('signed in: the wordmark goes to the dashboard, with the picture, name and Sign out', async ({
+    makeActor,
+  }) => {
+    const host = await makeActor('host');
+    await host.page.goto('/dashboard');
+    await expect(host.page.getByRole('link', { name: 'brunchsters' })).toHaveAttribute(
+      'href',
+      '/dashboard',
+    );
+    await expect(host.page.getByRole('img', { name: host.user.name })).toBeVisible();
+    await expect(host.page.getByRole('button', { name: 'Sign out' })).toBeVisible();
+  });
+
+  test('D4 — the skip link is the first stop, appears when focused, and moves to the page', async ({
+    makeActor,
+  }) => {
+    const host = await makeActor('host');
+    await host.page.goto('/dashboard');
+
+    await host.page.keyboard.press('Tab');
+    const skip = host.page.getByRole('link', { name: 'Skip to main content' });
+    await expect(skip).toBeFocused();
+    await expect(skip).toBeInViewport();
+
+    await host.page.keyboard.press('Enter');
+    await expect(host.page).toHaveURL(/#main-content$/);
+    await expect(host.page.locator('#main-content')).toBeFocused();
+  });
+});

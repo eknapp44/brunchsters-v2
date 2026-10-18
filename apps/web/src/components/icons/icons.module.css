@@ -1,0 +1,59 @@
+.icon {
+  display: block;
+  flex-shrink: 0;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Pop icons: a filled tile with a drawn detail on it. Each tone pairs a fill with the detail
+   color that reads on it (tokens.css, the Pop palette). */
+.pop {
+  display: block;
+  flex-shrink: 0;
+}
+
+.tile {
+  fill: var(--pop-fill);
+  stroke: none;
+}
+
+.detail {
+  fill: none;
+  stroke: var(--pop-stroke);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.yolk {
+  fill: var(--pop-butter);
+  stroke: none;
+}
+
+.butter {
+  --pop-fill: var(--pop-butter);
+  --pop-stroke: var(--pop-butter-fg);
+}
+
+.tomato {
+  --pop-fill: var(--pop-tomato);
+  --pop-stroke: var(--pop-tomato-fg);
+}
+
+.mint {
+  --pop-fill: var(--pop-mint);
+  --pop-stroke: var(--pop-mint-fg);
+}
+
+.peri {
+  --pop-fill: var(--pop-peri);
+  --pop-stroke: var(--pop-peri-fg);
+}
+
+.egg {
+  --pop-fill: var(--art-egg-white);
+  --pop-stroke: var(--pop-butter-fg);
+}
