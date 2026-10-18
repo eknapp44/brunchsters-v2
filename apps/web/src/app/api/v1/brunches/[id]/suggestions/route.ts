@@ -1,11 +1,11 @@
-import { NoopEventBus, suggestInvitee, suggestInviteeRequestSchema } from '@brunchsters/core';
+import { suggestInvitee, suggestInviteeRequestSchema } from '@brunchsters/core';
 import type { BrunchId, UserId } from '@brunchsters/shared';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
+import { eventBus } from '@/lib/services';
 
-const eventBus = new NoopEventBus();
 const brunchIdSchema = z.uuid();
 
 export async function POST(

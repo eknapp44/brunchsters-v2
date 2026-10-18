@@ -1,11 +1,10 @@
-import { getInviteByToken, NoopEventBus, respondToInvite } from '@brunchsters/core';
+import { getInviteByToken, respondToInvite } from '@brunchsters/core';
 import type { InviteToken, UserId } from '@brunchsters/shared';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
-
-const eventBus = new NoopEventBus();
+import { eventBus } from '@/lib/services';
 
 export default async function InviteLandingPage({
   params,

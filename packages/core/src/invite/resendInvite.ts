@@ -57,7 +57,10 @@ export async function resendInvite(
   }
 
   try {
-    await eventBus.emit('invite/resent', { inviteId: updatedId, brunchId: invite.brunchId });
+    await eventBus.emit('invite/resent', {
+      inviteId: updatedId,
+      brunchId: invite.brunchId as BrunchId,
+    });
   } catch {
     // Side effects must never fail the resend (Constitution 12).
   }

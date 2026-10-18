@@ -1,11 +1,11 @@
-import { NoopEventBus, resendInvite } from '@brunchsters/core';
+import { resendInvite } from '@brunchsters/core';
 import type { InviteId, UserId } from '@brunchsters/shared';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
+import { eventBus } from '@/lib/services';
 
-const eventBus = new NoopEventBus();
 const inviteIdSchema = z.uuid();
 
 export async function POST(

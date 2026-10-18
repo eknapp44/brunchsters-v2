@@ -1,6 +1,7 @@
 'use client';
 
 import type { PlaceDetails } from '@brunchsters/core';
+import { MAX_INVITES_PER_REQUEST } from '@brunchsters/shared';
 import { useRouter } from 'next/navigation';
 import { type Dispatch, useReducer, useState } from 'react';
 import { PlaceSearchInput } from '../PlaceSearchInput';
@@ -87,7 +88,9 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
     case 'SET_VOTING_DEADLINE':
       return { ...state, votingDeadline: action.value };
     case 'ADD_EMAIL':
-      return state.emails.includes(action.email)
+      // The server refuses a request with more addresses than this, and the wizard sends
+      // them all at once, so the list stops here rather than failing silently on submit.
+      return state.emails.includes(action.email) || state.emails.length >= MAX_INVITES_PER_REQUEST
         ? state
         : { ...state, emails: [...state.emails, action.email] };
     case 'REMOVE_EMAIL':
@@ -258,10 +261,11 @@ function StepFour({
   readonly submitError: string | undefined;
 }) {
   const [emailInput, setEmailInput] = useState('');
+  const isListFull = state.emails.length >= MAX_INVITES_PER_REQUEST;
 
   function addEmail(): void {
     const trimmed = emailInput.trim();
-    if (trimmed === '') return;
+    if (trimmed === '' || isListFull) return;
     dispatch({ type: 'ADD_EMAIL', email: trimmed });
     setEmailInput('');
   }
@@ -273,10 +277,17 @@ function StepFour({
         value={emailInput}
         onChange={(event) => setEmailInput(event.target.value)}
         placeholder="Email address"
+        disabled={isListFull}
       />
-      <button type="button" onClick={addEmail}>
+      <button type="button" onClick={addEmail} disabled={isListFull}>
         Add
       </button>
+      {isListFull && (
+        <p>
+          You can add up to {MAX_INVITES_PER_REQUEST} people here. Invite the rest from the brunch
+          page after you create it.
+        </p>
+      )}
 
       {state.emails.length > 0 && (
         <ul>

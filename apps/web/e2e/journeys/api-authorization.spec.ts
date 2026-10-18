@@ -164,6 +164,9 @@ test.describe('API authorization', () => {
   test('member-only actions work for attendees; outsiders get a 404 that matches a made-up id; the signed-out get 401', async ({
     makeActor,
   }) => {
+    // Many requests in a row, each route compiled on first use in dev mode - and since
+    // spec 0008 every one of them also feeds the real queue, which adds load. Like its sibling.
+    test.slow();
     const host = await makeActor('host');
     const attendee = await makeActor('attendee');
     const stranger = await makeActor('stranger');

@@ -462,6 +462,51 @@ describe('sendInvites', () => {
       expect.objectContaining({ brunchId: BRUNCH_ID, invitedEmail: 'alice@example.com' }),
     );
   });
+
+  it('emits the events all at once, so the request waits for the slowest, not the sum', async () => {
+    const tx = makeMockTx();
+    const db = makeMockDb(tx);
+    let inFlight = 0;
+    let mostInFlight = 0;
+    const emit = vi.fn().mockImplementation(async () => {
+      inFlight += 1;
+      mostInFlight = Math.max(mostInFlight, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      inFlight -= 1;
+    });
+
+    await sendInvites(
+      {
+        ...BASE_INPUT,
+        emails: [
+          normalizeEmail('alice@example.com'),
+          normalizeEmail('bob@example.com'),
+          normalizeEmail('carol@example.com'),
+        ],
+      },
+      { db, eventBus: makeMockEventBus(emit) },
+    );
+
+    expect(emit).toHaveBeenCalledTimes(3);
+    expect(mostInFlight).toBe(3);
+  });
+
+  it('still returns Ok when one of the events fails to send', async () => {
+    const tx = makeMockTx();
+    const db = makeMockDb(tx);
+    const emit = vi.fn().mockRejectedValue(new Error('queue unreachable'));
+
+    const result = await sendInvites(
+      {
+        ...BASE_INPUT,
+        emails: [normalizeEmail('alice@example.com'), normalizeEmail('bob@example.com')],
+      },
+      { db, eventBus: makeMockEventBus(emit) },
+    );
+
+    expect(result.isOk()).toBe(true);
+    expect(emit).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe('sendInvitesRequestSchema', () => {
@@ -482,6 +527,17 @@ describe('sendInvitesRequestSchema', () => {
 
   it('rejects an empty emails array', () => {
     expect(sendInvitesRequestSchema.safeParse({ emails: [] }).success).toBe(false);
+  });
+
+  it('accepts exactly 50 addresses and rejects 51, with a message that says why', () => {
+    const emails = (count: number): string[] =>
+      Array.from({ length: count }, (_, index) => `guest-${index}@example.com`);
+
+    expect(sendInvitesRequestSchema.safeParse({ emails: emails(50) }).success).toBe(true);
+
+    const tooMany = sendInvitesRequestSchema.safeParse({ emails: emails(51) });
+    expect(tooMany.success).toBe(false);
+    expect(tooMany.error?.issues[0]?.message).toBe('You can invite at most 50 people at a time');
   });
 
   it('rejects an invalid email', () => {

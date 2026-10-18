@@ -1,5 +1,5 @@
 import type { DbClient } from '@brunchsters/database';
-import type { BrunchId, InviteToken, UserId } from '@brunchsters/shared';
+import type { BrunchId, InviteId, InviteToken, UserId } from '@brunchsters/shared';
 import { err, ok, type Result } from 'neverthrow';
 import { z } from 'zod';
 import { LookupNotFoundError } from '../errors/LookupNotFoundError';
@@ -104,8 +104,8 @@ export async function respondToInvite(
       await eventBus.emit(
         outcome === 'created' ? 'attendee/rsvp.received' : 'attendee/rsvp.changed',
         {
-          brunchId: invite.brunchId,
-          inviteId: invite.id,
+          brunchId: invite.brunchId as BrunchId,
+          inviteId: invite.id as InviteId,
           viewerId: input.viewerId,
           response: input.response,
         },

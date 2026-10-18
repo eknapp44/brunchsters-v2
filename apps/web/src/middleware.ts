@@ -1,7 +1,9 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 
-const PUBLIC_ROUTES = new Set(['/', '/sign-in']);
+// /api/inngest is called by Inngest, not by a signed-in person; the Inngest SDK verifies
+// the request signature itself (INNGEST_SIGNING_KEY), so the session gate must not apply.
+const PUBLIC_ROUTES = new Set(['/', '/sign-in', '/api/inngest']);
 // /api/v1/invites/token/ covers both the preview GET and the respond POST —
 // the respond route still enforces its own auth() check, this just stops
 // the blanket /api/ 401 gate from short-circuiting the one route meant to

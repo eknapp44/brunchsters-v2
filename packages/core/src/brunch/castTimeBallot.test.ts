@@ -116,7 +116,11 @@ describe('castTimeBallot', () => {
       { db, eventBus: makeMockEventBus(emit) },
     );
 
-    expect(emit).toHaveBeenCalledWith('vote/changed', expect.anything());
+    expect(emit).toHaveBeenCalledWith('vote/changed', {
+      brunchId: BRUNCH_ID,
+      voterId: VOTER_ID,
+      optionIds: [OPTION_B],
+    });
   });
 
   it('deletes votes no longer in the submitted set, scoped to this brunch', async () => {

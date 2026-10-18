@@ -1,5 +1,6 @@
 import type { DbClient } from '@brunchsters/database';
 import {
+  MAX_INVITES_PER_REQUEST,
   normalizeEmail,
   type BrunchId,
   type Email,
@@ -16,7 +17,13 @@ const INVITE_EXPIRY_DAYS = 30;
 
 export const sendInvitesRequestSchema = z.object({
   // Addresses are normalized here, at the boundary (ADR 0008): the output type is Email.
-  emails: z.array(z.email().transform(normalizeEmail)).min(1),
+  emails: z
+    .array(z.email().transform(normalizeEmail))
+    .min(1)
+    .max(
+      MAX_INVITES_PER_REQUEST,
+      `You can invite at most ${MAX_INVITES_PER_REQUEST} people at a time`,
+    ),
 });
 
 export type SendInvitesRequest = z.infer<typeof sendInvitesRequestSchema>;
@@ -223,17 +230,21 @@ export async function sendInvites(
     return err({ kind: 'db_error', cause });
   }
 
-  for (const invite of summaries) {
-    try {
-      await eventBus.emit('invite/sent', {
-        brunchId: input.brunchId,
-        inviteId: invite.id,
-        invitedEmail: invite.invitedEmail,
-      });
-    } catch {
-      // Side effects must never fail the send (Constitution 12).
-    }
-  }
+  // All at once, not one after another: the request waits for the slowest emit, not the sum of
+  // fifty round trips to the queue.
+  await Promise.all(
+    summaries.map(async (invite) => {
+      try {
+        await eventBus.emit('invite/sent', {
+          brunchId: input.brunchId,
+          inviteId: invite.id,
+          invitedEmail: invite.invitedEmail,
+        });
+      } catch {
+        // Side effects must never fail the send (Constitution 12).
+      }
+    }),
+  );
 
   return ok(summaries);
 }
