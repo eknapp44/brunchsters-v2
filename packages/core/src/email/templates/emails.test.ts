@@ -21,7 +21,7 @@ describe('renderInviteEmail', () => {
     expect(html).toContain('Sunday Funday');
     expect(html).toContain('Bring an appetite');
     expect(html).toContain('href="https://app.example.com/invite/abc"');
-    expect(html).toContain('November 23, 2026');
+    expect(html).toContain('November 23, 2026 at 12:00 PM UTC');
   });
 
   it('omits the description paragraph when there is none', () => {

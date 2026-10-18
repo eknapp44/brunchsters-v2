@@ -230,17 +230,21 @@ export async function sendInvites(
     return err({ kind: 'db_error', cause });
   }
 
-  for (const invite of summaries) {
-    try {
-      await eventBus.emit('invite/sent', {
-        brunchId: input.brunchId,
-        inviteId: invite.id,
-        invitedEmail: invite.invitedEmail,
-      });
-    } catch {
-      // Side effects must never fail the send (Constitution 12).
-    }
-  }
+  // All at once, not one after another: the request waits for the slowest emit, not the sum of
+  // fifty round trips to the queue.
+  await Promise.all(
+    summaries.map(async (invite) => {
+      try {
+        await eventBus.emit('invite/sent', {
+          brunchId: input.brunchId,
+          inviteId: invite.id,
+          invitedEmail: invite.invitedEmail,
+        });
+      } catch {
+        // Side effects must never fail the send (Constitution 12).
+      }
+    }),
+  );
 
   return ok(summaries);
 }

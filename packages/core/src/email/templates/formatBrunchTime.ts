@@ -25,6 +25,16 @@ export function formatBrunchTime(params: {
   }
 }
 
-export function formatCalendarDate(date: Date): string {
-  return new Intl.DateTimeFormat('en-US', { dateStyle: 'long', timeZone: 'UTC' }).format(date);
+// An instant in UTC with the zone named ("November 23, 2026 at 12:00 PM UTC"). A date alone is
+// ambiguous by up to a day for someone far from UTC; a link's expiry should not be.
+export function formatInstantUtc(date: Date): string {
+  return new Intl.DateTimeFormat('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZoneName: 'short',
+    timeZone: 'UTC',
+  }).format(date);
 }

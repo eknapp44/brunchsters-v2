@@ -66,7 +66,7 @@ Grounded in the current code:
 - [x] A single composition root in `apps/web/src/lib/` provides the `EventBus` (and the `EmailService` for handlers); no route or page constructs a bus inline
 - [x] `InngestEventBus` (in `apps/web/src/adapters/`) implements `EventBus`; selected when `INNGEST_EVENT_KEY` or `INNGEST_DEV` is set, otherwise `NoopEventBus`
 - [x] `POST/GET/PUT /api/inngest` serves the registered functions; it is public in `middleware.ts`, and an unsigned request is refused when the app runs in production mode
-- [x] A production deployment (`VERCEL_ENV=production`; not `NODE_ENV`, which CI's production build also sets) missing `AUTH_URL`, `RESEND_API_KEY`, `INNGEST_EVENT_KEY` or `INNGEST_SIGNING_KEY` fails at server start with a message naming the variable (a silent no-op in production is the worst failure mode)
+- [x] A production deployment (`VERCEL_ENV=production`; not `NODE_ENV`, which CI's production build also sets) missing `AUTH_URL`, `RESEND_API_KEY`, `EMAIL_FROM`, `INNGEST_EVENT_KEY` or `INNGEST_SIGNING_KEY` fails at server start with a message naming the variable (a silent no-op in production is the worst failure mode)
 
 ### Email layer
 

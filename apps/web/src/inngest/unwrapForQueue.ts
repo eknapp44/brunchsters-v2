@@ -21,7 +21,11 @@ function describeFailure(failure: Failure): string {
 // A service result becomes a value, or a thrown error the queue understands: a
 // NonRetriableError for failures that can never succeed, a plain Error (so Inngest
 // retries with backoff) for the rest.
-export function unwrapForQueue<T, E extends Failure>(result: Result<T, E>, step: string): T {
+export function unwrapForQueue<T, E extends Failure>(params: {
+  readonly result: Result<T, E>;
+  readonly step: string;
+}): T {
+  const { result, step } = params;
   if (result.isOk()) return result.value;
 
   const message = `${step} failed: ${describeFailure(result.error)}`;

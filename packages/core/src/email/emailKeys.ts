@@ -25,6 +25,6 @@ export function confirmedEmailKey(params: {
 }
 
 // Where an email's links point. AUTH_URL may or may not end in a slash.
-export function joinUrl(base: string, path: string): string {
-  return `${base.replace(/\/+$/, '')}${path}`;
+export function joinUrl(params: { readonly base: string; readonly path: string }): string {
+  return `${params.base.replace(/\/+$/, '')}${params.path}`;
 }

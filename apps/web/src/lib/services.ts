@@ -10,6 +10,7 @@ import { FileEmailService } from '@/adapters/FileEmailService';
 import { InngestEventBus } from '@/adapters/InngestEventBus';
 import { ResendEmailService } from '@/adapters/ResendEmailService';
 import { inngest } from '@/inngest/client';
+import { QUEUED_EVENTS } from '@/inngest/events';
 import { resolveServerConfig, type ServerConfig } from './serverConfig';
 
 // The one place the app decides which adapters run (ADR 0009), chosen by configuration.
@@ -27,7 +28,10 @@ let services: Services | undefined;
 function createServices(config: ServerConfig): Services {
   return {
     config,
-    eventBus: config.queue.kind === 'inngest' ? new InngestEventBus(inngest) : new NoopEventBus(),
+    eventBus:
+      config.queue.kind === 'inngest'
+        ? new InngestEventBus(inngest, QUEUED_EVENTS)
+        : new NoopEventBus(),
     emailService:
       config.email.kind === 'resend'
         ? new ResendEmailService(new Resend(config.email.apiKey), config.email.from)

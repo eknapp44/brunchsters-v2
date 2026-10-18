@@ -5,7 +5,7 @@ import { unwrapForQueue } from './unwrapForQueue';
 
 describe('unwrapForQueue', () => {
   it('returns the value of an Ok result', () => {
-    expect(unwrapForQueue(ok('sent'), 'send')).toBe('sent');
+    expect(unwrapForQueue({ result: ok('sent'), step: 'send' })).toBe('sent');
   });
 
   it.each([
@@ -13,7 +13,7 @@ describe('unwrapForQueue', () => {
     { kind: 'brunch_not_found' },
     { kind: 'not_confirmed' },
   ])('throws a NonRetriableError for $kind', (failure) => {
-    expect(() => unwrapForQueue(err(failure), 'send')).toThrow(NonRetriableError);
+    expect(() => unwrapForQueue({ result: err(failure), step: 'send' })).toThrow(NonRetriableError);
   });
 
   it.each([
@@ -22,7 +22,7 @@ describe('unwrapForQueue', () => {
   ])('throws a plain, retryable Error for $kind', (failure) => {
     let thrown: unknown;
     try {
-      unwrapForQueue(err(failure), 'send');
+      unwrapForQueue({ result: err(failure), step: 'send' });
     } catch (error) {
       thrown = error;
     }
@@ -33,19 +33,22 @@ describe('unwrapForQueue', () => {
 
   it('names the step and the cause in the message', () => {
     expect(() =>
-      unwrapForQueue(
-        err({ kind: 'delivery_failed', message: 'provider down' }),
-        'send-invite-email',
-      ),
+      unwrapForQueue({
+        result: err({ kind: 'delivery_failed', message: 'provider down' }),
+        step: 'send-invite-email',
+      }),
     ).toThrow('send-invite-email failed: delivery_failed: provider down');
     expect(() =>
-      unwrapForQueue(err({ kind: 'db_error', cause: new Error('connection lost') }), 'load'),
+      unwrapForQueue({
+        result: err({ kind: 'db_error', cause: new Error('connection lost') }),
+        step: 'load',
+      }),
     ).toThrow('load failed: db_error: connection lost');
   });
 
   it('falls back to the kind alone when there is no detail', () => {
-    expect(() => unwrapForQueue(err({ kind: 'not_confirmed' }), 'resolve')).toThrow(
-      'resolve failed: not_confirmed',
-    );
+    expect(() =>
+      unwrapForQueue({ result: err({ kind: 'not_confirmed' }), step: 'resolve' }),
+    ).toThrow('resolve failed: not_confirmed');
   });
 });

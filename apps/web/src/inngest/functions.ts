@@ -9,6 +9,8 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { getAppUrl, getEmailService } from '@/lib/services';
 import { inngest } from './client';
+import { CONFIRMED_EMAIL_EVENTS, INVITE_EMAIL_EVENTS } from './events';
+import { settleConfirmationEmail } from './settleConfirmationEmail';
 import { unwrapForQueue } from './unwrapForQueue';
 
 const MAX_CONCURRENT_INVITE_EMAILS = 5;
@@ -18,8 +20,8 @@ const MAX_CONCURRENT_INVITE_EMAILS = 5;
 const inviteEventSchema = z.object({ inviteId: z.uuid() });
 const brunchEventSchema = z.object({ brunchId: z.uuid() });
 
-function parseEventData<T>(schema: z.ZodType<T>, data: unknown): T {
-  const parsed = schema.safeParse(data);
+function parseEventData<T>(params: { readonly schema: z.ZodType<T>; readonly data: unknown }): T {
+  const parsed = params.schema.safeParse(params.data);
   if (!parsed.success) {
     throw new NonRetriableError(`Malformed event payload: ${parsed.error.message}`);
   }
@@ -31,23 +33,23 @@ function parseEventData<T>(schema: z.ZodType<T>, data: unknown): T {
 export const sendInviteEmailFunction = inngest.createFunction(
   {
     id: 'send-invite-email',
-    triggers: [{ event: 'invite/sent' }, { event: 'invite/resent' }],
+    triggers: INVITE_EMAIL_EVENTS.map((event) => ({ event })),
     // A host can invite 50 people in one request, which queues 50 runs at once. Without a
     // limit they all call back into the app together, each opening a database connection
     // and a request to the email provider; a few at a time is plenty for an email.
     concurrency: MAX_CONCURRENT_INVITE_EMAILS,
   },
   async ({ event, step }) => {
-    const { inviteId } = parseEventData(inviteEventSchema, event.data);
+    const { inviteId } = parseEventData({ schema: inviteEventSchema, data: event.data });
 
     return step.run('send-invite-email', async () =>
-      unwrapForQueue(
-        await sendInviteEmail(
+      unwrapForQueue({
+        result: await sendInviteEmail(
           { inviteId: inviteId as InviteId },
           { db, emailService: getEmailService(), appUrl: getAppUrl() },
         ),
-        'send-invite-email',
-      ),
+        step: 'send-invite-email',
+      }),
     );
   },
 );
@@ -57,20 +59,18 @@ export const sendInviteEmailFunction = inngest.createFunction(
 export const sendBrunchConfirmedEmailsFunction = inngest.createFunction(
   {
     id: 'send-brunch-confirmed-emails',
-    triggers: [{ event: 'brunch/confirmed' }],
+    triggers: CONFIRMED_EMAIL_EVENTS.map((event) => ({ event })),
   },
   async ({ event, step }) => {
-    const { brunchId } = parseEventData(brunchEventSchema, event.data);
+    const { brunchId } = parseEventData({ schema: brunchEventSchema, data: event.data });
 
-    // Step output is stored as JSON, so the time travels as an ISO string.
+    // Step output is stored by Inngest as JSON, so the time travels as an ISO string, and it holds
+    // ids, never an invite token: each recipient's step reads the token itself when it sends.
     const plan = await step.run('resolve-recipients', async () => {
-      const { brunch, recipients } = unwrapForQueue(
-        await resolveConfirmationRecipients(
-          { brunchId: brunchId as BrunchId },
-          { db, appUrl: getAppUrl() },
-        ),
-        'resolve-recipients',
-      );
+      const { brunch, recipients } = unwrapForQueue({
+        result: await resolveConfirmationRecipients({ brunchId: brunchId as BrunchId }, { db }),
+        step: 'resolve-recipients',
+      });
       return { brunch: { ...brunch, scheduledAt: brunch.scheduledAt.toISOString() }, recipients };
     });
 
@@ -79,27 +79,32 @@ export const sendBrunchConfirmedEmailsFunction = inngest.createFunction(
       brunchId: brunchId as BrunchId,
       scheduledAt: new Date(plan.brunch.scheduledAt),
     };
+    const outcomes: Record<string, string> = {};
     for (const recipient of plan.recipients) {
-      await step.run(`email-${recipient.key}`, async () =>
-        unwrapForQueue(
-          await sendConfirmationEmail(
+      const stepName = `email-${recipient.key}`;
+      outcomes[recipient.key] = await step.run(stepName, async () =>
+        settleConfirmationEmail({
+          result: await sendConfirmationEmail(
             {
               brunch,
               recipient: {
                 key: recipient.key,
                 email: recipient.email as Email,
                 name: recipient.name,
-                link: recipient.link,
+                destination:
+                  recipient.destination.kind === 'invite'
+                    ? { kind: 'invite', inviteId: recipient.destination.inviteId as InviteId }
+                    : { kind: 'brunch' },
               },
             },
-            { emailService: getEmailService() },
+            { db, emailService: getEmailService(), appUrl: getAppUrl() },
           ),
-          `email-${recipient.key}`,
-        ),
+          step: stepName,
+        }),
       );
     }
 
-    return { emailed: plan.recipients.length };
+    return { recipients: plan.recipients.length, outcomes };
   },
 );
 

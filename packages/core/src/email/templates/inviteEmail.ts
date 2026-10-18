@@ -1,5 +1,5 @@
 import { escapeHtml } from './escapeHtml';
-import { formatCalendarDate } from './formatBrunchTime';
+import { formatInstantUtc } from './formatBrunchTime';
 import { renderEmail } from './layout';
 import { safeSubject } from './safeSubject';
 
@@ -30,7 +30,7 @@ export function renderInviteEmail(params: InviteEmailParams): RenderedEmail {
       ].join(''),
       buttonLabel: 'View the invite',
       buttonUrl: params.link,
-      footerHtml: `This link is personal to you and expires on ${escapeHtml(formatCalendarDate(params.linkExpiresAt))}. If you weren't expecting this, you can ignore the email.`,
+      footerHtml: `This link is personal to you and expires on ${escapeHtml(formatInstantUtc(params.linkExpiresAt))}. If you weren't expecting this, you can ignore the email.`,
     }),
   };
 }

@@ -41,6 +41,9 @@ export function resolveServerConfig(env: Environment): ServerConfig {
 
   const resendApiKey = present(env.RESEND_API_KEY);
   if (strict && resendApiKey === undefined) missing.push('RESEND_API_KEY');
+  // Without it Resend's sandbox sender is used, which can only write to the account owner, so
+  // every real recipient would be rejected. Required, not defaulted, in a deployment.
+  if (strict && present(env.EMAIL_FROM) === undefined) missing.push('EMAIL_FROM');
 
   const hasInngestEventKey = present(env.INNGEST_EVENT_KEY) !== undefined;
   if (strict && !hasInngestEventKey) missing.push('INNGEST_EVENT_KEY');

@@ -179,18 +179,19 @@ Emails are sent by queued handlers (ADR 0009, spec 0008). Which implementation r
 2. Run `pnpm dev`, and in a second terminal `npx inngest-cli@1.46.0 dev --no-discovery -u http://localhost:3000/api/inngest`.
 3. Invite someone from the app. The newest file in `.mail-outbox/` is the email: open it and copy the `href` out of the `html` field (or read the `subject` and `to`). Runs and retries show in the Inngest dev UI at <http://localhost:8288>.
 
-**Production deployment.** A Vercel production deployment (`VERCEL_ENV=production`) refuses to start unless `AUTH_URL`, `RESEND_API_KEY`, `INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY` are set, and the error names whichever is missing. Set `EMAIL_FROM` too, otherwise Resend's sandbox sender is used. Point Inngest Cloud at `https://<your-domain>/api/inngest` (the Vercel integration does this for you). `NODE_ENV=production` alone is deliberately not enough to trigger the check: CI and the e2e suite serve a production build that is not a deployment.
+**Production deployment.** A Vercel production deployment (`VERCEL_ENV=production`) refuses to start unless `AUTH_URL`, `RESEND_API_KEY`, `EMAIL_FROM`, `INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY` are set, and the error names whichever is missing. `EMAIL_FROM` is required there because without it Resend's sandbox sender would be used, which can only write to your own account address, so every real recipient would be rejected. Point Inngest Cloud at `https://<your-domain>/api/inngest` (the Vercel integration does this for you). `NODE_ENV=production` alone is deliberately not enough to trigger the check: CI and the e2e suite serve a production build that is not a deployment.
 
 #### Verifying a sending domain in Resend
 
 Until you do this, Resend only delivers to the email address of your own Resend account, so an invite to anyone else fails. Nothing in the code changes when you do it, only `EMAIL_FROM`.
 
 1. **Buy a domain** (about $10-12 a year) from a registrar such as Cloudflare Registrar, Porkbun or Namecheap. It can double as the custom domain for the Vercel deployment later.
-2. In Resend open **Domains → Add Domain**. Use a **subdomain** such as `mail.yourdomain.com`: it keeps the sending reputation separate from anything else on the domain.
-3. Resend shows the DNS records to create: an SPF record (a TXT and an MX on the sending subdomain) and a DKIM TXT record. Copy them **exactly as the dashboard shows them** into your DNS provider's panel. Also add a `_dmarc` TXT record with the value `v=DMARC1; p=none;` so receivers know what to do with failures.
+2. In Resend open **Domains → Add Domain**. Use a **subdomain** such as `mail.yourdomain.com` (this project uses `mail.brunchsters.com`): it keeps the sending reputation separate from anything else on the domain, and leaves the root free for ordinary mailboxes or Cloudflare Email Routing.
+3. Resend then offers to add the DNS records for you. With Cloudflare, choose **Auto configure** and approve the one-time authorization it opens (check that the address bar says `dash.cloudflare.com` and that it lists only records on your `mail.` subdomain; it does not grant ongoing access). Otherwise copy the records **exactly as the dashboard shows them** into your DNS provider's panel. Resend's current setup creates three records on the subdomain: two **CNAMEs** (`send.mail` and `rsend.mail`, pointing at Resend's `forge.rmta.net` servers, which handle SPF and bounces) and one **TXT** (`resend._domainkey.mail`, the DKIM signing key), all DNS-only (grey cloud in Cloudflare).
+   Then add one record yourself, on the **root** domain: a TXT named `_dmarc` with the value `v=DMARC1; p=none;`. It tells receivers what to do with failed mail and covers the subdomain too.
 4. Back in Resend click **Verify**. It usually takes minutes; occasionally a few hours while DNS propagates.
 5. Create an API key with **sending access only** (Resend → API Keys) and set it in Vercel as `RESEND_API_KEY`.
-6. Set `EMAIL_FROM` in Vercel to an address on the verified subdomain, for example `Brunchsters <invites@mail.yourdomain.com>`, then redeploy.
+6. Set `EMAIL_FROM` in Vercel to an address on the verified subdomain, for example `Brunchsters <invites@mail.brunchsters.com>`, then redeploy.
 7. Send yourself an invite from the deployed app and check that it arrives in the inbox, not spam. The message's "show original" view should report SPF, DKIM and DMARC as passing.
 
 ---

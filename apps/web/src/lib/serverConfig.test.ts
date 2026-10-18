@@ -83,7 +83,7 @@ describe('resolveServerConfig — production deployment', () => {
     });
   });
 
-  it.each(['AUTH_URL', 'RESEND_API_KEY', 'INNGEST_EVENT_KEY', 'INNGEST_SIGNING_KEY'])(
+  it.each(['AUTH_URL', 'RESEND_API_KEY', 'EMAIL_FROM', 'INNGEST_EVENT_KEY', 'INNGEST_SIGNING_KEY'])(
     'refuses to start without %s and names it',
     (name) => {
       const env: Record<string, string | undefined> = { ...FULL_PRODUCTION, [name]: undefined };
@@ -94,7 +94,7 @@ describe('resolveServerConfig — production deployment', () => {
 
   it('names every missing variable at once', () => {
     expect(() => resolveServerConfig({ VERCEL_ENV: 'production' })).toThrow(
-      /AUTH_URL, RESEND_API_KEY, INNGEST_EVENT_KEY, INNGEST_SIGNING_KEY/,
+      /AUTH_URL, RESEND_API_KEY, EMAIL_FROM, INNGEST_EVENT_KEY, INNGEST_SIGNING_KEY/,
     );
   });
 

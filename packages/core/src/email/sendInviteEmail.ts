@@ -1,7 +1,7 @@
 import type { DbClient } from '@brunchsters/database';
 import type { Email, InviteId } from '@brunchsters/shared';
 import { err, ok, type Result } from 'neverthrow';
-import type { EmailService } from './EmailService';
+import type { EmailError, EmailService } from './EmailService';
 import { inviteEmailKey, joinUrl } from './emailKeys';
 import { renderInviteEmail } from './templates/inviteEmail';
 
@@ -24,8 +24,7 @@ export type SendInviteEmailOutcome =
   | 'skipped_duplicate';
 
 export type SendInviteEmailError =
-  | { readonly kind: 'delivery_failed'; readonly message: string }
-  | { readonly kind: 'invalid_address'; readonly address: string }
+  | Exclude<EmailError, { readonly kind: 'already_sent' }>
   | { readonly kind: 'db_error'; readonly cause: unknown };
 
 // Runs from a queued event, possibly long after the invite was created and possibly
@@ -60,7 +59,7 @@ export async function sendInviteEmail(
     hostName: invite.brunch.host.name,
     brunchTitle: invite.brunch.title,
     description: invite.brunch.description ?? undefined,
-    link: joinUrl(ctx.appUrl, `/invite/${invite.token}`),
+    link: joinUrl({ base: ctx.appUrl, path: `/invite/${invite.token}` }),
     linkExpiresAt: invite.tokenExpiresAt,
   });
 

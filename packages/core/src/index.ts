@@ -12,10 +12,12 @@ export {
   sendConfirmationEmail,
 } from './email/sendBrunchConfirmedEmails';
 export type {
+  ConfirmationDestination,
   ConfirmationRecipient,
   ConfirmedBrunchSummary,
   ResolveConfirmationRecipientsError,
   SendConfirmationEmailError,
+  SendConfirmationEmailOutcome,
 } from './email/sendBrunchConfirmedEmails';
 export type { BrunchEventName, BrunchEventPayloads, EventBus } from './events/EventBus';
 export { NoopEventBus } from './events/NoopEventBus';

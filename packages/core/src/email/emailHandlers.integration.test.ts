@@ -18,7 +18,7 @@ import { respondToInvite } from '../invite/respondToInvite';
 import { revokeInvite } from '../invite/revokeInvite';
 import { sendInvites } from '../invite/sendInvites';
 import { MockEmailService } from './MockEmailService';
-import { resolveConfirmationRecipients } from './sendBrunchConfirmedEmails';
+import { resolveConfirmationRecipients, sendConfirmationEmail } from './sendBrunchConfirmedEmails';
 import { sendInviteEmail } from './sendInviteEmail';
 
 // Requires: supabase start + seeded lookup tables (pnpm db:seed).
@@ -259,20 +259,53 @@ describe('resolveConfirmationRecipients (integration — real Postgres)', () => 
     );
     expect(confirmed.isOk()).toBe(true);
 
-    const result = await resolveConfirmationRecipients({ brunchId }, { db, appUrl: APP_URL });
+    const result = await resolveConfirmationRecipients({ brunchId }, { db });
     const { brunch, recipients } = result._unsafeUnwrap();
 
     expect(recipients.map((r) => r.email).sort()).toEqual(
       [HOST_EMAIL, YES_EMAIL, MAYBE_EMAIL, WAITING_EMAIL, SILENT_EMAIL].sort(),
     );
 
-    // People with accounts go to the brunch; the person with no account gets their invite page.
+    // People with accounts go to the brunch; the person with no account is pointed at their
+    // invite by id. The token itself is never in the recipient list (it is stored as queue state).
     const byEmail = new Map(recipients.map((r) => [r.email, r]));
-    expect(byEmail.get(YES_EMAIL)?.link).toBe(`${APP_URL}/brunch/${brunchId}`);
-    expect(byEmail.get(HOST_EMAIL)?.link).toBe(`${APP_URL}/brunch/${brunchId}`);
+    expect(byEmail.get(YES_EMAIL)?.destination).toEqual({ kind: 'brunch' });
+    expect(byEmail.get(HOST_EMAIL)?.destination).toEqual({ kind: 'brunch' });
     const silent = await inviteFor(brunchId, SILENT_EMAIL);
-    expect(byEmail.get(SILENT_EMAIL)?.link).toBe(`${APP_URL}/invite/${silent.token}`);
+    expect(byEmail.get(SILENT_EMAIL)?.destination).toEqual({ kind: 'invite', inviteId: silent.id });
     expect(byEmail.get(SILENT_EMAIL)?.name).toBeUndefined();
+    expect(JSON.stringify(recipients)).not.toContain(silent.token);
+
+    // Sending builds the link then, from the token as it is at that moment: a resend between
+    // listing and sending (which rotates the token) means the new link is the one emailed.
+    const resent = await resendInvite(
+      { inviteId: silent.id, requestedById: hostId },
+      { db, eventBus },
+    );
+    expect(resent.isOk()).toBe(true);
+    const rotated = await inviteFor(brunchId, SILENT_EMAIL);
+    expect(rotated.token).not.toBe(silent.token);
+    const emailService = new MockEmailService();
+    const silentRecipient = required(byEmail.get(SILENT_EMAIL));
+    const sent = await sendConfirmationEmail(
+      { brunch, recipient: silentRecipient },
+      { db, emailService, appUrl: APP_URL },
+    );
+    expect(sent._unsafeUnwrap()).toBe('sent');
+    expect(emailService.sent[0]?.html).toContain(`${APP_URL}/invite/${rotated.token}"`);
+    expect(emailService.sent[0]?.html).not.toContain(silent.token);
+
+    // And an invite revoked after the list was made gets nothing.
+    expect(
+      (await revokeInvite({ inviteId: silent.id, requestedById: hostId }, { db })).isOk(),
+    ).toBe(true);
+    const afterRevoke = new MockEmailService();
+    const skipped = await sendConfirmationEmail(
+      { brunch, recipient: silentRecipient },
+      { db, emailService: afterRevoke, appUrl: APP_URL },
+    );
+    expect(skipped._unsafeUnwrap()).toBe('skipped_invite_gone');
+    expect(afterRevoke.sent).toHaveLength(0);
 
     expect(brunch.placeName).toBe('Cafe A');
     expect(brunch.timezone).toBe('America/Chicago');
@@ -297,7 +330,26 @@ describe('resolveConfirmationRecipients (integration — real Postgres)', () => 
   it('refuses a brunch that is not confirmed yet', async () => {
     const { brunchId } = await createBrunchWithInvites('unconfirmed', [SILENT_EMAIL]);
 
-    const result = await resolveConfirmationRecipients({ brunchId }, { db, appUrl: APP_URL });
+    const result = await resolveConfirmationRecipients({ brunchId }, { db });
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'not_confirmed' });
+  });
+
+  it('does not announce a brunch that was cancelled after it was confirmed', async () => {
+    const { brunchId, locationId, timeId } = await createBrunchWithInvites('cancelled', [
+      SILENT_EMAIL,
+    ]);
+    const confirmed = await confirmBrunch(
+      { brunchId, requestedById: hostId, locationId, timeId },
+      { db, eventBus },
+    );
+    expect(confirmed.isOk()).toBe(true);
+    const cancelledStatus = required(
+      await db.brunchStatus.findFirst({ where: { code: 'cancelled' } }),
+    );
+    await db.brunch.update({ where: { id: brunchId }, data: { statusId: cancelledStatus.id } });
+
+    const result = await resolveConfirmationRecipients({ brunchId }, { db });
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'not_confirmed' });
   });

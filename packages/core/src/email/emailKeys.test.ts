@@ -41,10 +41,10 @@ describe('confirmedEmailKey', () => {
 
 describe('joinUrl', () => {
   it('joins with exactly one slash whether or not the base ends in one', () => {
-    expect(joinUrl('https://app.example.com', '/invite/x')).toBe(
+    expect(joinUrl({ base: 'https://app.example.com', path: '/invite/x' })).toBe(
       'https://app.example.com/invite/x',
     );
-    expect(joinUrl('https://app.example.com/', '/invite/x')).toBe(
+    expect(joinUrl({ base: 'https://app.example.com/', path: '/invite/x' })).toBe(
       'https://app.example.com/invite/x',
     );
   });

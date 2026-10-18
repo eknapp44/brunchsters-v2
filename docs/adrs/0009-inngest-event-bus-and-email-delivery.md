@@ -25,7 +25,11 @@ Spec 0008 delivers the first real consequences (an email to a new invitee; an em
 
 **Idempotency without a table.** Handlers run at least once. The send is its own `step.run` (Inngest memoizes a completed step across retries), and the Resend call carries an `Idempotency-Key` derived from the invite id and a hash of the current token (never the token itself), or from the brunch id and the recipient for confirmations. No schema change.
 
-**Handlers read the database; payloads carry only ids.** An event can arrive after the invite was revoked or its token rotated, so the handler loads the live invite and its current token at send time and skips when the invite is gone.
+**Handlers read the database; payloads and queue state carry only ids.** What Inngest stores (event data and each step's output, including in Inngest Cloud) must never hold a secret: the confirmation run lists its recipients in a stored step, so an invitee's invite-page link is represented by the invite's id and the token is read from the database in the step that sends the email.
+
+**Only events that have a handler reach the queue.** The functions subscribe through one list (`apps/web/src/inngest/events.ts`) and `InngestEventBus` drops every other event before the network call, so votes, RSVPs and brunch creation cost the request nothing until something consumes them. `sendInvites` emits its events in parallel for the same reason.
+
+Why handlers read the database: an event can arrive after the invite was revoked or its token rotated, so the handler loads the live invite and its current token at send time and skips when the invite is gone.
 
 **Adapters are selected by configuration, never by test flags.**
 

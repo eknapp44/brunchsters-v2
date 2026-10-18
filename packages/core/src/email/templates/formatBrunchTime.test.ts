@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatBrunchTime, formatCalendarDate } from './formatBrunchTime';
+import { formatBrunchTime, formatInstantUtc } from './formatBrunchTime';
 
 // 15:30 UTC on a Saturday in October: daylight time in Chicago, still evening in Tokyo.
 const SCHEDULED_AT = new Date('2026-10-24T15:30:00Z');
@@ -26,8 +26,10 @@ describe('formatBrunchTime', () => {
   });
 });
 
-describe('formatCalendarDate', () => {
-  it('formats a date without a time', () => {
-    expect(formatCalendarDate(new Date('2026-11-23T12:00:00Z'))).toBe('November 23, 2026');
+describe('formatInstantUtc', () => {
+  it('names the time and the zone, so the expiry is unambiguous to someone far from UTC', () => {
+    expect(formatInstantUtc(new Date('2026-11-23T02:00:00Z'))).toBe(
+      'November 23, 2026 at 2:00 AM UTC',
+    );
   });
 });
