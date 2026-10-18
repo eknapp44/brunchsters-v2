@@ -17,10 +17,6 @@
   margin-bottom: var(--space-5);
 }
 
-.back {
-  margin-left: calc(var(--space-3) * -1);
-}
-
 /* each part of the page is a card: a <section> with its own heading */
 .panel {
   margin-bottom: var(--space-4);

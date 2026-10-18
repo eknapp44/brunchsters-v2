@@ -57,7 +57,7 @@ export default async function ManageBrunchPage({
         <div className={styles.header}>
           <h1>Manage: {brunch.title}</h1>
         </div>
-        <ButtonLink className={detail.back} href={`/brunch/${brunchId}`} variant="ghost" size="sm">
+        <ButtonLink href={`/brunch/${brunchId}`} size="sm">
           <Icon name="arrowLeft" size={16} />
           Back to brunch
         </ButtonLink>
@@ -112,7 +112,7 @@ export default async function ManageBrunchPage({
       <div className={styles.header}>
         <h1>Manage: {brunch.title}</h1>
       </div>
-      <ButtonLink className={detail.back} href={`/brunch/${brunchId}`} variant="ghost" size="sm">
+      <ButtonLink href={`/brunch/${brunchId}`} size="sm">
         <Icon name="arrowLeft" size={16} />
         Back to brunch
       </ButtonLink>

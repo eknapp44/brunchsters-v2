@@ -88,7 +88,7 @@ export default async function BrunchDetailPage({
         <Badge tone={statusTone(brunch.statusCode)}>{brunch.statusLabel}</Badge>
       </div>
       <div className={styles.nav}>
-        <ButtonLink className={styles.back} href="/dashboard" variant="ghost" size="sm">
+        <ButtonLink href="/dashboard" size="sm">
           <Icon name="arrowLeft" size={16} />
           Back to Dashboard
         </ButtonLink>
