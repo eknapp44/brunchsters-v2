@@ -72,7 +72,7 @@ export function LocationSuggestionControl({
             <li key={suggestion.id} className={styles.row}>
               <span className={styles.rowMain}>
                 <PopIcon name="pin" size={22} />
-                <span>
+                <span className={styles.rowText}>
                   {suggestion.placeName} — {suggestion.placeAddress}{' '}
                   <span className={styles.detail}>(awaiting host approval)</span>
                 </span>
@@ -148,7 +148,7 @@ export function TimeSuggestionControl({
             <li key={suggestion.id} className={styles.row}>
               <span className={styles.rowMain}>
                 <PopIcon name="clock" size={22} />
-                <span>
+                <span className={styles.rowText}>
                   {suggestion.scheduledAt.toLocaleString(undefined, {
                     dateStyle: 'medium',
                     timeStyle: 'short',

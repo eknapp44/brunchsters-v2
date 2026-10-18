@@ -2,6 +2,10 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { Button } from '@/components/ui/Button';
+import { InlineAlert } from '@/components/ui/InlineAlert';
+import detail from '../detail.module.css';
+import styles from './manage.module.css';
 
 type LocationOption = {
   readonly id: string;
@@ -84,15 +88,19 @@ export function ConfirmControl({
   }
 
   return (
-    <section>
+    <section className={detail.panel}>
       <h2>Confirm</h2>
 
-      {noOneElseAccepted && <p>No one else has accepted yet — you can still confirm.</p>}
+      {noOneElseAccepted && (
+        <InlineAlert>
+          <p>No one else has accepted yet — you can still confirm.</p>
+        </InlineAlert>
+      )}
 
-      <fieldset>
-        <legend>Location</legend>
+      <fieldset className={styles.fieldset}>
+        <legend className={styles.legend}>Location</legend>
         {locations.map((location) => (
-          <label key={location.id}>
+          <label key={location.id} className={detail.option}>
             <input
               type="radio"
               name="confirm-location"
@@ -100,15 +108,20 @@ export function ConfirmControl({
               disabled={disabled || submitting}
               onChange={() => setLocationId(location.id)}
             />
-            {location.placeName} — {location.placeAddress} ({voteCountLabel(location.voteCount)})
+            <span className={detail.optionText}>
+              <span className={detail.name}>{location.placeName}</span>{' '}
+              <span className={detail.detail}>
+                — {location.placeAddress} ({voteCountLabel(location.voteCount)})
+              </span>
+            </span>
           </label>
         ))}
       </fieldset>
 
-      <fieldset>
-        <legend>Time</legend>
+      <fieldset className={styles.fieldset}>
+        <legend className={styles.legend}>Time</legend>
         {times.map((time) => (
-          <label key={time.id}>
+          <label key={time.id} className={detail.option}>
             <input
               type="radio"
               name="confirm-time"
@@ -116,29 +129,40 @@ export function ConfirmControl({
               disabled={disabled || submitting}
               onChange={() => setTimeId(time.id)}
             />
-            {time.scheduledAt.toLocaleString(undefined, {
-              dateStyle: 'medium',
-              timeStyle: 'short',
-            })}{' '}
-            ({voteCountLabel(time.voteCount)})
+            <span className={detail.optionText}>
+              <span className={detail.name}>
+                {time.scheduledAt.toLocaleString(undefined, {
+                  dateStyle: 'medium',
+                  timeStyle: 'short',
+                })}
+              </span>{' '}
+              <span className={detail.detail}>({voteCountLabel(time.voteCount)})</span>
+            </span>
           </label>
         ))}
       </fieldset>
 
-      <button
-        type="button"
-        onClick={() => void confirm()}
-        disabled={
-          disabled ||
-          submitting ||
-          effectiveLocationId === undefined ||
-          effectiveTimeId === undefined
-        }
-      >
-        Confirm brunch
-      </button>
+      <div className={detail.choices}>
+        <Button
+          type="button"
+          variant="primary"
+          onClick={() => void confirm()}
+          disabled={
+            disabled ||
+            submitting ||
+            effectiveLocationId === undefined ||
+            effectiveTimeId === undefined
+          }
+        >
+          Confirm brunch
+        </Button>
+      </div>
 
-      {error !== undefined && <p role="alert">{error}</p>}
+      {error !== undefined && (
+        <InlineAlert tone="error" role="alert">
+          <p>{error}</p>
+        </InlineAlert>
+      )}
     </section>
   );
 }

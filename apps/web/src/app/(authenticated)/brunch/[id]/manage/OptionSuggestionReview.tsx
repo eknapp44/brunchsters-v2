@@ -2,6 +2,10 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { PopIcon } from '@/components/icons/PopIcon';
+import { Button } from '@/components/ui/Button';
+import { InlineAlert } from '@/components/ui/InlineAlert';
+import detail from '../detail.module.css';
 
 type PendingLocationSuggestion = {
   readonly id: string;
@@ -58,63 +62,85 @@ export function OptionSuggestionReview({
   if (locationSuggestions.length === 0 && timeSuggestions.length === 0) return null;
 
   return (
-    <section>
+    <section className={detail.panel}>
       <h2>Pending Suggestions</h2>
 
       {locationSuggestions.length > 0 && (
-        <ul>
+        <ul className={detail.rows} role="list">
           {locationSuggestions.map((suggestion) => (
-            <li key={suggestion.id}>
-              {suggestion.placeName} — {suggestion.placeAddress} — suggested by{' '}
-              {suggestion.suggestedByName}
-              <button
-                type="button"
-                onClick={() => void review('location', suggestion.id, 'approve')}
-                disabled={pendingId === suggestion.id}
-              >
-                Approve
-              </button>
-              <button
-                type="button"
-                onClick={() => void review('location', suggestion.id, 'decline')}
-                disabled={pendingId === suggestion.id}
-              >
-                Decline
-              </button>
+            <li key={suggestion.id} className={detail.row}>
+              <span className={detail.rowMain}>
+                <PopIcon name="pin" size={22} />
+                <span className={detail.rowText}>
+                  {suggestion.placeName} — {suggestion.placeAddress}{' '}
+                  <span className={detail.detail}>— suggested by {suggestion.suggestedByName}</span>
+                </span>
+              </span>
+              <span className={detail.rowActions}>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => void review('location', suggestion.id, 'approve')}
+                  disabled={pendingId === suggestion.id}
+                >
+                  Approve
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => void review('location', suggestion.id, 'decline')}
+                  disabled={pendingId === suggestion.id}
+                >
+                  Decline
+                </Button>
+              </span>
             </li>
           ))}
         </ul>
       )}
 
       {timeSuggestions.length > 0 && (
-        <ul>
+        <ul className={detail.rows} role="list">
           {timeSuggestions.map((suggestion) => (
-            <li key={suggestion.id}>
-              {suggestion.scheduledAt.toLocaleString(undefined, {
-                dateStyle: 'medium',
-                timeStyle: 'short',
-              })}{' '}
-              — suggested by {suggestion.suggestedByName}
-              <button
-                type="button"
-                onClick={() => void review('time', suggestion.id, 'approve')}
-                disabled={pendingId === suggestion.id}
-              >
-                Approve
-              </button>
-              <button
-                type="button"
-                onClick={() => void review('time', suggestion.id, 'decline')}
-                disabled={pendingId === suggestion.id}
-              >
-                Decline
-              </button>
+            <li key={suggestion.id} className={detail.row}>
+              <span className={detail.rowMain}>
+                <PopIcon name="clock" size={22} />
+                <span className={detail.rowText}>
+                  {suggestion.scheduledAt.toLocaleString(undefined, {
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                  })}{' '}
+                  <span className={detail.detail}>— suggested by {suggestion.suggestedByName}</span>
+                </span>
+              </span>
+              <span className={detail.rowActions}>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => void review('time', suggestion.id, 'approve')}
+                  disabled={pendingId === suggestion.id}
+                >
+                  Approve
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => void review('time', suggestion.id, 'decline')}
+                  disabled={pendingId === suggestion.id}
+                >
+                  Decline
+                </Button>
+              </span>
             </li>
           ))}
         </ul>
       )}
 
-      {error !== undefined && <p role="alert">{error}</p>}
+      {error !== undefined && (
+        <InlineAlert tone="error" role="alert">
+          <p>{error}</p>
+        </InlineAlert>
+      )}
     </section>
   );
 }

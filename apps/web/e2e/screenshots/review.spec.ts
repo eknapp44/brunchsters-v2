@@ -106,4 +106,13 @@ test('brunch detail and manage, as host and as invitee', async ({ makeActor }, t
   await host.page.goto(`/brunch/${confirmed.brunchId}`);
   await expect(host.page.getByRole('heading', { name: confirmed.title })).toBeVisible();
   await captureReviewShots(host.page, 'brunch-host-confirmed', testInfo);
+
+  await host.page.goto(`/brunch/${confirmed.brunchId}/manage`);
+  await expect(host.page.getByRole('heading', { name: 'Confirmed', exact: true })).toBeVisible();
+  await captureReviewShots(host.page, 'manage-confirmed', testInfo);
+
+  const draftId = await createBrunch({ host: host.user, title: 'Draft Brunch' });
+  await host.page.goto(`/brunch/${draftId}/manage`);
+  await expect(host.page.getByRole('heading', { name: 'Send an invite first' })).toBeVisible();
+  await captureReviewShots(host.page, 'manage-draft', testInfo);
 });

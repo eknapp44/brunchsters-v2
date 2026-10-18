@@ -152,14 +152,26 @@ Eight milestones, each green on its own and ending in a commit. Review points ar
 
 ## M6 — Manage page
 
-- [ ] Restyle `brunch/[id]/manage/page.tsx` and `OptionManager`, `VotingControls`, `ConfirmControl`, `OptionSuggestionReview`; keep the single-`<section>` structure that the existing locators depend on unless a journey is deliberately updated in discussion (spec 0006 notes the Locations and Times lists share one section)
-- [ ] Add the states to the screenshot set and to D2 axe coverage
-- [ ] Existing journeys pass unmodified (`manage-options`, `confirm`, `closing-voting`, `failure-paths`)
-- [ ] **Prove the new tests can fail:** drop the label on the add-a-time date input (the spec 0006 gap) and confirm axe and the manage journeys catch it
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e`, stress run, CI mode
-- [ ] Commit: `feat: style the host manage page (M6)`
+- [x] Restyle `brunch/[id]/manage/page.tsx` and `OptionManager`, `VotingControls`, `ConfirmControl`, `OptionSuggestionReview`; keep the single-`<section>` structure that the existing locators depend on unless a journey is deliberately updated in discussion (spec 0006 notes the Locations and Times lists share one section)
+- [x] Add the states to the screenshot set and to D2 axe coverage
+- [x] Existing journeys pass unmodified (`manage-options`, `confirm`, `closing-voting`, `failure-paths`)
+- [x] **Prove the new tests can fail:** drop the label on the add-a-time date input (the spec 0006 gap) and confirm axe and the manage journeys catch it
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e`, stress run, CI mode
+- [x] Commit: `feat: style the host manage page (M6)`
 
-**Testing notes:** _(fill on completion)_
+**Testing notes:**
+
+- **What was tested:** Axe (D2, light and dark) now scans the host manage page in four states: a draft brunch (controls shown but disabled, with the "Send an invite first" notice), voting open with a suggested place and a suggested time waiting for approval (created through the real UI as an attendee), voting closed, and the confirmed summary. The existing journeys that drive this page passed **unmodified**: `manage-options` (add and remove places and times, a vote dropping with its option, confirming after a removal, the draft rules), `confirm` (the leader preselects, ties, the "no one else has accepted" note, what locks after confirming), `closing-voting` (the nudge, a saved deadline, closing), `failure-paths` (removing the last option is refused), `option-suggestions` and `suggestion-decline`.
+- **How:** unit (web 319; core 429, shared 7, database 1), full e2e on the dev server (92, 2 new), a 276-run stress (`--workers=4 --repeat-each=3`) and CI mode (`CI=true pnpm build`, then `CI=true pnpm test:e2e`, 92 of 92, nothing left listening). Typecheck and lint clean. All logs kept; no failure or flake this milestone.
+- **Proving the new tests can fail:** the `aria-label` on the add-a-time date input (the accessibility gap spec 0006 found three times) was removed. Axe reported a **critical** `label` violation on exactly that input in both palettes, and the manage journey H1 failed (it finds the input by that label); restored from a copy.
+- **What was built:** each part of the page is a card; the Locations and Times lists stay in **one** section with two headings (the journeys rely on that), each half grouped by a plain div; places and times as rows with a Pop icon and a soft-red Remove; Voting with the deadline field and its Save beside it; Confirm with the Location and Time radio groups drawn like the voting options on the brunch page (the same highlight when chosen), and the butter "Confirm brunch" as the page's one primary action; pending suggestions as rows with Approve and Decline; the draft notice with a primary link; the confirmed summary with a pin and a clock. Radio and button names are unchanged (radios still start with the place or the time).
+- **Findings:**
+  1. **Two layout defects found by looking at the phone screenshots, not by a test:** the text beside a pin or clock icon dropped below the icon (it could not fit next to it), and the Time group sat tight against the Location group (my `margin: 0` on the fieldset cancelled the card's spacing rule). Fixed with a `rowText` class that lets the text take the remaining width, and `margin-inline` only. Both are in the shared detail styles, so the brunch page's display-only rows and suggestion rows got the same fix.
+  2. **Button choices, all judgment calls for review:** Remove is the soft-red `danger` style (it takes an option away, with its votes); "Close voting now" is a plain secondary button, not red, because it ends voting but is the normal next step; Approve and Decline are plain. "Confirm brunch" is the only primary action.
+  3. **The shared look is reused, not copied:** the manage components import the brunch page's `detail.module.css` for cards, rows, option rows and add rows, with a small `manage.module.css` for what is specific to this page.
+  4. **No new copy and no new markup roles:** the nudge, the "no one else has accepted" note and "Voting is closed." keep their exact text (now inside inline alerts); the headings are `Locations`, `Times`, `Voting`, `Confirm`, `Confirmed` and `Pending Suggestions` as before.
+- **What's deferred:** nothing from this milestone; the screens are now all restyled. Left for M7: phone-width journeys and the no-horizontal-scroll check, the keyboard and reduced-motion journey, the final parity table, and the documentation.
+- **How to run it:** `pnpm test:e2e`, `pnpm --filter @brunchsters/web screenshots` (new: `manage-draft`, `manage-confirmed`).
 
 ---
 

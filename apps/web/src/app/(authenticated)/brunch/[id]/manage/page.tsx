@@ -4,8 +4,13 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { z } from 'zod';
 import { auth } from '@/auth';
+import { PopIcon } from '@/components/icons/PopIcon';
+import { ButtonLink } from '@/components/ui/ButtonLink';
+import { Container } from '@/components/ui/Container';
 import { db } from '@/lib/db';
+import detail from '../detail.module.css';
 import { ConfirmControl } from './ConfirmControl';
+import styles from './manage.module.css';
 import { OptionManager } from './OptionManager';
 import { OptionSuggestionReview } from './OptionSuggestionReview';
 import { VotingControls } from './VotingControls';
@@ -48,34 +53,44 @@ export default async function ManageBrunchPage({
     const confirmedTime = voting?.times.options.find((option) => option.isConfirmed);
 
     return (
-      <main>
-        <h1>Manage: {brunch.title}</h1>
-        <Link href={`/brunch/${brunchId}`}>← Back to brunch</Link>
+      <Container as="main">
+        <div className={styles.header}>
+          <h1>Manage: {brunch.title}</h1>
+        </div>
+        <Link className={detail.back} href={`/brunch/${brunchId}`}>
+          ← Back to brunch
+        </Link>
 
-        <section>
+        <section className={detail.panel}>
           <h2>Confirmed</h2>
           {confirmedLocation !== undefined && (
-            <p>
-              {confirmedLocation.placeName} — {confirmedLocation.placeAddress}
+            <p className={styles.fact}>
+              <PopIcon name="pin" size={22} />
+              <span>
+                {confirmedLocation.placeName} — {confirmedLocation.placeAddress}
+              </span>
             </p>
           )}
           {confirmedTime !== undefined && (
-            <p>
-              {confirmedTime.scheduledAt.toLocaleString(undefined, {
-                dateStyle: 'medium',
-                timeStyle: 'short',
-                // PLANNING §9.3: times render in the location's zone once
-                // confirmed. This is a server component with no client-side
-                // correction pass, so `undefined` here would resolve to the
-                // *server's* zone (UTC in production), not the viewer's or
-                // the location's — silently showing the wrong confirmed time
-                // (architect review, F5).
-                timeZone: confirmedLocation?.timezone,
-              })}
+            <p className={styles.fact}>
+              <PopIcon name="clock" size={22} />
+              <span>
+                {confirmedTime.scheduledAt.toLocaleString(undefined, {
+                  dateStyle: 'medium',
+                  timeStyle: 'short',
+                  // PLANNING §9.3: times render in the location's zone once
+                  // confirmed. This is a server component with no client-side
+                  // correction pass, so `undefined` here would resolve to the
+                  // *server's* zone (UTC in production), not the viewer's or
+                  // the location's — silently showing the wrong confirmed time
+                  // (architect review, F5).
+                  timeZone: confirmedLocation?.timezone,
+                })}
+              </span>
             </p>
           )}
         </section>
-      </main>
+      </Container>
     );
   }
 
@@ -92,18 +107,26 @@ export default async function ManageBrunchPage({
   const isDraft = brunch.statusCode === 'draft';
 
   return (
-    <main>
-      <h1>Manage: {brunch.title}</h1>
-      <Link href={`/brunch/${brunchId}`}>← Back to brunch</Link>
+    <Container as="main">
+      <div className={styles.header}>
+        <h1>Manage: {brunch.title}</h1>
+      </div>
+      <Link className={detail.back} href={`/brunch/${brunchId}`}>
+        ← Back to brunch
+      </Link>
 
       {isDraft && (
-        <section>
+        <section className={detail.panel}>
           <h2>Send an invite first</h2>
           <p>
             This brunch is still a draft. You can add or remove places and times, close voting, and
             confirm, once you have invited at least one person.
           </p>
-          <Link href={`/brunch/${brunchId}`}>Invite people from the brunch page</Link>
+          <div className={detail.choices}>
+            <ButtonLink href={`/brunch/${brunchId}`} variant="primary" size="sm">
+              Invite people from the brunch page
+            </ButtonLink>
+          </div>
         </section>
       )}
 
@@ -139,6 +162,6 @@ export default async function ManageBrunchPage({
           />
         </>
       )}
-    </main>
+    </Container>
   );
 }

@@ -3,7 +3,8 @@ import { createBrunch } from '../support/factories';
 import { expect, test } from '../support/fixtures';
 import { fixturePlaces } from '../support/places';
 import { createConfirmedBrunch, createVotingBrunch, inviteNewcomer } from '../support/showcase';
-import { closeVoting } from '../support/voting';
+import { daysFromNow, toDatetimeLocalValue } from '../support/time';
+import { addAttendee, closeVoting } from '../support/voting';
 import { BrunchWizard } from '../support/wizard';
 
 // Journeys D1 and D2 (spec 0009): axe (WCAG 2.0/2.1 A and AA) on every screen, in the light
@@ -98,6 +99,58 @@ for (const scheme of COLOR_SCHEMES) {
       await expectNoA11yViolations(host.page, `detail, host, confirmed (${scheme})`);
       await yes.page.goto(`/brunch/${confirmed.brunchId}`);
       await expectNoA11yViolations(yes.page, `detail, invitee, confirmed (${scheme})`);
+    });
+
+    test('the host manage page, in every state', async ({ makeActor }) => {
+      const host = await makeActor('host');
+      const yes = await makeActor('yes');
+      const maybe = await makeActor('maybe');
+      const pending = await makeActor('pending');
+      const suggester = await makeActor('suggester');
+      await useColorScheme(host.page, scheme);
+
+      // a draft brunch: nobody invited yet, so the controls are shown but disabled
+      const draftId = await createBrunch({ host: host.user, title: 'Draft To Manage' });
+      await host.page.goto(`/brunch/${draftId}/manage`);
+      await expect(host.page.getByRole('heading', { name: 'Send an invite first' })).toBeVisible();
+      await expectNoA11yViolations(host.page, `manage, draft (${scheme})`);
+
+      // voting open, with a suggested place and a suggested time waiting for the host
+      const voting = await createVotingBrunch({ host, guests: { yes, maybe, pending } });
+      await addAttendee({
+        brunchId: voting.brunchId,
+        host: host.user,
+        user: suggester.user,
+        response: 'yes',
+      });
+      await suggester.page.goto(`/brunch/${voting.brunchId}`);
+      await suggester.page.getByRole('textbox', { name: 'Search for a place' }).fill('pacific');
+      await suggester.page
+        .getByRole('button', {
+          name: `${fixturePlaces.pacificBrunchHouse.name} — ${fixturePlaces.pacificBrunchHouse.address}`,
+        })
+        .click();
+      await suggester.page
+        .getByLabel('Suggested date and time')
+        .fill(toDatetimeLocalValue(daysFromNow(12)));
+      await suggester.page.getByRole('button', { name: 'Suggest this time' }).click();
+      await expect(suggester.page.getByText('(awaiting host approval)')).toHaveCount(2);
+
+      await host.page.goto(`/brunch/${voting.brunchId}/manage`);
+      await expect(host.page.getByRole('heading', { name: 'Pending Suggestions' })).toBeVisible();
+      await expectNoA11yViolations(host.page, `manage, voting open with suggestions (${scheme})`);
+
+      await closeVoting({ brunchId: voting.brunchId, host: host.user });
+      await host.page.goto(`/brunch/${voting.brunchId}/manage`);
+      await expect(host.page.getByText('Voting is closed.')).toBeVisible();
+      await expectNoA11yViolations(host.page, `manage, voting closed (${scheme})`);
+
+      const confirmed = await createConfirmedBrunch({ host, guest: yes });
+      await host.page.goto(`/brunch/${confirmed.brunchId}/manage`);
+      await expect(
+        host.page.getByRole('heading', { name: 'Confirmed', exact: true }),
+      ).toBeVisible();
+      await expectNoA11yViolations(host.page, `manage, confirmed (${scheme})`);
     });
 
     test('the creation wizard, every step with its lists and hints', async ({ makeActor }) => {

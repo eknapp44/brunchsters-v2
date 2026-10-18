@@ -176,7 +176,7 @@ export function LocationBallotChecklist({
           <li key={option.id} className={styles.row}>
             <span className={styles.rowMain}>
               <PopIcon name="pin" size={22} />
-              <span>
+              <span className={styles.rowText}>
                 <a href={option.placeUrl} target="_blank" rel="noreferrer">
                   {option.placeName}
                 </a>{' '}
@@ -363,7 +363,7 @@ export function TimeBallotChecklist({
           <li key={option.id} className={styles.row}>
             <span className={styles.rowMain}>
               <PopIcon name="clock" size={22} />
-              <span>
+              <span className={styles.rowText}>
                 {timeLabel(option)}
                 {option.isConfirmed && <ConfirmedMark />}
               </span>

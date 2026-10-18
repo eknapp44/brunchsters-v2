@@ -168,6 +168,12 @@
   overflow-wrap: anywhere;
 }
 
+/* text beside an icon takes the remaining width and wraps there, instead of dropping below it */
+.rowText {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
 .rowActions {
   display: flex;
   flex-wrap: wrap;
