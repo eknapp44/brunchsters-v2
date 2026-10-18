@@ -107,7 +107,7 @@ Found in review after M3: the creation wizard (`brunch/new`) sends every address
 - [x] **N4** `/api/inngest` is reachable signed-out with both functions registered (as built; refusing an unsigned request is proven in cloud mode by the route's unit test, see the correction below; no API-authorization case was added because the route is not brunch-scoped)
 - [x] Prove each journey can fail (N1: unregister the function; N2: stop rotating; N3: include decliners; N4: drop the signature check) and record the results
 - [x] Stress run (repeat/workers) and CI-mode run to flush out polling flakiness
-- [x] `docs/SETUP.md` testing section: how the e2e suite sees email; spec status → Complete; build order #8 ticked in PLANNING (with 0009 noted as the follow-up)
+- [x] `docs/SETUP.md` testing section: how the e2e suite sees email; spec status → Complete; build order #8 ticked in PLANNING (with 0010 noted as the follow-up)
 - [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm --filter @brunchsters/core test:integration && pnpm test:e2e` pass
 - [x] Commit: `test: e2e journeys for invite and confirmation email (M4)`
 
@@ -176,8 +176,8 @@ Four read-only reviews of PR #12: architecture and style against CLAUDE.md and t
 
 **Deliberately not changed, with reasons:**
 
-- Moving the queue-safe serialization (the ISO date round trip and the field-by-field rebuilding of recipients, with its few `as` casts at the JSON boundary) out of `functions.ts` into core-exported schemas: a sound refactor, about an hour, with no behavior change and some risk in a file that is working and verified against real services. Recorded here as a refactor candidate for when the notifications spec (0009) adds more handlers and the pattern is repeated.
+- Moving the queue-safe serialization (the ISO date round trip and the field-by-field rebuilding of recipients, with its few `as` casts at the JSON boundary) out of `functions.ts` into core-exported schemas: a sound refactor, about an hour, with no behavior change and some risk in a file that is working and verified against real services. Recorded here as a refactor candidate for when the notifications spec (0010) adds more handlers and the pattern is repeated.
 - Positional parameters on the two adapter constructors (`InngestEventBus`, `ResendEmailService`) and on small test helpers: dependency-injection constructors are the conventional exception to the object-parameter rule, which CLAUDE.md states for functions; the helpers are local to tests.
 - The module-level counter in `FileEmailService`, the redundant lowercasing the database constraints already guarantee, the host-invite skip rule that now exists in three places, and overlap between the mocked unit tests and the real-Postgres integration test: low value or low risk; each is a candidate for a later tidy.
 - N3 asserts "exactly one email" when the last recipient's email has arrived, not forever after: a duplicate sent later would not be caught by that journey. The dedupe itself is covered by the stable-key tests and was verified against real Resend.
-- Hosts still get no signal when an email did not go out (a rejected address, the queue down), and the creation wizard still ignores the invite request's response: recorded in `PLANNING.md` section 17 as input for spec 0009.
+- Hosts still get no signal when an email did not go out (a rejected address, the queue down), and the creation wizard still ignores the invite request's response: recorded in `PLANNING.md` section 17 as input for spec 0010.
