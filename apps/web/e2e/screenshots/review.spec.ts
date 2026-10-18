@@ -3,6 +3,7 @@ import { expect, test } from '../support/fixtures';
 import { fixturePlaces } from '../support/places';
 import { captureReviewShots } from '../support/screenshots';
 import { createConfirmedBrunch, createVotingBrunch, inviteNewcomer } from '../support/showcase';
+import { closeVoting } from '../support/voting';
 import { BrunchWizard } from '../support/wizard';
 
 // The review set (spec 0009): one picture of every screen, light and dark, desktop and phone,
@@ -92,8 +93,14 @@ test('brunch detail and manage, as host and as invitee', async ({ makeActor }, t
   await expect(yes.page.getByRole('heading', { name: voting.title })).toBeVisible();
   await captureReviewShots(yes.page, 'brunch-invitee-voting', testInfo);
 
+  // someone invited who has not answered is not a member yet, so the page is a 404
   await pending.page.goto(`/brunch/${voting.brunchId}`);
-  await captureReviewShots(pending.page, 'brunch-invitee-unanswered', testInfo);
+  await captureReviewShots(pending.page, 'not-found', testInfo);
+
+  await closeVoting({ brunchId: voting.brunchId, host: host.user });
+  await yes.page.goto(`/brunch/${voting.brunchId}`);
+  await expect(yes.page.getByText('Voting is closed.').first()).toBeVisible();
+  await captureReviewShots(yes.page, 'brunch-invitee-voting-closed', testInfo);
 
   const confirmed = await createConfirmedBrunch({ host, guest: yes, title: 'Confirmed Brunch' });
   await host.page.goto(`/brunch/${confirmed.brunchId}`);

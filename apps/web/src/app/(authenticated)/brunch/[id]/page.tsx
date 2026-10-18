@@ -9,8 +9,14 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { z } from 'zod';
 import { auth } from '@/auth';
+import { Icon } from '@/components/icons/Icon';
+import { Badge } from '@/components/ui/Badge';
+import { ButtonLink } from '@/components/ui/ButtonLink';
+import { Container } from '@/components/ui/Container';
+import { statusTone } from '@/components/ui/statusTone';
 import { db } from '@/lib/db';
 import { LocationBallotChecklist, TimeBallotChecklist } from './BallotChecklist';
+import styles from './detail.module.css';
 import { InvitePanel } from './InvitePanel';
 import { LocationSuggestionControl, TimeSuggestionControl } from './OptionSuggestionControl';
 import { RsvpControl } from './RsvpControl';
@@ -77,17 +83,28 @@ export default async function BrunchDetailPage({
     voting?.locations.options.find((option) => option.isConfirmed) ?? voting?.locations.options[0];
 
   return (
-    <main>
-      <h1>{brunch.title}</h1>
-      <p>{brunch.statusLabel}</p>
-      <Link href="/dashboard">← Back to Dashboard</Link>
-      {brunch.isHost && <Link href={`/brunch/${brunchId}/manage`}>Manage brunch</Link>}
+    <Container as="main">
+      <div className={styles.header}>
+        <h1>{brunch.title}</h1>
+        <Badge tone={statusTone(brunch.statusCode)}>{brunch.statusLabel}</Badge>
+      </div>
+      <div className={styles.nav}>
+        <Link className={styles.back} href="/dashboard">
+          ← Back to Dashboard
+        </Link>
+        {brunch.isHost && (
+          <ButtonLink href={`/brunch/${brunchId}/manage`} size="sm">
+            <Icon name="arrowRight" size={16} />
+            Manage brunch
+          </ButtonLink>
+        )}
+      </div>
 
       <RsvpControl brunchId={brunchId} currentStatus={brunch.viewerRsvpStatus} />
 
       {voting !== undefined && (
         <>
-          <section>
+          <section className={styles.panel}>
             <h2>Locations</h2>
             <LocationBallotChecklist
               brunchId={brunchId}
@@ -99,7 +116,7 @@ export default async function BrunchDetailPage({
             />
           </section>
 
-          <section>
+          <section className={styles.panel}>
             <h2>Times</h2>
             <TimeBallotChecklist
               brunchId={brunchId}
@@ -137,6 +154,6 @@ export default async function BrunchDetailPage({
       />
 
       {invites?.isOk() && <InvitePanel brunchId={brunchId} invites={invites.value} />}
-    </main>
+    </Container>
   );
 }

@@ -3,6 +3,7 @@ import { createBrunch } from '../support/factories';
 import { expect, test } from '../support/fixtures';
 import { fixturePlaces } from '../support/places';
 import { createConfirmedBrunch, createVotingBrunch, inviteNewcomer } from '../support/showcase';
+import { closeVoting } from '../support/voting';
 import { BrunchWizard } from '../support/wizard';
 
 // Journeys D1 and D2 (spec 0009): axe (WCAG 2.0/2.1 A and AA) on every screen, in the light
@@ -60,6 +61,43 @@ for (const scheme of COLOR_SCHEMES) {
       await expect(host.page.getByRole('heading', { name: 'Upcoming' })).toBeVisible();
       await expect(host.page.getByRole('link', { name: 'A Draft Brunch' })).toBeVisible();
       await expectNoA11yViolations(host.page, `dashboard with brunches (${scheme})`);
+    });
+
+    test('the brunch detail page, as host and as invitee, in every state', async ({
+      makeActor,
+    }) => {
+      const host = await makeActor('host');
+      const yes = await makeActor('yes');
+      const maybe = await makeActor('maybe');
+      const pending = await makeActor('pending');
+      for (const actor of [host, yes, maybe]) await useColorScheme(actor.page, scheme);
+
+      const voting = await createVotingBrunch({ host, guests: { yes, maybe, pending } });
+      const detail = `/brunch/${voting.brunchId}`;
+
+      await host.page.goto(detail);
+      await expect(host.page.getByRole('heading', { name: voting.title })).toBeVisible();
+      await expectNoA11yViolations(host.page, `detail, host, voting open (${scheme})`);
+
+      await yes.page.goto(detail);
+      await expect(yes.page.getByRole('checkbox').first()).toBeEnabled();
+      await expectNoA11yViolations(yes.page, `detail, invitee who voted (${scheme})`);
+
+      await maybe.page.goto(detail);
+      await expect(maybe.page.getByText('Current: maybe')).toBeVisible();
+      await expectNoA11yViolations(maybe.page, `detail, invitee who said maybe (${scheme})`);
+
+      await closeVoting({ brunchId: voting.brunchId, host: host.user });
+      await yes.page.goto(detail);
+      await expect(yes.page.getByText('Voting is closed.').first()).toBeVisible();
+      await expectNoA11yViolations(yes.page, `detail, voting closed (${scheme})`);
+
+      const confirmed = await createConfirmedBrunch({ host, guest: yes });
+      await host.page.goto(`/brunch/${confirmed.brunchId}`);
+      await expect(host.page.getByText('Confirmed', { exact: true })).toBeVisible();
+      await expectNoA11yViolations(host.page, `detail, host, confirmed (${scheme})`);
+      await yes.page.goto(`/brunch/${confirmed.brunchId}`);
+      await expectNoA11yViolations(yes.page, `detail, invitee, confirmed (${scheme})`);
     });
 
     test('the creation wizard, every step with its lists and hints', async ({ makeActor }) => {

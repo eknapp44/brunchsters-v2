@@ -1,0 +1,192 @@
+/* Styles shared by the brunch detail page and its panels. */
+
+.header {
+  margin-bottom: var(--space-4);
+}
+
+.header h1 {
+  margin-bottom: var(--space-3);
+}
+
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target);
+}
+
+/* each part of the page is a card: a <section> with its own heading */
+.panel {
+  margin-bottom: var(--space-4);
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  box-shadow: var(--shadow-sm);
+}
+
+.panel > h2,
+.panel > h3 {
+  margin-top: 0;
+}
+
+.panel > * + * {
+  margin-top: var(--space-3);
+}
+
+.panel > p,
+.panel > ul {
+  margin-bottom: 0;
+}
+
+.panel > :last-child {
+  margin-bottom: 0;
+}
+
+.muted {
+  color: var(--fg-muted);
+}
+
+.current {
+  color: var(--fg-muted);
+}
+
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.stack {
+  display: grid;
+  gap: var(--space-3);
+}
+
+/* a list of options to vote on, or of things already added */
+.options,
+.rows {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.options > li,
+.rows > li {
+  margin: 0;
+}
+
+.option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  cursor: pointer;
+  transition:
+    border-color var(--duration-base) var(--ease),
+    background var(--duration-base) var(--ease);
+}
+
+.option:hover {
+  border-color: var(--fg-subtle);
+}
+
+.option:has(input:checked) {
+  background: var(--accent-soft);
+  border-color: var(--accent-strong);
+}
+
+.option:has(input:disabled) {
+  cursor: default;
+}
+
+.option input {
+  flex-shrink: 0;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0.125rem 0 0;
+}
+
+.optionText {
+  min-width: 0;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+
+.name {
+  font-weight: 600;
+}
+
+.detail {
+  color: var(--fg-muted);
+}
+
+.option:has(input:checked) .detail {
+  color: var(--accent-soft-fg);
+}
+
+.voters {
+  color: var(--fg-muted);
+}
+
+.confirmed {
+  color: var(--fg);
+  font-weight: 700;
+}
+
+/* display-only lists (a single place or time, or things awaiting approval) */
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+}
+
+.rowMain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.rowActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.addRow {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.addRow > label {
+  flex: 1;
+  min-width: 0;
+}
+
+.addRow input {
+  flex: 1;
+  min-width: 0;
+}

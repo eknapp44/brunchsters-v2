@@ -11,17 +11,11 @@ import { Badge } from '@/components/ui/Badge';
 import { ButtonLink } from '@/components/ui/ButtonLink';
 import { Card } from '@/components/ui/Card';
 import { Container } from '@/components/ui/Container';
+import { statusTone } from '@/components/ui/statusTone';
 import { db } from '@/lib/db';
 import styles from './dashboard.module.css';
 
 const UPCOMING_STATUS_CODES = new Set(['draft', 'active', 'confirmed']);
-
-// How loudly a status is drawn; the label text always carries the meaning.
-function badgeToneFor(statusCode: string): 'neutral' | 'accent' | 'mint' {
-  if (statusCode === 'confirmed') return 'mint';
-  if (statusCode === 'active') return 'accent';
-  return 'neutral';
-}
 
 function BrunchCard({ brunch }: { readonly brunch: BrunchSummary }) {
   return (
@@ -34,7 +28,7 @@ function BrunchCard({ brunch }: { readonly brunch: BrunchSummary }) {
           {brunch.isHost && <span className={styles.role}>(Host)</span>}
         </div>
         <div className={styles.meta}>
-          <Badge tone={badgeToneFor(brunch.statusCode)}>{brunch.statusLabel}</Badge>
+          <Badge tone={statusTone(brunch.statusCode)}>{brunch.statusLabel}</Badge>
           <span className={styles.going}>
             <PopIcon name="users" size={20} />
             <span>{brunch.goingCount} going</span>

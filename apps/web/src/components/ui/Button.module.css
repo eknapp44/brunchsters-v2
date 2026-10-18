@@ -57,6 +57,19 @@
   background: var(--surface-2);
 }
 
+/* Something that takes a person away or cannot be undone with a click (revoke, remove). The
+   label stays in the normal text color on a soft red, so it reads in both palettes. */
+.danger {
+  color: var(--fg);
+  background: var(--danger-soft);
+  border-color: var(--danger);
+}
+
+.danger:hover:not(:disabled) {
+  background: var(--danger-soft);
+  filter: brightness(0.97);
+}
+
 .lg {
   min-height: 3rem;
   padding: 0 var(--space-5);

@@ -126,14 +126,27 @@ Eight milestones, each green on its own and ending in a commit. Review points ar
 
 ## M5 — Brunch detail
 
-- [ ] Restyle `brunch/[id]/page.tsx` and `RsvpControl`, `BallotChecklist`, `InvitePanel`, `SuggestionsPanel`, `OptionSuggestionControl`, for the host and the invitee views and each brunch state (voting open, closed, confirmed)
-- [ ] Add each view and state to the screenshot set and to D2 axe coverage
-- [ ] Existing journeys pass unmodified (`voting`, `invitations-host`, `invite-suggestions`, `option-suggestions`, `suggestion-decline`, `same-person`, `timezones`, `closing-voting`, `confirm`)
-- [ ] **Prove the new tests can fail:** make a ballot checkbox lose its accessible name and see the voting journeys fail (confirms the contract is guarded)
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e`, stress run, CI mode
-- [ ] Commit: `feat: style the brunch detail page (M5)`
+- [x] Restyle `brunch/[id]/page.tsx` and `RsvpControl`, `BallotChecklist`, `InvitePanel`, `SuggestionsPanel`, `OptionSuggestionControl`, for the host and the invitee views and each brunch state (voting open, closed, confirmed)
+- [x] Add each view and state to the screenshot set and to D2 axe coverage
+- [x] Existing journeys pass unmodified (`voting`, `invitations-host`, `invite-suggestions`, `option-suggestions`, `suggestion-decline`, `same-person`, `timezones`, `closing-voting`, `confirm`)
+- [x] **Prove the new tests can fail:** make a ballot checkbox lose its accessible name and see the voting journeys fail (confirms the contract is guarded)
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e`, stress run, CI mode
+- [x] Commit: `feat: style the brunch detail page (M5)`
 
-**Testing notes:** _(fill on completion)_
+**Testing notes:**
+
+- **What was tested:** Axe (D2, light and dark) now scans the brunch detail page as the host with voting open, as an invitee who has voted, as an invitee who said "maybe", with voting closed, and as host and invitee of a confirmed brunch. The existing journeys that drive this page passed **unmodified**: `voting` (checkboxes, revising, the empty-ballot warning, who can vote, voter names), `closing-voting`, `confirm`, `invitations-host` and `invitations-invitee` (copy link, resend, revoke, the status of each invite), `invite-suggestions`, `option-suggestions`, `suggestion-decline`, `same-person`, `timezones`, `failure-paths` (a failed vote rolls its checkbox back) and `fixtures`.
+- **How:** unit (web 319; core 429, shared 7, database 1), full e2e on the dev server (90, 2 new), a 270-run stress (`--workers=4 --repeat-each=3`) and CI mode (`CI=true pnpm build`, then `CI=true pnpm test:e2e`, 90 of 90, nothing left listening). Typecheck and lint clean. All logs kept; no failure or flake this milestone.
+- **Proving the new tests can fail:** the ballot options were changed from a `<label>` to a plain `<div>`, so each checkbox lost its accessible name. Both axe detail scans failed, and three voting journeys (V1, V2, V3) failed with `toHaveAccessibleName`, and nothing else did; restored from a copy. So the "checkbox name starts with the place or time" contract is guarded by both the e2e suite and axe.
+- **What was built:** each part of the page is a card (a `<section>` with its own heading, which is what the `ballot()` test helper looks for); the status as a badge under the title; "Back to Dashboard" and "Manage brunch" as separate controls (the run-together links from the first screenshots, feedback item 2); the RSVP answer you have chosen is the filled button; each voting option is a bordered row that highlights when checked (the text, address, vote count, voter names and "— Confirmed" are exactly as before); invites and suggestions are rows with a status badge and small action buttons; a new **`danger`** button style for Revoke; the "voting closed", "your RSVP does not allow voting" and error messages as inline alerts, keeping their roles.
+- **Findings:**
+  1. **My own test was wrong about the access rule:** I first scanned an "invitee who has not answered yet" and got a 404. That is correct (Constitution: an invited person who is not yet an attendee is an outsider), so the scan now uses an invitee who said "maybe". The review screenshots had the same mistake, a picture labelled "unanswered invitee" that was actually the 404 page; it is relabelled `not-found`, and the 404 is the default Next.js page.
+  2. **Constraints the journeys put on the markup, kept:** the exact text "Active" or "Confirmed" must appear once (so the option marker stays "— Confirmed" and does not become a second "Confirmed" badge), no extra list items, headings and `section`s unchanged, and the status words in each invite row. The accessible names did not change.
+  3. **Two small copy-adjacent changes, both invisible to the journeys:** the separator "—" between an invite's email and its status, and between a suggestion's email and "suggested by", is gone (they are now badge and text next to each other); the journeys assert the words, not the dash. Checkbox names still include their dashes.
+  4. **Native checkboxes kept on purpose:** the 3:1 border question from M4 needs no change here; the browser draws a checkbox with its own high-contrast border and the app only sets its accent color.
+  5. **Shared tone helper:** the status-to-badge-tone mapping moved to `components/ui/statusTone.ts` so the dashboard and this page agree.
+- **What's deferred:** the Next.js default 404 is not styled (the prototype has an error-state design; a not-found page would also change the text the access-rule journeys assert); the host's manage page is M6; the "countdown ring", running-late, host transfer and calendar chip from the prototype's detail screens need features that do not exist (parity table).
+- **How to run it:** `pnpm test:e2e`, `pnpm --filter @brunchsters/web screenshots` (new: `brunch-invitee-voting-closed`, `not-found`).
 
 ---
 
