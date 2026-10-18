@@ -1,6 +1,9 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { auth, signOut } from '@/auth';
+import { fontClassNames } from '@/styles/fonts';
+import '@/styles/tokens.css';
+import '@/styles/global.css';
 
 export const metadata: Metadata = {
   title: 'Brunchsters',
@@ -17,7 +20,7 @@ export default async function RootLayout({ children }: { readonly children: Reac
   const user = session?.user;
 
   return (
-    <html lang="en">
+    <html lang="en" className={fontClassNames}>
       <body>
         <nav>
           {user !== undefined && (

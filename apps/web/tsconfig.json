@@ -28,6 +28,7 @@
     "e2e/**/*.ts",
     "scripts/**/*.ts",
     "playwright.config.ts",
+    "playwright.screenshots.config.ts",
     ".next/types/**/*.ts"
   ],
   "exclude": ["node_modules"]

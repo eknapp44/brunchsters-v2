@@ -1,6 +1,6 @@
 # Spec 0009 — Styling Foundation
 
-**Status:** Draft (not started)  
+**Status:** In progress (M1 complete, awaiting Review 1)  
 **Branch:** `feat/0009-styling-foundation`  
 **PLANNING.md ref:** §1 design principles, §16 Build Order #9 (UI), Constitution V (Design Principles 23–26)  
 **ADRs:** [0010 — CSS Modules and design tokens](../../docs/adrs/0010-css-modules-and-design-tokens.md)
@@ -45,7 +45,7 @@ Visual work is judged by eye, so feedback is part of the plan, not an afterthoug
 | **Review 3 — end of M7**     | Every screen, light/dark, desktop and phone, axe clean                                     | Feeds the polish pass                                                            |
 | **M8 — polish and sign-off** | The whole app, on a real phone and desktop                                                 | Free-form visual tweaks within the rule below; ends with the owner's sign-off    |
 
-**How feedback is given and recorded.** `pnpm --filter @brunchsters/web screenshots` writes screenshots of every key screen (light and dark, desktop and phone widths) into a git-ignored folder, so both people look at the same pictures. A screenshot plus "this feels cramped" is a complete piece of feedback. The dev server is reachable from a phone on the local network for trying it on a real device (instructions in `docs/SETUP.md`). Every piece of feedback goes in the **Feedback log** in `tasks.md` with one of three outcomes:
+**How feedback is given and recorded.** `pnpm --filter @brunchsters/web screenshots` writes screenshots of every key screen (light and dark, desktop and phone widths) into a git-ignored folder, so both people look at the same pictures. A screenshot plus "this feels cramped" is a complete piece of feedback. The phone-sized screenshots are an emulated phone; a real phone can only see signed-in screens once the app is deployed or tunnelled, because Google sign-in does not accept a local network address (details in `docs/SETUP.md`). Every piece of feedback goes in the **Feedback log** in `tasks.md` with one of three outcomes:
 
 - **In scope now:** tokens, spacing, sizing, colors, fonts, and the layout of screens that exist. One polish pass per review point, plus M8.
 - **Roadmap:** anything that adds or changes a behavior, screen or control. It goes to the parity table with the feature that will carry it.

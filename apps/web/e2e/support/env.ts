@@ -29,3 +29,7 @@ export const INNGEST_CLI_VERSION = '1.46.0';
 // Where the app's FileEmailService writes every email. Fixed, not per-process: playwright.config.ts
 // is also loaded by every test worker, and the server and the workers must agree on it.
 export const E2E_OUTBOX_DIR = path.join(os.tmpdir(), 'brunchsters-e2e-mail');
+
+// Where `pnpm --filter @brunchsters/web screenshots` writes the review pictures (spec 0009).
+// Git-ignored; resolved from the working directory because the script is run from apps/web.
+export const E2E_SCREENSHOT_DIR = path.join(process.cwd(), '.screenshots');

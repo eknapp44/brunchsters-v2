@@ -41,5 +41,8 @@ coverage/
 playwright-report/
 test-results/
 
+# Review screenshots (pnpm --filter @brunchsters/web screenshots; spec 0009)
+apps/web/.screenshots/
+
 # Claude Code: personal, never committed (the shared skills in .claude/skills are)
 .claude/settings.local.json

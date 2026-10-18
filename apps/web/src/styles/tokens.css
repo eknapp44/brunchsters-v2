@@ -1,0 +1,125 @@
+/* Brunchsters design tokens: the single source of the look (ADR 0010).
+ *
+ * Ported from prototype/styles/tokens.css. Every color, font family, radius, shadow, easing,
+ * size and spacing step lives here and nowhere else; components refer to var(--…). A change to
+ * the look is an edit to this file. src/styles/styleGuard.test.ts fails on a literal elsewhere.
+ *
+ * Warm-paper neutrals with a restrained butter-yolk accent. Dark mode follows the operating
+ * system (no toggle, no stored setting) and keeps the same hues.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  /* type: the --font-nunito/-fraunces/-jetbrains variables are set by next/font (fonts.ts) */
+  --font-sans: var(--font-nunito), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: var(--font-fraunces), Georgia, serif; /* wordmark, headings, brunch titles */
+  --font-mono: var(--font-jetbrains), ui-monospace, 'SF Mono', Menlo, monospace;
+  --display-variation: 'SOFT' 100;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 1rem; /* 16px: inputs below this zoom the page on iOS when focused */
+  --text-md: 1.0625rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 2rem;
+  --text-3xl: 2.5rem;
+  --leading-tight: 1.2;
+  --leading-body: 1.5;
+
+  /* warm-paper neutrals */
+  --bg: oklch(0.992 0.004 70); /* page */
+  --surface: oklch(0.985 0.005 70); /* cards */
+  --surface-2: oklch(0.965 0.006 70); /* inset / hovered */
+  --surface-3: oklch(0.935 0.008 70);
+  --line: oklch(0.905 0.008 70);
+  --line-soft: oklch(0.945 0.006 70);
+
+  --fg: oklch(0.205 0.01 70); /* near-black, warm */
+  --fg-muted: oklch(0.46 0.01 70);
+  --fg-subtle: oklch(0.62 0.01 70);
+
+  /* accent: butter-yolk */
+  --accent: oklch(0.795 0.155 78);
+  --accent-strong: oklch(0.72 0.165 70);
+  --accent-soft: oklch(0.945 0.06 85);
+  --accent-fg: oklch(0.26 0.08 60); /* readable on accent */
+
+  /* secondary delight color, used very sparingly (confirm states) */
+  --mint: oklch(0.84 0.085 165);
+  --mint-fg: oklch(0.3 0.06 165);
+
+  /* system */
+  --danger: oklch(0.62 0.18 25);
+  --danger-soft: oklch(0.94 0.04 25);
+
+  /* radii */
+  --r-1: 6px;
+  --r-2: 10px;
+  --r-3: 14px;
+  --r-4: 20px;
+  --r-pill: 999px;
+
+  /* spacing scale (4px steps) */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+
+  /* layout */
+  --content-width: 44rem;
+  --page-gutter: var(--space-4);
+  --touch-target: 2.75rem; /* 44px */
+
+  /* shadows */
+  --shadow-sm: 0 1px 2px oklch(0.2 0.01 70 / 0.05);
+  --shadow-md: 0 6px 24px -8px oklch(0.2 0.01 70 / 0.1), 0 1px 2px oklch(0.2 0.01 70 / 0.04);
+  --shadow-lg: 0 24px 60px -20px oklch(0.2 0.01 70 / 0.18), 0 2px 6px oklch(0.2 0.01 70 / 0.05);
+
+  /* motion */
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: oklch(0.165 0.008 70);
+    --surface: oklch(0.205 0.01 70);
+    --surface-2: oklch(0.245 0.011 70);
+    --surface-3: oklch(0.29 0.012 70);
+    --line: oklch(0.305 0.012 70);
+    --line-soft: oklch(0.26 0.012 70);
+
+    --fg: oklch(0.965 0.006 70);
+    --fg-muted: oklch(0.72 0.01 70);
+    --fg-subtle: oklch(0.56 0.01 70);
+
+    --accent: oklch(0.815 0.155 78);
+    --accent-strong: oklch(0.86 0.165 75);
+    --accent-soft: oklch(0.345 0.06 78);
+    --accent-fg: oklch(0.205 0.08 60);
+
+    --mint: oklch(0.82 0.085 165);
+    --mint-fg: oklch(0.22 0.06 165);
+
+    --danger: oklch(0.7 0.18 25);
+    --danger-soft: oklch(0.3 0.06 25);
+
+    --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.3);
+    --shadow-md: 0 6px 24px -8px oklch(0 0 0 / 0.5), 0 1px 2px oklch(0 0 0 / 0.2);
+    --shadow-lg: 0 24px 60px -20px oklch(0 0 0 / 0.6), 0 2px 6px oklch(0 0 0 / 0.2);
+  }
+}
+
+@media (min-width: 40rem) {
+  :root {
+    --page-gutter: var(--space-5);
+  }
+}

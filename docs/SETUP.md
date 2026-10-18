@@ -322,6 +322,18 @@ pnpm --filter @brunchsters/web exec playwright show-trace <trace.zip>   # open a
 
 **Adding E2E coverage for a new feature.** Every new feature spec has an `## E2E Journeys` section, and any change to what a user sees or does needs a new or updated journey in the same PR (the bar is defined in `CLAUDE.md` — "User-facing changes keep the E2E suite honest"; the pull request template asks for it). Follow the existing pattern: create state through `e2e/support/factories.ts` / `voting.ts` (real core services), drive only the step under test through the UI, use `makeActor` for each person, and prove a new test can fail (temporarily break the behavior it guards) before trusting it.
 
+### Review screenshots and looking at the UI (spec 0009)
+
+The look is judged by eye, so there is a command that photographs every screen:
+
+```bash
+pnpm --filter @brunchsters/web screenshots   # recreates the e2e database, then writes apps/web/.screenshots/
+```
+
+It uses the same isolated e2e server, database and queue as `pnpm test:e2e` (stop your own `pnpm dev` first), logs in as fixture users, and saves one PNG per screen: `<screen>-<light|dark>-<desktop|phone>.png` (the phone is an emulated Pixel 7). The folder is git-ignored and nothing compares against it; it exists so you and Claude can look at the same pictures. Re-run it after a change; it overwrites the files.
+
+For poking around yourself, `pnpm dev` plus your browser's device mode (Chrome: DevTools, then the phone icon) shows the phone layout, and DevTools → Rendering → "Emulate CSS media feature prefers-color-scheme" shows dark mode. A **real phone** is a harder case, because signed-in screens need Google sign-in, and Google rejects a redirect URI that is a bare IP address (so `http://192.168.x.x:3000` cannot sign in). Until the app is deployed (PLANNING §17 pre-launch checklist), a real phone can see the signed-out pages over your network (`pnpm --filter @brunchsters/web exec next dev --turbopack -H 0.0.0.0`, then open your computer's address on port 3000; Windows Firewall may ask to allow it). Seeing the signed-in screens on a phone needs a deployed preview, or a tunnel with a real hostname that is added to the OAuth client's redirect URIs and set as `AUTH_URL`.
+
 ### Testing notes
 
 Per the workflow in `CLAUDE.md`, every milestone records a short testing note (what was tested, how, what's deferred, how to run). These live in the spec's `tasks.md` or a `TESTING-NOTES.md`. This doc describes _how to run_ tests; the per-feature notes describe _what is covered_.

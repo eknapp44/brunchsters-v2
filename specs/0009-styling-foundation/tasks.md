@@ -9,19 +9,33 @@ Eight milestones, each green on its own and ending in a commit. Review points ar
 ## M1 — Tokens, fonts, base styles, screenshot script, axe helper (REVIEW 1)
 
 - [x] Commit ADR 0010, its README index row, the numbering updates and this spec folder (docs-only commit, before any code)
-- [ ] `apps/web/src/styles/tokens.css`: port the prototype tokens; dark under `@media (prefers-color-scheme: dark)`; `color-scheme: light dark`; spacing scale
-- [ ] `apps/web/src/styles/fonts.ts` (Nunito, Fraunces Soft, JetBrains Mono via `next/font/google`) and wire the variable classes into `<html>` in the root layout; confirm the exact Fraunces axes option against the installed Next.js version
-- [ ] `apps/web/src/styles/global.css`: reset, element defaults (headings in the display face, links, buttons, inputs, lists, tables) so the **existing plain pages already pick up the look**, focus ring, `prefers-reduced-motion`, skip-link style; imported by the root layout
-- [ ] `styleGuard.test.ts` and `.gitignore` entry for `apps/web/.screenshots/`
-- [ ] `playwright.screenshots.config.ts`, `e2e/screenshots/review.spec.ts` (every screen that exists, light/dark × desktop/phone, data from factories) and the `screenshots` script in `apps/web/package.json`
-- [ ] `@axe-core/playwright` as a pinned devDependency (record the version), `e2e/support/a11y.ts`, and `accessibility.spec.ts` with D1 (landing, sign-in, an invite landing) and the dashboard from D2, light and dark; log any token that must change in `plan.md`
-- [ ] **Prove the new tests can fail:** a hardcoded `#fff` in a component fails the style guard; a deliberately low-contrast token fails axe; a missing focus-ring rule is noticed in the screenshot set (and D4's check once it exists in M7)
-- [ ] `docs/SETUP.md`: the screenshots command and trying the app from a phone on the local network
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e`, then the stress run and CI mode
-- [ ] Commit: `feat: design tokens, fonts, base styles and review tooling (M1)`
+- [x] `apps/web/src/styles/tokens.css`: port the prototype tokens; dark under `@media (prefers-color-scheme: dark)`; `color-scheme: light dark`; spacing scale
+- [x] `apps/web/src/styles/fonts.ts` (Nunito, Fraunces Soft, JetBrains Mono via `next/font/google`) and wire the variable classes into `<html>` in the root layout; confirm the exact Fraunces axes option against the installed Next.js version
+- [x] `apps/web/src/styles/global.css`: reset, element defaults (headings in the display face, links, buttons, inputs, lists, tables) so the **existing plain pages already pick up the look**, focus ring, `prefers-reduced-motion`, skip-link style; imported by the root layout
+- [x] `styleGuard.test.ts` and `.gitignore` entry for `apps/web/.screenshots/`
+- [x] `playwright.screenshots.config.ts`, `e2e/screenshots/review.spec.ts` (every screen that exists, light/dark × desktop/phone, data from factories) and the `screenshots` script in `apps/web/package.json`
+- [x] `@axe-core/playwright` as a pinned devDependency (record the version), `e2e/support/a11y.ts`, and `accessibility.spec.ts` with D1 (landing, sign-in, an invite landing) and the dashboard from D2, light and dark; log any token that must change in `plan.md`
+- [x] **Prove the new tests can fail:** a hardcoded `#fff` in a component fails the style guard; a deliberately low-contrast token fails axe; (the focus-ring proof comes with D4 in M7)
+- [x] `docs/SETUP.md`: the screenshots command and how to look at the UI (device mode, and what a real phone can and cannot reach before deployment)
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e`, then the stress run and CI mode
+- [x] Commit: `feat: design tokens, fonts, base styles and review tooling (M1)`
 - [ ] **STOP FOR REVIEW 1** — the owner opens the real app (and the screenshots folder) and confirms or changes tokens and fonts, including the Nunito-vs-Inter question. Record feedback in the log below; apply the in-scope changes before M2
 
-**Testing notes:** _(fill on completion)_
+**Testing notes:**
+
+- **What was tested:** The look is guarded in three ways. `styleGuard.test.ts` (19 unit tests) scans every `.css`, `.ts` and `.tsx` file under `apps/web/src` and fails on a hex or color function, a named color in a color property, a `font-family` that is not `var(--font-…)`, `fontFamily` in code, or an inline color style; its detector (`findStyleViolations.ts`) has its own cases for what it must catch and what it must allow (a token, `transparent`, `currentColor`, an in-page `#anchor`, a color word in a comment), and a check that the scan is not passing on an empty file list. Journeys D1 and D2 (6 tests: landing and sign-in, the invite preview and invalid-link pages, the empty dashboard and a dashboard with a draft, an active and a confirmed brunch; each in light and dark) run axe with the WCAG 2.0/2.1 A and AA rules and report one line per offending element.
+- **How:** unit (web 282 including the 19 new; core 429, shared 7, database 1, all unchanged), full e2e on the dev server (81, 6 new), the stress run (`--workers=4 --repeat-each=3`, 243 of 243) and CI mode (`CI=true pnpm build` then `CI=true pnpm test:e2e`, 81 of 81 with the strict 5 s timeout). Nothing was left listening on port 3100. Typecheck and lint are clean. The existing journeys needed no edits.
+- **Proving the new tests can fail:** (1) the dark palette's `--fg` was set to a near-background value: the three dark D1/D2 tests failed with real contrast ratios (1.4:1 against a 4.5:1 requirement) and the three light ones still passed, which also proves the dark palette really is what is being scanned; tokens restored from a copy. (2) A `.oops { color: #fff; font-family: Arial; }` appended to `global.css` failed the style guard on both rules with the file and line; removed again. (3) The focus-ring proof waits for D4 in M7.
+- **E2E journeys:** D1 and D2 (the dashboard part) are in; the rest of D2 and D3/D4 follow in the milestones named in the spec. The review set is `pnpm --filter @brunchsters/web screenshots` (8 tests, 60 pictures: every screen that exists, light and dark, desktop and an emulated phone); it is not part of `pnpm test:e2e`.
+- **Findings:**
+  1. **Axe found nothing on the base tokens, so no token was changed** (the plan's adjustment table stays empty). That is expected to change: so far the pages are plain text, links and neutral buttons. The accent-colored buttons, badges and soft backgrounds arrive in M2 onward, and those are where contrast is likelier to fail.
+  2. **The "try it on a real phone over the local network" idea in the spec does not work for signed-in screens**: Google's OAuth does not accept a bare IP redirect URI and the app is not deployed. The spec, tasks and `docs/SETUP.md` now say what works instead (emulated phone screenshots, browser device mode, a real phone for signed-out pages only, and a deployed preview or tunnel for the rest).
+  3. The Next.js dev "N" badge appeared in the first screenshots and covered content on a phone; the screenshot helper hides it (screenshots only; the axe helper already excludes it).
+  4. `@axe-core/playwright` 4.14.0 declares `engines: node >=22.12`; CI uses Node 22 so it is fine, but the repo's root `engines` still says `>=20`. Left alone (a repo-wide decision), noted here.
+  5. `pnpm add` rewrote `pnpm-lock.yaml` in its own compact style; Prettier (which the repo applies to it) restored the committed style, so the lockfile diff is the 26 lines the new package needs.
+  6. The root layout's `<nav>` is an empty bordered bar for signed-out visitors, and the global element styles for `button`, `input`, `nav` and `main` are stand-ins that M2's primitives and shell replace.
+- **What's deferred:** primitives, icons and the real shell (M2); every screen's own layout (M3–M6); D3 and D4 and the `mobile` project (M7). The axe scan does not yet cover the wizard, the brunch detail page or the manage page; each is added in the milestone that restyles it. Email appearance and the OS-level dark mode of a real device are not checked.
+- **How to run it:** `pnpm --filter @brunchsters/web test` (style guard), `pnpm test:e2e` (D1/D2 are in `accessibility.spec.ts`), `pnpm --filter @brunchsters/web screenshots`.
 
 ---
 
@@ -127,9 +141,10 @@ Eight milestones, each green on its own and ending in a commit. Review points ar
 
 Each item gets one outcome: **In scope** (tokens, spacing, sizing, colors, fonts, layout of existing screens — one polish pass per review point plus M8), **Roadmap** (adds or changes behavior, a screen or a control → parity table, with the feature), or **Copy** (wording and terminology → the follow-up copy spec). Anything that fits none is raised with the owner before it is touched.
 
-| #   | Review | Feedback | Outcome | Done in |
-| --- | ------ | -------- | ------- | ------- |
-|     |        |          |         |         |
+| #   | Review      | Feedback                                                                                               | Outcome  | Done in |
+| --- | ----------- | ------------------------------------------------------------------------------------------------------ | -------- | ------- |
+| 1   | M1 (Claude) | Signed-out visitors get an empty bordered bar for the nav                                              | In scope | M2      |
+| 2   | M1 (Claude) | On the brunch detail page "Back to Dashboard" and "Manage brunch" are adjacent links that run together | In scope | M5      |
 
 **Copy list (for the follow-up copy spec):** _(none yet)_
 
