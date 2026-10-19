@@ -5,7 +5,7 @@
 **PLANNING.md ref:** §1 design principles, §16 Build Order #9 (UI), Constitution V (Design Principles 23–26)  
 **ADRs:** [0010 — CSS Modules and design tokens](../../docs/adrs/0010-css-modules-and-design-tokens.md)
 
-> **Numbering note.** `PLANNING.md` used to reserve "spec 0009" for the notifications follow-up (in-app inbox, preferences, mute, realtime, reminders, host-facing emails). Directories are numbered in the order they are written, so styling is 0009 and **the notifications follow-up becomes 0010**. The docs commit that adds this spec updates `PLANNING.md` and spec 0008's references to say so.
+> **Numbering note.** `PLANNING.md` used to reserve "spec 0009" for the notifications follow-up (in-app inbox, preferences, mute, realtime, reminders, host-facing emails). Directories are numbered in the order they are written, so styling is 0009 and **the notifications follow-up becomes 0010**. (Renumbered again when the Redux UI-state spec took 0010 and design fidelity 0011: notifications is now **0012**.) The docs commit that adds this spec updates `PLANNING.md` and spec 0008's references to say so.
 
 ---
 
