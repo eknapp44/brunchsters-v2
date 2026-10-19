@@ -7,16 +7,23 @@ Four milestones, each green on its own and ending in a commit. Branch: `feat/001
 ## M1 — Docs, dependencies and store plumbing
 
 - [x] Commit ADR 0011, its README index row, the numbering updates and this spec folder (docs-only commit, before any code)
-- [ ] `pnpm --filter @brunchsters/web add @reduxjs/toolkit react-redux` (record the versions below); confirm `react-redux` supports the installed React 19
-- [ ] `src/store/makeStore.ts`, `StoreProvider.tsx`, `hooks.ts` (typed hooks and `createAppAsyncThunk`). `makeStore` takes the reducer map as a parameter with the app's map as the default; M1 has no real slice yet, so its tests use a throwaway reducer, and M2 adds the wizard to the app's map. The provider is not mounted in the layout until M2 has a slice to serve (an empty store would be dead code)
-- [ ] `makeStore.test.ts`: two stores share no state; the `extra.fetch` given is the one thunks receive
-- [ ] Flip the stack lines (README, root `CLAUDE.md`, `PLANNING.md` §3) from "planned" to "in use, see ADR 0011"
-- [ ] `apps/web/CLAUDE.md`: new short "State" section (UI state only; per-request store; serializable state; typed hooks; slice vs `useState`; reset or reseed on mount)
-- [ ] **Prove the test can fail:** replace `makeStore` with a module-level singleton; `makeStore.test.ts` fails
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e`, stress run, CI mode
-- [ ] Commit: `feat: add Redux Toolkit store plumbing for client UI state (M1)`
+- [x] `pnpm --filter @brunchsters/web add @reduxjs/toolkit react-redux` (record the versions below); confirm `react-redux` supports the installed React 19
+- [x] `src/store/makeStore.ts`, `StoreProvider.tsx`, `hooks.ts` (typed hooks and `createAppAsyncThunk`). `makeStore` takes the reducer map as a parameter with the app's map as the default; M1 has no real slice yet, so its tests use a throwaway reducer, and M2 adds the wizard to the app's map. The provider is not mounted in the layout until M2 has a slice to serve (an empty store would be dead code)
+- [x] `makeStore.test.ts`: two stores share no state; the `extra.fetch` given is the one thunks receive
+- [x] Flip the stack lines (README, root `CLAUDE.md`, `PLANNING.md` §3) from "planned" to "in use, see ADR 0011"
+- [x] `apps/web/CLAUDE.md`: new short "State" section (UI state only; per-request store; serializable state; typed hooks; slice vs `useState`; reset or reseed on mount)
+- [x] **Prove the test can fail:** replace `makeStore` with a module-level singleton; `makeStore.test.ts` fails
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` (stress run and CI mode skipped: nothing mounted in the app changed; M2 runs both)
+- [x] Commit: `feat: add Redux Toolkit store plumbing for client UI state (M1)`
 
-**Testing notes:** _(fill on completion)_
+**Testing notes:**
+
+- **What was tested:** the per-request guarantee and the thunk `extra` wiring. `makeStore.test.ts` (2 tests) builds two stores from `configureAppStore` with a throwaway counter reducer: changing one leaves the other at its initial state, and a thunk receives exactly the `fetch` it was given.
+- **How:** unit, node vitest, no mocks beyond the injected fake `fetch`. Web 321 tests (2 new), core 429, shared 7, database 1; typecheck and lint clean; full e2e 135 passed, 2 skipped, all existing journeys unmodified.
+- **Proving it can fail:** `configureAppStore` was changed to return a cached store; the isolation test failed ("expected 2 to be +0"); reverted.
+- **What's deferred:** `makeStore` (the app's real reducer map) has no test of its own because the map is empty until M2 adds the wizard slice (an empty `combineReducers` warns at runtime). `StoreProvider` is written but not mounted in the layout until M2, so nothing runs it yet. Stress run and CI mode run from M2.
+- **Findings:** `pnpm add` rewrote the lockfile in its own style; Prettier restored the committed style (120 added lines). react-redux 9.3 declares React 19 support. README's stack table was realigned by Prettier (a 20-line diff for a one-cell change).
+- **How to run it:** `pnpm --filter @brunchsters/web exec vitest run src/store`.
 
 ---
 
@@ -69,7 +76,7 @@ Four milestones, each green on its own and ending in a commit. Branch: `feat/001
 
 ## Versions
 
-_(filled in M1: `@reduxjs/toolkit`, `react-redux`)_
+`@reduxjs/toolkit` ^2.13.0, `react-redux` ^9.3.0 (React 19 supported by react-redux 9).
 
 ## Feedback / findings log
 

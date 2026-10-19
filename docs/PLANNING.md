@@ -89,7 +89,7 @@ Brunchsters fills the gap between Google Maps and Google Calendar — making it 
 | Layer            | Decision                                                                           |
 | ---------------- | ---------------------------------------------------------------------------------- |
 | Framework        | Next.js + TypeScript                                                               |
-| State Management | Redux (planned; not yet used: screens use React state and `useReducer` so far)     |
+| State Management | Redux Toolkit (UI state only, ADR 0011; adopted screen by screen under spec 0010)  |
 | ORM              | Prisma                                                                             |
 | Database         | PostgreSQL (Supabase)                                                              |
 | Auth             | NextAuth.js (Google + Apple)                                                       |

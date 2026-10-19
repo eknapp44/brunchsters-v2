@@ -16,6 +16,18 @@ Scoped to the web app. The repo-wide rules are in the root `CLAUDE.md`; why the 
 - **One primary action per screen** (Constitution 24): one `variant="primary"` button. Revoke/Remove are `danger`, everything else `secondary` or `ghost`.
 - **Global element styles are zero-specificity (`:where()`)**, so a component's class always wins. A `<main>` that is not a `Container` or `Hero` still gets a width from the global rule; opt out explicitly.
 
+## State
+
+Why and what: [ADR 0011](../../docs/adrs/0011-redux-toolkit-for-client-ui-state.md), `specs/0010-redux-ui-state/`.
+
+- **The store holds UI state only.** Business rules stay on the server and in `packages/core`. Brunch data stays in Server Components and is refreshed with `router.refresh()`; do not copy it into the store.
+- **Per-request store, never a module-level one.** `makeStore` builds a fresh store; `StoreProvider` (`src/store/`) creates it once per mount. Server Components never touch Redux.
+- **Components use only the typed hooks** (`useAppDispatch`, `useAppSelector`) and `createAppAsyncThunk` from `src/store/hooks.ts`. A mutation is a thunk that gets `fetch` from its `extra` argument, so it tests in node with a fake.
+- **State must be serializable** (ISO strings, not `Date`; arrays, not `Set`). The check stays on.
+- **A provider that outlives a page means state can too.** Every slice says how it is reset or reseeded on mount, and a journey proves it.
+- **Slice or `useState`?** State that only one component reads (an input's text, a copied-to-clipboard flag) stays `useState`. A slice earns its place when several components read it, or when its rules (optimistic update, rollback) deserve unit tests.
+- Test reducers, selectors and thunks; do not test that React renders (root `CLAUDE.md`).
+
 ## Accessible names are a contract with the e2e suite
 
 The journeys find things by role, label and text. A restyle must not change them:

@@ -21,7 +21,7 @@ When in doubt about _why_ something is done a certain way, check the ADRs before
 
 ## Stack
 
-- Next.js 15+ App Router, TypeScript strict mode, Redux Toolkit (planned; not yet installed, screens use React state and `useReducer`)
+- Next.js 15+ App Router, TypeScript strict mode, Redux Toolkit for client UI state (ADR 0011; installed, with screens moving onto it under spec 0010 — the rest still use React state and `useReducer`)
 - Prisma + PostgreSQL (Supabase-hosted)
 - NextAuth.js (Google live; Apple deferred)
 - Inngest for async jobs
