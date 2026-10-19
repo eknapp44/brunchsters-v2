@@ -2,6 +2,8 @@
 
 import type { PlaceDetails, PlaceResult } from '@brunchsters/core';
 import { useEffect, useState } from 'react';
+import { Icon } from '@/components/icons/Icon';
+import styles from './PlaceSearchInput.module.css';
 
 export function PlaceSearchInput({
   onSelect,
@@ -70,18 +72,28 @@ export function PlaceSearchInput({
 
   return (
     <div>
-      <input
-        type="text"
-        value={query}
-        disabled={disabled}
-        onChange={(event) => handleQueryChange(event.target.value)}
-        placeholder="Search for a place"
-      />
+      <div className={styles.field}>
+        <span className={styles.icon}>
+          <Icon name="search" size={18} />
+        </span>
+        <input
+          className={styles.input}
+          type="text"
+          value={query}
+          disabled={disabled}
+          onChange={(event) => handleQueryChange(event.target.value)}
+          placeholder="Search for a place"
+        />
+      </div>
       {predictions.length > 0 && (
-        <ul>
+        <ul className={styles.results} role="list">
           {predictions.map((prediction) => (
             <li key={prediction.placeId}>
-              <button type="button" onClick={() => void selectPlace(prediction.placeId)}>
+              <button
+                className={styles.option}
+                type="button"
+                onClick={() => void selectPlace(prediction.placeId)}
+              >
                 {prediction.name} — {prediction.address}
               </button>
             </li>

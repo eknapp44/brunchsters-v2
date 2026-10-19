@@ -1,0 +1,4 @@
+/* The skip link lands focus here. It is not interactive, so it needs no focus ring. */
+.main:focus {
+  outline: none;
+}

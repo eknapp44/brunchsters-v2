@@ -1,8 +1,13 @@
 import { getInviteByToken, respondToInvite } from '@brunchsters/core';
 import type { InviteToken, UserId } from '@brunchsters/shared';
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
+import { LogoMark } from '@/components/art/LogoMark';
+import { PopIcon } from '@/components/icons/PopIcon';
+import { Badge } from '@/components/ui/Badge';
+import { ButtonLink } from '@/components/ui/ButtonLink';
+import { Hero } from '@/components/ui/Hero';
+import { InlineAlert } from '@/components/ui/InlineAlert';
 import { db } from '@/lib/db';
 import { eventBus } from '@/lib/services';
 
@@ -17,10 +22,11 @@ export default async function InviteLandingPage({
   const preview = await getInviteByToken(token, { db });
   if (preview === undefined) {
     return (
-      <main>
+      <Hero>
+        <PopIcon name="clock" size={48} />
         <h1>Invite not found</h1>
         <p>This invite has expired or is invalid. Ask the host to resend it.</p>
-      </main>
+      </Hero>
     );
   }
 
@@ -36,21 +42,29 @@ export default async function InviteLandingPage({
     }
 
     return (
-      <main>
+      <Hero>
         <h1>Something went wrong</h1>
-        <p>We couldn&apos;t process this invite. Ask the host to resend it.</p>
-      </main>
+        <InlineAlert tone="error">
+          <p>We couldn&apos;t process this invite. Ask the host to resend it.</p>
+        </InlineAlert>
+      </Hero>
     );
   }
 
   return (
-    <main>
+    <Hero>
+      <LogoMark size={56} />
       <h1>You&apos;re invited to {preview.brunchTitle}</h1>
       <p>Hosted by {preview.hostName}</p>
-      <p>{preview.brunchStatusLabel}</p>
-      <Link href={`/sign-in?callbackUrl=${encodeURIComponent(`/invite/${token}`)}`}>
+      <Badge tone="accent">{preview.brunchStatusLabel}</Badge>
+      <ButtonLink
+        href={`/sign-in?callbackUrl=${encodeURIComponent(`/invite/${token}`)}`}
+        variant="primary"
+        size="lg"
+        block
+      >
         Sign in with Google
-      </Link>
-    </main>
+      </ButtonLink>
+    </Hero>
   );
 }

@@ -1,0 +1,11 @@
+.container {
+  width: 100%;
+  max-width: var(--page-width);
+  margin: 0 auto;
+  padding: var(--space-5) var(--page-gutter) var(--space-8);
+}
+
+/* one column of form content, for pages that are a single task (the wizard) */
+.narrow {
+  max-width: var(--content-width);
+}

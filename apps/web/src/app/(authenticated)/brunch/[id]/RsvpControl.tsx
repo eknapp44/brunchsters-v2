@@ -2,6 +2,9 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { Button } from '@/components/ui/Button';
+import { InlineAlert } from '@/components/ui/InlineAlert';
+import styles from './detail.module.css';
 
 const RESPONSES = ['yes', 'no', 'maybe'] as const;
 type RsvpResponse = (typeof RESPONSES)[number];
@@ -39,20 +42,27 @@ export function RsvpControl({
   }
 
   return (
-    <section>
+    <section className={styles.panel}>
       <h2>Your RSVP</h2>
-      <p>Current: {currentStatus ?? 'no response yet'}</p>
-      {RESPONSES.map((response) => (
-        <button
-          key={response}
-          type="button"
-          disabled={submitting}
-          onClick={() => void respond(response)}
-        >
-          {response}
-        </button>
-      ))}
-      {error !== undefined && <p role="alert">{error}</p>}
+      <p className={styles.srOnly}>Current: {currentStatus ?? 'no response yet'}</p>
+      <div className={styles.choices}>
+        {RESPONSES.map((response) => (
+          <Button
+            key={response}
+            type="button"
+            variant={currentStatus === response ? 'primary' : 'secondary'}
+            disabled={submitting}
+            onClick={() => void respond(response)}
+          >
+            {response}
+          </Button>
+        ))}
+      </div>
+      {error !== undefined && (
+        <InlineAlert tone="error" role="alert">
+          <p>{error}</p>
+        </InlineAlert>
+      )}
     </section>
   );
 }

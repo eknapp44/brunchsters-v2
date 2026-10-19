@@ -1,0 +1,65 @@
+.step {
+  display: grid;
+  gap: var(--space-4);
+}
+
+/* an input with the button that adds it to the list beside it */
+.addRow {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.addRow input {
+  flex: 1;
+  min-width: 0;
+}
+
+.items {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.items > li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: var(--touch-target);
+  margin: 0;
+  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+}
+
+.itemText {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.actionsEnd {
+  justify-content: flex-end;
+}
+
+@media (max-width: 30rem) {
+  .actions > * {
+    flex: 1;
+  }
+}
+
+.hint {
+  margin: 0;
+}

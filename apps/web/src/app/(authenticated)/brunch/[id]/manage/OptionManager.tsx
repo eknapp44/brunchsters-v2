@@ -3,7 +3,12 @@
 import type { PlaceDetails } from '@brunchsters/core';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { PopIcon } from '@/components/icons/PopIcon';
+import { Button } from '@/components/ui/Button';
+import { InlineAlert } from '@/components/ui/InlineAlert';
 import { PlaceSearchInput } from '../../PlaceSearchInput';
+import detail from '../detail.module.css';
+import styles from './manage.module.css';
 
 type LocationOption = {
   readonly id: string;
@@ -140,59 +145,84 @@ export function OptionManager({
   }
 
   return (
-    <section>
-      <h2>Locations</h2>
-      <ul>
-        {locations.map((location) => (
-          <li key={location.id}>
-            {location.placeName} — {location.placeAddress} ({voteCountLabel(location.voteCount)})
-            <button
-              type="button"
-              onClick={() => void removeLocation(location.id)}
-              disabled={disabled || pendingId === location.id}
-            >
-              Remove
-            </button>
-          </li>
-        ))}
-      </ul>
-      <PlaceSearchInput
-        onSelect={(details) => void addLocation(details)}
-        onError={() => setError('Failed to add location')}
-        disabled={disabled || adding}
-      />
+    <section className={detail.panel}>
+      <div className={styles.group}>
+        <h2>Locations</h2>
+        <ul className={detail.rows} role="list">
+          {locations.map((location) => (
+            <li key={location.id} className={detail.row}>
+              <span className={detail.rowMain}>
+                <PopIcon name="pin" size={22} />
+                <span className={detail.rowText}>
+                  {location.placeName} — {location.placeAddress}{' '}
+                  <span className={detail.detail}>({voteCountLabel(location.voteCount)})</span>
+                </span>
+              </span>
+              <Button
+                type="button"
+                size="sm"
+                variant="danger"
+                onClick={() => void removeLocation(location.id)}
+                disabled={disabled || pendingId === location.id}
+              >
+                Remove
+              </Button>
+            </li>
+          ))}
+        </ul>
+        <PlaceSearchInput
+          onSelect={(details) => void addLocation(details)}
+          onError={() => setError('Failed to add location')}
+          disabled={disabled || adding}
+        />
+      </div>
 
-      <h2>Times</h2>
-      <ul>
-        {times.map((time) => (
-          <li key={time.id}>
-            {time.scheduledAt.toLocaleString(undefined, {
-              dateStyle: 'medium',
-              timeStyle: 'short',
-            })}{' '}
-            ({voteCountLabel(time.voteCount)})
-            <button
-              type="button"
-              onClick={() => void removeTime(time.id)}
-              disabled={disabled || pendingId === time.id}
-            >
-              Remove
-            </button>
-          </li>
-        ))}
-      </ul>
-      <input
-        type="datetime-local"
-        aria-label="Date and time to add"
-        value={timeInput}
-        disabled={disabled || adding}
-        onChange={(event) => setTimeInput(event.target.value)}
-      />
-      <button type="button" onClick={() => void addTime()} disabled={disabled || adding}>
-        Add Time
-      </button>
+      <div className={styles.group}>
+        <h2>Times</h2>
+        <ul className={detail.rows} role="list">
+          {times.map((time) => (
+            <li key={time.id} className={detail.row}>
+              <span className={detail.rowMain}>
+                <PopIcon name="clock" size={22} />
+                <span className={detail.rowText}>
+                  {time.scheduledAt.toLocaleString(undefined, {
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                  })}{' '}
+                  <span className={detail.detail}>({voteCountLabel(time.voteCount)})</span>
+                </span>
+              </span>
+              <Button
+                type="button"
+                size="sm"
+                variant="danger"
+                onClick={() => void removeTime(time.id)}
+                disabled={disabled || pendingId === time.id}
+              >
+                Remove
+              </Button>
+            </li>
+          ))}
+        </ul>
+        <div className={detail.addRow}>
+          <input
+            type="datetime-local"
+            aria-label="Date and time to add"
+            value={timeInput}
+            disabled={disabled || adding}
+            onChange={(event) => setTimeInput(event.target.value)}
+          />
+          <Button type="button" onClick={() => void addTime()} disabled={disabled || adding}>
+            Add Time
+          </Button>
+        </div>
+      </div>
 
-      {error !== undefined && <p role="alert">{error}</p>}
+      {error !== undefined && (
+        <InlineAlert tone="error" role="alert">
+          <p>{error}</p>
+        </InlineAlert>
+      )}
     </section>
   );
 }

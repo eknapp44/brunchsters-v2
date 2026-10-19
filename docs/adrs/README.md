@@ -50,3 +50,4 @@ What else was evaluated and why was it not chosen?
 | [0007](./0007-e2e-testing-stack.md)                         | End-to-end testing stack                  | Accepted |
 | [0008](./0008-normalize-email-addresses.md)                 | Normalize email addresses to lowercase    | Accepted |
 | [0009](./0009-inngest-event-bus-and-email-delivery.md)      | Inngest EventBus and email delivery       | Accepted |
+| [0010](./0010-css-modules-and-design-tokens.md)             | CSS Modules and design tokens             | Accepted |

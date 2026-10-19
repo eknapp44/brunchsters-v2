@@ -1,4 +1,7 @@
 import { signIn } from '@/auth';
+import { LogoMark } from '@/components/art/LogoMark';
+import { Button } from '@/components/ui/Button';
+import { Hero } from '@/components/ui/Hero';
 
 async function googleSignIn(formData: FormData) {
   'use server';
@@ -16,12 +19,15 @@ export default async function SignInPage({
   const { callbackUrl } = await searchParams;
 
   return (
-    <main>
+    <Hero>
+      <LogoMark size={56} />
       <h1>Sign in to Brunchsters</h1>
       <form action={googleSignIn}>
         <input type="hidden" name="callbackUrl" value={callbackUrl ?? '/dashboard'} />
-        <button type="submit">Sign in with Google</button>
+        <Button type="submit" variant="primary" size="lg" block>
+          Sign in with Google
+        </Button>
       </form>
-    </main>
+    </Hero>
   );
 }

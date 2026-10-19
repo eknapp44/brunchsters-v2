@@ -2,6 +2,10 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { Button } from '@/components/ui/Button';
+import { Field } from '@/components/ui/Field';
+import { InlineAlert } from '@/components/ui/InlineAlert';
+import detail from '../detail.module.css';
 
 // Matches nowAsDatetimeLocalValue() in brunch/new/page.tsx — the browser's
 // datetime-local input needs the same local-time, no-timezone string shape.
@@ -87,7 +91,7 @@ export function VotingControls({
 
   if (closed) {
     return (
-      <section>
+      <section className={detail.panel}>
         <h2>Voting</h2>
         <p>Voting is closed.</p>
       </section>
@@ -95,36 +99,45 @@ export function VotingControls({
   }
 
   return (
-    <section>
+    <section className={detail.panel}>
       <h2>Voting</h2>
 
       {(locationsShouldSuggestClosing || timesShouldSuggestClosing) && (
-        <p>Most eligible attendees have voted — you can close voting now if you&apos;re ready.</p>
+        <InlineAlert>
+          <p>Most eligible attendees have voted — you can close voting now if you&apos;re ready.</p>
+        </InlineAlert>
       )}
 
-      <label>
-        Voting closes by
-        <input
-          type="datetime-local"
-          value={deadlineInput}
-          min={minDeadline}
-          disabled={submitting}
-          onChange={(event) => setDeadlineInput(event.target.value)}
-        />
-      </label>
-      <button type="button" onClick={() => void saveDeadline()} disabled={submitting}>
-        Save deadline
-      </button>
+      <div className={detail.addRow}>
+        <Field label="Voting closes by">
+          <input
+            type="datetime-local"
+            value={deadlineInput}
+            min={minDeadline}
+            disabled={submitting}
+            onChange={(event) => setDeadlineInput(event.target.value)}
+          />
+        </Field>
+        <Button type="button" onClick={() => void saveDeadline()} disabled={submitting}>
+          Save deadline
+        </Button>
+      </div>
 
-      <button
-        type="button"
-        onClick={() => void closeVotingNow()}
-        disabled={submitting || !canClose}
-      >
-        Close voting now
-      </button>
+      <div className={detail.choices}>
+        <Button
+          type="button"
+          onClick={() => void closeVotingNow()}
+          disabled={submitting || !canClose}
+        >
+          Close voting now
+        </Button>
+      </div>
 
-      {error !== undefined && <p role="alert">{error}</p>}
+      {error !== undefined && (
+        <InlineAlert tone="error" role="alert">
+          <p>{error}</p>
+        </InlineAlert>
+      )}
     </section>
   );
 }

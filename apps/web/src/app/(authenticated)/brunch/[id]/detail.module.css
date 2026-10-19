@@ -1,0 +1,261 @@
+/* Styles shared by the brunch detail page and its panels. */
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.header h1 {
+  margin: 0;
+}
+
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+/* each part of the page is a card: a <section> with its own heading */
+.panel {
+  margin-bottom: var(--space-4);
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  box-shadow: var(--shadow-sm);
+}
+
+.panel > h2,
+.panel > h3 {
+  margin-top: 0;
+}
+
+.panel > * + * {
+  margin-top: var(--space-3);
+}
+
+.panel > p,
+.panel > ul {
+  margin-bottom: 0;
+}
+
+.panel > :last-child {
+  margin-bottom: 0;
+}
+
+.muted {
+  color: var(--fg-muted);
+}
+
+.current {
+  color: var(--fg-muted);
+}
+
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.stack {
+  display: grid;
+  gap: var(--space-3);
+}
+
+/* a list of options to vote on, or of things already added */
+.options,
+.rows {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.options > li,
+.rows > li {
+  margin: 0;
+}
+
+.option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  cursor: pointer;
+  transition:
+    border-color var(--duration-base) var(--ease),
+    background var(--duration-base) var(--ease);
+}
+
+.option:hover {
+  border-color: var(--fg-subtle);
+}
+
+.option:has(input:checked) {
+  background: var(--accent-soft);
+  border-color: var(--accent-strong);
+}
+
+.option:has(input:disabled) {
+  cursor: default;
+}
+
+.option input {
+  flex-shrink: 0;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0.125rem 0 0;
+}
+
+.optionText {
+  min-width: 0;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+
+.name {
+  font-weight: 600;
+}
+
+.detail {
+  color: var(--fg-muted);
+}
+
+.option:has(input:checked) .detail {
+  color: var(--accent-soft-fg);
+}
+
+.voters {
+  color: var(--fg-muted);
+}
+
+.confirmed {
+  color: var(--fg);
+  font-weight: 700;
+}
+
+/* display-only lists (a single place or time, or things awaiting approval) */
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+}
+
+.rowMain {
+  flex: 1 1 16rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* text beside an icon takes the remaining width and wraps there, instead of dropping below it */
+.rowText {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.rowActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.addRow {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.addRow > label {
+  flex: 1;
+  min-width: 0;
+}
+
+.addRow input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Two columns on a wide screen: what you do on the left, the people on the right (brunch page)
+   or the options on the left and the decisions on the right (manage page). Each column is a
+   consecutive group in the page order, so reading and tab order do not change. A column with
+   nothing in it disappears and the other one is centered at a reading width. */
+.columns {
+  display: grid;
+  /* an explicit track that may shrink: without it the single column grows to its widest content
+     (a date input) and the page scrolls sideways on a phone */
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 0 var(--space-5);
+}
+
+.column:empty {
+  display: none;
+}
+
+@media (min-width: 60rem) {
+  .columns {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  }
+
+  .columns:has(> .column:empty) {
+    grid-template-columns: minmax(0, var(--content-width));
+    justify-content: center;
+  }
+}
+
+/* Said by the screen reader, not drawn: the chosen RSVP is already the filled button. */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* a voting option: the name and its vote count on one line, the details underneath */
+.optionBody {
+  display: grid;
+  flex: 1;
+  font-weight: 400; /* the option is a <label>, which is bold by default; only the name is */
+  gap: 0.125rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.optionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.optionBody > .detail,
+.optionBody > .voters {
+  display: block;
+  font-size: var(--text-sm);
+}

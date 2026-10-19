@@ -2,6 +2,10 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { Button } from '@/components/ui/Button';
+import { Field } from '@/components/ui/Field';
+import { InlineAlert } from '@/components/ui/InlineAlert';
+import styles from './detail.module.css';
 
 type SuggestionListItem = {
   readonly id: string;
@@ -72,56 +76,66 @@ export function SuggestionsPanel({
     }
   }
 
-  if (!canSuggest && pendingSuggestions === undefined) return null;
+  // Nothing to suggest and nothing waiting for the host: no card.
+  if (!canSuggest && (pendingSuggestions === undefined || pendingSuggestions.length === 0)) {
+    return null;
+  }
 
   return (
-    <section>
+    <section className={styles.panel}>
       <h2>Invite Suggestions</h2>
 
-      {pendingSuggestions !== undefined &&
-        (pendingSuggestions.length === 0 ? (
-          <p>No pending suggestions.</p>
-        ) : (
-          <ul>
-            {pendingSuggestions.map((suggestion) => (
-              <li key={suggestion.id}>
-                {suggestion.suggestedEmail} — suggested by {suggestion.suggestedByName}
-                <button
+      {pendingSuggestions !== undefined && pendingSuggestions.length > 0 && (
+        <ul className={styles.rows} role="list">
+          {pendingSuggestions.map((suggestion) => (
+            <li key={suggestion.id} className={styles.row}>
+              <span className={styles.rowMain}>
+                <span>{suggestion.suggestedEmail}</span>{' '}
+                <span className={styles.detail}>suggested by {suggestion.suggestedByName}</span>
+              </span>
+              <span className={styles.rowActions}>
+                <Button
                   type="button"
+                  size="sm"
                   onClick={() => void review(suggestion.id, 'approve')}
                   disabled={pendingSuggestionId === suggestion.id}
                 >
                   Approve
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  size="sm"
                   onClick={() => void review(suggestion.id, 'decline')}
                   disabled={pendingSuggestionId === suggestion.id}
                 >
                   Decline
-                </button>
-              </li>
-            ))}
-          </ul>
-        ))}
+                </Button>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
 
       {canSuggest && (
-        <>
-          <label>
-            Suggest someone
+        <div className={styles.addRow}>
+          <Field label="Suggest someone">
             <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
-          </label>
-          <button
+          </Field>
+          <Button
             type="button"
             aria-label="Suggest this person"
             onClick={() => void suggest()}
             disabled={submitting}
           >
             {submitting ? 'Sending…' : 'Suggest'}
-          </button>
-        </>
+          </Button>
+        </div>
       )}
-      {error !== undefined && <p role="alert">{error}</p>}
+      {error !== undefined && (
+        <InlineAlert tone="error" role="alert">
+          <p>{error}</p>
+        </InlineAlert>
+      )}
     </section>
   );
 }

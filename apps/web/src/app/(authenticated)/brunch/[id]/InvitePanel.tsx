@@ -2,16 +2,30 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { Field } from '@/components/ui/Field';
+import { InlineAlert } from '@/components/ui/InlineAlert';
+import styles from './detail.module.css';
+
+type InviteStatus = 'pending' | 'yes' | 'no' | 'maybe';
 
 type InviteListItem = {
   readonly id: string;
   readonly invitedEmail: string;
-  readonly status: 'pending' | 'yes' | 'no' | 'maybe';
+  readonly status: InviteStatus;
   readonly token: string;
 };
 
 function inviteLink(token: string): string {
   return `${window.location.origin}/invite/${token}`;
+}
+
+// The status word is always shown; the tone is only emphasis.
+function badgeToneFor(status: InviteStatus): 'neutral' | 'accent' | 'mint' {
+  if (status === 'yes') return 'mint';
+  if (status === 'maybe') return 'accent';
+  return 'neutral';
 }
 
 function CopyLinkButton({ token }: { readonly token: string }) {
@@ -24,9 +38,9 @@ function CopyLinkButton({ token }: { readonly token: string }) {
   }
 
   return (
-    <button type="button" onClick={() => void copy()}>
+    <Button type="button" size="sm" onClick={() => void copy()}>
       {copied ? 'Copied!' : 'Copy link'}
-    </button>
+    </Button>
   );
 }
 
@@ -107,44 +121,57 @@ export function InvitePanel({
   }
 
   return (
-    <section>
+    <section className={styles.panel}>
       <h2>Invites</h2>
 
       {invites.length === 0 ? (
-        <p>No invites sent yet.</p>
+        <p className={styles.muted}>No invites sent yet.</p>
       ) : (
-        <ul>
+        <ul className={styles.rows} role="list">
           {invites.map((invite) => (
-            <li key={invite.id}>
-              {invite.invitedEmail} — {invite.status}
-              <CopyLinkButton token={invite.token} />
-              <button
-                type="button"
-                onClick={() => void resend(invite.id)}
-                disabled={pendingInviteId === invite.id}
-              >
-                Resend
-              </button>
-              <button
-                type="button"
-                onClick={() => void revoke(invite.id)}
-                disabled={pendingInviteId === invite.id}
-              >
-                Revoke
-              </button>
+            <li key={invite.id} className={styles.row}>
+              <span className={styles.rowMain}>
+                <span>{invite.invitedEmail}</span>{' '}
+                <Badge tone={badgeToneFor(invite.status)}>{invite.status}</Badge>
+              </span>
+              <span className={styles.rowActions}>
+                <CopyLinkButton token={invite.token} />
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => void resend(invite.id)}
+                  disabled={pendingInviteId === invite.id}
+                >
+                  Resend
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="danger"
+                  onClick={() => void revoke(invite.id)}
+                  disabled={pendingInviteId === invite.id}
+                >
+                  Revoke
+                </Button>
+              </span>
             </li>
           ))}
         </ul>
       )}
 
-      <label>
-        Invite more people
-        <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
-      </label>
-      <button type="button" onClick={() => void sendInvite()} disabled={sending}>
-        {sending ? 'Sending…' : 'Send Invite'}
-      </button>
-      {error !== undefined && <p role="alert">{error}</p>}
+      <div className={styles.addRow}>
+        <Field label="Invite more people">
+          <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
+        </Field>
+        <Button type="button" onClick={() => void sendInvite()} disabled={sending}>
+          {sending ? 'Sending…' : 'Send Invite'}
+        </Button>
+      </div>
+      {error !== undefined && (
+        <InlineAlert tone="error" role="alert">
+          <p>{error}</p>
+        </InlineAlert>
+      )}
     </section>
   );
 }

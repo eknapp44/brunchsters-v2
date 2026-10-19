@@ -35,7 +35,25 @@ export default defineConfig({
     locale: 'en-US',
     timezoneId: 'America/Chicago',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    {
+      // An emulated phone (spec 0009, journey D3): the core journeys again at a phone width and
+      // with touch, plus the layout checks. A chosen subset, not the whole suite: the rest is
+      // about rules and data, which a screen size does not change.
+      name: 'mobile',
+      use: { ...devices['Pixel 7'] },
+      testMatch: [
+        '**/responsive-layout.spec.ts',
+        '**/auth.spec.ts',
+        '**/access-and-dashboard.spec.ts',
+        '**/create-brunch.spec.ts',
+        '**/invitations-invitee.spec.ts',
+        '**/voting.spec.ts',
+        '**/confirm.spec.ts',
+      ],
+    },
+  ],
   webServer: [
     {
       // CI builds first (see ci.yml) and serves the build; locally dev mode is faster.

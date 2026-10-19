@@ -1,0 +1,115 @@
+.scene {
+  display: block;
+  width: 100%;
+  max-width: 32.5rem;
+  height: auto;
+}
+
+.spotStop {
+  stop-color: var(--art-spot);
+}
+
+.tableTopStop {
+  stop-color: var(--art-table-top);
+}
+
+.tableBottomStop {
+  stop-color: var(--art-table-bottom);
+}
+
+.table {
+  stroke: var(--art-edge);
+  stroke-width: 1;
+}
+
+.chair {
+  fill: var(--art-chair);
+}
+
+.chairPart {
+  fill: var(--art-edge);
+}
+
+.farChair {
+  opacity: 0.55;
+}
+
+.mat {
+  fill: var(--art-mat);
+}
+
+.plate {
+  fill: var(--art-plate);
+  stroke: var(--art-ware-line);
+  stroke-width: 1.2;
+}
+
+.plateInner {
+  fill: var(--art-plate-inner);
+  stroke: var(--art-ware-line);
+  stroke-width: 0.8;
+}
+
+.eggWhite {
+  fill: var(--art-egg-white);
+  stroke: var(--art-ware-line);
+  stroke-width: 0.6;
+}
+
+.yolk {
+  fill: var(--accent-strong);
+}
+
+.cup {
+  fill: var(--art-plate);
+  stroke: var(--art-ware-line);
+  stroke-width: 1.2;
+}
+
+.saucer {
+  fill: var(--art-plate);
+  stroke: var(--art-ware-line);
+  stroke-width: 0.8;
+}
+
+.coffee {
+  fill: var(--art-coffee);
+  stroke: var(--art-coffee-line);
+  stroke-width: 0.6;
+}
+
+.handle {
+  fill: none;
+  stroke: var(--art-ware-line);
+  stroke-width: 1.2;
+}
+
+.steam {
+  fill: none;
+  stroke: var(--art-ware-line);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+
+.glass {
+  fill: var(--art-plate);
+  fill-opacity: 0.55;
+  stroke: var(--art-ware-line);
+  stroke-width: 1;
+}
+
+.juice {
+  fill: var(--accent);
+  fill-opacity: 0.6;
+}
+
+.fork {
+  fill: none;
+  stroke: var(--art-edge);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+
+.sparkle {
+  fill: var(--accent-strong);
+}

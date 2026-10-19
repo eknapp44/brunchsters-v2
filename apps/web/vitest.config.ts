@@ -10,6 +10,6 @@ export default defineConfig({
     environment: 'node',
     passWithNoTests: true,
     // Playwright specs are *.spec.ts; keep them out of vitest. e2e/support/*.test.ts still runs.
-    exclude: [...configDefaults.exclude, 'e2e/journeys/**'],
+    exclude: [...configDefaults.exclude, 'e2e/journeys/**', 'e2e/screenshots/**'],
   },
 });

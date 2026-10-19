@@ -71,7 +71,7 @@ test.describe('H1 — the host edits the options', () => {
     await expect(voterLocations).not.toContainText(fixturePlaces.sunnySide.name);
     for (const box of await voterLocations.getByRole('checkbox').all()) {
       await expect(box).not.toBeChecked();
-      await expect(box).toHaveAccessibleName(/\(0 votes\)/);
+      await expect(box).toHaveAccessibleName(/\b0 votes\b/);
     }
   });
 

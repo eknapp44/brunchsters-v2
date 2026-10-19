@@ -3,7 +3,11 @@
 import type { PlaceDetails } from '@brunchsters/core';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { PopIcon } from '@/components/icons/PopIcon';
+import { Button } from '@/components/ui/Button';
+import { InlineAlert } from '@/components/ui/InlineAlert';
 import { PlaceSearchInput } from '../PlaceSearchInput';
+import styles from './detail.module.css';
 
 type PendingLocationSuggestion = {
   readonly id: string;
@@ -59,14 +63,20 @@ export function LocationSuggestionControl({
   if (!canSuggest && pendingSuggestions.length === 0) return null;
 
   return (
-    <section>
+    <section className={styles.panel}>
       <h3>Suggest a Location</h3>
 
       {pendingSuggestions.length > 0 && (
-        <ul>
+        <ul className={styles.rows} role="list">
           {pendingSuggestions.map((suggestion) => (
-            <li key={suggestion.id}>
-              {suggestion.placeName} — {suggestion.placeAddress} (awaiting host approval)
+            <li key={suggestion.id} className={styles.row}>
+              <span className={styles.rowMain}>
+                <PopIcon name="pin" size={22} />
+                <span className={styles.rowText}>
+                  {suggestion.placeName} — {suggestion.placeAddress}{' '}
+                  <span className={styles.detail}>(awaiting host approval)</span>
+                </span>
+              </span>
             </li>
           ))}
         </ul>
@@ -79,7 +89,11 @@ export function LocationSuggestionControl({
           disabled={submitting}
         />
       )}
-      {error !== undefined && <p role="alert">{error}</p>}
+      {error !== undefined && (
+        <InlineAlert tone="error" role="alert">
+          <p>{error}</p>
+        </InlineAlert>
+      )}
     </section>
   );
 }
@@ -125,25 +139,30 @@ export function TimeSuggestionControl({
   if (!canSuggest && pendingSuggestions.length === 0) return null;
 
   return (
-    <section>
+    <section className={styles.panel}>
       <h3>Suggest a Time</h3>
 
       {pendingSuggestions.length > 0 && (
-        <ul>
+        <ul className={styles.rows} role="list">
           {pendingSuggestions.map((suggestion) => (
-            <li key={suggestion.id}>
-              {suggestion.scheduledAt.toLocaleString(undefined, {
-                dateStyle: 'medium',
-                timeStyle: 'short',
-              })}{' '}
-              (awaiting host approval)
+            <li key={suggestion.id} className={styles.row}>
+              <span className={styles.rowMain}>
+                <PopIcon name="clock" size={22} />
+                <span className={styles.rowText}>
+                  {suggestion.scheduledAt.toLocaleString(undefined, {
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                  })}{' '}
+                  <span className={styles.detail}>(awaiting host approval)</span>
+                </span>
+              </span>
             </li>
           ))}
         </ul>
       )}
 
       {canSuggest && (
-        <>
+        <div className={styles.addRow}>
           <input
             type="datetime-local"
             aria-label="Suggested date and time"
@@ -151,17 +170,21 @@ export function TimeSuggestionControl({
             disabled={submitting}
             onChange={(event) => setTimeInput(event.target.value)}
           />
-          <button
+          <Button
             type="button"
             aria-label="Suggest this time"
             onClick={() => void suggest()}
             disabled={submitting}
           >
             {submitting ? 'Suggesting…' : 'Suggest'}
-          </button>
-        </>
+          </Button>
+        </div>
       )}
-      {error !== undefined && <p role="alert">{error}</p>}
+      {error !== undefined && (
+        <InlineAlert tone="error" role="alert">
+          <p>{error}</p>
+        </InlineAlert>
+      )}
     </section>
   );
 }

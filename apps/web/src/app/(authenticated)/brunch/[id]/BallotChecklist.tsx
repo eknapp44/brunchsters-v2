@@ -2,6 +2,10 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { PopIcon } from '@/components/icons/PopIcon';
+import { Badge } from '@/components/ui/Badge';
+import { InlineAlert } from '@/components/ui/InlineAlert';
+import styles from './detail.module.css';
 
 type LocationOption = {
   readonly id: string;
@@ -31,16 +35,45 @@ function voteCountLabel(voteCount: number): string {
 // counts only, so rendering it when present needs no separate isHost prop.
 function VoterNames({ voters }: { readonly voters: readonly string[] | undefined }) {
   if (voters === undefined || voters.length === 0) return null;
-  return <span> — voted by {voters.join(', ')}</span>;
+  return <span className={styles.voters}>voted by {voters.join(', ')}</span>;
+}
+
+// The marker keeps its "— Confirmed" text: the brunch's own status badge reads exactly
+// "Confirmed", and a second element with that exact text would make the page ambiguous.
+function ConfirmedMark() {
+  return <strong className={styles.confirmed}> — Confirmed</strong>;
 }
 
 function EmptyBallotWarning({ suggestionsEnabled }: { readonly suggestionsEnabled: boolean }) {
   return (
-    <p role="alert">
-      Unchecking your last option withdraws your vote — it won&apos;t be saved until you check at
-      least one option again.
-      {suggestionsEnabled && ' If none of these work for you, suggest a different one below.'}
-    </p>
+    <InlineAlert role="alert">
+      <p>
+        Unchecking your last option withdraws your vote — it won&apos;t be saved until you check at
+        least one option again.
+        {suggestionsEnabled && ' If none of these work for you, suggest a different one below.'}
+      </p>
+    </InlineAlert>
+  );
+}
+
+function BallotMessages({
+  emptyWarning,
+  suggestionsEnabled,
+  error,
+}: {
+  readonly emptyWarning: boolean;
+  readonly suggestionsEnabled: boolean;
+  readonly error: string | undefined;
+}) {
+  return (
+    <>
+      {emptyWarning && <EmptyBallotWarning suggestionsEnabled={suggestionsEnabled} />}
+      {error !== undefined && (
+        <InlineAlert tone="error" role="alert">
+          <p>{error}</p>
+        </InlineAlert>
+      )}
+    </>
   );
 }
 
@@ -136,15 +169,22 @@ export function LocationBallotChecklist({
 
   if (!votable) {
     return (
-      <ul>
-        {options.length === 0 && <li>No locations yet.</li>}
+      <ul className={styles.rows} role="list">
+        {options.length === 0 && (
+          <li className={`${styles.row} ${styles.muted}`}>No locations yet.</li>
+        )}
         {options.map((option) => (
-          <li key={option.id}>
-            <a href={option.placeUrl} target="_blank" rel="noreferrer">
-              {option.placeName}
-            </a>{' '}
-            — {option.placeAddress}
-            {option.isConfirmed && <strong> — Confirmed</strong>}
+          <li key={option.id} className={styles.row}>
+            <span className={styles.rowMain}>
+              <PopIcon name="pin" size={22} />
+              <span className={styles.rowText}>
+                <a href={option.placeUrl} target="_blank" rel="noreferrer">
+                  {option.placeName}
+                </a>{' '}
+                <span className={styles.detail}>— {option.placeAddress}</span>
+                {option.isConfirmed && <ConfirmedMark />}
+              </span>
+            </span>
           </li>
         ))}
       </ul>
@@ -152,34 +192,55 @@ export function LocationBallotChecklist({
   }
 
   return (
-    <div>
-      {closed && <p>Voting is closed.</p>}
-      {!closed && !canVote && <p>Your RSVP does not allow voting.</p>}
+    <>
+      {closed && (
+        <InlineAlert>
+          <p>Voting is closed.</p>
+        </InlineAlert>
+      )}
+      {!closed && !canVote && (
+        <InlineAlert>
+          <p>Your RSVP does not allow voting.</p>
+        </InlineAlert>
+      )}
 
-      <ul>
+      <ul className={styles.options} role="list">
         {options.map((option) => (
           <li key={option.id}>
-            <label>
+            <label className={styles.option}>
               <input
                 type="checkbox"
                 checked={effectiveSelected.has(option.id)}
                 disabled={readOnly || submitting}
                 onChange={() => toggle(option.id)}
               />
-              <a href={option.placeUrl} target="_blank" rel="noreferrer">
-                {option.placeName}
-              </a>{' '}
-              — {option.placeAddress} ({voteCountLabel(option.voteCount)})
-              <VoterNames voters={option.voters} />
-              {option.isConfirmed && <strong> — Confirmed</strong>}
+              <span className={styles.optionBody}>
+                <span className={styles.optionHead}>
+                  <a
+                    className={styles.name}
+                    href={option.placeUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {option.placeName}
+                  </a>
+                  <Badge>{voteCountLabel(option.voteCount)}</Badge>
+                </span>
+                <span className={styles.detail}>{option.placeAddress}</span>
+                <VoterNames voters={option.voters} />
+                {option.isConfirmed && <ConfirmedMark />}
+              </span>
             </label>
           </li>
         ))}
       </ul>
 
-      {emptyWarning && <EmptyBallotWarning suggestionsEnabled={suggestionsEnabled} />}
-      {error !== undefined && <p role="alert">{error}</p>}
-    </div>
+      <BallotMessages
+        emptyWarning={emptyWarning}
+        suggestionsEnabled={suggestionsEnabled}
+        error={error}
+      />
+    </>
   );
 }
 
@@ -281,34 +342,46 @@ export function TimeBallotChecklist({
     viewerTimezone !== undefined &&
     locationTimezone !== viewerTimezone;
 
+  function timeText(option: TimeOption): string {
+    return option.scheduledAt.toLocaleString(undefined, {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    });
+  }
+
+  // "(at Harbor Bistro's time: ...)": only when the viewer is in another zone than the place
+  function zoneNote(option: TimeOption): string | undefined {
+    if (!showSubline || locationTimezone === undefined) return undefined;
+    const there = option.scheduledAt.toLocaleString(undefined, {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+      timeZone: locationTimezone,
+    });
+    return `(at ${locationName ?? 'the location'}'s time: ${there})`;
+  }
+
   function timeLabel(option: TimeOption) {
+    const note = zoneNote(option);
     return (
       <>
-        {option.scheduledAt.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
-        {showSubline && locationTimezone !== undefined && (
-          <span>
-            {' '}
-            (at {locationName ?? 'the location'}&apos;s time:{' '}
-            {option.scheduledAt.toLocaleString(undefined, {
-              dateStyle: 'medium',
-              timeStyle: 'short',
-              timeZone: locationTimezone,
-            })}
-            )
-          </span>
-        )}
+        {timeText(option)}
+        {note !== undefined && <span className={styles.detail}> {note}</span>}
       </>
     );
   }
-
   if (!votable) {
     return (
-      <ul>
-        {options.length === 0 && <li>No times yet.</li>}
+      <ul className={styles.rows} role="list">
+        {options.length === 0 && <li className={`${styles.row} ${styles.muted}`}>No times yet.</li>}
         {options.map((option) => (
-          <li key={option.id}>
-            {timeLabel(option)}
-            {option.isConfirmed && <strong> — Confirmed</strong>}
+          <li key={option.id} className={styles.row}>
+            <span className={styles.rowMain}>
+              <PopIcon name="clock" size={22} />
+              <span className={styles.rowText}>
+                {timeLabel(option)}
+                {option.isConfirmed && <ConfirmedMark />}
+              </span>
+            </span>
           </li>
         ))}
       </ul>
@@ -316,30 +389,49 @@ export function TimeBallotChecklist({
   }
 
   return (
-    <div>
-      {closed && <p>Voting is closed.</p>}
-      {!closed && !canVote && <p>Your RSVP does not allow voting.</p>}
+    <>
+      {closed && (
+        <InlineAlert>
+          <p>Voting is closed.</p>
+        </InlineAlert>
+      )}
+      {!closed && !canVote && (
+        <InlineAlert>
+          <p>Your RSVP does not allow voting.</p>
+        </InlineAlert>
+      )}
 
-      <ul>
+      <ul className={styles.options} role="list">
         {options.map((option) => (
           <li key={option.id}>
-            <label>
+            <label className={styles.option}>
               <input
                 type="checkbox"
                 checked={effectiveSelected.has(option.id)}
                 disabled={readOnly || submitting}
                 onChange={() => toggle(option.id)}
               />
-              {timeLabel(option)} ({voteCountLabel(option.voteCount)})
-              <VoterNames voters={option.voters} />
-              {option.isConfirmed && <strong> — Confirmed</strong>}
+              <span className={styles.optionBody}>
+                <span className={styles.optionHead}>
+                  <span className={styles.name}>{timeText(option)}</span>
+                  <Badge>{voteCountLabel(option.voteCount)}</Badge>
+                </span>
+                {zoneNote(option) !== undefined && (
+                  <span className={styles.detail}>{zoneNote(option)}</span>
+                )}
+                <VoterNames voters={option.voters} />
+                {option.isConfirmed && <ConfirmedMark />}
+              </span>
             </label>
           </li>
         ))}
       </ul>
 
-      {emptyWarning && <EmptyBallotWarning suggestionsEnabled={suggestionsEnabled} />}
-      {error !== undefined && <p role="alert">{error}</p>}
-    </div>
+      <BallotMessages
+        emptyWarning={emptyWarning}
+        suggestionsEnabled={suggestionsEnabled}
+        error={error}
+      />
+    </>
   );
 }

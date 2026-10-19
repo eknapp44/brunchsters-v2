@@ -61,7 +61,7 @@ test.describe('V4 — suggesting a place', () => {
     await expect(locations.getByRole('checkbox')).toHaveCount(2);
     const approved = locations.getByRole('checkbox', { name: new RegExp(`^${pacific.name}`) });
     await approved.check();
-    await expect(approved).toHaveAccessibleName(/\(1 vote\)/);
+    await expect(approved).toHaveAccessibleName(/\b1 vote\b/);
 
     // The suggester's "awaiting approval" note is gone: it is a real option now.
     await suggester.page.reload();
@@ -116,6 +116,6 @@ test.describe('V4 — suggesting a time', () => {
     // Chronological: the suggested time (day 15) is the second row.
     const approved = times.getByRole('checkbox').nth(1);
     await approved.check();
-    await expect(approved).toHaveAccessibleName(/\(1 vote\)/);
+    await expect(approved).toHaveAccessibleName(/\b1 vote\b/);
   });
 });
