@@ -1,6 +1,6 @@
 # Spec 0009 — Styling Foundation
 
-**Status:** In progress (M1 to M7 complete; awaiting Review 3 and the owner's sign-off)  
+**Status:** Complete as the **foundation** (signed off 2026-10-19). The screen compositions and the tone of the prototype are the follow-up spec (see "Outcome" below)  
 **Branch:** `feat/0009-styling-foundation`  
 **PLANNING.md ref:** §1 design principles, §16 Build Order #9 (UI), Constitution V (Design Principles 23–26)  
 **ADRs:** [0010 — CSS Modules and design tokens](../../docs/adrs/0010-css-modules-and-design-tokens.md)
@@ -104,7 +104,7 @@ No flow changes. The same journeys, with the intended look:
 
 ### Sign-off
 
-- [ ] The owner has reviewed the app on desktop and a real phone, light and dark, and signed off on the look (recorded in `tasks.md` with the date). Until then this spec is not Complete
+- [x] The owner reviewed the app on desktop, light and dark, and signed it off as the foundation on 2026-10-19. A real phone was not checked (signed-in screens need a deployed preview or a tunnel); the phone layout is covered by the emulated-phone project and screenshots
 
 ---
 
@@ -163,6 +163,16 @@ The goal is eventual parity with the prototype. This spec builds the foundation 
 | `PhotoUpload.jsx`                                                                                                                                                 | Needs a storage provider                                                                                                            |
 | `MarketingLanding.jsx`, `HelpFAQ.jsx`, `OpenGraphPreview.jsx`                                                                                                     | A public-site spec (landing here is a simple styled entry point, not the marketing page)                                            |
 | `EmptyDashboard.jsx` ("How it works" strip, join-by-link tile), `FirstBrunchCoach.jsx`, `SkeletonStates.jsx`, `Toasts.jsx`, `SendingLoader.jsx`, `EdgeStates.jsx` | Loading, error-toast and onboarding spec; surfaces the silent failures in PLANNING §17                                              |
+
+---
+
+## Outcome
+
+Signed off by the owner on 2026-10-19 **as the foundation**: the tokens, fonts, dark mode, primitives, icons and artwork, the accessibility and layout checks, the phone project, and every existing screen restyled with them.
+
+It is **not** the design as the owner drew it. At sign-off the owner pointed out that the app "does not look at all like" the Claude Design prototype, and rendering the prototype next to the app confirmed it: the prototype's screen compositions (the greeting and "next up" dashboard, the host and invitee pages with vote bars, a Who's coming list and status pills, the wizard's headings and helper text, the warm background wash) and its tone (microcopy, emoji, `Brand Voice.html`) are largely missing. This spec's parity table **understated that gap**: it listed several compositions as "ships later" although most are presentation over data that already exists. The cause was a process failure, not only a scope choice: the prototype was read as source but never rendered, `Brand Voice.html` was never read, and no review compared the app with the prototype.
+
+The follow-up is its own spec (design fidelity): per screen the owner chooses what to adopt from the prototype, what to keep of this spec's design (the dark palette, the two-column desktop layout, the voting rows and more), and what to blend, together with the Brand Voice copy and the small data additions some compositions need. Its review artifact is a side-by-side board of the prototype and the app for every screen, produced by the same screenshot tooling.
 
 ---
 

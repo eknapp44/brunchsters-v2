@@ -212,7 +212,7 @@ Eight milestones, each green on its own and ending in a commit. Review points ar
 - [x] Work through the Feedback log's "in scope" items from Review 3 and any found on a real phone (token, spacing, size, color, font and layout of existing screens only); one pass
 - [x] Anything that adds or changes a behavior, screen or control is moved to the parity table with the feature that will carry it; wording goes to the Copy list
 - [x] Re-run the screenshot set and the full verification (`pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e`, stress run, CI mode); axe and `mobile` still clean
-- [ ] **Owner sign-off** recorded below with the date, then spec status → Complete
+- [x] **Owner sign-off** recorded below with the date, then spec status → Complete
 - [ ] Commit: `feat: styling polish pass and sign-off (M8)`
 
 **Testing notes:**
@@ -254,4 +254,4 @@ Each item gets one outcome: **In scope** (tokens, spacing, sizing, colors, fonts
 
 ## Sign-off
 
-- [ ] Owner reviewed desktop and a real phone, light and dark, and approved the look — date: _(pending)_
+- [x] Owner reviewed desktop, light and dark, and signed the work off **as the foundation** — date: 2026-10-19. A real phone was not checked. The owner also said the app does not look like their Claude Design prototype; a side-by-side render confirmed it, and the screen compositions and the tone become the follow-up design-fidelity spec (see the spec's "Outcome")
