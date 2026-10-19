@@ -8,16 +8,16 @@ Built as a solo side project with a focus on learning and shipping. See [`docs/c
 
 ## Stack
 
-| Layer     | Choice                                       |
-| --------- | -------------------------------------------- |
-| Framework | Next.js 15+ (App Router) + TypeScript strict |
-| State     | Redux Toolkit                                |
-| ORM       | Prisma + PostgreSQL                          |
-| Auth      | NextAuth.js (Google + Apple)                 |
-| Realtime  | Supabase Realtime                            |
-| Jobs      | Inngest                                      |
-| Email     | Resend                                       |
-| Hosting   | Vercel + Supabase                            |
+| Layer     | Choice                                                                  |
+| --------- | ----------------------------------------------------------------------- |
+| Framework | Next.js 15+ (App Router) + TypeScript strict                            |
+| State     | React state and `useReducer` today; Redux Toolkit planned, not yet used |
+| ORM       | Prisma + PostgreSQL                                                     |
+| Auth      | NextAuth.js (Google live; Apple deferred)                               |
+| Realtime  | Supabase Realtime (planned; not yet wired)                              |
+| Jobs      | Inngest                                                                 |
+| Email     | Resend                                                                  |
+| Hosting   | Vercel + Supabase                                                       |
 
 ---
 
