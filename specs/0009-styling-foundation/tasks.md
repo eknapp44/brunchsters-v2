@@ -186,7 +186,7 @@ Eight milestones, each green on its own and ending in a commit. Review points ar
 - [x] **Prove the new tests can fail:** add a fixed-width element (D3 fails), remove the focus-ring rule (D4 fails)
 - [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e`, stress run, CI mode
 - [x] Commit: `feat: phone layout, keyboard and reduced-motion checks, UI docs (M7)`
-- [ ] **STOP FOR REVIEW 3** — every screen, light/dark, desktop and phone. This feeds the polish pass
+- [x] **STOP FOR REVIEW 3** — every screen, light/dark, desktop and phone. This feeds the polish pass (held 2026-10-19: see feedback log items 10 to 13)
 
 **Testing notes:**
 
@@ -213,7 +213,7 @@ Eight milestones, each green on its own and ending in a commit. Review points ar
 - [x] Anything that adds or changes a behavior, screen or control is moved to the parity table with the feature that will carry it; wording goes to the Copy list
 - [x] Re-run the screenshot set and the full verification (`pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e`, stress run, CI mode); axe and `mobile` still clean
 - [x] **Owner sign-off** recorded below with the date, then spec status → Complete
-- [ ] Commit: `feat: styling polish pass and sign-off (M8)`
+- [x] Commits: `6f9d45b` (Back controls), `2715727` (simplified brunch page), `e7cf3f2` (softer dark palette), `1ff80cc` (sign-off as the foundation)
 
 **Testing notes:**
 
