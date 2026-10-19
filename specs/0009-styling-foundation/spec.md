@@ -1,6 +1,6 @@
 # Spec 0009 — Styling Foundation
 
-**Status:** Complete as the **foundation** (signed off 2026-10-19). The screen compositions and the tone of the prototype are the follow-up spec (see "Outcome" below)  
+**Status:** Complete as the **foundation** (signed off 2026-10-19; merged in PR #14, released as v1.7.0). The screen compositions and the tone of the prototype are the follow-up spec (see "Outcome" below)  
 **Branch:** `feat/0009-styling-foundation`  
 **PLANNING.md ref:** §1 design principles, §16 Build Order #9 (UI), Constitution V (Design Principles 23–26)  
 **ADRs:** [0010 — CSS Modules and design tokens](../../docs/adrs/0010-css-modules-and-design-tokens.md)

@@ -14,15 +14,16 @@ Always-loaded baseline is in this file. For deeper context, reference these on d
 - `@docs/PLANNING.md` — product spec, data model, architecture overview
 - `@docs/SETUP.md` — local environment setup, third-party accounts, startup, and local testing
 - `@docs/adrs/` — historical decision rationale
+- `@apps/web/CLAUDE.md` — UI conventions: design tokens, primitives, the accessible-name contract with the e2e suite, layout (read before touching any screen)
 - `@specs/NNNN-feature/` — per-feature spec, plan, and tasks
 
 When in doubt about _why_ something is done a certain way, check the ADRs before assuming.
 
 ## Stack
 
-- Next.js 15+ App Router, TypeScript strict mode, Redux Toolkit
+- Next.js 15+ App Router, TypeScript strict mode, Redux Toolkit (planned; not yet installed, screens use React state and `useReducer`)
 - Prisma + PostgreSQL (Supabase-hosted)
-- NextAuth.js (Google + Apple)
+- NextAuth.js (Google live; Apple deferred)
 - Inngest for async jobs
 - Resend for email
 - Vercel hosting

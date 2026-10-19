@@ -314,7 +314,7 @@ pnpm --filter @brunchsters/web exec playwright show-trace <trace.zip>   # open a
 
 **Optional hardening:** narrow the Admin bypass from "Always" to "For pull requests only" so the checks bind the owner too (the merge screen still allows a deliberate override).
 
-**The release job needs no allowance on `main`:** it creates a version tag and a GitHub Release and never commits to `main` (ADR 0004), which is why releases v1.5.0 and v1.6.0 were cut without any bypass for GitHub Actions.
+**The release job needs no allowance on `main`:** it creates a version tag and a GitHub Release and never commits to `main` (ADR 0004), which is why releases v1.5.0, v1.6.0 and v1.7.0 were cut without any bypass for GitHub Actions.
 
 **Releases are gated on CI.** The `Release` job in `.github/workflows/ci.yml` (semantic-release) `needs` every other job and runs only on a push to `main`, so a release is only ever cut from a commit where lint, typecheck, unit, integration, E2E, Prisma validation and the build all passed. CI therefore also runs on every push to `main` (re-checking the merge result). Pull requests skip the `Release` job, so **do not add `Release` as a required status check** — it would never report on a PR and would block every merge. The job commits nothing to `main`: a release is a **version tag plus a GitHub Release with generated notes** (the Releases page is the changelog; `CHANGELOG.md` is frozen at 1.4.0 — ADR 0004 amendment). That is what lets it run under the pull-request-only rulesets. Preview what a release would contain without publishing anything: `GITHUB_TOKEN="$(gh auth token)" pnpm exec semantic-release --dry-run --no-ci --branches <your-branch>`.
 
