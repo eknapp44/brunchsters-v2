@@ -29,6 +29,8 @@ coverage/
 .mail-outbox/
 
 # Editor
+# JetBrains IDE settings: the IDE rewrites them itself, and Prettier/ESLint (in the repo) are the source of truth for formatting
+.idea/
 .DS_Store
 *.pem
 .vscode/settings.json
