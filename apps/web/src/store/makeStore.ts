@@ -1,4 +1,5 @@
 import { type Action, combineReducers, configureStore, type Reducer } from '@reduxjs/toolkit';
+import { wizardReducer } from './wizardSlice';
 
 // What every thunk receives as its third argument. `fetch` is injected so thunks run in node
 // tests with a fake instead of module mocking.
@@ -7,7 +8,7 @@ export type ThunkExtra = {
 };
 
 // Slices are added here as they are introduced (spec 0010: wizard in M2, ballots in M3).
-const rootReducer = combineReducers({});
+const rootReducer = combineReducers({ wizard: wizardReducer });
 
 export type RootState = ReturnType<typeof rootReducer>;
 

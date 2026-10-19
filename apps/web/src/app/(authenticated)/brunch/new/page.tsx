@@ -1,49 +1,31 @@
 'use client';
 
-import type { PlaceDetails } from '@brunchsters/core';
 import { MAX_INVITES_PER_REQUEST } from '@brunchsters/shared';
 import { useRouter } from 'next/navigation';
-import { type Dispatch, useReducer, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { PopIcon } from '@/components/icons/PopIcon';
 import { Button } from '@/components/ui/Button';
 import { Container } from '@/components/ui/Container';
 import { Field } from '@/components/ui/Field';
 import { InlineAlert } from '@/components/ui/InlineAlert';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import {
+  createBrunch,
+  descriptionChanged,
+  emailAdded,
+  emailRemoved,
+  locationAdded,
+  locationRemoved,
+  stepChosen,
+  timeAdded,
+  timeRemoved,
+  titleChanged,
+  votingDeadlineChanged,
+  wizardReset,
+} from '@/store/wizardSlice';
 import { PlaceSearchInput } from '../PlaceSearchInput';
 import { StepIndicator } from './StepIndicator';
 import styles from './wizard.module.css';
-
-type WizardState = {
-  readonly step: 1 | 2 | 3 | 4;
-  readonly title: string;
-  readonly description: string;
-  readonly locations: readonly PlaceDetails[];
-  readonly times: readonly Date[];
-  readonly votingDeadline: string;
-  readonly emails: readonly string[];
-};
-
-type WizardAction =
-  | { readonly type: 'SET_TITLE'; readonly title: string }
-  | { readonly type: 'SET_DESCRIPTION'; readonly description: string }
-  | { readonly type: 'GO_TO_STEP'; readonly step: 1 | 2 | 3 | 4 }
-  | { readonly type: 'ADD_LOCATION'; readonly location: PlaceDetails }
-  | { readonly type: 'REMOVE_LOCATION'; readonly placeId: string }
-  | { readonly type: 'ADD_TIME'; readonly time: Date }
-  | { readonly type: 'REMOVE_TIME'; readonly index: number }
-  | { readonly type: 'SET_VOTING_DEADLINE'; readonly value: string }
-  | { readonly type: 'ADD_EMAIL'; readonly email: string }
-  | { readonly type: 'REMOVE_EMAIL'; readonly email: string };
-
-const initialState: WizardState = {
-  step: 1,
-  title: '',
-  description: '',
-  locations: [],
-  times: [],
-  votingDeadline: '',
-  emails: [],
-};
 
 const TITLE_MAX_LENGTH = 100;
 const DESCRIPTION_MAX_LENGTH = 500;
@@ -56,66 +38,9 @@ function nowAsDatetimeLocalValue(): string {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
 }
 
-type ApiErrorBody = {
-  readonly error?: string;
-  readonly errors?: ReadonlyArray<{ readonly message?: string }>;
-};
-
-async function extractErrorMessage(response: Response): Promise<string> {
-  const body = (await response.json().catch(() => undefined)) as ApiErrorBody | undefined;
-  if (body?.error !== undefined) return body.error;
-  if (body?.errors !== undefined && body.errors.length > 0) {
-    const messages = body.errors
-      .map((issue) => issue.message)
-      .filter((message): message is string => message !== undefined);
-    if (messages.length > 0) return messages.join('; ');
-  }
-  return 'Failed to create brunch';
-}
-
-function wizardReducer(state: WizardState, action: WizardAction): WizardState {
-  switch (action.type) {
-    case 'SET_TITLE':
-      return { ...state, title: action.title };
-    case 'SET_DESCRIPTION':
-      return { ...state, description: action.description };
-    case 'GO_TO_STEP':
-      return { ...state, step: action.step };
-    case 'ADD_LOCATION':
-      return { ...state, locations: [...state.locations, action.location] };
-    case 'REMOVE_LOCATION':
-      return {
-        ...state,
-        locations: state.locations.filter((location) => location.placeId !== action.placeId),
-      };
-    case 'ADD_TIME':
-      return { ...state, times: [...state.times, action.time] };
-    case 'REMOVE_TIME':
-      return { ...state, times: state.times.filter((_, index) => index !== action.index) };
-    case 'SET_VOTING_DEADLINE':
-      return { ...state, votingDeadline: action.value };
-    case 'ADD_EMAIL':
-      // The server refuses a request with more addresses than this, and the wizard sends
-      // them all at once, so the list stops here rather than failing silently on submit.
-      return state.emails.includes(action.email) || state.emails.length >= MAX_INVITES_PER_REQUEST
-        ? state
-        : { ...state, emails: [...state.emails, action.email] };
-    case 'REMOVE_EMAIL':
-      return { ...state, emails: state.emails.filter((email) => email !== action.email) };
-    default: {
-      const exhaustiveCheck: never = action;
-      return exhaustiveCheck;
-    }
-  }
-}
-
-function StepOne({
-  state,
-  dispatch,
-}: {
-  readonly state: WizardState;
-  readonly dispatch: Dispatch<WizardAction>;
-}) {
+function StepOne() {
+  const state = useAppSelector((root) => root.wizard);
+  const dispatch = useAppDispatch();
   return (
     <section className={styles.step}>
       <Field label="Title">
@@ -123,16 +48,14 @@ function StepOne({
           type="text"
           value={state.title}
           maxLength={TITLE_MAX_LENGTH}
-          onChange={(event) => dispatch({ type: 'SET_TITLE', title: event.target.value })}
+          onChange={(event) => dispatch(titleChanged(event.target.value))}
         />
       </Field>
       <Field label="Description">
         <textarea
           value={state.description}
           maxLength={DESCRIPTION_MAX_LENGTH}
-          onChange={(event) =>
-            dispatch({ type: 'SET_DESCRIPTION', description: event.target.value })
-          }
+          onChange={(event) => dispatch(descriptionChanged(event.target.value))}
         />
       </Field>
       <div className={`${styles.actions} ${styles.actionsEnd}`}>
@@ -140,7 +63,7 @@ function StepOne({
           type="button"
           variant="primary"
           disabled={state.title.trim().length === 0}
-          onClick={() => dispatch({ type: 'GO_TO_STEP', step: 2 })}
+          onClick={() => dispatch(stepChosen(2))}
         >
           Next
         </Button>
@@ -149,16 +72,12 @@ function StepOne({
   );
 }
 
-function StepTwo({
-  state,
-  dispatch,
-}: {
-  readonly state: WizardState;
-  readonly dispatch: Dispatch<WizardAction>;
-}) {
+function StepTwo() {
+  const state = useAppSelector((root) => root.wizard);
+  const dispatch = useAppDispatch();
   return (
     <section className={styles.step}>
-      <PlaceSearchInput onSelect={(location) => dispatch({ type: 'ADD_LOCATION', location })} />
+      <PlaceSearchInput onSelect={(location) => dispatch(locationAdded(location))} />
 
       {state.locations.length > 0 && (
         <ul className={styles.items} role="list">
@@ -172,7 +91,7 @@ function StepTwo({
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => dispatch({ type: 'REMOVE_LOCATION', placeId: location.placeId })}
+                onClick={() => dispatch(locationRemoved(location.placeId))}
               >
                 Remove
               </Button>
@@ -188,14 +107,10 @@ function StepTwo({
       )}
 
       <div className={styles.actions}>
-        <Button type="button" onClick={() => dispatch({ type: 'GO_TO_STEP', step: 1 })}>
+        <Button type="button" onClick={() => dispatch(stepChosen(1))}>
           Back
         </Button>
-        <Button
-          type="button"
-          variant="primary"
-          onClick={() => dispatch({ type: 'GO_TO_STEP', step: 3 })}
-        >
+        <Button type="button" variant="primary" onClick={() => dispatch(stepChosen(3))}>
           Next
         </Button>
       </div>
@@ -203,19 +118,15 @@ function StepTwo({
   );
 }
 
-function StepThree({
-  state,
-  dispatch,
-}: {
-  readonly state: WizardState;
-  readonly dispatch: Dispatch<WizardAction>;
-}) {
+function StepThree() {
+  const state = useAppSelector((root) => root.wizard);
+  const dispatch = useAppDispatch();
   const [timeInput, setTimeInput] = useState('');
   const showVotingDeadline = state.locations.length > 1 || state.times.length > 1;
 
   function addTime(): void {
     if (timeInput === '') return;
-    dispatch({ type: 'ADD_TIME', time: new Date(timeInput) });
+    dispatch(timeAdded(new Date(timeInput).toISOString()));
     setTimeInput('');
   }
 
@@ -236,16 +147,16 @@ function StepThree({
       {state.times.length > 0 && (
         <ul className={styles.items} role="list">
           {state.times.map((time, index) => (
-            <li key={time.toISOString()}>
+            <li key={time}>
               <span className={styles.itemText}>
                 <PopIcon name="clock" size={22} />
-                {time.toLocaleString()}
+                {new Date(time).toLocaleString()}
               </span>
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => dispatch({ type: 'REMOVE_TIME', index })}
+                onClick={() => dispatch(timeRemoved(index))}
               >
                 Remove
               </Button>
@@ -266,22 +177,16 @@ function StepThree({
             type="datetime-local"
             value={state.votingDeadline}
             min={nowAsDatetimeLocalValue()}
-            onChange={(event) =>
-              dispatch({ type: 'SET_VOTING_DEADLINE', value: event.target.value })
-            }
+            onChange={(event) => dispatch(votingDeadlineChanged(event.target.value))}
           />
         </Field>
       )}
 
       <div className={styles.actions}>
-        <Button type="button" onClick={() => dispatch({ type: 'GO_TO_STEP', step: 2 })}>
+        <Button type="button" onClick={() => dispatch(stepChosen(2))}>
           Back
         </Button>
-        <Button
-          type="button"
-          variant="primary"
-          onClick={() => dispatch({ type: 'GO_TO_STEP', step: 4 })}
-        >
+        <Button type="button" variant="primary" onClick={() => dispatch(stepChosen(4))}>
           Next
         </Button>
       </div>
@@ -289,26 +194,17 @@ function StepThree({
   );
 }
 
-function StepFour({
-  state,
-  dispatch,
-  onSubmit,
-  submitting,
-  submitError,
-}: {
-  readonly state: WizardState;
-  readonly dispatch: Dispatch<WizardAction>;
-  readonly onSubmit: () => void;
-  readonly submitting: boolean;
-  readonly submitError: string | undefined;
-}) {
+function StepFour({ onSubmit }: { readonly onSubmit: () => void }) {
+  const state = useAppSelector((root) => root.wizard);
+  const dispatch = useAppDispatch();
+  const { submitting, submitError } = state;
   const [emailInput, setEmailInput] = useState('');
   const isListFull = state.emails.length >= MAX_INVITES_PER_REQUEST;
 
   function addEmail(): void {
     const trimmed = emailInput.trim();
     if (trimmed === '' || isListFull) return;
-    dispatch({ type: 'ADD_EMAIL', email: trimmed });
+    dispatch(emailAdded(trimmed));
     setEmailInput('');
   }
 
@@ -347,7 +243,7 @@ function StepFour({
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => dispatch({ type: 'REMOVE_EMAIL', email })}
+                onClick={() => dispatch(emailRemoved(email))}
               >
                 Remove
               </Button>
@@ -363,7 +259,7 @@ function StepFour({
       )}
 
       <div className={styles.actions}>
-        <Button type="button" onClick={() => dispatch({ type: 'GO_TO_STEP', step: 3 })}>
+        <Button type="button" onClick={() => dispatch(stepChosen(3))}>
           Back
         </Button>
         <Button type="button" variant="primary" onClick={onSubmit} disabled={submitting}>
@@ -376,81 +272,28 @@ function StepFour({
 
 export default function NewBrunchPage() {
   const router = useRouter();
-  const [state, dispatch] = useReducer(wizardReducer, initialState);
-  const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | undefined>(undefined);
+  const dispatch = useAppDispatch();
+  const step = useAppSelector((root) => root.wizard.step);
 
-  async function handleSubmit(): Promise<void> {
-    setSubmitting(true);
-    setSubmitError(undefined);
+  // The store lives in the layout and outlives this page, but a half-filled wizard must not.
+  useEffect(() => () => void dispatch(wizardReset()), [dispatch]);
 
-    try {
-      const response = await fetch('/api/v1/brunches', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: state.title.trim(),
-          ...(state.description !== '' ? { description: state.description } : {}),
-          locations: state.locations.map((location) => ({
-            placeId: location.placeId,
-            placeName: location.name,
-            placeAddress: location.address,
-            placeUrl: location.placeUrl,
-            timezone: location.timezone,
-          })),
-          times: state.times.map((time) => ({ scheduledAt: time.toISOString() })),
-          ...(state.votingDeadline !== ''
-            ? { votingDeadline: new Date(state.votingDeadline).toISOString() }
-            : {}),
-        }),
-      });
-
-      if (!response.ok) {
-        setSubmitError(await extractErrorMessage(response));
-        setSubmitting(false);
-        return;
-      }
-
-      const created = (await response.json()) as { id: string };
-
-      if (state.emails.length > 0) {
-        // Best-effort — the brunch already exists at this point, and a failed
-        // send here can be retried from the detail page's invite panel, so it
-        // shouldn't block the redirect the way a failed brunch creation does.
-        try {
-          await fetch(`/api/v1/brunches/${created.id}/invites`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ emails: state.emails }),
-          });
-        } catch {
-          // Ignored — see comment above.
-        }
-      }
-
-      router.push(`/brunch/${created.id}`);
-    } catch {
-      setSubmitError('Failed to create brunch');
-      setSubmitting(false);
-    }
+  function handleSubmit(): void {
+    void dispatch(createBrunch())
+      .unwrap()
+      .then(({ id }) => router.push(`/brunch/${id}`))
+      // The thunk already put the message in the store.
+      .catch(() => undefined);
   }
 
   return (
     <Container as="main" size="narrow">
       <h1>Plan a Brunch</h1>
-      <StepIndicator step={state.step} />
-      {state.step === 1 && <StepOne state={state} dispatch={dispatch} />}
-      {state.step === 2 && <StepTwo state={state} dispatch={dispatch} />}
-      {state.step === 3 && <StepThree state={state} dispatch={dispatch} />}
-      {state.step === 4 && (
-        <StepFour
-          state={state}
-          dispatch={dispatch}
-          onSubmit={() => void handleSubmit()}
-          submitting={submitting}
-          submitError={submitError}
-        />
-      )}
+      <StepIndicator step={step} />
+      {step === 1 && <StepOne />}
+      {step === 2 && <StepTwo />}
+      {step === 3 && <StepThree />}
+      {step === 4 && <StepFour onSubmit={handleSubmit} />}
     </Container>
   );
 }

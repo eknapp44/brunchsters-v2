@@ -29,18 +29,25 @@ Four milestones, each green on its own and ending in a commit. Branch: `feat/001
 
 ## M2 — Wizard slice
 
-- [ ] `(authenticated)/layout.tsx` wraps children in `StoreProvider` and stays a Server Component; the wizard reducer joins the app's reducer map
-- [ ] `wizardSlice.ts`: state, reducers mirroring the current `wizardReducer` rule for rule (email cap and de-duplication included), `wizardReset`, times as ISO strings
-- [ ] `createBrunch` thunk with `extractErrorMessage`; best-effort invites; typed `rejectValue`
-- [ ] `brunch/new/page.tsx` reads the slice and dispatches; reset on unmount; `timeInput`, `emailInput` and place search stay local state; accessible names, roles and copy unchanged
-- [ ] `wizardSlice.test.ts`: every reducer rule; thunk: create fails (entries kept, server message, then the generic one on a network error), create succeeds with invites, invite fails (ignored, id still returned), no emails (no second request)
-- [ ] Journey **R1** in `e2e/journeys/redux-ui-state.spec.ts` (wizard draft does not survive leaving the page)
-- [ ] **Prove the tests can fail:** remove the reset-on-unmount → R1 fails; flip the email cap comparison → a reducer test fails; make the thunk throw on invite failure → the thunk test fails. Revert each
-- [ ] Existing C1, C2, F2 and the 50-invitee journey pass unmodified
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e`, stress run, CI mode
-- [ ] Commit: `refactor: move the creation wizard's state into a Redux slice (M2)`
+- [x] `(authenticated)/layout.tsx` wraps children in `StoreProvider` and stays a Server Component; the wizard reducer joins the app's reducer map
+- [x] `wizardSlice.ts`: state, reducers mirroring the current `wizardReducer` rule for rule (email cap and de-duplication included), `wizardReset`, times as ISO strings
+- [x] `createBrunch` thunk with `extractErrorMessage`; best-effort invites; typed `rejectValue`
+- [x] `brunch/new/page.tsx` reads the slice and dispatches; reset on unmount; `timeInput`, `emailInput` and place search stay local state; accessible names, roles and copy unchanged
+- [x] `wizardSlice.test.ts`: every reducer rule; thunk: create fails (entries kept, server message, then the generic one on a network error), create succeeds with invites, invite fails (ignored, id still returned), no emails (no second request)
+- [x] Journey **R1** in `e2e/journeys/redux-ui-state.spec.ts` (wizard draft does not survive leaving the page)
+- [x] **Prove the tests can fail:** remove the reset-on-unmount → R1 fails; flip the email cap comparison → a reducer test fails; make the thunk throw on invite failure → the thunk test fails. Revert each
+- [x] Existing C1, C2, F2 and the 50-invitee journey pass unmodified
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e`, stress run, CI mode
+- [x] Commit: `refactor: move the creation wizard's state into a Redux slice (M2)`
 
-**Testing notes:** _(fill on completion)_
+**Testing notes:**
+
+- **What was tested:** every wizard reducer rule and the `createBrunch` thunk. Reducers: field and step changes, location removal by place id, time removal by index, duplicate email ignored, the 50-address cap, email removal, reset. Thunk: the request body (trimmed title, no description when empty, deadline as an ISO instant, times as sent), invites sent after a create, no invite request without emails, invite rejected or 500 still returns the id, a failed create keeps every entry and shows the server's message, an `errors` array is joined, an unreadable body and a network error fall back to "Failed to create brunch", and a retry clears the error and sets `submitting`. Journey **R1**: fill the wizard's title, description and a place, leave through the top bar to the dashboard, come back via "Plan a Brunch" (no reload): empty title and description, and no places.
+- **How:** unit in node vitest with a fake `fetch` given through the thunk `extra` (18 new tests in `wizardSlice.test.ts`); R1 is a Playwright journey. Web 339 unit tests; full e2e 136 passed, 2 skipped on the dev server, stress run (`--workers=4 --repeat-each=3`) 408 passed, CI mode (production build, strict timeouts) 136 passed. Existing C1, C2, F2 and the 50-invitee journeys passed unmodified. Typecheck and lint clean.
+- **Proving the tests can fail:** (1) removed the reset-on-unmount `useEffect` → R1 failed (`Title` expected "" but held the old draft); (2) changed the email cap from `>=` to `>` → "stops adding emails at the per-request cap" failed; (3) made the invite catch rethrow → "still returns the id when the invite request rejects" failed. Each reverted.
+- **What's deferred:** `submitting` stays true after a successful create (as before; the page is navigating away) and is cleared by the unmount reset, which no test asserts directly. The place-search input's query and predictions and the per-step `timeInput`/`emailInput` stay local `useState` by design.
+- **Findings:** the circular type worry (store state type ↔ thunk state type) did not occur; `RootState` is derived from the reducer map and the thunk takes it with no error. ESLint forbids `void` as a thunk argument type, so `createBrunch` uses `undefined` (the call site still passes no argument). Wizard step components now read the slice themselves instead of receiving `state`/`dispatch` props, which removed the prop plumbing. `NewBrunchPage` ignores the rejection from `unwrap()` because the thunk has already put the message in the store.
+- **How to run it:** `pnpm --filter @brunchsters/web exec vitest run src/store`; `pnpm --filter @brunchsters/web exec playwright test redux-ui-state create-brunch failure-paths`.
 
 ---
 
