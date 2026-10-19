@@ -53,17 +53,24 @@ Four milestones, each green on its own and ending in a commit. Branch: `feat/001
 
 ## M3 — Ballot slice and the shared checklist hook
 
-- [ ] `ballotsSlice.ts`: state keyed by `${brunchId}:${kind}`, `ballotToggled`, `ballotReleased`, `selectEffectiveSelection` (stored or seeded, filtered to current option ids)
-- [ ] `saveBallot` thunk (PUT to `/votes/locations` or `/votes/times`), rollback to the exact previous selection, "Failed to save your vote" on a non-OK response or a network error
-- [ ] `useBallot` hook shared by `LocationBallotChecklist` and `TimeBallotChecklist`; the two components keep their markup, text, roles, the not-votable branch, the closed and no-RSVP notices, and the time-zone note; release on unmount
-- [ ] `ballotsSlice.test.ts`: seeded vs stored selection; stale ids dropped on every read; toggling to empty sets the warning and sends nothing; toggling ignored while submitting or read-only; rollback restores the exact previous selection (including after two quick toggles); network failure rolls back; success keeps the selection; release clears the entry; the location and time ballots of one brunch are independent
-- [ ] Journeys **R2** and **R3**
-- [ ] **Prove the tests can fail:** drop the stale-id filter → reducer test and the manage-options/voting journeys that remove a voted option fail; make rollback a no-op → F1 fails; remove the release → R2 fails; drop the kind from the key → R3 fails. Revert each
-- [ ] Existing F1, V1–V6, same-person and timezone journeys pass unmodified
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e`, stress run, CI mode
-- [ ] Commit: `refactor: move ballot state into a Redux slice and share the checklist logic (M3)`
+- [x] `ballotsSlice.ts`: state keyed by `${brunchId}:${kind}`, `ballotToggled`, `ballotReleased`, `selectEffectiveSelection` (stored or seeded, filtered to current option ids)
+- [x] `saveBallot` thunk (PUT to `/votes/locations` or `/votes/times`), rollback to the exact previous selection, "Failed to save your vote" on a non-OK response or a network error
+- [x] `useBallot` hook shared by `LocationBallotChecklist` and `TimeBallotChecklist`; the two components keep their markup, text, roles, the not-votable branch, the closed and no-RSVP notices, and the time-zone note; release on unmount
+- [x] `ballotsSlice.test.ts`: seeded vs stored selection; stale ids dropped on every read; toggling to empty sets the warning and sends nothing; toggling ignored while submitting or read-only; rollback restores the exact previous selection (including after two quick toggles); network failure rolls back; success keeps the selection; release clears the entry; the location and time ballots of one brunch are independent
+- [x] Journeys **R2** and **R3**
+- [x] **Prove the tests can fail:** drop the stale-id filter → the reducer test fails (no journey does: see the testing note); make rollback a no-op → F1 fails; remove the release → R2 fails; drop the kind from the key → R3 fails. Revert each
+- [x] Existing F1, V1–V6, same-person and timezone journeys pass unmodified
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e`, stress run, CI mode
+- [x] Commit: `refactor: move ballot state into a Redux slice and share the checklist logic (M3)`
 
-**Testing notes:** _(fill on completion)_
+**Testing notes:**
+
+- **What was tested:** `effectiveSelection` (server-seeded vs stored, an empty stored selection still wins, stale ids dropped from both sources on every read) and `toggleBallotOption` (the optimistic selection is visible the moment the thunk starts, the PUT goes to the places or times endpoint with the whole ballot, unticking an existing tick, an empty ballot is never sent and only warns, the warning clears on the next tick, a read-only ballot is ignored, a click while a save is in flight is ignored and the first save still settles, a refused save and a network error each restore exactly the previous selection and set "Failed to save your vote", the error is cleared by the next save but not by unticking the last box, place and time ballots of one brunch are independent, ballots of two brunches are independent) and `ballotReleased`. Journeys: **R2** (uncheck the last option so the warning shows, go to the dashboard and back by clicking: the saved vote is checked again, no warning) and **R3** (a time vote saves, then the place save fails: only the place box rolls back and the error shows once).
+- **How:** unit in node vitest with a fake `fetch` (16 new tests in `ballotsSlice.test.ts`, including a deferred `fetch` for the in-flight case); R2 and R3 are Playwright journeys. Web 355 unit tests; full e2e 138 passed, 2 skipped on the dev server; stress run (`--workers=4 --repeat-each=3`) 414 passed; CI mode 138 passed. F1, V1-V6, same-person, timezone and manage-options journeys passed unmodified. Typecheck and lint clean.
+- **Proving the tests can fail:** (1) removed the stale-id filter → the `effectiveSelection` unit test failed, but **voting, same-person and manage-options journeys still passed**; (2) made the rollback a no-op → 3 reducer tests, F1 (all three tests) and R3 failed; (3) removed the release on unmount → R2 failed; (4) dropped the kind from the ballot key → R2 and R3 failed. Each reverted.
+- **What's deferred / gap:** no journey covers the stale-id filter (spec 0005 review F2): it needs three places, a voter who has voted for one, the host removing that one, and the voter's page refreshing (for example after a time vote) before they tick another place. The reducer test is the only guard. Worth a journey if that bug class returns.
+- **Findings:** the toggle is one `createAsyncThunk` with a `condition` (read-only or already saving means no action at all), and the optimistic update and the rollback are `pending`/`rejected` reducers that read `meta.arg`, so there is no flash of `submitting` on the empty-ballot case and the rules are pure. The old "seeded once on mount" comment's problem (state not noticing new props) is gone because the selection is derived on every render from the stored entry or the server's. While writing R3 a `` in a Python-written file became a literal backspace character and made an assertion silently wrong; fixed with the edit tool (the lesson: write regexes with the editor, not through a shell heredoc). Build output: `/brunch/[id]` 6.99 kB (122 kB first load), `/brunch/[id]/manage` 5.23 kB (111 kB); the baseline before this spec is measured in M4.
+- **How to run it:** `pnpm --filter @brunchsters/web exec vitest run src/store`; `pnpm --filter @brunchsters/web exec playwright test redux-ui-state failure-paths voting`.
 
 ---
 
