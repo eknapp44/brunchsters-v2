@@ -76,15 +76,23 @@ Four milestones, each green on its own and ending in a commit. Branch: `feat/001
 
 ## M4 — Close-out: follow-ups recorded, docs final
 
-- [ ] `PLANNING.md` §17: new "Redux follow-ups" entry listing every deferred item (the remaining panels' shared mutation slice, toasts and the visible error surface with the server's real message, unread count and realtime, wizard draft persistence, RTK Query), pointing at ADR 0011
-- [ ] `specs/0003-create-brunch/plan.md`: the "local state" note points to ADR 0011
-- [ ] Spec status → Complete; build-order note in `PLANNING.md` §16 (Redux shipped; fidelity 0011; notifications 0012)
-- [ ] Bundle check: record the authenticated-route first-load JS before and after (`next build` output) in the testing note
-- [ ] Multi-lens review before merge (architecture/style, acceptance criteria, security, loose ends), as for earlier specs
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e`, CI mode
-- [ ] Commit: `docs: close out spec 0010 and record the Redux follow-ups (M4)`
+- [x] `PLANNING.md` §17: new "Redux follow-ups" entry listing every deferred item (the remaining panels' shared mutation slice, toasts and the visible error surface with the server's real message, unread count and realtime, wizard draft persistence, RTK Query), pointing at ADR 0011
+- [x] `specs/0003-create-brunch/plan.md`: the "local state" note points to ADR 0011
+- [x] Spec status → Complete; build-order note in `PLANNING.md` §16 (Redux shipped; fidelity 0011; notifications 0012)
+- [x] Bundle check: record the authenticated-route first-load JS before and after (`next build` output) in the testing note
+- [x] Multi-lens review before merge (architecture/style, acceptance criteria, security, loose ends), as for earlier specs
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e`, CI mode
+- [x] Commit: `docs: close out spec 0010 and record the Redux follow-ups (M4)`
 
-**Testing notes:** _(fill on completion)_
+**Testing notes:**
+
+- **What was tested:** nothing new except one regression test from the review: a create failure that arrives after the wizard was reset is ignored (found by reading the diff as a reviewer; before the fix a late failure wrote an error into the fresh state and the next visit to the wizard would have shown it).
+- **How:** unit (web 356 tests); full e2e on the final tree 138 passed, 2 skipped, and CI mode 138 passed, 2 skipped. The fix has its own `fix:` commit (`c99976c`) per the repo's convention.
+- **Proving it can fail:** removed the `if (!state.submitting) return;` guard; the new test failed; restored.
+- **Review lenses:** _architecture/style_ — store, thunks and hooks follow the ADR (per-request store, injected `fetch`, typed hooks, serializable state, no business rules); components keep names, roles and copy. _Acceptance criteria_ — every box in `spec.md` is ticked against the code, with the deviations listed under "Outcome". _Security_ — no new server surface, no new route or permission path; the thunks call the same endpoints with the same ids as the components did, and nothing sensitive is kept in the store beyond the form the person typed. _Loose ends_ — the late-failure leak (fixed), the stale-option journey gap (recorded in PLANNING §17), and the unexplained fact that `/dashboard` did not grow although the provider is in the shared layout.
+- **Bundle (`next build`, first-load JS):** `main` → this branch: `/brunch/[id]` 112 → 122 kB, `/brunch/new` 107 → 117 kB, `/dashboard` 107 → 107, `/brunch/[id]/manage` 111 → 111, shared 102 → 102.
+- **What's deferred:** everything under PLANNING §17 "Redux follow-ups".
+- **How to run it:** `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e`.
 
 ---
 

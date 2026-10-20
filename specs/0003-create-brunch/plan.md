@@ -203,7 +203,7 @@ type WizardState = {
 };
 ```
 
-**Deliberately local state, not Redux.** Redux Toolkit is in the stack for shared/app-level state; wizard state is ephemeral, single-screen, and dies on submit. Putting it in the store would be ceremony without benefit. Not a precedent question — just altitude.
+**Deliberately local state, not Redux.** Redux Toolkit is in the stack for shared/app-level state; wizard state is ephemeral, single-screen, and dies on submit. Putting it in the store would be ceremony without benefit. Not a precedent question — just altitude. _(Superseded by [ADR 0011](../../docs/adrs/0011-redux-toolkit-for-client-ui-state.md): spec 0010 later moved the wizard onto the store, as the first low-risk user of a pattern the app needs for shared UI state.)_
 
 On "Create Brunch": POSTs `{ title, description, locations, times, votingDeadline }` (dates as UTC ISO strings). On 201: `router.push('/brunch/[id]')`. On error: inline message, state preserved.
 

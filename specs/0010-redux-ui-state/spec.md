@@ -1,6 +1,6 @@
 # Spec 0010 — Redux Toolkit for UI State
 
-**Status:** Draft (grilled 2026-10-19; not started)  
+**Status:** Complete (implemented 2026-10-19/20 across M1–M4; awaiting review and merge)  
 **Branch:** `feat/0010-redux-ui-state`  
 **PLANNING.md ref:** §3 (Tech Stack: State Management), §16 Build Order, §17 (new "Redux follow-ups" entry)  
 **ADRs:** [0011 — Redux Toolkit for client UI state](../../docs/adrs/0011-redux-toolkit-for-client-ui-state.md)
@@ -45,37 +45,37 @@ No flow changes. For reference, the flows whose state moves into the store:
 
 ### Dependencies and plumbing
 
-- [ ] `@reduxjs/toolkit` and `react-redux` added to `apps/web` (versions recorded in `tasks.md`); nothing else imports them (`packages/*` unchanged)
-- [ ] `makeStore()` builds a fresh store each call (a test proves two stores share no state); no module-level store exists
-- [ ] `StoreProvider` (client component) creates the store once per mount with `useRef` and sits in the `(authenticated)` layout (mounted in M2, with the first slice); the layout stays a Server Component
-- [ ] Typed `useAppDispatch`, `useAppSelector`, `useAppStore` and a typed `createAppAsyncThunk`; `fetch` is supplied through the thunk `extra` argument
-- [ ] RTK's serializable and immutable checks stay on; no `Date`, `Set` or class instance in state
-- [ ] Redux DevTools on in development only
+- [x] `@reduxjs/toolkit` and `react-redux` added to `apps/web` (versions recorded in `tasks.md`); nothing else imports them (`packages/*` unchanged)
+- [x] `makeStore()` builds a fresh store each call (a test proves two stores share no state); no module-level store exists
+- [x] `StoreProvider` (client component) creates the store once per mount with `useRef` and sits in the `(authenticated)` layout (mounted in M2, with the first slice); the layout stays a Server Component
+- [x] Typed `useAppDispatch`, `useAppSelector` and a typed `createAppAsyncThunk`; `fetch` is supplied through the thunk `extra` argument (`useAppStore` was not added: nothing needs it yet)
+- [x] RTK's serializable and immutable checks stay on; no `Date`, `Set` or class instance in state
+- [x] Redux DevTools on in development only
 
 ### Wizard slice
 
-- [ ] `wizardSlice` holds `step`, `title`, `description`, `locations`, `times` (ISO strings), `votingDeadline`, `emails`, `submitting`, `submitError`; its actions preserve every current reducer rule (the 50-address cap and de-duplication on add, removal by place id, time by index, exhaustive handling)
-- [ ] An action resets the wizard; the page dispatches it on mount, so leaving and returning starts empty
-- [ ] `createBrunch` thunk performs the create request, then the best-effort invite request (its failure ignored, as today), and returns the new id; `router.push` stays in the component
-- [ ] Failure keeps all entries and sets `submitError` to the same strings as today ("Failed to create brunch" or the server's message from `extractErrorMessage`)
-- [ ] `brunch/new/page.tsx` loses its reducer; steps read the store through the typed hooks. Per-step transient inputs (`timeInput`, `emailInput`, `PlaceSearchInput`'s query and predictions) stay local `useState`
+- [x] `wizardSlice` holds `step`, `title`, `description`, `locations`, `times` (ISO strings), `votingDeadline`, `emails`, `submitting`, `submitError`; its actions preserve every current reducer rule (the 50-address cap and de-duplication on add, removal by place id, time by index, exhaustive handling)
+- [x] An action resets the wizard; the page dispatches it **on unmount** (a reset on mount would paint one frame of the old draft), so leaving and returning starts empty; a create failure that arrives after the reset is ignored
+- [x] `createBrunch` thunk performs the create request, then the best-effort invite request (its failure ignored, as today), and returns the new id; `router.push` stays in the component
+- [x] Failure keeps all entries and sets `submitError` to the same strings as today ("Failed to create brunch" or the server's message from `extractErrorMessage`)
+- [x] `brunch/new/page.tsx` loses its reducer; steps read the store through the typed hooks. Per-step transient inputs (`timeInput`, `emailInput`, `PlaceSearchInput`'s query and predictions) stay local `useState`
 
 ### Ballot slice
 
-- [ ] One `ballotsSlice`, keyed by brunch and kind (`location` | `time`), holding `selected: string[]`, `submitting`, `error`, `emptyWarning` for each ballot that has been touched
-- [ ] A selector returns the effective selection: the stored one, or the server-seeded `viewerVoted` ids when nothing is stored, **filtered against the current option ids on every call** (the F2 behavior)
-- [ ] `toggleBallotOption` applies the toggle optimistically; an empty selection sets `emptyWarning` and sends nothing; otherwise `saveBallot` thunk PUTs to `/votes/locations` or `/votes/times`
-- [ ] A rejected save (non-OK response or network error) restores the previous selection and sets `error` to "Failed to save your vote"; a successful save leaves the selection and the component calls `router.refresh()`
-- [ ] Entries are released when the checklist unmounts, so a later visit reseeds from the server
-- [ ] `LocationBallotChecklist` and `TimeBallotChecklist` share one hook/component for the logic and keep their own rendering, markup, text and roles; the "not votable" branch, the closed and no-RSVP notices, and the time-zone note are unchanged
+- [x] One `ballotsSlice`, keyed by brunch and kind (`location` | `time`), holding `selected: string[]`, `submitting`, `error`, `emptyWarning` for each ballot that has been touched
+- [x] `effectiveSelection` (a pure function over the stored entry) returns the effective selection: the stored one, or the server-seeded `viewerVoted` ids when nothing is stored, **filtered against the current option ids on every call** (the F2 behavior)
+- [x] `toggleBallotOption` (one thunk; its `pending` reducer applies the toggle optimistically): an empty selection sets `emptyWarning` and sends nothing; otherwise it PUTs to `/votes/locations` or `/votes/times`; a click on a read-only ballot or while a save is in flight is ignored (the thunk's `condition`)
+- [x] A rejected save (non-OK response or network error) restores the previous selection and sets `error` to "Failed to save your vote"; a successful save leaves the selection and the component calls `router.refresh()`
+- [x] Entries are released when the checklist unmounts, so a later visit reseeds from the server
+- [x] `LocationBallotChecklist` and `TimeBallotChecklist` share one hook/component for the logic and keep their own rendering, markup, text and roles; the "not votable" branch, the closed and no-RSVP notices, and the time-zone note are unchanged
 
 ### Docs
 
-- [ ] README, root `CLAUDE.md` and `PLANNING.md` §3 say Redux Toolkit is in use (not "planned")
-- [ ] `apps/web/CLAUDE.md` gains a short "State" section: the store rules (UI state only, per-request, serializable, typed hooks, when to add a slice vs keep `useState`)
-- [ ] `specs/0003-create-brunch/plan.md` "local state" note points to ADR 0011
-- [ ] `PLANNING.md` §17 "Redux follow-ups" lists everything deferred (below), and §16/§17 and spec 0008 use the new numbers (design fidelity 0011, notifications 0012)
-- [ ] `tasks.md` testing notes complete per milestone
+- [x] README, root `CLAUDE.md` and `PLANNING.md` §3 say Redux Toolkit is in use (not "planned")
+- [x] `apps/web/CLAUDE.md` gains a short "State" section: the store rules (UI state only, per-request, serializable, typed hooks, when to add a slice vs keep `useState`)
+- [x] `specs/0003-create-brunch/plan.md` "local state" note points to ADR 0011
+- [x] `PLANNING.md` §17 "Redux follow-ups" lists everything deferred (below), and §16/§17 and spec 0008 use the new numbers (design fidelity 0011, notifications 0012)
+- [x] `tasks.md` testing notes complete per milestone
 
 ---
 
@@ -107,8 +107,17 @@ Each of these is recorded in ADR 0011 and PLANNING §17.
 
 ---
 
+## Outcome — where the build differs from the draft
+
+- **Reset on unmount, not on mount** (wizard), to avoid a one-frame flash of the old draft; R1 proves it, and a review fix (`c99976c`) makes the slice ignore a create failure that lands after the reset.
+- **One thunk for ballots**, not a toggle action plus a `saveBallot` thunk: the optimistic update and the rollback are the thunk's `pending` and `rejected` reducers, which read the arguments, so the rules are pure and there is no flash of `submitting` on the empty-ballot case.
+- **`effectiveSelection` is a pure function**, not a store selector; the hook passes it the stored entry and the server's props.
+- **`useAppStore` not added**; the Redux DevTools question is settled as development only.
+- **Bundle:** `/brunch/[id]` first-load JS 112 kB → 122 kB and `/brunch/new` 107 kB → 117 kB; `/dashboard` (107 kB) and `/brunch/[id]/manage` (111 kB) unchanged; the shared bundle stays 102 kB (measured with `next build` on `main` and on this branch). Why the layout's provider adds nothing to the other routes was not investigated.
+- **Journey gap:** no journey guards the ballots' stale-option filter; recorded in PLANNING §17 "Redux follow-ups".
+
 ## Open Questions
 
-- **Redux DevTools in production?** Assumed off. Revisit only if debugging a deployed build needs it.
-- **Is `useAppStore` needed?** Only if a component outside React needs to read state (a future realtime subscriber would). Add it only when something uses it.
-- **Seeding timing for ballots.** The plan seeds from server props at render through the selector, with no effect, to avoid a flash and an SSR/client mismatch. If React 19 strict-mode double mounting makes the release-on-unmount noisy in development, the plan has a fallback (see `plan.md` risks).
+- **Redux DevTools in production?** Assumed off (development only). Revisit only if debugging a deployed build needs it.
+- **`useAppStore`.** Add it when a component outside React needs to read state (a future realtime subscriber would).
+- Resolved during the build: ballots seed from server props at render with no effect, and React 19 strict-mode double mounting is harmless for both the ballot release and the wizard reset (the dev e2e runs pass).
