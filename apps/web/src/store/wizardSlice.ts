@@ -154,6 +154,9 @@ const wizardSlice = createSlice({
       })
       // On success `submitting` stays true: the page is navigating away.
       .addCase(createBrunch.rejected, (state, action) => {
+        // Not submitting means the wizard was reset (the page unmounted) while the request was
+        // in flight; a late failure must not leave an error for the next visit.
+        if (!state.submitting) return;
         state.submitting = false;
         state.submitError = action.payload ?? CREATE_FAILED_MESSAGE;
       });

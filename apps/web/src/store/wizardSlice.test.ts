@@ -260,4 +260,20 @@ describe('createBrunch', () => {
     expect(store.getState().wizard.submitting).toBe(true);
     expect((await retry).payload).toEqual({ id: 'brunch-1' });
   });
+
+  it('drops a failure that arrives after the wizard was reset, so the next visit is clean', async () => {
+    let fail: (error: Error) => void = () => undefined;
+    const store = storeWith(
+      vi.fn<ThunkExtra['fetch']>(
+        () => new Promise<Response>((_resolve, reject) => (fail = reject)),
+      ),
+    );
+
+    const pending = store.dispatch(createBrunch());
+    store.dispatch(wizardReset());
+    fail(new Error('offline'));
+    await pending;
+
+    expect(store.getState().wizard).toEqual(initialWizardState);
+  });
 });
