@@ -6,7 +6,7 @@
 **ADRs:** [0012 — Design fidelity: compositions, voice, and where presentation rules live](../../docs/adrs/0012-design-fidelity-and-presentation-rules.md)  
 **Builds on:** [spec 0009](../0009-styling-foundation/spec.md) (the foundation; its "Outcome" says this spec exists) and [spec 0010](../0010-redux-ui-state/spec.md) (the store; nothing here changes it)
 
-> **Roadmap.** Design fidelity (this spec) → **deployment** (cloud private beta; the owner reviews on a real phone) → **feedback surfaces** (shared mutation slice, toasts, real server errors) → **notifications**. Later specs are named, not numbered. Every milestone here is deployable.
+> **Roadmap (revised 2026-10-21).** Design fidelity (this spec) → **brunch lifecycle** (cancel, archive, delete) → **feedback surfaces** (shared mutation slice, toasts, real server errors) → **notifications** → **deployment** (cloud private beta, last; the owner reviews on a real phone then, and on phone-width boards until then). Later specs are named, not numbered. Every milestone here is deployable.
 
 ---
 

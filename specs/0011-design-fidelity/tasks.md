@@ -134,7 +134,7 @@ Seven milestones, each green on its own, **deployable**, and ending in a commit.
 
 ## M7 — Close-out
 
-- [ ] The full board set (every screen and state, light and dark, desktop and phone) against the prototype and the v3 canvas, for the owner's final sign-off; the owner's phone review is taken on the first deployment
+- [ ] The full board set (every screen and state, light and dark, desktop and phone) against the prototype and the v3 canvas, for the owner's final sign-off; the owner's real-phone review is taken once the app is deployed (the deployment spec is now last), and until then on the phone-width boards
 - [ ] `spec.md` status → Complete with an "Outcome" (what shipped, what changed from the plan, what was found), Open Questions resolved or carried to `PLANNING.md` §17
 - [ ] `PLANNING.md` §16/§17 and the memory-facing notes brought up to date; the deferrals confirmed in all three places (ADR, spec, §17); the `/spec-grill` skill updated with the phone and voice prompts
 - [ ] `/pre-merge-review`, fixes in their own commits
