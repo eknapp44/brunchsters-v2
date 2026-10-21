@@ -41,33 +41,44 @@ test.describe('C3 — who can open a brunch', () => {
 });
 
 test.describe('C4 — dashboard', () => {
-  test('lists a user’s brunches newest first with role, status and going count', async ({
+  test('puts the next brunch in a card and lists the rest newest first with role, status and going count', async ({
     makeActor,
   }) => {
     const host = await makeActor('host');
     const guest = await makeActor('guest');
+    await createBrunch({ host: host.user, title: 'Oldest Draft Brunch' });
     await createBrunch({ host: host.user, title: 'Older Draft Brunch' });
     const activeId = await createBrunch({ host: host.user, title: 'Newer Active Brunch' });
     await inviteToBrunch({ brunchId: activeId, host: host.user, invitees: [guest.user] });
     await respondToInvite({ brunchId: activeId, user: guest.user, response: 'yes' });
 
+    // The active brunch is next up: a card with its title, status and head count, and it is
+    // not repeated in the list. The two drafts are the only rows, newest first.
     await host.page.goto('/dashboard');
+    await expect(
+      host.page.getByRole('heading', { level: 2, name: 'Newer Active Brunch' }),
+    ).toBeVisible();
+    await expect(host.page.getByText("You're hosting")).toBeVisible();
+    await expect(host.page.getByText('Open for votes')).toBeVisible();
+    await expect(host.page.getByText('2 going')).toBeVisible();
     const hostRows = host.page.getByRole('listitem');
     await expect(hostRows).toHaveCount(2);
-    await expect(hostRows.nth(0)).toContainText('Newer Active Brunch');
+    await expect(hostRows.nth(0)).toContainText('Older Draft Brunch');
     await expect(hostRows.nth(0)).toContainText('(Host)');
-    await expect(hostRows.nth(0)).toContainText('Active');
-    await expect(hostRows.nth(0)).toContainText('2 going');
-    await expect(hostRows.nth(1)).toContainText('Older Draft Brunch');
-    await expect(hostRows.nth(1)).toContainText('Draft');
-    await expect(hostRows.nth(1)).toContainText('1 going');
+    await expect(hostRows.nth(0)).toContainText('In the works');
+    await expect(hostRows.nth(0)).toContainText('1 going');
+    await expect(hostRows.nth(1)).toContainText('Oldest Draft Brunch');
 
-    // The guest sees only the brunch they belong to, and is not marked as host.
+    // The guest sees only the brunch they belong to, as their next-up card, and is not marked
+    // as host. They have no list: the card is not a row.
     await guest.page.goto('/dashboard');
-    const guestRows = guest.page.getByRole('listitem');
-    await expect(guestRows).toHaveCount(1);
-    await expect(guestRows.first()).toContainText('Newer Active Brunch');
-    await expect(guestRows.first()).not.toContainText('(Host)');
+    await expect(
+      guest.page.getByRole('heading', { level: 2, name: 'Newer Active Brunch' }),
+    ).toBeVisible();
+    await expect(guest.page.getByText("You're hosting")).toHaveCount(0);
+    await expect(guest.page.getByText('2 going')).toBeVisible();
+    await expect(guest.page.getByRole('listitem')).toHaveCount(0);
+    await expect(guest.page.getByRole('heading', { name: 'Upcoming' })).toHaveCount(0);
   });
 
   test('finished brunches are listed under Past, apart from Upcoming', async ({ makeActor }) => {

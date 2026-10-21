@@ -1,3 +1,4 @@
+import { EMPTY_DASHBOARD_HEADLINE } from '../support/dashboard';
 import { COLOR_SCHEMES, expectNoA11yViolations, useColorScheme } from '../support/a11y';
 import { createBrunch } from '../support/factories';
 import { expect, test } from '../support/fixtures';
@@ -48,7 +49,7 @@ for (const scheme of COLOR_SCHEMES) {
       await useColorScheme(host.page, scheme);
 
       await host.page.goto('/dashboard');
-      await expect(host.page.getByText('No brunches yet.')).toBeVisible();
+      await expect(host.page.getByText(EMPTY_DASHBOARD_HEADLINE)).toBeVisible();
       await expectNoA11yViolations(host.page, `empty dashboard (${scheme})`);
 
       const yes = await makeActor('yes');
@@ -62,6 +63,18 @@ for (const scheme of COLOR_SCHEMES) {
       await expect(host.page.getByRole('heading', { name: 'Upcoming' })).toBeVisible();
       await expect(host.page.getByRole('link', { name: 'A Draft Brunch' })).toBeVisible();
       await expectNoA11yViolations(host.page, `dashboard with brunches (${scheme})`);
+
+      // A member's view: the next-up card with the butter panel, names as "First L." and counts.
+      await useColorScheme(yes.page, scheme);
+      await yes.page.goto('/dashboard');
+      await expect(yes.page.getByRole('group', { name: "Who's coming" })).toBeVisible();
+      await expectNoA11yViolations(yes.page, `a member's dashboard (${scheme})`);
+
+      // The same page on a phone: rows stacked, the roster cut to its first names.
+      await host.page.setViewportSize({ width: 390, height: 844 });
+      await host.page.goto('/dashboard');
+      await expect(host.page.getByRole('heading', { name: 'Upcoming' })).toBeVisible();
+      await expectNoA11yViolations(host.page, `dashboard at phone width (${scheme})`);
     });
 
     test('the brunch detail page, as host and as invitee, in every state', async ({

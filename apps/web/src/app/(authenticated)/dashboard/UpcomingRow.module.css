@@ -1,0 +1,134 @@
+/* Phone first: the date tile on the left, then the title, one line, and the status and count
+   stacked beneath it. From 40rem it is one row: tile, text, status and count, arrow. */
+.row {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    'tile main'
+    'tile meta';
+  align-items: start;
+  column-gap: var(--space-3);
+  row-gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  box-shadow: var(--shadow-sm);
+  transition:
+    border-color var(--duration-base) var(--ease),
+    box-shadow var(--duration-base) var(--ease);
+}
+
+.row:hover {
+  border-color: var(--fg-subtle);
+  box-shadow: var(--shadow-md);
+}
+
+.row > :first-child {
+  grid-area: tile;
+}
+
+.main {
+  grid-area: main;
+  min-width: 0;
+}
+
+.titleLine {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/* The whole row is the link: the title's link stretches over it, so the accessible name stays
+   the brunch title while the target is the full row. */
+.title {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--fg);
+  font-family: var(--font-display);
+  font-variation-settings: var(--display-variation);
+  font-size: var(--text-lg);
+  font-weight: 500;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.title::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--r-3);
+}
+
+.title:focus-visible {
+  outline: none;
+}
+
+.title:focus-visible::after {
+  outline: 3px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+.role {
+  flex-shrink: 0;
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+
+.line {
+  overflow: hidden;
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  grid-area: meta;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.going {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+
+.arrow {
+  display: none;
+  color: var(--fg-muted);
+}
+
+.past {
+  background: var(--surface-2);
+}
+
+@media (min-width: 40rem) {
+  .row {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-areas: 'tile main meta arrow';
+    align-items: center;
+    column-gap: var(--space-4);
+  }
+
+  .arrow {
+    grid-area: arrow;
+    display: inline-flex;
+  }
+}
+
+@media (forced-colors: active) {
+  .row {
+    border-color: CanvasText;
+  }
+}

@@ -52,7 +52,7 @@ export function isVoteWaiting(input: {
 // open, canVote, and some list is group_vote (> 1 live option, deriveDecisionMode's rule) with no ballot from the viewer
 
 export function pickNextUp(brunches: readonly BrunchSummary[]): BrunchSummary | undefined;
-// soonest confirmed (not past) else newest active (not closed); ties: newest createdAt
+// soonest confirmed (not past) else newest active; ties: newest createdAt
 
 export function isPastBrunch(brunch: BrunchSummary, now: Date): boolean;
 // completed, cancelled, or confirmed with scheduledAt < now

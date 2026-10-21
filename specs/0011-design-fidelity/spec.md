@@ -122,22 +122,22 @@ Hide on phone, never the only source of a fact: the "N brunches" count, the help
 
 ### Services (`packages/core`, `packages/shared`)
 
-- [ ] `@brunchsters/shared`: `formatPersonName` (`First L.`; single names and trailing spaces handled; host sees the full name) and `initialsOf` and `avatarColorIndex` shared by the web `InitialsAvatar` and the roster
-- [ ] `getBrunchesForUser` also returns `description`, the confirmed `scheduledAt` with its place name and timezone, `votingDeadline` and `votesWaiting`, in one query (no per-brunch round trips)
-- [ ] Pure, unit-tested rules: `isVoteWaiting`, `pickNextUp` (ties by newest created), `isPastBrunch` (confirmed and its time has passed, or completed or cancelled), `leadingOptionId` (single top option only)
-- [ ] `getBrunchRoster({ brunchId, viewerId })` returns `undefined` unless the viewer is the host or a live attendee (membership first, via `isBrunchMember`); host view: every attendee by full name and state, plus un-accepted invites as email; other members: `First L.` for yes and maybe, "You" for the viewer, counts for no and not-yet; soft-deleted attendees excluded; integration tests against the local database, including an outsider case indistinguishable from a made-up id
+- [x] `@brunchsters/shared`: `formatPersonName` (`First L.`; single names and trailing spaces handled; host sees the full name) and `initialsOf` and `avatarColorIndex` shared by the web `InitialsAvatar` and the roster
+- [x] `getBrunchesForUser` also returns `description`, the confirmed `scheduledAt` with its place name and timezone, `votingDeadline`, `votingClosed` and `votesWaiting`, in one query (no per-brunch round trips)
+- [ ] Pure, unit-tested rules: `isVoteWaiting`, `pickNextUp` (ties by newest created), `isPastBrunch` (confirmed and its time has passed, or completed or cancelled) and `groupDashboard` are done in M2; `leadingOptionId` (single top option only) comes with M3
+- [x] `getBrunchRoster({ brunchId, viewerId })` returns `undefined` unless the viewer is the host or a live attendee (membership first, via `isBrunchMember`); host view: every attendee by full name and state, plus un-accepted invites as email; other members: `First L.` for yes and maybe, "You" for the viewer, counts for no and not-yet; soft-deleted attendees excluded; integration tests against the local database, including an outsider case indistinguishable from a made-up id
 - [ ] `getBrunchById` also returns `hostName` (members only, same row)
 
 ### API routes
 
-- [ ] No new route. The roster is a service called from Server Components; the API-authorization e2e test needs a case only for a new brunch-scoped _endpoint_, so the 404 case lives in the roster's integration test and in the page-level journey (P5)
+- [ ] No new route (true so far; the page-level 404 case P5 comes with M3). The roster is a service called from Server Components; the API-authorization e2e test needs a case only for a new brunch-scoped _endpoint_, so the 404 case lives in the roster's integration test and in the page-level journey (P5)
 
 ### UI (dashboard, brunch page, wizard, front door)
 
 - [ ] Each screen above matches its "Decisions" table, light and dark, desktop and phone, and passes axe (D2), layout (D3) and, where it adds a main path, keyboard and motion (D4)
-- [ ] The next-up roster uses no `listitem`s; the next-up brunch is not repeated in Upcoming; the Upcoming rows are the page's only `listitem`s
-- [ ] The greeting renders neutral on the server and time-aware on the client without a hydration warning (`useSyncExternalStore` with a server snapshot), and the heading is announced once
-- [ ] A display mapping turns status codes into Copy Pass wording on the dashboard, with a test that fails when a seeded status code has no entry; the brunch page badge keeps the lookup label
+- [x] The next-up roster uses no `listitem`s; the next-up brunch is not repeated in Upcoming; the Upcoming rows are the page's only `listitem`s
+- [x] The greeting renders neutral on the server and time-aware on the client without a hydration warning (`useSyncExternalStore` with a server snapshot), and the heading is announced once
+- [x] A display mapping turns status codes into Copy Pass wording on the dashboard, with a test that fails when a seeded status code has no entry; the brunch page badge keeps the lookup label
 - [ ] Emoji are `aria-hidden` everywhere; the RSVP names are "I'm in", "Maybe", "Can't"
 - [ ] `not-found.tsx` and `error.tsx` exist, use the tokens and voice, and the 404 text is identical for every case; `error.tsx` offers the framework's retry
 - [ ] The landing page replaces "Coming soon."; sign-out lands on it

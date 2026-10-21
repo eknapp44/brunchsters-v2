@@ -1,3 +1,4 @@
+import { EMPTY_DASHBOARD_HEADLINE } from '../support/dashboard';
 import { createBrunch } from '../support/factories';
 import { expect, test } from '../support/fixtures';
 import { fixturePlaces } from '../support/places';
@@ -33,7 +34,7 @@ test('signed-out pages', async ({ page, makeActor }, testInfo) => {
 test('dashboard, empty and full', async ({ makeActor }, testInfo) => {
   const host = await makeActor('host');
   await host.page.goto('/dashboard');
-  await expect(host.page.getByText('No brunches yet.')).toBeVisible();
+  await expect(host.page.getByText(EMPTY_DASHBOARD_HEADLINE)).toBeVisible();
   await captureReviewShots(host.page, 'dashboard-empty', testInfo);
 
   const yes = await makeActor('yes');
@@ -45,6 +46,11 @@ test('dashboard, empty and full', async ({ makeActor }, testInfo) => {
   await host.page.goto('/dashboard');
   await expect(host.page.getByRole('heading', { name: 'Upcoming' })).toBeVisible();
   await captureReviewShots(host.page, 'dashboard-full', testInfo);
+
+  // A member's view: the next-up card with names as "First L." and numbers for the rest.
+  await yes.page.goto('/dashboard');
+  await expect(yes.page.getByRole('group', { name: "Who's coming" })).toBeVisible();
+  await captureReviewShots(yes.page, 'dashboard-member', testInfo);
 });
 
 test('the creation wizard, every step', async ({ makeActor }, testInfo) => {

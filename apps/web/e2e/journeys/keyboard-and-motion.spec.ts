@@ -1,3 +1,4 @@
+import { expectDashboard } from '../support/dashboard';
 import type { Locator, Page } from '@playwright/test';
 import { createBrunch } from '../support/factories';
 import { expect, test } from '../support/fixtures';
@@ -131,7 +132,7 @@ test.describe('D4 — reduced motion', () => {
     await host.page.emulateMedia({ reducedMotion: 'reduce' });
 
     await host.page.goto('/dashboard');
-    await expect(host.page.getByRole('heading', { name: 'Upcoming' })).toBeVisible();
+    await expectDashboard(host.page);
     expect(await longestMotion(host.page), 'motion on the dashboard').toEqual([]);
 
     const wizard = new BrunchWizard(host.page);

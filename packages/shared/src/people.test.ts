@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { AVATAR_COLOR_COUNT, avatarColorIndex, formatPersonName, initialsOf } from './people';
+import {
+  AVATAR_COLOR_COUNT,
+  avatarColorIndex,
+  firstNameOf,
+  formatPersonName,
+  initialsOf,
+} from './people';
 
 describe('initialsOf', () => {
   it('takes the first letter of the first two words, in capitals', () => {
@@ -59,5 +65,17 @@ describe('avatarColorIndex', () => {
       seen.add(index);
     }
     expect(seen.size).toBe(AVATAR_COLOR_COUNT);
+  });
+});
+
+describe('firstNameOf', () => {
+  it('takes the first word', () => {
+    expect(firstNameOf('Evan Knapp')).toBe('Evan');
+    expect(firstNameOf('  Anna Maria Lopez ')).toBe('Anna');
+  });
+
+  it('keeps a one-word name and gives nothing for a blank one', () => {
+    expect(firstNameOf('Prince')).toBe('Prince');
+    expect(firstNameOf('   ')).toBe('');
   });
 });

@@ -23,6 +23,7 @@ const PAIRS: readonly {
   { foreground: 'fg', background: 'surface', needs: TEXT, what: 'text on a card' },
   { foreground: 'fg-muted', background: 'bg', needs: TEXT, what: 'secondary text on the page' },
   { foreground: 'fg-muted', background: 'surface', needs: TEXT, what: 'secondary text on a card' },
+  { foreground: 'fg', background: 'surface-2', needs: TEXT, what: 'a title in a past brunch row' },
   {
     foreground: 'fg-muted',
     background: 'surface-2',

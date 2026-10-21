@@ -45,6 +45,8 @@ The journeys find things by role, label and text. A restyle must not change them
 - The text "Active", "Draft" and "Confirmed" appears exactly once where the status is shown (the status badge); the voting markers stay "— Confirmed".
 - Messages keep their `role` (`role="alert"` stays where it was). `InlineAlert` adds none by itself.
 - If a change does need a journey edited, stop and say so: that is a behavior change, not a restyle.
+- **Names changed on purpose by spec 0011 (design fidelity).** Dashboard (M2): the h1 `Dashboard` is now the greeting ("Morning, Evan"; "Hey, Evan" until the browser has filled the time in), so journeys wait on `expectDashboard` (`e2e/support/dashboard.ts`), never on one word of it; `No brunches yet.` is "The table's set. Now invite some people." (`EMPTY_DASHBOARD_HEADLINE`); rows and the next-up card word the status "Open for votes" / "In the works" (the brunch page badge keeps the lookup label); the next-up brunch is a card (`h2` = its title, a link "Open <title>"), not a row, and is not repeated in the list. Unchanged: `Plan a Brunch`, `Upcoming`, `Past`, the title link, `(Host)`, `N going`. Later milestones add their changes here.
+- **The dashboard's only list items are the brunch rows.** The next-up roster is plain grouped text (`role="group"`), because journeys count `listitem`s.
 
 ## Layout
 

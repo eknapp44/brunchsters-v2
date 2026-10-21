@@ -1,3 +1,4 @@
+import { EMPTY_DASHBOARD_HEADLINE } from '../support/dashboard';
 import { getDb } from '../support/db';
 import { uniqueSuffix } from '../support/factories';
 import { expect, test } from '../support/fixtures';
@@ -20,7 +21,7 @@ test.describe('C1 — host creates a brunch with the wizard', () => {
     const guestTwo = `guest-two-${uniqueSuffix()}@example.com`;
 
     await host.page.goto('/dashboard');
-    await expect(host.page.getByText('No brunches yet.')).toBeVisible();
+    await expect(host.page.getByText(EMPTY_DASHBOARD_HEADLINE)).toBeVisible();
     await host.page.getByRole('link', { name: 'Plan a Brunch' }).click();
     await expect(host.page).toHaveURL('/brunch/new');
 

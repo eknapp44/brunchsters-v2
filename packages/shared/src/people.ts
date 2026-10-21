@@ -48,3 +48,8 @@ export function avatarColorIndex(seed: string): number {
   }
   return (hash >>> 0) % AVATAR_COLOR_COUNT;
 }
+
+// The first word of a name, for a greeting ("Evan Knapp" → "Evan"). Empty when there is no name.
+export function firstNameOf(name: string): string {
+  return wordsOf(name)[0] ?? '';
+}

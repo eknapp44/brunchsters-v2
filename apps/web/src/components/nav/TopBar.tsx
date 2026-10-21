@@ -1,3 +1,4 @@
+import { avatarColorIndex } from '@brunchsters/shared';
 import Link from 'next/link';
 import type { ReactElement } from 'react';
 import { Wordmark } from '../art/Wordmark';
@@ -26,7 +27,10 @@ export function TopBar(props: {
         </Link>
         {user !== undefined && (
           <nav className={styles.account} aria-label="Account">
-            <InitialsAvatar name={user.name ?? 'Your account'} seed={user.email ?? ''} />
+            <InitialsAvatar
+              name={user.name ?? 'Your account'}
+              colorIndex={avatarColorIndex(user.email ?? user.name ?? '')}
+            />
             <span className={styles.name}>{user.name ?? user.email}</span>
             <form action={props.signOutAction}>
               <Button type="submit" variant="ghost" size="sm">

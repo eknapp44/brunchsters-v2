@@ -1,3 +1,4 @@
+import { EMPTY_DASHBOARD_HEADLINE } from '../support/dashboard';
 import type { Page } from '@playwright/test';
 import { createBrunch } from '../support/factories';
 import { expect, test } from '../support/fixtures';
@@ -48,7 +49,7 @@ test.describe('D3 — every screen fits and shows its one action', () => {
   test('the dashboard, empty and full', async ({ makeActor }) => {
     const host = await makeActor('host');
     await host.page.goto('/dashboard');
-    await expect(host.page.getByText('No brunches yet.')).toBeVisible();
+    await expect(host.page.getByText(EMPTY_DASHBOARD_HEADLINE)).toBeVisible();
     await expect(host.page.getByRole('link', { name: 'Plan a Brunch' })).toBeInViewport();
     await expectNoSidewaysScroll(host.page, 'the empty dashboard');
 

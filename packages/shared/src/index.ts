@@ -17,6 +17,7 @@ export { MAX_INVITES_PER_REQUEST } from './invites';
 export {
   AVATAR_COLOR_COUNT,
   avatarColorIndex,
+  firstNameOf,
   formatPersonName,
   initialsOf,
   type PersonNameAudience,
