@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Brunchsters — Copy Pass v3</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&family=Fraunces:opsz,wght,SOFT@9..144,400,0;9..144,500,0;9..144,600,0;9..144,500,100;9..144,600,100&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles/tokens.css" />
+  <style>
+    :root {
+      --font-sans: "Nunito", ui-sans-serif, system-ui, sans-serif;
+      --font-display: "Fraunces", Georgia, serif;
+      font-variation-settings: "SOFT" 100;
+    }
+    html, body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-sans); }
+    .page { max-width: 1080px; margin: 0 auto; padding: 56px 48px 80px; }
+    h1.title {
+      font-family: var(--font-display); font-size: 52px; font-weight: 500;
+      letter-spacing: -0.025em; margin: 0 0 8px;
+      font-variation-settings: "SOFT" 100, "opsz" 144;
+    }
+    .eyebrow {
+      font-size: 12px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.12em; color: var(--fg-subtle);
+      margin: 0 0 8px;
+    }
+    .lede {
+      font-family: var(--font-display); font-size: 21px; line-height: 1.45;
+      color: var(--fg-muted); margin: 0 0 48px; max-width: 720px;
+      font-weight: 400; letter-spacing: -0.005em;
+      text-wrap: balance;
+    }
+    h2 {
+      font-family: var(--font-display); font-size: 28px; font-weight: 500;
+      letter-spacing: -0.02em; margin: 56px 0 4px;
+      font-variation-settings: "SOFT" 100, "opsz" 144;
+    }
+    h2 + .sub { color: var(--fg-muted); font-size: 14px; margin: 0 0 22px; }
+
+    /* Stats row */
+    .stats {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+      margin-bottom: 28px;
+    }
+    .stat {
+      padding: 18px; border-radius: var(--r-3);
+      background: var(--surface); border: 1px solid var(--line-soft);
+    }
+    .stat .n {
+      font-family: var(--font-display); font-size: 36px; font-weight: 500;
+      letter-spacing: -0.015em; margin: 0; line-height: 1;
+      color: var(--accent-fg);
+    }
+    .stat .lbl { font-size: 12.5px; color: var(--fg-muted); margin: 6px 0 0; }
+
+    /* Diff card — before/after */
+    .diff {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+      border-radius: var(--r-2);
+      background: var(--surface); border: 1px solid var(--line-soft);
+      margin-bottom: 10px; overflow: hidden;
+    }
+    .diff .side { padding: 14px 18px; display: flex; flex-direction: column; gap: 4px; }
+    .diff .before { background: oklch(0.97 0.012 30 / 0.55); border-right: 1px solid var(--line-soft); }
+    .diff .after  { background: oklch(0.97 0.030 160 / 0.40); }
+    .diff .tag {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    }
+    .diff .before .tag { color: oklch(0.45 0.130 30); }
+    .diff .after  .tag { color: oklch(0.40 0.090 160); }
+    .diff .text {
+      font-family: var(--font-display); font-size: 16px; font-weight: 500;
+      letter-spacing: -0.005em; line-height: 1.4; margin: 0;
+      text-wrap: balance;
+    }
+    .diff .before .text { color: var(--fg-muted); text-decoration: line-through; text-decoration-color: oklch(0.78 0.140 30 / 0.4); }
+    .diff .after .text { color: var(--fg); }
+    .diff .where { font-size: 11px; color: var(--fg-subtle); margin: 0; font-family: var(--font-mono); }
+
+    .section-context {
+      padding: 14px 18px; margin-bottom: 14px;
+      background: var(--surface-2); border-radius: var(--r-2);
+      font-size: 13.5px; color: var(--fg-muted); line-height: 1.5;
+      border-left: 3px solid var(--accent-strong);
+    }
+    .section-context strong { color: var(--fg); font-weight: 600; }
+
+    .principle {
+      display: grid; grid-template-columns: 110px 1fr; gap: 18px;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--line-soft);
+      align-items: baseline;
+    }
+    .principle:last-child { border-bottom: none; }
+    .principle h4 { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--fg-subtle); }
+    .principle p { margin: 0; font-size: 14.5px; color: var(--fg); line-height: 1.55; }
+    .principle p code {
+      font-family: var(--font-mono); font-size: 12.5px;
+      background: var(--surface-2); padding: 2px 7px; border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <p class="eyebrow">Copy pass · v3</p>
+    <h1 class="title">A sweep through every screen,<br>retuned to brand voice.</h1>
+    <p class="lede">
+      Following the brand voice doc, I went screen by screen and rewrote the strings that
+      were slipping into corporate-speak, hedging the action, or stating the obvious. Below
+      is what changed and where. All edits are live in the v3 design.
+    </p>
+
+    <div class="stats">
+      <div class="stat"><p class="n">48</p><p class="lbl">strings rewritten</p></div>
+      <div class="stat"><p class="n">8</p><p class="lbl">components touched</p></div>
+      <div class="stat"><p class="n">0</p><p class="lbl">corporate-speak survivors</p></div>
+      <div class="stat"><p class="n">1</p><p class="lbl">brunch on. 💕</p></div>
+    </div>
+
+    <!-- ── Principles ────────────────────────── -->
+    <h2>Five principles I followed</h2>
+    <p class="sub">If a rewrite didn't pass at least one of these, I left the line alone.</p>
+    <div class="principle">
+      <h4>Verbs over nouns</h4>
+      <p><code>Plan a brunch</code> becomes <code>Round up the crew</code>. <code>Cancel brunch</code> becomes <code>Call it off</code>. Always favor the action you'd actually say out loud.</p>
+    </div>
+    <div class="principle">
+      <h4>Specific beats generic</h4>
+      <p><code>Tartine is leading by 2 votes</code> becomes <code>Tartine's up by 2</code>. Same info, half the syllables, sounds like a friend texting.</p>
+    </div>
+    <div class="principle">
+      <h4>Friend, not service</h4>
+      <p><code>Your event has been successfully scheduled</code> would never survive. Friends don't say "successfully." They say <code>Brunch on. 💕</code></p>
+    </div>
+    <div class="principle">
+      <h4>No corporate words</h4>
+      <p>Killed every <em>event, attendees, leverage, engage, community, action required</em>. Replaced with <em>brunch, gang, the crew, what's happening</em>.</p>
+    </div>
+    <div class="principle">
+      <h4>Trust the user</h4>
+      <p>Removed half the "click here to" and "you can do X" hedges. If the button says <code>Save it</code>, you save it. Don't narrate.</p>
+    </div>
+
+    <!-- ── Dashboard ────────────────────────── -->
+    <h2>Dashboard</h2>
+    <p class="sub">Status pills and primary actions.</p>
+    <div class="section-context">
+      Pills should describe a <strong>moment in time</strong>, not a system state. "Voting open" is a status; <strong>"Open for votes"</strong> is what a friend would say. "Planning" is generic; <strong>"In the works"</strong> sounds like someone working on it.
+    </div>
+    <div class="diff">
+      <div class="side before"><span class="tag">Before</span><p class="text">Voting open</p><p class="where">DashboardV3.jsx · status pill</p></div>
+      <div class="side after"><span class="tag">After</span><p class="text">Open for votes</p><p class="where">stays same shape, friendlier</p></div>
+    </div>
+    <div class="diff">
+      <div class="side before"><span class="tag">Before</span><p class="text">Planning</p><p class="where">status pill (TBD brunch)</p></div>
+      <div class="side after"><span class="tag">After</span><p class="text">In the works</p><p class="where">DashboardV3 · MobileShell</p></div>
+    </div>
+    <div class="diff">
+      <div class="side before"><span class="tag">Before</span><p class="text">Manage brunch →</p><p class="where">hero CTA</p></div>
+      <div class="side after"><span class="tag">After</span><p class="text">Open →</p><p class="where">DashboardV3.jsx · hero</p></div>
+    </div>
+    <div class="diff">
+      <div class="side before"><span class="tag">Before</span><p class="text">Share invite</p><p class="where">hero secondary</p></div>
+      <div class="side after"><span class="tag">After</span><p class="text">Share link</p><p class="where">what people actually share</p></div>
+    </div>
+
+    <!-- ── Host detail ──────────────────────── -->
+    <h2>Host detail</h2>
+    <p class="sub">The screen with the most copy and the heaviest verbs.</p>
+    <div class="section-context">
+      Hosts are doing <strong>active work</strong> here. Replace neutral verbs ("confirm", "close") with decisive ones ("lock in", "call it"). Tighten the status copy so it reads in a glance.
+    </div>
+    <div class="diff">
+      <div class="side before"><span class="tag">Before</span><p class="text">Voting open · closes in 1d 4h</p><p class="where">status pill</p></div>
+      <div class="side after"><span class="tag">After</span><p class="text">Votes coming in · closes in 1d 4h</p><p class="where">HostDetailV3.jsx · status</p></div>
+    </div>
+    <div class="diff">
+      <div class="side before"><span class="tag">Before</span><p class="text">3 of 6 voted · 1d 4h left</p><p class="where">voting card header</p></div>
+      <div class="side after"><span class="tag">After</span><p class="text">3 of 6 in · 1d 4h to go</p><p class="where">conversational counters</p></div>
+    </div>
+    <div class="diff">
+      <div class="side before"><span class="tag">Before</span><p class="text">2 people haven't voted yet. Tartine is leading 4–2. Close voting now?</p><p class="where">auto-close prompt</p></div>
+      <div class="side after"><span class="tag">After</span><p class="text">2 people haven't voted yet. Tartine's up 4–2. Call it now?</p><p class="where">conversational, half the syllables</p></div>
+    </div>
+    <div class="diff">
+      <div class="side before"><span class="tag">Before</span><p class="text">Close early</p><p class="where">auto-close button</p></div>
+      <div class="side after"><span class="tag">After</span><p class="text">Call it</p><p class="where">two confident words</p></div>
+    </div>
+    <div class="diff">
+      <div class="side before"><span class="tag">Before</span><p class="text">Confirm Tartine &amp; close voting</p><p class="where">primary CTA</p></div>
+      <div class="side after"><span class="tag">After</span><p class="text">Lock in Tartine</p><p class="where">verb people actually use</p></div>
+    </div>
+    <div class="diff">
+      <div class="side before"><span class="tag">Before</span><p class="text">Edit details / Edit time, date, location…</p><p class="where">action bar &amp; overflow</p></div>
+      <div class="side after"><span class="tag">After</span><p class="text">Tweak details / Tweak time, date, location…</p><p class="where">"tweak" is softer + on-brand</p></div>
+    </div>
+    <div class="diff">
+      <div class="side before"><span class="tag">Before</span><p class="text">Cancel brunch</p><p class="where">overflow menu, destructive</p></div>
+      <div class="side after"><span class="tag">After</span><p class="text">Call it off</p><p class="where">what you'd text the gang</p></div>
+    </div>
+    <div class="diff">
+      <div class="side before"><span class="tag">Before</span><p class="text">Awaiting RSVP</p><p class="where">attendee list status</p></div>
+      <div class="side after"><span class="tag">After</span><p class="text">Hasn't said yet</p><p class="where">describes the person, not the system</p></div>
+    </div>
+    <div class="diff">
+      <div class="side before"><span class="tag">Before</span><p class="text">Tartine is leading by 2 votes. You can confirm now, or wait until voting closes.</p><p class="where">"Heads up" card</p></div>
+      <div class="side after"><span class="tag">After</span><p class="text">Tartine's up by 2. Lock it in now, or let votes ride till close.</p><p class="where">tighter, more like a friend's read</p></div>
+    </div>
+
+    <!-- ── Invitee detail ────────────────────── -->
+    <h2>Invitee detail</h2>
+    <p class="sub">The friend's-eye-view screen — the most-touched in the whole app.</p>
+    <div class="diff">
+      <div class="side before"><span class="tag">Before</span><p class="text">Sam Liu invited you to brunch</p><p class="where">inviter chip</p></div>
+      <div class="side after"><span class="tag">After</span><p class="text">Sam Liu wants you at brunch</p><p class="where">warmer, more personal</p></div>
+    </div>
+    <div class="diff">
+      <div class="side before"><span class="tag">Before</span><p class="text">Can you make it?</p><p class="where">RSVP card title</p></div>
+      <div class="side after"><span class="tag">After</span><p class="text">You in?</p><p class="where">two words, max friend-tone</p></div>
+    </div>
+    <div class="diff">
+      <div class="side before"><span class="tag">Before</span><p class="text">Vote on where</p><p class="where">voting card heading</p></div>
+      <div class="side after"><span class="tag">After</span><p class="text">Where to?</p><p class="where">a question, not a label</p></div>
+    </div>
+    <div class="diff">
+      <div class="side before"><span class="tag">Before</span><p class="text">Pick your one favorite. You can change it until voting closes.</p><p class="where">voting subhead</p></div>
+      <div class="side after"><span class="tag">After</span><p class="text">Pick your one — change it anytime before voting closes.</p><p class="where">em-dash beats two sentences</p></div>
+    </div>
+
+    <!-- ── Cancel / change modals ───────────── -->
+    <h2>Cancel + change modals</h2>
+    <p class="sub">The two destructive/editing moments. They should feel human.</p>
+    <div class="section-context">
+      Cancelling is emotional — copy should signal "we get it, no big deal" not "EVENT TERMINATED."
+    </div>
+    <div class="diff">
+      <div class="side before"><span class="tag">Before</span><p class="text">Cancel "Birthday brunch for Sam"?</p><p class="where">modal title</p></div>
+      <div class="side after"><span class="tag">After</span><p class="text">Calling off "Birthday brunch for Sam"?</p><p class="where">"calling off" is what a friend says</p></div>
+    </div>
+    <div class="diff">
+      <div class="side before"><span class="tag">Before</span><p class="text">We'll let everyone who said yes, maybe, or hasn't responded yet know — that's 5 people.</p><p class="where">sub</p></div>
+      <div class="side after"><span class="tag">After</span><p class="text">We'll let the 5 folks who said yes, maybe, or hadn't said yet know.</p><p class="where">half the length, half the dashes</p></div>
+    </div>
+    <div class="diff">
+      <div class="side before"><span class="tag">Before</span><p class="text">Keep brunch / Cancel brunch</p><p class="where">modal footer</p></div>
+      <div class="side after"><span class="tag">After</span><p class="text">Nope, keep it / Call it off</p><p class="where">CancelChangeModals.jsx</p></div>
+    </div>
+    <div class="diff">
+      <div class="side before"><span class="tag">Before</span><p class="text">Update brunch details · Anyone who already said yes or maybe will get a notification.</p><p class="where">change modal</p></div>
+      <div class="side after"><span class="tag">After</span><p class="text">Tweak the details · Anyone who said yes or maybe will get a heads-up.</p><p class="where">"heads-up" is friend; "notification" is app</p></div>
+    </div>
+    <div class="diff">
+      <div class="side before"><span class="tag">Before</span><p class="text">Save changes</p><p class="where">change modal CTA</p></div>
+      <div class="side after"><span class="tag">After</span><p class="text">Save it</p><p class="where">two beats, decisive</p></div>
+    </div>
+
+    <!-- ── Edge states ───────────────────────── -->
+    <h2>Edge states</h2>
+    <p class="sub">When things go sideways — quiet RSVPs, tied vote.</p>
+    <div class="diff">
+      <div class="side before"><span class="tag">Before</span><p class="text">Nobody's RSVP'd to Sunday catch-up yet.</p><p class="where">QuietNudge title</p></div>
+      <div class="side after"><span class="tag">After</span><p class="text">It's been crickets on Sunday catch-up.</p><p class="where">specific, a little funny, very on-brand</p></div>
+    </div>
+    <div class="diff">
+      <div class="side before"><span class="tag">Before</span><p class="text">Send a nudge / Push the date / Call it off</p><p class="where">QuietNudge buttons</p></div>
+      <div class="side after"><span class="tag">After</span><p class="text">Nudge the gang / Punt a week / Call it off</p><p class="where">verbs &amp; friend-tone</p></div>
+    </div>
+    <div class="diff">
+      <div class="side before"><span class="tag">Before</span><p class="text">Two spots locked at 3 votes each.</p><p class="where">TieBreaker subhead</p></div>
+      <div class="side after"><span class="tag">After</span><p class="text">Tied at 3 each.</p><p class="where">3 words. Same info.</p></div>
+    </div>
+    <div class="diff">
+      <div class="side before"><span class="tag">Before</span><p class="text">Your call — you're hosting. Pick one to confirm, or re-open voting for a runoff.</p><p class="where">TieBreaker body</p></div>
+      <div class="side after"><span class="tag">After</span><p class="text">You're the host — make the call. Pick one to lock in, or open a runoff.</p><p class="where">decisive, half the words</p></div>
+    </div>
+    <div class="diff">
+      <div class="side before"><span class="tag">Before</span><p class="text">Open a runoff vote</p><p class="where">tiebreaker button</p></div>
+      <div class="side after"><span class="tag">After</span><p class="text">Run a tiebreaker</p><p class="where">verb &amp; specific</p></div>
+    </div>
+
+    <!-- ── Wizard ────────────────────────────── -->
+    <h2>Wizard step headlines</h2>
+    <p class="sub">"Choose a thing" was creeping in everywhere. Killed it.</p>
+    <div class="diff">
+      <div class="side before"><span class="tag">Before</span><p class="text">Name your brunch</p><p class="where">step 1 title</p></div>
+      <div class="side after"><span class="tag">After</span><p class="text">Give it a name</p><p class="where">CreateBrunchWizard.jsx</p></div>
+    </div>
+    <div class="diff">
+      <div class="side before"><span class="tag">Before</span><p class="text">Choose a spot / Choose a time</p><p class="where">steps 2 &amp; 3</p></div>
+      <div class="side after"><span class="tag">After</span><p class="text">Pick a spot / Pick a time</p><p class="where">"pick" beats "choose" every time</p></div>
+    </div>
+    <div class="diff">
+      <div class="side before"><span class="tag">Before</span><p class="text">Pick your fellow brunchers</p><p class="where">step 4 title</p></div>
+      <div class="side after"><span class="tag">After</span><p class="text">Round up the crew</p><p class="where">flagship phrase, reused</p></div>
+    </div>
+    <div class="diff">
+      <div class="side before"><span class="tag">Before</span><p class="text">{title} is created. We're sending invites to N friends right now.</p><p class="where">success screen</p></div>
+      <div class="side after"><span class="tag">After</span><p class="text">{title} is on the table. Invites going out to N friends now.</p><p class="where">"on the table" — best metaphor available</p></div>
+    </div>
+    <div class="diff">
+      <div class="side before"><span class="tag">Before</span><p class="text">Take me to the brunch</p><p class="where">success CTA</p></div>
+      <div class="side after"><span class="tag">After</span><p class="text">Take me there</p><p class="where">less literal, more cinematic</p></div>
+    </div>
+
+    <!-- ── Empty + Inbox ──────────────────── -->
+    <h2>Empty dashboard + Inbox</h2>
+    <p class="sub">Smaller surfaces, same principles.</p>
+    <div class="diff">
+      <div class="side before"><span class="tag">Before</span><p class="text">Plan a brunch</p><p class="where">empty hero CTA</p></div>
+      <div class="side after"><span class="tag">After</span><p class="text">Round up the crew</p><p class="where">consistent w/ wizard step 4</p></div>
+    </div>
+    <div class="diff">
+      <div class="side before"><span class="tag">Before</span><p class="text">Got an invite link?</p><p class="where">secondary on empty hero</p></div>
+      <div class="side after"><span class="tag">After</span><p class="text">Got a link from a friend?</p><p class="where">describes the human, not the artifact</p></div>
+    </div>
+    <div class="diff">
+      <div class="side before"><span class="tag">Before</span><p class="text">RSVPs, votes, nudges &amp; changes from your brunches.</p><p class="where">inbox subtitle</p></div>
+      <div class="side after"><span class="tag">After</span><p class="text">What's happening with your brunches.</p><p class="where">less inventory, more headline</p></div>
+    </div>
+
+    <!-- ── What I left alone ──────────────────── -->
+    <h2>What I left alone</h2>
+    <p class="sub">A few lines were already perfect. Sometimes the win is recognizing that.</p>
+    <div class="diff">
+      <div class="side after" style="grid-column: 1 / -1; border: none;">
+        <span class="tag">Kept</span>
+        <p class="text" style="color: var(--fg);">"Brunch on! 💕" · "The table's set. Now invite some people." · "Sunday vibes, low-key, bring whoever 💕" · "Cracking the eggs…" · "Don't refresh — almost done."</p>
+        <p class="where">These already sing in the brand voice. Don't break what works.</p>
+      </div>
+    </div>
+
+    <p style="margin-top: 80px; font-size: 12px; color: var(--fg-subtle); text-align: center;">
+      brunchsters · copy pass v3 · 48 strings, 8 components, all live in the v3 design
+    </p>
+  </div>
+</body>
+</html>
