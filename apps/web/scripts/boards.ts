@@ -12,8 +12,10 @@ import { chromium, type Browser } from '@playwright/test';
 //   pnpm --filter @brunchsters/web boards        (this script; needs network: React and Babel load from unpkg)
 //
 // The prototype is served from a scratch copy, so prototype/ and design-docs/ are never written.
-// The scratch copy also gets a stand-in for ios-frame.jsx (missing from the repo, so the
-// prototype's phone scenes would not render) and the Design v3 canvas files next to its HTML.
+// The scratch copy also gets the files the prototype's HTML loads from its own folder but that
+// live in components/ in the repo (ios-frame.jsx, for the phone scenes), and the Design v3 canvas
+// files next to its HTML. If ios-frame.jsx is ever missing, a plain stand-in box is used instead,
+// so the phone scenes still draw (without the device bezel).
 
 const WEB_ROOT = path.resolve(__dirname, '..');
 const REPO_ROOT = path.resolve(WEB_ROOT, '../..');
@@ -101,17 +103,17 @@ const PAIRS: readonly Pair[] = [
 const SCHEMES: readonly Scheme[] = ['light', 'dark'];
 const DEVICES: readonly Device[] = ['desktop', 'phone'];
 
-// The prototype's frames: its desktop window, and (with the stand-in below) its phone frame.
+// The prototype's frames: its desktop window, and the device frame inside its `.phone-wrap`.
 const FRAME_SELECTOR: Record<Device, string> = {
   desktop: '.desktop-frame',
-  phone: '.ios-stub',
+  phone: '.phone-wrap > div',
 };
 
-// A stand-in for the prototype's missing ios-frame.jsx: a plain rounded box of the right size,
+// Only used when components/ios-frame.jsx is missing: a plain rounded box of the right size,
 // not Apple's bezel. Only the scratch copy gets it.
 const IOS_FRAME_STAND_IN = `window.IOSDevice = function IOSDevice({ width, height, children }) {
   return (
-    <div className="ios-stub" style={{ width, height, overflow: 'hidden', position: 'relative', borderRadius: 28, border: '1px solid #bbb', background: '#fff' }}>
+    <div style={{ width, height, overflow: 'hidden', position: 'relative', borderRadius: 28, border: '1px solid #bbb', background: '#fff' }}>
       {children}
     </div>
   );
@@ -134,9 +136,10 @@ function makeScratchCopy(): string {
     path.join(REPO_ROOT, 'design-docs', 'Brunchsters Design v3.html'),
     path.join(scratch, 'v3.html'),
   );
-  // the canvas HTML loads these next to itself; they live in components/ in the repo
-  for (const file of ['design-canvas.jsx', 'tweaks-panel.jsx']) {
-    fs.copyFileSync(path.join(scratch, 'components', file), path.join(scratch, file));
+  // the HTML files load these next to themselves; they live in components/ in the repo
+  for (const file of ['design-canvas.jsx', 'tweaks-panel.jsx', 'ios-frame.jsx']) {
+    const source = path.join(scratch, 'components', file);
+    if (fs.existsSync(source)) fs.copyFileSync(source, path.join(scratch, file));
   }
   const frame = path.join(scratch, 'ios-frame.jsx');
   if (!fs.existsSync(frame)) fs.writeFileSync(frame, IOS_FRAME_STAND_IN);
@@ -184,7 +187,7 @@ async function photographPrototype(browser: Browser, port: number): Promise<Capt
     // a fixed clock keeps anything time-dependent in the prototype stable between runs
     await page.clock.setFixedTime(new Date('2026-10-21T15:00:00'));
     await page.goto(`http://127.0.0.1:${port}/Brunchsters%20Prototype.html`);
-    await page.waitForSelector('.desktop-frame, .ios-stub');
+    await page.waitForSelector('.desktop-frame, .phone-wrap');
     for (const pair of PAIRS) {
       try {
         await page.getByText(pair.scene, { exact: true }).first().click({ timeout: 5000 });
@@ -236,7 +239,7 @@ async function writeBoards(browser: Browser, captures: Captures): Promise<number
         });
         const label = `${pair.title} · ${scheme} · ${device}`;
         await sheet.setContent(
-          `<body style="margin:0;padding:12px;background:#fff;display:flex;gap:16px;align-items:flex-start">${figure({ caption: `Your design (Claude Design prototype): ${label}`, image: proto, device })}${figure({ caption: 'What we built', image: app, device })}</body>`,
+          `<body style="margin:0;padding:12px;background:#fff;display:flex;gap:16px;align-items:flex-start">${figure({ caption: `Your design (Claude Design prototype): ${label}${scheme === 'dark' ? ' (the prototype has no dark mode: this is its light scene)' : ''}`, image: proto, device })}${figure({ caption: 'What we built', image: app, device })}</body>`,
         );
         await sheet.screenshot({
           path: path.join(SHOTS_DIR, `board-${pair.id}-${scheme}-${device}.png`),

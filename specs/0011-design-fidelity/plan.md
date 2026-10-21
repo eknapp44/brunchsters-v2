@@ -10,7 +10,7 @@ The target look is `mockups/build.mjs` (owner-approved 2026-10-21; `node specs/0
 
 | File                                                                                                         | Purpose                                                                                                                                                                                             |
 | ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `apps/web/scripts/boards.mjs` (+ `package.json` script `boards`)                                             | copies `prototype/` + the Design v3 HTML into a temp folder, serves it, photographs prototype and app side by side (light/dark, desktop/phone), writes `.screenshots/board-*.png`, stops the server |
+| `apps/web/scripts/boards.ts` (+ `package.json` script `boards`)                                              | copies `prototype/` + the Design v3 HTML into a temp folder, serves it, photographs prototype and app side by side (light/dark, desktop/phone), writes `.screenshots/board-*.png`, stops the server |
 | `apps/web/src/components/ui/{Eyebrow,DateTile,InitialsAvatar}.tsx` (+ CSS modules)                           | primitives from the mockups (`Badge` gained an optional decorative icon and is the "Pill"); `InitialsAvatar` takes a seed, never an image                                                           |
 | `packages/shared/src/people.ts` (+ test)                                                                     | `formatPersonName`, `initialsOf`, `avatarColorIndex`                                                                                                                                                |
 | `packages/core/src/brunch/presentation/{isVoteWaiting,pickNextUp,isPastBrunch,leadingOptionId}.ts` (+ tests) | the pure rules (ADR 0012, decision 4); no framework, no Prisma                                                                                                                                      |
@@ -99,7 +99,7 @@ Mobile-first as ever: phone is the base style, `min-width` adds desktop. The omi
 
 ### Boards
 
-`boards.mjs` takes the screens from the existing screenshots spec (`e2e/screenshots/review.spec.ts`, extended) and the prototype scenes from the scratch copy; the clock is frozen so the greeting is stable. It needs network (React and Babel come from unpkg) and the local database for the app side; both are named in `docs/SETUP.md`. Nothing in the shipped app depends on it.
+`boards.ts` takes the screens from the existing screenshots spec (`e2e/screenshots/review.spec.ts`, extended) and the prototype scenes from the scratch copy; the clock is frozen so the greeting is stable. It needs network (React and Babel come from unpkg) and the local database for the app side; both are named in `docs/SETUP.md`. Nothing in the shipped app depends on it.
 
 ## Copy table
 

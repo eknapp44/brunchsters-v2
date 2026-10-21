@@ -111,7 +111,7 @@ Hide on phone, never the only source of a fact: the "N brunches" count, the help
 
 ### Tooling and shared look (M1)
 
-- [x] `pnpm --filter @brunchsters/web boards` photographs the prototype scenes and writes side-by-side boards with the app's screenshots, light and dark, desktop and phone (the prototype's phone scenes draw through a stand-in for its missing `ios-frame.jsx`; the prototype has no dark mode, so its dark boards are its light scene); it serves from a scratch copy so `prototype/` and `design-docs/` are never edited, and stops its server when it ends. The Design v3 canvas is placed in the scratch copy but not photographed yet (nothing needs its artboards until M5)
+- [x] `pnpm --filter @brunchsters/web boards` photographs the prototype scenes and writes side-by-side boards with the app's screenshots, light and dark, desktop and phone (the prototype's phone scenes draw in its own `ios-frame.jsx` frame; the prototype has no dark mode, so a dark board shows its light scene and says so in its caption); it serves from a scratch copy so `prototype/` and `design-docs/` are never edited, and stops its server when it ends. The Design v3 canvas is placed in the scratch copy but not photographed yet (nothing needs its artboards until M5)
 - [x] The warm page wash (`--wash-a`, `--wash-b`) and the vote-bar tint (`--bar`) are tokens with dark values; the butter panel is the existing `--accent-soft` (`Card tone="accent"`) and the avatar colors are the existing `--pop-*` family, so no duplicate tokens; every pair that carries text is in `tokenContrast.test.ts` (initials are held to the 4.5:1 text ratio); `styleGuard.test.ts` still passes
 - [x] New primitives in `components/ui/`: `Eyebrow`, `DateTile`, `InitialsAvatar` (deterministic color from a seed, no image path); `Badge` gains an optional decorative icon (it is the "Pill"); the nav avatar is initials too
 - [x] Phone top bar: initials and Sign out, name visually hidden but still announced (the hiding already existed from spec 0009; M1 made the avatar initials)
@@ -193,7 +193,7 @@ Each is recorded in ADR 0012, here, and `PLANNING.md` §17.
 
 1. **Assumed from the approved mockups, veto at the M2 review:** the primary action stays **Plan a Brunch** (the Copy Pass says "Round up the crew"; the owner chose to keep it, before reading the Copy Pass), and status wording is a display mapping on the dashboard only.
 2. **Derived Past rule.** A confirmed brunch whose time has passed moves to Past. Recommended default; it is the one observable rule this spec changes.
-3. **Nav avatar.** Initials too, for consistency (the mockups show it); the Google photo is no longer shown anywhere until the Settings spec.
+3. ~~**Nav avatar.**~~ **Resolved 2026-10-21 (owner):** initials in the nav too; the Google photo is not shown anywhere until the Settings spec.
 4. **Auto-"yes" on opening an invite link** (spec 0004). Is that still wanted now that the card says "You in?"? Not changed here.
 5. **Unify status wording** (dashboard "Open for votes" vs the brunch page's "Active"): when the lookup labels move to a copy source.
 6. **How many names on desktop** before "+N more" in the next-up card (three on phone). Decided at the M2 review.
