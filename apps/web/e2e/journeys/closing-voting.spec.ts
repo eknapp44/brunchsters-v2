@@ -163,3 +163,42 @@ test.describe('H7 — a deadline that passes closes voting by itself', () => {
     expect(late.status()).toBe(409);
   });
 });
+
+test.describe('H8 — a deadline typed before the page has finished loading', () => {
+  test('is kept, and saving it saves it', async ({ makeActor }) => {
+    const host = await makeActor('host');
+    const brunchId = await createBrunch({ host: host.user, locations: TWO_PLACES, times: TIMES });
+
+    // Hold the page's scripts back, so the server-rendered form is on screen and usable well
+    // before React has taken it over: what a person with a slow phone sees.
+    await host.page.route('**/_next/static/**', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 2500));
+      await route.continue();
+    });
+    await host.page.goto(`/brunch/${brunchId}/manage`, { waitUntil: 'commit' });
+
+    const deadline = daysFromNow(5, 18, 0);
+    const typed = datetimeLocalIn(deadline, 'America/Chicago');
+    const deadlineInput = host.page.getByLabel('Voting closes by');
+    await deadlineInput.fill(typed);
+
+    // Wait until React owns the page (it marks the nodes it has taken over), then let its
+    // first effects run: they must not wipe what was typed.
+    const saveButton = host.page.getByRole('button', { name: 'Save deadline' });
+    await expect
+      .poll(() =>
+        saveButton.evaluate((node) =>
+          Object.keys(node).some((key) => key.startsWith('__reactProps')),
+        ),
+      )
+      .toBe(true);
+    await expect(deadlineInput).toHaveValue(typed);
+
+    await saveButton.click();
+    await expect
+      .poll(async () =>
+        (await getDb().brunch.findFirst({ where: { id: brunchId } }))?.votingDeadline?.getTime(),
+      )
+      .toBe(deadline.getTime());
+  });
+});
