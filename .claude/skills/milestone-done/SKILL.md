@@ -25,6 +25,7 @@ pnpm typecheck && pnpm lint && pnpm test
 | DB behavior, a migration, or anything in `packages/core` that queries                              | `pnpm --filter @brunchsters/core test:integration` (needs local Supabase on port 54322; see `docs/SETUP.md` and earlier testing notes for the winnat and non-interactive Prisma workarounds)                                                  |
 | **Anything a user sees or does** — a screen, route, control, an observable rule, client-side logic | `pnpm test:e2e`; then the stress run `pnpm --filter @brunchsters/web exec playwright test --workers=4 --repeat-each=3`; then CI mode `CI=true pnpm build && CI=true pnpm test:e2e` (dev mode and the production build can behave differently) |
 
+- A milestone that changes nothing mounted or user-visible (for example plumbing that no layout uses yet) may skip the stress run and CI mode; say so, and why, in the testing note, and run both in the first milestone that does mount it.
 - If anything is red, **stop and report the output.** Do not commit a red branch. If the milestone can't be finished, offer a `wip:` checkpoint commit with a note instead.
 - Do not claim a check passed unless you ran it this turn. After the e2e runs, confirm nothing is left listening on port 3100.
 - If the milestone has no tests, it is not done. Flag it.
@@ -34,6 +35,12 @@ pnpm typecheck && pnpm lint && pnpm test
 Read each `- [ ]` bullet for this milestone and confirm the diff actually does it. Where reality diverged (a bullet was unnecessary, done differently, or a premise was wrong), do not silently tick it. Record the divergence in the testing note ("Correction to this milestone's original task list").
 
 **E2E bar (CLAUDE.md, "User-facing changes keep the E2E suite honest").** Ask of the diff: does it add or change a screen/control, a rule people can observe, anything involving more than one signed-in person, client-side logic, or fix a bug that was found by hand or in review? If yes, there must be a new or updated journey in `apps/web/e2e/journeys/` in this same commit. If the answer is yes and no journey exists, stop and say so rather than ticking the milestone. If no (refactor, backend-only already covered by integration tests, styling with accessible names unchanged), record the reason in one line in the testing note.
+
+**Lifecycle check (state that outlives its owner).** For every async operation and every piece of state that can outlive the component, form or request that started it, ask what happens when the result lands after a reset, unmount, replacement or second click, and check there is a test. (Spec 0010's review found a create failure that landed after the wizard was reset and left a stale error for the next visit; it was caught only by reading the diff as a reviewer.)
+
+**New runtime dependency.** Record first-load JS before and after in the testing note: build `main` first (`git checkout main && CI=true pnpm build`, then back), and read the per-route chunks from `apps/web/.next/app-build-manifest.json`, because the build table can under-report chunks that belong to a shared layout.
+
+**Introduces a pattern or convention** (a state layer, a library, a rule)? It is not done until the pattern is enforced where cheap (a lint rule or a test, proven to fire), documented where the next author will look (the scoped `CLAUDE.md`, with a recipe for adopting it elsewhere), and the deferred adoption is recorded in `PLANNING.md` §17.
 
 Quick self-check against CLAUDE.md rules on the new code: no `any` / `@ts-ignore`; business logic in `packages/core`, not components or pages; new schema has its migration committed and any new lookup table has seed entries; soft-deletable models' queries filter `deletedAt`; outsiders get 404 and members lacking privilege get 403 with membership checked first; emails are `Email` values from `normalizeEmail`.
 
@@ -48,6 +55,8 @@ Do it safely, because a careless restore destroys real work:
 3. Run only the targeted tests. Expect the targeted test(s) to fail and the rest to pass; a mutation that fails nothing means the test is vacuous.
 4. **Restore from the copy**, then confirm with `git diff` that the file matches what you intended to commit, and re-run the tests.
 5. If a path cannot be mutated cheaply, say so in the testing note instead of claiming it was checked.
+
+**Behavior-preserving refactors:** mutate the _rule being ported_ (a guard, a filter, a rollback), not just the new code, and see which _existing_ tests fail. If only a unit test fails, that is a coverage gap: say so in the testing note and either add a journey or record the gap (spec 0010: the stale-option filter had no journey until R4).
 
 Record each mutation and which test it failed in the testing note ("How").
 
@@ -93,4 +102,5 @@ Do not begin the next milestone.
 - Shell heredocs and `node -e "…"` containing backticks or nested quotes fail unpredictably in Git Bash. For anything multi-line, use the Write/Edit tools or a script file, not shell quoting.
 - Bash's `/tmp` is not the same directory Node sees on Windows. Put scratch files in the session scratchpad directory.
 - Playwright: Next.js keeps an empty `role="alert"` region on every page, so filter alerts by text; in dev mode the Next dev-tools button also matches a loose name like "Next", so use `exact: true`.
-- Prettier/lint-staged may rewrite files at commit time; that is expected.
+- Prettier/lint-staged may rewrite files at commit time; that is expected. After `pnpm add`, run `npx prettier --write pnpm-lock.yaml` or the lockfile diff is thousands of lines.
+- **Never write a regex or any backslash escape through a shell heredoc or a Python string.** A word-boundary escape in a regex became a literal backspace character in a Playwright spec, and two assertions silently tested nothing. Write such code with the Write/Edit tools, then look for stray control characters (`cat -A file` shows a backspace as `^H`).
