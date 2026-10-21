@@ -38,13 +38,13 @@ test.describe('I2 — an existing user follows an invite link', () => {
     await expect(guest.page.getByText('Current: yes')).toBeVisible();
 
     // ...and the RSVP control is where they change their mind.
-    await guest.page.getByRole('button', { name: 'maybe', exact: true }).click();
+    await guest.page.getByRole('button', { name: 'Maybe', exact: true }).click();
     await expect(guest.page.getByText('Current: maybe')).toBeVisible();
 
     await host.page.reload();
     await expect(inviteRow(host.page, guest.user.email)).toContainText('maybe');
 
-    await guest.page.getByRole('button', { name: 'no', exact: true }).click();
+    await guest.page.getByRole('button', { name: "Can't", exact: true }).click();
     await expect(guest.page.getByText('Current: no')).toBeVisible();
     await host.page.reload();
     await expect(inviteRow(host.page, guest.user.email)).toContainText('no');

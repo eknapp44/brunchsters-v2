@@ -117,6 +117,19 @@ export function ballot(page: Page): { readonly locations: Locator; readonly time
     page.locator('section').filter({
       has: page.getByRole('heading', { name: heading, exact: true }),
     });
+  return { locations: section('Where to?'), times: section('When?') };
+}
+
+// The host's option lists on /brunch/[id]/manage, found by their headings (the manage page keeps
+// "Locations" and "Times"; the brunch page's ballots are "Where to?" and "When?").
+export function manageOptions(page: Page): {
+  readonly locations: Locator;
+  readonly times: Locator;
+} {
+  const section = (heading: string): Locator =>
+    page.locator('section').filter({
+      has: page.getByRole('heading', { name: heading, exact: true }),
+    });
   return { locations: section('Locations'), times: section('Times') };
 }
 

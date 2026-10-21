@@ -101,6 +101,27 @@ for (const scheme of COLOR_SCHEMES) {
       await expect(maybe.page.getByText('Current: maybe')).toBeVisible();
       await expectNoA11yViolations(maybe.page, `detail, invitee who said maybe (${scheme})`);
 
+      // the same page at phone width: rows, helper lines and chips as a phone shows them
+      await maybe.page.setViewportSize({ width: 390, height: 844 });
+      await maybe.page.goto(detail);
+      await expect(maybe.page.getByText('Current: maybe')).toBeVisible();
+      await expectNoA11yViolations(maybe.page, `detail, invitee, phone width (${scheme})`);
+
+      // someone who said no can see the ballot but not vote on it
+      const declined = await makeActor('declined');
+      await useColorScheme(declined.page, scheme);
+      await addAttendee({
+        brunchId: voting.brunchId,
+        host: host.user,
+        user: declined.user,
+        response: 'no',
+      });
+      await declined.page.goto(detail);
+      await expect(
+        declined.page.getByText('Your RSVP does not allow voting.').first(),
+      ).toBeVisible();
+      await expectNoA11yViolations(declined.page, `detail, invitee who cannot vote (${scheme})`);
+
       await closeVoting({ brunchId: voting.brunchId, host: host.user });
       await yes.page.goto(detail);
       await expect(yes.page.getByText('Voting is closed.').first()).toBeVisible();

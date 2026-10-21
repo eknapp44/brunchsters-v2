@@ -59,14 +59,14 @@ test.describe('I3 — inviting more people later', () => {
     await expect(host.page.getByText('No invites sent yet.')).toBeVisible();
 
     await host.page.getByLabel('Invite more people').fill(first);
-    await host.page.getByRole('button', { name: 'Send Invite' }).click();
+    await host.page.getByRole('button', { name: 'Round up the crew' }).click();
     await expect(inviteRow(host.page, first)).toContainText('pending');
     await expect(host.page.getByText('Active', { exact: true })).toBeVisible();
     // The input is cleared, ready for the next one.
     await expect(host.page.getByLabel('Invite more people')).toHaveValue('');
 
     await host.page.getByLabel('Invite more people').fill(second);
-    await host.page.getByRole('button', { name: 'Send Invite' }).click();
+    await host.page.getByRole('button', { name: 'Round up the crew' }).click();
     await expect(inviteRow(host.page, second)).toContainText('pending');
     await expect(inviteRow(host.page, first)).toContainText('pending');
   });

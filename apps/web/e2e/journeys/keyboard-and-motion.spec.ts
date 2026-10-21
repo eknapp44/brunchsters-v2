@@ -88,7 +88,7 @@ test.describe('D4 — the keyboard alone', () => {
     await yes.page.goto(`/brunch/${voting.brunchId}`);
     await expect(yes.page.getByText('Current: yes')).toBeVisible();
 
-    await tabTo(yes.page, yes.page.getByRole('button', { name: 'no', exact: true }));
+    await tabTo(yes.page, yes.page.getByRole('button', { name: "Can't", exact: true }));
     await yes.page.keyboard.press('Space');
     await expect(yes.page.getByText('Current: no')).toBeVisible();
   });

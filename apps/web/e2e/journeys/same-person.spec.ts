@@ -29,7 +29,7 @@ test.describe('I7 — one address, one person', () => {
     const brunchId = await createBrunch({ host: host.user, title });
     const invite = async (typed: string): Promise<void> => {
       await host.page.getByLabel('Invite more people').fill(typed);
-      await host.page.getByRole('button', { name: 'Send Invite' }).click();
+      await host.page.getByRole('button', { name: 'Round up the crew' }).click();
       await expect(host.page.getByLabel('Invite more people')).toHaveValue('');
     };
 
@@ -95,7 +95,7 @@ test.describe('I7 — one address, one person', () => {
     // The host types it in yet another case.
     await host.page.goto(`/brunch/${brunchId}`);
     await host.page.getByLabel('Invite more people').fill(`CAPITAL-${suffix}@example.com`);
-    await host.page.getByRole('button', { name: 'Send Invite' }).click();
+    await host.page.getByRole('button', { name: 'Round up the crew' }).click();
     await expect(inviteRow(host.page, invitee.user.email)).toContainText('pending');
 
     // The invite found the existing account, so the brunch is on their dashboard already,
@@ -123,7 +123,7 @@ test.describe('I7 — one address, one person', () => {
     // The host has already invited this person, in lowercase.
     await host.page.goto(`/brunch/${brunchId}`);
     await host.page.getByLabel('Invite more people').fill(address);
-    await host.page.getByRole('button', { name: 'Send Invite' }).click();
+    await host.page.getByRole('button', { name: 'Round up the crew' }).click();
     await expect(inviteRow(host.page, address)).toContainText('pending');
 
     // The attendee suggests the same person with capitals; a second suggestion in a third

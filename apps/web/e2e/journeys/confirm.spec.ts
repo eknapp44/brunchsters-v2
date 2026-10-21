@@ -91,7 +91,7 @@ test.describe('H3 — confirming the brunch', () => {
     await expect(ann.page.getByRole('heading', { name: 'Suggest a Location' })).toHaveCount(0);
     await expect(ann.page.getByRole('heading', { name: 'Suggest a Time' })).toHaveCount(0);
     // ...but RSVP stays open: people can still change their answer.
-    await ann.page.getByRole('button', { name: 'maybe', exact: true }).click();
+    await ann.page.getByRole('button', { name: 'Maybe', exact: true }).click();
     await expect(ann.page.getByText('Current: maybe')).toBeVisible();
   });
 });

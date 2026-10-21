@@ -8,6 +8,7 @@ import { Eyebrow } from '@/components/ui/Eyebrow';
 import { InitialsAvatar } from '@/components/ui/InitialsAvatar';
 import { statusTone } from '@/components/ui/statusTone';
 import { dashboardStatusLabel } from '@/lib/brunchCopy';
+import { silentLine } from '@/lib/brunchPageFormat';
 import { closesIn, daysUntilLabel, formatWhen, goingLabel } from '@/lib/dashboardFormat';
 import styles from './NextUpCard.module.css';
 
@@ -44,13 +45,9 @@ function Roster(props: { readonly roster: BrunchRoster }): ReactElement {
   const shown = people.slice(0, DESKTOP_LIMIT);
   const moreOnDesktop = people.length - shown.length;
   const moreOnPhone = people.length - PHONE_LIMIT;
-  const silent =
-    roster.kind === 'member'
-      ? [
-          roster.counts.no > 0 ? `${roster.counts.no} can't make it` : undefined,
-          roster.counts.pending > 0 ? `${roster.counts.pending} haven't said yet` : undefined,
-        ].filter((text): text is string => text !== undefined)
-      : [];
+  // A member is told about the people who said no or have not answered only as numbers; the host
+  // already has them in the list.
+  const silent = roster.kind === 'member' ? silentLine(roster.counts) : undefined;
 
   return (
     <div className={styles.who}>
@@ -76,7 +73,7 @@ function Roster(props: { readonly roster: BrunchRoster }): ReactElement {
         {moreOnPhone > 0 && <div className={styles.morePhone}>+{moreOnPhone} more</div>}
         {moreOnDesktop > 0 && <div className={styles.moreDesktop}>+{moreOnDesktop} more</div>}
       </div>
-      {silent.length > 0 && <p className={styles.silent}>{silent.join(' · ')}</p>}
+      {silent !== undefined && <p className={styles.silent}>{silent}</p>}
     </div>
   );
 }

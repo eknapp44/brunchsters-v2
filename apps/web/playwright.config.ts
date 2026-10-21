@@ -52,6 +52,7 @@ export default defineConfig({
         '**/voting.spec.ts',
         '**/confirm.spec.ts',
         '**/design-fidelity.spec.ts',
+        '**/brunch-page.spec.ts',
       ],
     },
   ],

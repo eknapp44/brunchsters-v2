@@ -13,6 +13,7 @@ const DB_ROW = {
   title: 'Weekend Brunch',
   description: 'Pancakes and mimosas',
   hostId: HOST_ID,
+  host: { name: 'Sam Liu' },
   status: { code: 'draft', label: 'Draft' },
   attendees: [{ rsvpStatus: { code: 'yes' } }],
   allowInviteSuggestions: true,
@@ -38,6 +39,7 @@ describe('getBrunchById', () => {
       id: BRUNCH_ID,
       title: 'Weekend Brunch',
       description: 'Pancakes and mimosas',
+      hostName: 'Sam Liu',
       statusCode: 'draft',
       statusLabel: 'Draft',
       isHost: false,
@@ -102,6 +104,7 @@ describe('getBrunchById', () => {
           ],
         }),
         include: expect.objectContaining({
+          host: { select: { name: true } },
           attendees: expect.objectContaining({
             where: { userId: VIEWER_ID, deletedAt: null },
           }),

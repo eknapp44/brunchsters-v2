@@ -59,7 +59,7 @@
   /* the fill behind a voting row, proportional to its votes: quieter than a selected row
      (--accent-soft) so a bar is never read as a choice. Decorative: the count badge carries the
      number. Text on it is checked like text on a card. */
-  --bar: oklch(0.955 0.035 85);
+  --bar: oklch(0.972 0.02 85);
 
   /* secondary delight color, used very sparingly (confirm states) */
   --mint: oklch(0.84 0.085 165);
@@ -158,7 +158,7 @@
 
     --wash-a: oklch(0.27 0.045 78);
     --wash-b: oklch(0.23 0.03 40);
-    --bar: oklch(0.27 0.025 78);
+    --bar: oklch(0.24 0.02 78);
 
     --mint: oklch(0.82 0.085 165);
     --mint-fg: oklch(0.22 0.06 165);

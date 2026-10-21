@@ -38,7 +38,7 @@ test.describe('N1 — an invite email brings the invitee in', () => {
 
     await host.page.goto(`/brunch/${brunchId}`);
     await host.page.getByLabel('Invite more people').fill(guest.user.email);
-    await host.page.getByRole('button', { name: 'Send Invite' }).click();
+    await host.page.getByRole('button', { name: 'Round up the crew' }).click();
     await expect(inviteRow(host.page, guest.user.email)).toContainText('pending');
 
     const email = only(await waitForEmails({ to: guest.user.email, count: 1 }));
@@ -67,7 +67,7 @@ test.describe('N1 — an invite email brings the invitee in', () => {
 
     await host.page.goto(`/brunch/${brunchId}`);
     await host.page.getByLabel('Invite more people').fill(newcomer);
-    await host.page.getByRole('button', { name: 'Send Invite' }).click();
+    await host.page.getByRole('button', { name: 'Round up the crew' }).click();
     await expect(inviteRow(host.page, newcomer)).toContainText('pending');
 
     const email = only(await waitForEmails({ to: newcomer, count: 1 }));
@@ -87,7 +87,7 @@ test.describe('N2 — a resend retires the old email’s link', () => {
 
     await host.page.goto(`/brunch/${brunchId}`);
     await host.page.getByLabel('Invite more people').fill(invitee);
-    await host.page.getByRole('button', { name: 'Send Invite' }).click();
+    await host.page.getByRole('button', { name: 'Round up the crew' }).click();
     await expect(inviteRow(host.page, invitee)).toContainText('pending');
     await waitForEmails({ to: invitee, count: 1 });
 

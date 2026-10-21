@@ -7,6 +7,9 @@ export type BrunchDetail = {
   readonly id: BrunchId;
   readonly title: string;
   readonly description: string | undefined;
+  // The host's name, for "{host} wants you at brunch". Members only: the read already requires
+  // the viewer to be the host or a live attendee.
+  readonly hostName: string;
   readonly statusCode: string;
   readonly statusLabel: string;
   readonly isHost: boolean;
@@ -46,6 +49,7 @@ export async function getBrunchById(
     },
     include: {
       status: true,
+      host: { select: { name: true } },
       // Scoped to the viewer only — this is an authorized single-viewer read,
       // never a full attendee list (that's getInvitesForBrunch, host-only).
       attendees: {
@@ -68,6 +72,7 @@ export async function getBrunchById(
     id: brunch.id as BrunchId,
     title: brunch.title,
     description: brunch.description ?? undefined,
+    hostName: brunch.host.name,
     statusCode: brunch.status.code,
     statusLabel: brunch.status.label,
     isHost: brunch.hostId === input.viewerId,

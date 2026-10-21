@@ -134,6 +134,7 @@ export type { DashboardGroups } from './brunch/presentation/groupDashboard';
 export { isPastBrunch } from './brunch/presentation/isPastBrunch';
 export type { DashboardFacts } from './brunch/presentation/isPastBrunch';
 export { pickNextUp } from './brunch/presentation/pickNextUp';
+export { barPercent, leadingOptionId } from './brunch/presentation/leadingOptionId';
 export { isVoteWaiting } from './brunch/presentation/isVoteWaiting';
 export type { VotableList } from './brunch/presentation/isVoteWaiting';
 export { sendInvites, sendInvitesRequestSchema } from './invite/sendInvites';

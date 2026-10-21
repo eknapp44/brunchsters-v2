@@ -3,7 +3,7 @@ import { createBrunch, uniqueSuffix } from '../support/factories';
 import { expect, test } from '../support/fixtures';
 import { fixturePlaces } from '../support/places';
 import { daysFromNow, datetimeLocalIn } from '../support/time';
-import { addAttendee, ballot, castVotes } from '../support/voting';
+import { addAttendee, ballot, castVotes, manageOptions } from '../support/voting';
 
 // Journeys H1, H4 and H5 (spec 0005 "Host manages the ballot", "Where the screens live").
 
@@ -43,7 +43,7 @@ test.describe('H1 — the host edits the options', () => {
     const pacific = fixturePlaces.pacificBrunchHouse;
 
     await host.page.goto(`/brunch/${brunchId}/manage`);
-    const { locations } = ballot(host.page);
+    const { locations } = manageOptions(host.page);
     const row = (name: string) => locations.getByRole('listitem').filter({ hasText: name });
     // Each option shows its vote count.
     await expect(row(fixturePlaces.sunnySide.name)).toContainText('(1 vote)');
@@ -136,7 +136,7 @@ test.describe('H5 — historic bug: removing the option selected for confirming'
 
     // Post-M8 bug: after removing the selected option the radio showed nothing checked, yet
     // the Confirm button stayed clickable and would have submitted a vanished option.
-    await ballot(host.page)
+    await manageOptions(host.page)
       .locations.getByRole('listitem')
       .filter({ hasText: fixturePlaces.sunnySide.name })
       .getByRole('button', { name: 'Remove' })
@@ -202,7 +202,7 @@ test.describe('H8 — managing a draft brunch', () => {
     await host.page.getByRole('link', { name: 'Invite people from the brunch page' }).click();
     await expect(host.page).toHaveURL(`/brunch/${brunchId}`);
     await host.page.getByLabel('Invite more people').fill(guestEmail);
-    await host.page.getByRole('button', { name: 'Send Invite' }).click();
+    await host.page.getByRole('button', { name: 'Round up the crew' }).click();
     await expect(host.page.getByText('Active', { exact: true })).toBeVisible();
 
     // Back on the manage screen everything is available, and confirming works.

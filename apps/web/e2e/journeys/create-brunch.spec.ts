@@ -2,6 +2,7 @@ import { EMPTY_DASHBOARD_HEADLINE } from '../support/dashboard';
 import { getDb } from '../support/db';
 import { uniqueSuffix } from '../support/factories';
 import { expect, test } from '../support/fixtures';
+import { inviteRow } from '../support/invites';
 import { fixturePlaces } from '../support/places';
 import { daysFromNow, toDatetimeLocalValue } from '../support/time';
 import { BrunchWizard } from '../support/wizard';
@@ -62,8 +63,8 @@ test.describe('C1 — host creates a brunch with the wizard', () => {
       host.page.getByRole('checkbox', { name: new RegExp(`^${fixturePlaces.harborBistro.name}`) }),
     ).toBeVisible();
     await expect(host.page.getByRole('checkbox')).toHaveCount(4);
-    await expect(host.page.getByText(guestOne)).toBeVisible();
-    await expect(host.page.getByText(guestTwo)).toBeVisible();
+    await expect(inviteRow(host.page, guestOne)).toBeVisible();
+    await expect(inviteRow(host.page, guestTwo)).toBeVisible();
 
     // What the browser round trip actually persisted.
     const db = getDb();

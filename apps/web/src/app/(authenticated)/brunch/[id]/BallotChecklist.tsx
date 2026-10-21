@@ -16,6 +16,8 @@ type LocationOption = {
   readonly voteCount: number;
   readonly viewerVoted: boolean;
   readonly voters: readonly string[] | undefined;
+  // How full the quiet bar behind the row is, 0 to 100 (barPercent in core): decorative.
+  readonly barPercent: number;
 };
 
 type TimeOption = {
@@ -25,7 +27,22 @@ type TimeOption = {
   readonly voteCount: number;
   readonly viewerVoted: boolean;
   readonly voters: readonly string[] | undefined;
+  readonly barPercent: number;
 };
+
+const HELPER = 'Pick any you like — change it anytime before voting closes.';
+
+// The quiet fill behind a voting row, proportional to its votes. It is decoration (the vote count
+// is the information), so it is hidden from assistive technology, and a selected row hides it
+// (the selection is shown by its border, tick and tint, never competing with a second fill).
+function Bar({ percent }: { readonly percent: number }) {
+  return <span className={styles.bar} aria-hidden="true" style={{ width: `${percent}%` }} />;
+}
+
+// "leading": only ever on the single top option (core decides: a tie or no votes has none).
+function LeadingTag({ show }: { readonly show: boolean }) {
+  return show ? <Badge tone="accent">leading</Badge> : null;
+}
 
 function voteCountLabel(voteCount: number): string {
   return `${voteCount} vote${voteCount === 1 ? '' : 's'}`;
@@ -83,6 +100,7 @@ export function LocationBallotChecklist({
   canVote,
   closed,
   suggestionsEnabled,
+  leadingId,
   votable,
 }: {
   readonly brunchId: string;
@@ -90,6 +108,7 @@ export function LocationBallotChecklist({
   readonly canVote: boolean;
   readonly closed: boolean;
   readonly suggestionsEnabled: boolean;
+  readonly leadingId: string | undefined;
   // false in host_decides mode (0 or 1 option) — spec 0005 shows a checklist
   // only "for each kind with more than one option"; a single candidate (or
   // none yet) is display-only, with no checkbox and no vote count shown
@@ -106,6 +125,8 @@ export function LocationBallotChecklist({
   });
 
   if (!votable) {
+    // Once the one option is confirmed, the card's large result above already says it.
+    if (options.length > 0 && options.every((option) => option.isConfirmed)) return null;
     return (
       <ul className={styles.rows} role="list">
         {options.length === 0 && (
@@ -131,6 +152,7 @@ export function LocationBallotChecklist({
 
   return (
     <>
+      {!closed && canVote && <p className={`${styles.helper} ${styles.phoneHidden}`}>{HELPER}</p>}
       {closed && (
         <InlineAlert>
           <p>Voting is closed.</p>
@@ -146,6 +168,7 @@ export function LocationBallotChecklist({
         {options.map((option) => (
           <li key={option.id}>
             <label className={styles.option}>
+              <Bar percent={option.barPercent} />
               <input
                 type="checkbox"
                 checked={selected.has(option.id)}
@@ -154,14 +177,17 @@ export function LocationBallotChecklist({
               />
               <span className={styles.optionBody}>
                 <span className={styles.optionHead}>
-                  <a
-                    className={styles.name}
-                    href={option.placeUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    {option.placeName}
-                  </a>
+                  <span className={styles.nameLine}>
+                    <a
+                      className={styles.name}
+                      href={option.placeUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {option.placeName}
+                    </a>
+                    <LeadingTag show={option.id === leadingId} />
+                  </span>
                   <Badge>{voteCountLabel(option.voteCount)}</Badge>
                 </span>
                 <span className={styles.detail}>{option.placeAddress}</span>
@@ -190,6 +216,7 @@ export function TimeBallotChecklist({
   suggestionsEnabled,
   locationTimezone,
   locationName,
+  leadingId,
   votable,
 }: {
   readonly brunchId: string;
@@ -197,6 +224,7 @@ export function TimeBallotChecklist({
   readonly canVote: boolean;
   readonly closed: boolean;
   readonly suggestionsEnabled: boolean;
+  readonly leadingId: string | undefined;
   readonly locationTimezone: string | undefined;
   readonly locationName: string | undefined;
   // See LocationBallotChecklist's votable doc — same host_decides rule.
@@ -250,6 +278,8 @@ export function TimeBallotChecklist({
     );
   }
   if (!votable) {
+    // Once the one option is confirmed, the card's large result above already says it.
+    if (options.length > 0 && options.every((option) => option.isConfirmed)) return null;
     return (
       <ul className={styles.rows} role="list">
         {options.length === 0 && <li className={`${styles.row} ${styles.muted}`}>No times yet.</li>}
@@ -270,6 +300,7 @@ export function TimeBallotChecklist({
 
   return (
     <>
+      {!closed && canVote && <p className={`${styles.helper} ${styles.phoneHidden}`}>{HELPER}</p>}
       {closed && (
         <InlineAlert>
           <p>Voting is closed.</p>
@@ -285,6 +316,7 @@ export function TimeBallotChecklist({
         {options.map((option) => (
           <li key={option.id}>
             <label className={styles.option}>
+              <Bar percent={option.barPercent} />
               <input
                 type="checkbox"
                 checked={selected.has(option.id)}
@@ -293,7 +325,10 @@ export function TimeBallotChecklist({
               />
               <span className={styles.optionBody}>
                 <span className={styles.optionHead}>
-                  <span className={styles.name}>{timeText(option)}</span>
+                  <span className={styles.nameLine}>
+                    <span className={styles.name}>{timeText(option)}</span>
+                    <LeadingTag show={option.id === leadingId} />
+                  </span>
                   <Badge>{voteCountLabel(option.voteCount)}</Badge>
                 </span>
                 {zoneNote(option) !== undefined && (

@@ -4,7 +4,7 @@ import { expect, test } from '../support/fixtures';
 import { fixturePlaces } from '../support/places';
 import { captureReviewShots } from '../support/screenshots';
 import { createConfirmedBrunch, createVotingBrunch, inviteNewcomer } from '../support/showcase';
-import { closeVoting } from '../support/voting';
+import { addAttendee, castVotes, closeVoting } from '../support/voting';
 import { BrunchWizard } from '../support/wizard';
 
 // The review set (spec 0009): one picture of every screen, light and dark, desktop and phone,
@@ -87,6 +87,14 @@ test('brunch detail and manage, as host and as invitee', async ({ makeActor }, t
     title: 'Birthday Brunch',
   });
 
+  // a second voter, so the quiet bars have something to show: Sunny Side Cafe leads 2 to 1
+  await castVotes({
+    brunchId: voting.brunchId,
+    voter: maybe.user,
+    places: [fixturePlaces.sunnySide.name, fixturePlaces.harborBistro.name],
+    times: [1],
+  });
+
   await host.page.goto(`/brunch/${voting.brunchId}`);
   await expect(host.page.getByRole('heading', { name: voting.title })).toBeVisible();
   await captureReviewShots(host.page, 'brunch-host-voting', testInfo);
@@ -98,6 +106,18 @@ test('brunch detail and manage, as host and as invitee', async ({ makeActor }, t
   await yes.page.goto(`/brunch/${voting.brunchId}`);
   await expect(yes.page.getByRole('heading', { name: voting.title })).toBeVisible();
   await captureReviewShots(yes.page, 'brunch-invitee-voting', testInfo);
+
+  // someone who said no sees the ballot, read-only
+  const declined = await makeActor('declined');
+  await addAttendee({
+    brunchId: voting.brunchId,
+    host: host.user,
+    user: declined.user,
+    response: 'no',
+  });
+  await declined.page.goto(`/brunch/${voting.brunchId}`);
+  await expect(declined.page.getByText('Your RSVP does not allow voting.').first()).toBeVisible();
+  await captureReviewShots(declined.page, 'brunch-invitee-cannot-vote', testInfo);
 
   // someone invited who has not answered is not a member yet, so the page is a 404
   await pending.page.goto(`/brunch/${voting.brunchId}`);
@@ -112,6 +132,10 @@ test('brunch detail and manage, as host and as invitee', async ({ makeActor }, t
   await host.page.goto(`/brunch/${confirmed.brunchId}`);
   await expect(host.page.getByRole('heading', { name: confirmed.title })).toBeVisible();
   await captureReviewShots(host.page, 'brunch-host-confirmed', testInfo);
+
+  await yes.page.goto(`/brunch/${confirmed.brunchId}`);
+  await expect(yes.page.getByRole('heading', { name: 'Brunch on.', exact: true })).toBeVisible();
+  await captureReviewShots(yes.page, 'brunch-invitee-confirmed', testInfo);
 
   await host.page.goto(`/brunch/${confirmed.brunchId}/manage`);
   await expect(host.page.getByRole('heading', { name: 'Confirmed', exact: true })).toBeVisible();
