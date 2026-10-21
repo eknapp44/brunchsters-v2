@@ -111,10 +111,10 @@ Hide on phone, never the only source of a fact: the "N brunches" count, the help
 
 ### Tooling and shared look (M1)
 
-- [ ] `pnpm --filter @brunchsters/web boards` renders the prototype scenes (and Design v3's artboards) and the app's matching screens and writes side-by-side boards, light and dark, desktop and phone; it serves from a scratch copy so `prototype/` and `design-docs/` are never edited, and stops its server when it ends
-- [ ] The warm background wash, the butter panel, the vote-bar tint and the initials-avatar colors are tokens with dark values; every pair that carries text is in `tokenContrast.test.ts`; `styleGuard.test.ts` still passes
-- [ ] New primitives in `components/ui/`: `Eyebrow`, `DateTile`, `Pill` (a `Badge` tone with an optional decorative icon), `InitialsAvatar` (deterministic color from the person's id, no image path) and a `Panel` tone for the butter card; the nav avatar is initials too
-- [ ] Phone top bar: initials and Sign out, name visually hidden but still announced
+- [x] `pnpm --filter @brunchsters/web boards` photographs the prototype scenes and writes side-by-side boards with the app's screenshots, light and dark, desktop and phone (the prototype's phone scenes draw through a stand-in for its missing `ios-frame.jsx`; the prototype has no dark mode, so its dark boards are its light scene); it serves from a scratch copy so `prototype/` and `design-docs/` are never edited, and stops its server when it ends. The Design v3 canvas is placed in the scratch copy but not photographed yet (nothing needs its artboards until M5)
+- [x] The warm page wash (`--wash-a`, `--wash-b`) and the vote-bar tint (`--bar`) are tokens with dark values; the butter panel is the existing `--accent-soft` (`Card tone="accent"`) and the avatar colors are the existing `--pop-*` family, so no duplicate tokens; every pair that carries text is in `tokenContrast.test.ts` (initials are held to the 4.5:1 text ratio); `styleGuard.test.ts` still passes
+- [x] New primitives in `components/ui/`: `Eyebrow`, `DateTile`, `InitialsAvatar` (deterministic color from a seed, no image path); `Badge` gains an optional decorative icon (it is the "Pill"); the nav avatar is initials too
+- [x] Phone top bar: initials and Sign out, name visually hidden but still announced (the hiding already existed from spec 0009; M1 made the avatar initials)
 
 ### Schema
 
@@ -122,7 +122,7 @@ Hide on phone, never the only source of a fact: the "N brunches" count, the help
 
 ### Services (`packages/core`, `packages/shared`)
 
-- [ ] `@brunchsters/shared`: `formatPersonName` (`First L.`; single names and trailing spaces handled; host sees the full name) and `initialsOf` shared by the web `Avatar` and the roster
+- [ ] `@brunchsters/shared`: `formatPersonName` (`First L.`; single names and trailing spaces handled; host sees the full name) and `initialsOf` and `avatarColorIndex` shared by the web `InitialsAvatar` and the roster
 - [ ] `getBrunchesForUser` also returns `description`, the confirmed `scheduledAt` with its place name and timezone, `votingDeadline` and `votesWaiting`, in one query (no per-brunch round trips)
 - [ ] Pure, unit-tested rules: `isVoteWaiting`, `pickNextUp` (ties by newest created), `isPastBrunch` (confirmed and its time has passed, or completed or cancelled), `leadingOptionId` (single top option only)
 - [ ] `getBrunchRoster({ brunchId, viewerId })` returns `undefined` unless the viewer is the host or a live attendee (membership first, via `isBrunchMember`); host view: every attendee by full name and state, plus un-accepted invites as email; other members: `First L.` for yes and maybe, "You" for the viewer, counts for no and not-yet; soft-deleted attendees excluded; integration tests against the local database, including an outsider case indistinguishable from a made-up id
@@ -145,10 +145,10 @@ Hide on phone, never the only source of a fact: the "N brunches" count, the help
 
 ### Docs (adoption, not tacked on)
 
-- [ ] `apps/web/CLAUDE.md`: new "Voice and copy" (the rules, the copy table pointer, emoji dial, the display mapping), "Phone" (the omissions rule) and "Derived presentation rules live in core" sections; the accessible-names section lists the names this spec changed
+- [ ] `apps/web/CLAUDE.md` (the three sections are written in M1; the accessible-names list is filled as each milestone changes names): new "Voice and copy" (the rules, the copy table pointer, emoji dial, the display mapping), "Phone" (the omissions rule) and "Derived presentation rules live in core" sections; the accessible-names section lists the names this spec changed
 - [ ] `PLANNING.md` §17: RSVP visibility reworded (ADR 0012); deferrals added (below); §16 roadmap marks this spec
 - [ ] `specs/0009-styling-foundation/spec.md` "Outcome" points to this spec and ADR 0012
-- [ ] `docs/SETUP.md`: the `boards` command
+- [x] `docs/SETUP.md`: the `boards` command
 - [ ] The `/spec-grill` skill asks about phone behavior and voice for any new screen
 
 ---

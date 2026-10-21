@@ -12,7 +12,8 @@ Scoped to the web app. The repo-wide rules are in the root `CLAUDE.md`; why the 
 ## Writing components
 
 - **CSS Modules, next to the component** (`Foo.tsx` + `Foo.module.css`). No Tailwind, no runtime CSS-in-JS, no component library (decide that with the first dialog or popover).
-- **Compose the primitives in `src/components/ui/`** (Button, ButtonLink, Field, Card, Badge, Avatar, InlineAlert, Container, Hero, SkipLink) instead of restyling raw elements. Icons and artwork (`components/icons`, `components/art`) are inline SVG and always decorative (`aria-hidden`).
+- **Compose the primitives in `src/components/ui/`** (Button, ButtonLink, Field, Card, Badge, InitialsAvatar, Eyebrow, DateTile, InlineAlert, Container, Hero, SkipLink) instead of restyling raw elements. Icons and artwork (`components/icons`, `components/art`) are inline SVG and always decorative (`aria-hidden`). A `Badge` may carry a decorative icon; the butter panel is `Card tone="accent"`.
+- **A person is initials on a color, never a photo** (`InitialsAvatar`, ADR 0012). Photos wait for a Settings spec with an opt-in. Pass a stable `seed` (an id, or an email for someone who has not signed in); use `decorative` only where the name is written beside it.
 - **One primary action per screen** (Constitution 24): one `variant="primary"` button. Revoke/Remove are `danger`, everything else `secondary` or `ghost`.
 - **Global element styles are zero-specificity (`:where()`)**, so a component's class always wins. A `<main>` that is not a `Container` or `Hero` still gets a width from the global rule; opt out explicitly.
 
@@ -51,10 +52,33 @@ The journeys find things by role, label and text. A restyle must not change them
 - **Widths:** `Container` is the wide app page (`--page-width`, 68rem); `size="narrow"` is one column of form content (`--content-width`, the wizard); `Hero` is a centered column on the gradient. On a wide screen a page uses two columns from 60rem (`.columns` / `.column` in `brunch/[id]/detail.module.css`); each column is a consecutive group in page order, so reading and tab order do not change.
 - **Touch targets are at least 44px** (a `sm` button grows to 44px on a touch screen). Focus is always visible. Animation respects `prefers-reduced-motion` (the base styles reduce it; do not undo that).
 
+## Phone
+
+Phone is the base style and the place to be strict about space (spec 0011). Leave things out instead of squeezing them:
+
+- **Drop repetition and secondary lines, never the only source of a fact.** Allowed: a count that repeats a heading, a helper line under a list heading, a chip that repeats the header's, the top bar's name (visually only: it stays in the accessibility tree), the wizard's top Cancel when the footer has one. Not allowed: hiding something a person could not learn elsewhere on the same screen.
+- Rows go vertical on phone (a date tile, then the title, one line, then the pill and count) and long lists show a few items plus "+N more" (the next-up roster shows three).
+- Collapsing sections is not used yet; it is decided after a real-phone review (PLANNING §17). Do not add collapsible or auto-collapsing sections without that decision.
+- A change to a screen is judged on the phone board as well as the desktop one.
+
+## Voice and copy
+
+The voice is `design-docs/Brand Voice.html`; the line-by-line rewrites are `design-docs/Copy Pass.html`; what spec 0011 adopted, adapted and refused is the copy table in `specs/0011-design-fidelity/plan.md`. Check it before writing a string.
+
+- **Friend, not service.** Verbs over nouns, specific over generic, no corporate words (event, attendees, leverage, engage, community, "action required", "successfully").
+- **Emoji at moments, not in labels that carry state.** Greetings, celebrations, the empty state. Emoji are always `aria-hidden`, so the accessible name is the words ("I'm in", not "🙌 I'm in"). The RSVP buttons are the one place an emoji sits in a control, by the owner's choice.
+- **Do not promise what the app does not do** (no "we'll try again" without a retry). Error wording belongs to the feedback-surfaces spec; the generic error strings stay as they are until then.
+- **Status wording on the dashboard is a display mapping** (`src/lib/brunchCopy.ts`, M2), not a change to the status lookup table; the brunch page badge keeps the lookup label and the exact-text rule below. A test fails when a seeded status code has no mapping.
+- A copy change is a journey change: list the names it touches before making it.
+
+## Derived presentation rules live in core
+
+Anything a screen shows that depends on a rule (the leading option, "a vote is waiting on you", which brunch is next up, whether a brunch is past, who may see whose name) is a pure function in `packages/core`, unit-tested, and the Server Component only formats and draws it (ADR 0012). A component never decides who is leading or who may see a name. The roster is a service with the membership check first; its member view has no type for an email, an id, or a "no" name.
+
 ## Checking a screen
 
 - **Axe** (`e2e/journeys/accessibility.spec.ts`, journey D2): add every new screen and state, in light and dark.
 - **Layout** (`responsive-layout.spec.ts`, D3): add the screen so it is checked for sideways scrolling and its main action on screen, on a desktop and a phone. The `mobile` Playwright project runs a chosen subset of journeys at phone width; add a journey there when it is part of the core path.
 - **Keyboard and motion** (`keyboard-and-motion.spec.ts`, D4) when a screen adds a main path.
-- **Look at it:** `pnpm --filter @brunchsters/web screenshots` writes every screen (light/dark, desktop/tablet/phone) to `apps/web/.screenshots/`. Add the new screen to `e2e/screenshots/review.spec.ts`.
+- **Look at it:** `pnpm --filter @brunchsters/web screenshots` writes every screen (light/dark, desktop/tablet/phone) to `apps/web/.screenshots/`. Add the new screen to `e2e/screenshots/review.spec.ts`. `pnpm --filter @brunchsters/web boards` then puts the prototype next to each screen (`.screenshots/board-*.png`); a design-fidelity milestone is reviewed with those, light and dark, desktop and phone.
 - Per the root `CLAUDE.md`, a new or changed user-facing screen also needs its journey; styling-only changes need `pnpm test:e2e` to pass unmodified.

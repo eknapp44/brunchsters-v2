@@ -1,0 +1,49 @@
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  line-height: 1;
+  border-radius: 50%;
+}
+
+.lg {
+  width: 2.5rem;
+  height: 2.5rem;
+  font-size: var(--text-sm);
+}
+
+/* The six colors are the Pop palette (tokens.css), each checked for initials in tokenContrast. */
+.color0 {
+  color: var(--pop-butter-fg);
+  background: var(--pop-butter);
+}
+
+.color1 {
+  color: var(--pop-tomato-fg);
+  background: var(--pop-tomato);
+}
+
+.color2 {
+  color: var(--pop-mint-fg);
+  background: var(--pop-mint);
+}
+
+.color3 {
+  color: var(--pop-peri-fg);
+  background: var(--pop-peri);
+}
+
+.color4 {
+  color: var(--pop-peach-fg);
+  background: var(--pop-peach);
+}
+
+.color5 {
+  color: var(--pop-lavender-fg);
+  background: var(--pop-lavender);
+}

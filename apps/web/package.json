@@ -10,7 +10,8 @@
     "test": "vitest run",
     "e2e:db:reset": "tsx scripts/e2e-db-reset.ts",
     "test:e2e": "pnpm e2e:db:reset && playwright test",
-    "screenshots": "pnpm e2e:db:reset && playwright test --config playwright.screenshots.config.ts"
+    "screenshots": "pnpm e2e:db:reset && playwright test --config playwright.screenshots.config.ts",
+    "boards": "tsx scripts/boards.ts"
   },
   "dependencies": {
     "@brunchsters/core": "workspace:*",

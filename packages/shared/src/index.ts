@@ -14,3 +14,10 @@ export type {
 } from './types/ids';
 export { normalizeEmail } from './email';
 export { MAX_INVITES_PER_REQUEST } from './invites';
+export {
+  AVATAR_COLOR_COUNT,
+  avatarColorIndex,
+  formatPersonName,
+  initialsOf,
+  type PersonNameAudience,
+} from './people';
