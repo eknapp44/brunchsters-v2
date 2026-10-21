@@ -213,6 +213,17 @@ git commit -m "feat(...): ..."   # commit at each green milestone
 supabase stop             # when done for the day (frees Docker resources)
 ```
 
+### Clearing your test brunches
+
+After a while the dashboard fills with test brunches. Until the app can archive or delete a brunch itself (the brunch lifecycle spec), a developer script clears one person's out of the **local** database:
+
+```bash
+pnpm db:clear-brunches you@example.com            # shows what it would clear; changes nothing
+pnpm db:clear-brunches you@example.com --apply    # clears it
+```
+
+It soft-deletes (sets `deletedAt`, the app's default for major entities): every brunch the person **hosts** (it goes for everyone in it) and the person's own place in brunches they only **attend** (it goes for them alone). Nothing is lost; clearing a row's `deletedAt` brings it back. It refuses to run against any database that is not on `127.0.0.1` or `localhost`, and it asks for an email so it can never clear everyone's. Behavior and the safety checks are covered by `packages/core/src/brunch/clearBrunchesScript.integration.test.ts`.
+
 ---
 
 ## 7. 30-Second Smoke Test
