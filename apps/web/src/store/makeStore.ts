@@ -8,7 +8,7 @@ export type ThunkExtra = {
   readonly fetch: typeof fetch;
 };
 
-// Slices are added here as they are introduced (spec 0010: wizard in M2, ballots in M3).
+// New slices are added here (ADR 0011; see the State section of apps/web/CLAUDE.md).
 const rootReducer = combineReducers({ wizard: wizardReducer, ballots: ballotsReducer });
 
 export type RootState = ReturnType<typeof rootReducer>;
