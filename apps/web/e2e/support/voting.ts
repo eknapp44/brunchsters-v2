@@ -184,3 +184,14 @@ export async function closeVoting(params: {
     'closeVoting',
   );
 }
+
+// A confirmed brunch's time passes by itself; no service puts a confirmed time in the past (they
+// all require a future one), and the server's clock cannot be moved from a test. So, like
+// `passVotingDeadline`, this reaches state directly, leaving the brunch exactly as it is the day
+// after it happened: still `confirmed`, nobody having acted.
+export async function passConfirmedTime(brunchId: BrunchId): Promise<void> {
+  await getDb().brunchTime.updateMany({
+    where: { brunchId, isConfirmed: true },
+    data: { scheduledAt: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+  });
+}

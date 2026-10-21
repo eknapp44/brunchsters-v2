@@ -3,8 +3,15 @@ import type { Locator, Page } from '@playwright/test';
 import { createBrunch, uniqueSuffix } from '../support/factories';
 import { expect, test } from '../support/fixtures';
 import { fixturePlaces } from '../support/places';
-import { createVotingBrunch } from '../support/showcase';
-import { addAttendee, castVotes, closeVoting, confirmBrunch } from '../support/voting';
+import { createConfirmedBrunch, createVotingBrunch } from '../support/showcase';
+import {
+  addAttendee,
+  castVotes,
+  closeVoting,
+  confirmBrunch,
+  passConfirmedTime,
+} from '../support/voting';
+
 type BoundingBox = {
   readonly x: number;
   readonly y: number;
@@ -13,8 +20,9 @@ type BoundingBox = {
 };
 
 // Spec 0011 (design fidelity), the dashboard: the time-aware greeting (P1), the next-up card and
-// who is coming (P2), the "vote waiting" pill (P3), and the phone layout (P11). Journeys for the
-// brunch page, the wizard and the front door are added with their milestones.
+// who is coming (P2), the "vote waiting" pill (P3), a confirmed brunch whose time has passed
+// (P4), and the phone layout (P11). Journeys for the brunch page, the wizard and the front door
+// are added with their milestones.
 
 const firstWord = (name: string): string => name.split(' ')[0] ?? name;
 
@@ -163,6 +171,34 @@ test.describe('P3 — a vote waiting on you', () => {
     await host.page.reload();
     await expect(host.page.getByRole('heading', { level: 1 })).toBeVisible();
     await expect(waiting(host.page)).toHaveCount(0);
+  });
+});
+
+test.describe('P4 — a confirmed brunch whose time has passed', () => {
+  test('moves from the card to Past for everyone in it, and stays "Confirmed"', async ({
+    makeActor,
+  }) => {
+    const host = await makeActor('host');
+    const guest = await makeActor('guest');
+    const { brunchId, title } = await createConfirmedBrunch({ host, guest });
+
+    // Before: it is the next-up card, and there is nothing in Past.
+    await host.page.goto('/dashboard');
+    await expect(host.page.getByRole('heading', { level: 2, name: title })).toBeVisible();
+    await expect(host.page.getByRole('heading', { name: 'Past' })).toHaveCount(0);
+
+    await passConfirmedTime(brunchId);
+
+    for (const person of [host, guest]) {
+      await person.page.goto('/dashboard');
+      // No card any more: the brunch is a row under Past, still labelled with its status.
+      await expect(person.page.getByRole('heading', { level: 2, name: title })).toHaveCount(0);
+      await expect(person.page.getByRole('heading', { name: 'Past' })).toBeVisible();
+      const row = person.page.getByRole('listitem').filter({ hasText: title });
+      await expect(row).toHaveCount(1);
+      await expect(row).toContainText('Confirmed');
+      await expect(person.page.getByText('No upcoming brunches.')).toBeVisible();
+    }
   });
 });
 

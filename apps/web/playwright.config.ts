@@ -51,6 +51,7 @@ export default defineConfig({
         '**/invitations-invitee.spec.ts',
         '**/voting.spec.ts',
         '**/confirm.spec.ts',
+        '**/design-fidelity.spec.ts',
       ],
     },
   ],

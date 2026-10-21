@@ -162,6 +162,7 @@ Existing journeys that change are edited in the same commit as their screen (nam
 | P1  | one signed-in person                     | the greeting is time-aware: with the browser clock set to morning, afternoon, evening and late night it reads Morning, Afternoon, Evening and Hey; the date eyebrow matches the browser's date      | M2        |
 | P2  | host, a "yes", a "maybe", a "no"         | next-up card: soonest confirmed wins over a newer active one; host sees full names; the "yes" sees `First L.` for yes and maybe and only a count for the "no"; the card is not repeated in Upcoming | M2        |
 | P3  | host and invitee                         | "vote waiting" shows for an invitee who has not voted, clears after they vote, never shows for a closed or confirmed brunch; the host counts                                                        | M2        |
+| P4  | host and a guest                         | a confirmed brunch whose time has passed leaves the next-up card and is a row under Past for both, still labelled "Confirmed"; the dashboard says nothing is upcoming                               | M2        |
 | P5  | host, member, outsider                   | brunch-page roster by viewer (full names and emails for the host; `First L.` and counts for a member); an outsider and a made-up id get the identical 404 text                                      | M3        |
 | P6  | invitee                                  | RSVP card: choose I'm in / Maybe / Can't; a failed save keeps the card and shows the error (edits `failure-paths`); the **leading** tag sits on the single top option and disappears on a tie       | M3        |
 | P7  | host and invitee                         | confirmed: "Brunch on. 💕" banner, Locked in cards, the serif winner, for both people                                                                                                               | M3        |
@@ -170,7 +171,7 @@ Existing journeys that change are edited in the same commit as their screen (nam
 | P10 | friend with an invite link               | invite preview copy and the invalid-invite message (existing C-journeys edited)                                                                                                                     | M5        |
 | P11 | host and invitee on the `mobile` project | the dashboard and the invitee page at phone width: vertical rows, initials-only bar, no sideways scroll, the main action on screen                                                                  | M2, M3    |
 
-Not covered by an e2e journey, and why: the derived "past" rule (server-side time cannot be faked without a production seam, which CLAUDE.md forbids; covered by an integration test with a real past time), and `error.tsx` (no way to cause a render error without a seam).
+The derived "past" rule has journey **P4** (M2): a confirmed brunch whose time has passed moves from the next-up card to Past for the host and a guest, still labelled "Confirmed". It reaches that state the way `passVotingDeadline` reaches a passed deadline (`passConfirmedTime` in `e2e/support/voting.ts` writes the database directly, as a test-side exception; the production code has no seam). Not covered by an e2e journey, and why: `error.tsx` (no way to cause a render error without a production seam).
 
 ---
 
