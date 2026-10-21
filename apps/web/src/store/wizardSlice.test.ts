@@ -276,4 +276,22 @@ describe('createBrunch', () => {
 
     expect(store.getState().wizard).toEqual(initialWizardState);
   });
+
+  it('sends nothing for a second create while the first is still in flight', async () => {
+    let finish: (response: Response) => void = () => undefined;
+    const fakeFetch = vi.fn<ThunkExtra['fetch']>(
+      () => new Promise<Response>((resolve) => (finish = resolve)),
+    );
+    const store = storeWith(fakeFetch);
+
+    const first = store.dispatch(createBrunch());
+    const second = await store.dispatch(createBrunch());
+
+    expect(second.meta.requestStatus).toBe('rejected');
+    expect(fakeFetch).toHaveBeenCalledTimes(1);
+
+    finish(jsonResponse(201, { id: 'brunch-1' }));
+    expect((await first).payload).toEqual({ id: 'brunch-1' });
+    expect(fakeFetch).toHaveBeenCalledTimes(1);
+  });
 });

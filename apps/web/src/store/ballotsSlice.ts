@@ -1,5 +1,6 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import { createAppAsyncThunk } from './hooks';
+import type { RootState } from './makeStore';
 
 export type BallotKind = 'location' | 'time';
 
@@ -89,7 +90,7 @@ export const toggleBallotOption = createAppAsyncThunk<{ readonly saved: boolean 
   {
     // A click while a save is in flight, or on a read-only ballot, does nothing at all.
     condition: (arg, { getState }) =>
-      !arg.readOnly && getState().ballots.byKey[ballotKey(arg)]?.submitting !== true,
+      !arg.readOnly && selectBallotEntry(getState(), ballotKey(arg))?.submitting !== true,
   },
 );
 
@@ -136,4 +137,7 @@ const ballotsSlice = createSlice({
 });
 
 export const { ballotReleased } = ballotsSlice.actions;
+
+export const selectBallotEntry = (state: RootState, key: BallotKey): BallotEntry | undefined =>
+  state.ballots.byKey[key];
 export const ballotsReducer = ballotsSlice.reducer;

@@ -2,7 +2,7 @@ import { createBrunch, uniqueSuffix } from '../support/factories';
 import { expect, test } from '../support/fixtures';
 import { fixturePlaces } from '../support/places';
 import { daysFromNow } from '../support/time';
-import { addAttendee, ballot, castVotes } from '../support/voting';
+import { addAttendee, ballot, castVotes, removeLocationByName } from '../support/voting';
 import { BrunchWizard } from '../support/wizard';
 
 const TWO_PLACES = [fixturePlaces.sunnySide, fixturePlaces.harborBistro];
@@ -99,5 +99,41 @@ test.describe('R3 — the place ballot and the time ballot are separate', () => 
     await expect(place).not.toBeChecked();
     await expect(time).toBeChecked();
     await expect(time).toHaveAccessibleName(/\b1 vote\b/);
+  });
+});
+
+test.describe('R4 — an option the host removed drops out of the ballot', () => {
+  test('the next vote is saved without it (spec 0005 review F2)', async ({ makeActor }) => {
+    const host = await makeActor('host');
+    const voter = await makeActor('voter');
+    const places = [
+      fixturePlaces.sunnySide,
+      fixturePlaces.harborBistro,
+      fixturePlaces.pacificBrunchHouse,
+    ];
+    const brunchId = await createBrunch({ host: host.user, locations: places, times: TWO_TIMES });
+    await addAttendee({ brunchId, host: host.user, user: voter.user, response: 'yes' });
+    await castVotes({ brunchId, voter: voter.user, places: [fixturePlaces.sunnySide.name] });
+
+    await voter.page.goto(`/brunch/${brunchId}`);
+    const { locations, times } = ballot(voter.page);
+    const named = (name: string) =>
+      locations.getByRole('checkbox', { name: new RegExp(`^${name}`) });
+    await expect(named(fixturePlaces.sunnySide.name)).toBeChecked();
+    await named(fixturePlaces.harborBistro.name).check();
+    await expect(named(fixturePlaces.harborBistro.name)).toBeChecked();
+
+    // The host removes the place the voter had ticked; the voter's page does not know yet.
+    await removeLocationByName({ brunchId, host: host.user, place: fixturePlaces.sunnySide.name });
+
+    // A time vote refreshes the page, and the removed place disappears from it.
+    await times.getByRole('checkbox').first().check();
+    await expect(locations.getByRole('checkbox')).toHaveCount(2);
+
+    // Without the filter the old id would be sent along and refused as an unknown option.
+    await named(fixturePlaces.pacificBrunchHouse.name).check();
+    await expect(named(fixturePlaces.pacificBrunchHouse.name)).toBeChecked();
+    await expect(named(fixturePlaces.pacificBrunchHouse.name)).toHaveAccessibleName(/\b1 vote\b/);
+    await expect(voter.page.getByRole('alert').filter({ hasText: SAVE_FAILED })).toHaveCount(0);
   });
 });

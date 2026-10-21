@@ -7,6 +7,7 @@ import {
   ballotKey,
   ballotReleased,
   effectiveSelection,
+  selectBallotEntry,
   toggleBallotOption,
 } from '@/store/ballotsSlice';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -39,7 +40,7 @@ export function useBallot(params: {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const key = ballotKey({ brunchId, kind });
-  const entry = useAppSelector((state) => state.ballots.byKey[key]);
+  const entry = useAppSelector((state) => selectBallotEntry(state, key));
 
   // Release on unmount so the next visit starts from what the server says, not from an
   // unsaved selection left behind.

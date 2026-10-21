@@ -2,6 +2,7 @@ import type { PlaceDetails } from '@brunchsters/core';
 import { MAX_INVITES_PER_REQUEST } from '@brunchsters/shared';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import { createAppAsyncThunk } from './hooks';
+import type { RootState } from './makeStore';
 
 export type WizardStep = 1 | 2 | 3 | 4;
 
@@ -99,6 +100,11 @@ export const createBrunch = createAppAsyncThunk<{ readonly id: string }, undefin
       return rejectWithValue(CREATE_FAILED_MESSAGE);
     }
   },
+  {
+    // A second click while the first create is in flight sends nothing, whatever the button
+    // looks like: it must not be possible to create the same brunch twice.
+    condition: (_arg, { getState }) => !getState().wizard.submitting,
+  },
 );
 
 const wizardSlice = createSlice({
@@ -178,3 +184,6 @@ export const {
 } = wizardSlice.actions;
 
 export const wizardReducer = wizardSlice.reducer;
+
+export const selectWizard = (state: RootState): WizardState => state.wizard;
+export const selectWizardStep = (state: RootState): WizardStep => state.wizard.step;

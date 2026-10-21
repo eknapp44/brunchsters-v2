@@ -16,6 +16,8 @@ import {
   emailRemoved,
   locationAdded,
   locationRemoved,
+  selectWizard,
+  selectWizardStep,
   stepChosen,
   timeAdded,
   timeRemoved,
@@ -39,7 +41,7 @@ function nowAsDatetimeLocalValue(): string {
 }
 
 function StepOne() {
-  const state = useAppSelector((root) => root.wizard);
+  const state = useAppSelector(selectWizard);
   const dispatch = useAppDispatch();
   return (
     <section className={styles.step}>
@@ -73,7 +75,7 @@ function StepOne() {
 }
 
 function StepTwo() {
-  const state = useAppSelector((root) => root.wizard);
+  const state = useAppSelector(selectWizard);
   const dispatch = useAppDispatch();
   return (
     <section className={styles.step}>
@@ -119,7 +121,7 @@ function StepTwo() {
 }
 
 function StepThree() {
-  const state = useAppSelector((root) => root.wizard);
+  const state = useAppSelector(selectWizard);
   const dispatch = useAppDispatch();
   const [timeInput, setTimeInput] = useState('');
   const showVotingDeadline = state.locations.length > 1 || state.times.length > 1;
@@ -195,7 +197,7 @@ function StepThree() {
 }
 
 function StepFour({ onSubmit }: { readonly onSubmit: () => void }) {
-  const state = useAppSelector((root) => root.wizard);
+  const state = useAppSelector(selectWizard);
   const dispatch = useAppDispatch();
   const { submitting, submitError } = state;
   const [emailInput, setEmailInput] = useState('');
@@ -273,7 +275,7 @@ function StepFour({ onSubmit }: { readonly onSubmit: () => void }) {
 export default function NewBrunchPage() {
   const router = useRouter();
   const dispatch = useAppDispatch();
-  const step = useAppSelector((root) => root.wizard.step);
+  const step = useAppSelector(selectWizardStep);
 
   // The store lives in the layout and outlives this page, but a half-filled wizard must not.
   useEffect(() => () => void dispatch(wizardReset()), [dispatch]);

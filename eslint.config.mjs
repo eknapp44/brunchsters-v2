@@ -25,4 +25,30 @@ export default tseslint.config(
       ],
     },
   },
+  // Redux boundaries (ADR 0011): the store, its hooks and its thunk helper are the only way in,
+  // so a screen cannot grow a second store or an untyped hook by accident.
+  {
+    files: ['apps/web/src/**/*.ts', 'apps/web/src/**/*.tsx'],
+    ignores: ['apps/web/src/store/hooks.ts', 'apps/web/src/store/makeStore.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'react-redux',
+              importNames: ['useDispatch', 'useSelector', 'useStore'],
+              message: 'Use useAppDispatch / useAppSelector from @/store/hooks (ADR 0011).',
+            },
+            {
+              name: '@reduxjs/toolkit',
+              importNames: ['configureStore', 'createAsyncThunk'],
+              message:
+                'Build stores in store/makeStore.ts and thunks with createAppAsyncThunk from @/store/hooks (ADR 0011).',
+            },
+          ],
+        },
+      ],
+    },
+  },
 );
