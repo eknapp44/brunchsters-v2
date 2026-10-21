@@ -16,6 +16,25 @@ Scoped to the web app. The repo-wide rules are in the root `CLAUDE.md`; why the 
 - **One primary action per screen** (Constitution 24): one `variant="primary"` button. Revoke/Remove are `danger`, everything else `secondary` or `ghost`.
 - **Global element styles are zero-specificity (`:where()`)**, so a component's class always wins. A `<main>` that is not a `Container` or `Hero` still gets a width from the global rule; opt out explicitly.
 
+## State
+
+Why and what: [ADR 0011](../../docs/adrs/0011-redux-toolkit-for-client-ui-state.md), `specs/0010-redux-ui-state/`. Today the wizard (`wizardSlice`) and the vote ballots (`ballotsSlice`, `useBallot`) are on the store; every other control still uses `useState`, on purpose (see "Moving another control onto the store").
+
+- **The store holds UI state only.** Business rules stay on the server and in `packages/core`. Brunch data stays in Server Components and is refreshed with `router.refresh()` (called from the component); do not copy it into the store.
+- **Per-request store, never a module-level one.** `makeStore` builds a fresh store; `StoreProvider` (`src/store/`) creates it once per mount. Server Components never touch Redux.
+- **The provider lives in the `(authenticated)` layout, and that placement is a rule.** Leaving the signed-in area (sign-out) unmounts it and drops every draft, so nothing one person typed can reach the next person to sign in on that browser. Do not move it to the root layout unless sign-out clears the store.
+- **The boundaries are lint errors** (`eslint.config.mjs`): components use `useAppDispatch` / `useAppSelector` and thunks use `createAppAsyncThunk` from `src/store/hooks.ts`; only `makeStore.ts` calls `configureStore`.
+- **A mutation is a thunk** that gets `fetch` from its `extra` argument, so it tests in node with a fake. Give it a `condition` when a second call during the first must do nothing (a double submit, a click on a read-only control). Optimistic update and rollback live in the thunk's `pending` and `rejected` reducers, which read `meta.arg`, so they are pure.
+- **Selectors live beside their slice** (`selectWizard`, `selectBallotEntry`); components do not reach into `state.x.y` inline.
+- **State must be serializable** (ISO strings, not `Date`; arrays, not `Set`). The check stays on.
+- **A provider that outlives a page means state can too.** Every slice says how it is reset or released (the wizard resets on unmount; ballot entries are released on unmount), ignores a late response that lands after that, and a journey proves it (R1, R2).
+- **Slice or `useState`?** State only one component reads (an input's text, a copied-to-clipboard flag) stays `useState`. A slice earns its place when several components read it, or when its rules (optimistic update, rollback, stale-id filtering) deserve unit tests.
+- Test reducers, selectors and thunks; do not test that React renders (root `CLAUDE.md`).
+
+### Moving another control onto the store
+
+The remaining controls (RSVP, invites, suggestions, option management, voting controls, confirmation, suggestion review) each own a `submitting`/`error` pair, a `fetch` and a `router.refresh()`. They move together, not one slice each, when the toast / visible-error spec lands (PLANNING §17 "Redux follow-ups"). Until then a **new** control follows the same shape rather than inventing another: if several components will read its state or it has rules worth unit tests, add a slice and a `createAppAsyncThunk` (copy `ballotsSlice.ts`); otherwise keep `useState`, with the same generic error string and `role="alert"` as its neighbours. When migrating a control: keep its text, roles and accessible names (the e2e contract below), keep the generic error message, add a thunk test per failure path, and prove the journey that covers it fails without the new rule.
+
 ## Accessible names are a contract with the e2e suite
 
 The journeys find things by role, label and text. A restyle must not change them:
