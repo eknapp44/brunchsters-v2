@@ -35,6 +35,7 @@ describe('effectiveSelection', () => {
   const entry: BallotEntry = {
     selected: ['b'],
     previous: [],
+    requestId: 'r0',
     submitting: false,
     error: undefined,
     emptyWarning: false,
@@ -170,6 +171,7 @@ describe('toggleBallotOption', () => {
     expect(entryOf(store, locationKey)).toEqual({
       selected: ['a', 'c'],
       previous: ['a', 'c'],
+      requestId: expect.any(String),
       submitting: false,
       error: SAVE_FAILED_MESSAGE,
       emptyWarning: false,
@@ -232,6 +234,39 @@ describe('toggleBallotOption', () => {
 
     expect(entryOf(store, ballotKey({ brunchId: 'brunch-2', kind: 'location' }))).toBeDefined();
     expect(entryOf(store, locationKey)).toBeUndefined();
+  });
+});
+
+describe('a save that settles after its ballot was released', () => {
+  it('does not unlock, roll back or flag the ballot of the next visit', async () => {
+    let settleOld: (response: Response) => void = () => undefined;
+    let settleNew: (response: Response) => void = () => undefined;
+    const fakeFetch = vi
+      .fn<ThunkExtra['fetch']>()
+      .mockImplementationOnce(() => new Promise<Response>((resolve) => (settleOld = resolve)))
+      .mockImplementationOnce(() => new Promise<Response>((resolve) => (settleNew = resolve)));
+    const store = makeStore({ fetch: fakeFetch });
+
+    // First visit: a save is still in flight when the voter leaves.
+    const oldSave = store.dispatch(toggleBallotOption(arg({ optionId: 'b' })));
+    store.dispatch(ballotReleased(locationKey));
+
+    // Second visit to the same brunch: a new tick, a new save.
+    const newSave = store.dispatch(toggleBallotOption(arg({ optionId: 'c' })));
+    expect(entryOf(store, locationKey)).toMatchObject({ selected: ['a', 'c'], submitting: true });
+
+    // The old save fails late. The new ballot must not notice.
+    settleOld(new Response('{}', { status: 500 }));
+    await oldSave;
+    expect(entryOf(store, locationKey)).toMatchObject({
+      selected: ['a', 'c'],
+      submitting: true,
+      error: undefined,
+    });
+
+    settleNew(okResponse());
+    await newSave;
+    expect(entryOf(store, locationKey)).toMatchObject({ selected: ['a', 'c'], submitting: false });
   });
 });
 

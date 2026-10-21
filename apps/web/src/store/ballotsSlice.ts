@@ -19,6 +19,9 @@ export type BallotEntry = {
   readonly selected: readonly string[];
   // What to put back if the save fails.
   readonly previous: readonly string[];
+  // The save this entry is waiting on. A result from any other request (one started on an
+  // earlier visit, before the entry was released) must not touch it.
+  readonly requestId: string;
   readonly submitting: boolean;
   readonly error: string | undefined;
   readonly emptyWarning: boolean;
@@ -54,6 +57,9 @@ function toggled(current: readonly string[], optionId: string): readonly string[
     ? current.filter((id) => id !== optionId)
     : [...current, optionId];
 }
+
+export const selectBallotEntry = (state: RootState, key: BallotKey): BallotEntry | undefined =>
+  state.ballots.byKey[key];
 
 export type ToggleBallotArg = {
   readonly brunchId: string;
@@ -115,6 +121,7 @@ const ballotsSlice = createSlice({
         state.byKey[ballotKey(arg)] = {
           selected,
           previous: [...arg.current],
+          requestId: action.meta.requestId,
           submitting: sending,
           // Only a new save clears the last error; unchecking the last box does not.
           error: sending ? undefined : entry?.error,
@@ -123,12 +130,12 @@ const ballotsSlice = createSlice({
       })
       .addCase(toggleBallotOption.fulfilled, (state, action) => {
         const entry = state.byKey[ballotKey(action.meta.arg)];
-        if (entry !== undefined) entry.submitting = false;
+        if (entry?.requestId === action.meta.requestId) entry.submitting = false;
       })
       // A failed save must not leave a checked box for a vote that was never recorded.
       .addCase(toggleBallotOption.rejected, (state, action) => {
         const entry = state.byKey[ballotKey(action.meta.arg)];
-        if (entry === undefined) return;
+        if (entry?.requestId !== action.meta.requestId) return;
         entry.selected = [...entry.previous];
         entry.submitting = false;
         entry.error = action.payload ?? SAVE_FAILED_MESSAGE;
@@ -137,7 +144,4 @@ const ballotsSlice = createSlice({
 });
 
 export const { ballotReleased } = ballotsSlice.actions;
-
-export const selectBallotEntry = (state: RootState, key: BallotKey): BallotEntry | undefined =>
-  state.ballots.byKey[key];
 export const ballotsReducer = ballotsSlice.reducer;

@@ -294,4 +294,26 @@ describe('createBrunch', () => {
     expect((await first).payload).toEqual({ id: 'brunch-1' });
     expect(fakeFetch).toHaveBeenCalledTimes(1);
   });
+
+  it("ignores a failure from an earlier visit's request once a new submission is under way", async () => {
+    let failOld: (error: Error) => void = () => undefined;
+    let finishNew: (response: Response) => void = () => undefined;
+    const fakeFetch = vi
+      .fn<ThunkExtra['fetch']>()
+      .mockImplementationOnce(() => new Promise<Response>((_resolve, reject) => (failOld = reject)))
+      .mockImplementationOnce(() => new Promise<Response>((resolve) => (finishNew = resolve)));
+    const store = storeWith(fakeFetch);
+
+    const oldCreate = store.dispatch(createBrunch());
+    store.dispatch(wizardReset());
+    store.dispatch(titleChanged('Second try'));
+    const newCreate = store.dispatch(createBrunch());
+
+    failOld(new Error('offline'));
+    await oldCreate;
+    expect(store.getState().wizard).toMatchObject({ submitting: true, submitError: undefined });
+
+    finishNew(jsonResponse(201, { id: 'brunch-2' }));
+    expect((await newCreate).payload).toEqual({ id: 'brunch-2' });
+  });
 });

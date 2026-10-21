@@ -137,3 +137,54 @@ test.describe('R4 — an option the host removed drops out of the ballot', () =>
     await expect(voter.page.getByRole('alert').filter({ hasText: SAVE_FAILED })).toHaveCount(0);
   });
 });
+
+test.describe('R5 — a slow save from an earlier visit', () => {
+  test('does not undo a vote made on the next visit', async ({ makeActor }) => {
+    const host = await makeActor('host');
+    const voter = await makeActor('voter');
+    const title = `Slow Save Brunch ${uniqueSuffix()}`;
+    const places = [
+      fixturePlaces.sunnySide,
+      fixturePlaces.harborBistro,
+      fixturePlaces.pacificBrunchHouse,
+    ];
+    const brunchId = await createBrunch({
+      host: host.user,
+      title,
+      locations: places,
+      times: TWO_TIMES,
+    });
+    await addAttendee({ brunchId, host: host.user, user: voter.user, response: 'yes' });
+    await voter.page.goto(`/brunch/${brunchId}`);
+    const named = (name: string) =>
+      ballot(voter.page).locations.getByRole('checkbox', { name: new RegExp(`^${name}`) });
+
+    // The first save is held back, then refused; every later save goes through.
+    let saves = 0;
+    let refuseFirstSave: () => void = () => undefined;
+    const firstSaveHeld = new Promise<void>((resolve) => (refuseFirstSave = resolve));
+    await voter.page.route(`**/api/v1/brunches/${brunchId}/votes/locations`, async (route) => {
+      saves += 1;
+      if (saves > 1) return route.fallback();
+      await firstSaveHeld;
+      return route.fulfill({ status: 500, json: { error: 'boom' } });
+    });
+
+    await named(fixturePlaces.harborBistro.name).click();
+    await expect.poll(() => saves).toBe(1);
+
+    // Away and back inside the app while that save is still in flight, then vote again.
+    await voter.page.getByRole('link', { name: 'brunchsters' }).click();
+    await expect(voter.page).toHaveURL('/dashboard');
+    await voter.page.getByRole('link', { name: title }).click();
+    await expect(voter.page).toHaveURL(`/brunch/${brunchId}`);
+    await named(fixturePlaces.pacificBrunchHouse.name).check();
+    await expect(named(fixturePlaces.pacificBrunchHouse.name)).toBeChecked();
+
+    // The old save now fails. It belongs to the earlier visit, so the new vote is left alone.
+    refuseFirstSave();
+    await voter.page.waitForTimeout(500);
+    await expect(named(fixturePlaces.pacificBrunchHouse.name)).toBeChecked();
+    await expect(voter.page.getByRole('alert').filter({ hasText: SAVE_FAILED })).toHaveCount(0);
+  });
+});

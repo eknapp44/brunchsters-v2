@@ -17,6 +17,9 @@ export type WizardState = {
   readonly emails: readonly string[];
   readonly submitting: boolean;
   readonly submitError: string | undefined;
+  // The create request this wizard is waiting on; a failure from any other request (one from an
+  // earlier visit, before the wizard was reset) must not touch it.
+  readonly requestId: string | undefined;
 };
 
 export const initialWizardState: WizardState = {
@@ -29,6 +32,7 @@ export const initialWizardState: WizardState = {
   emails: [],
   submitting: false,
   submitError: undefined,
+  requestId: undefined,
 };
 
 const CREATE_FAILED_MESSAGE = 'Failed to create brunch';
@@ -154,15 +158,17 @@ const wizardSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(createBrunch.pending, (state) => {
+      .addCase(createBrunch.pending, (state, action) => {
         state.submitting = true;
         state.submitError = undefined;
+        state.requestId = action.meta.requestId;
       })
       // On success `submitting` stays true: the page is navigating away.
       .addCase(createBrunch.rejected, (state, action) => {
-        // Not submitting means the wizard was reset (the page unmounted) while the request was
-        // in flight; a late failure must not leave an error for the next visit.
-        if (!state.submitting) return;
+        // A different (or no) request id means the wizard was reset, and perhaps submitted again,
+        // since this request started; a late failure must not touch the new state.
+        if (state.requestId !== action.meta.requestId) return;
+        state.requestId = undefined;
         state.submitting = false;
         state.submitError = action.payload ?? CREATE_FAILED_MESSAGE;
       });
