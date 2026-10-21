@@ -23,6 +23,8 @@ Before asking anything, read the actual schema, services, routes and screens the
 
 Verify every claim you intend to put in a spec against the code or by running it. A spec that describes behavior the app doesn't have is a bug in the spec (spec 0007's first draft said approving an already-invited suggestion was "refused"; it is actually allowed).
 
+If the feature adds client state or a mutation, say **per piece** whether it is a Redux slice or local `useState` (`apps/web/CLAUDE.md` "State"), and whether it triggers one of the "Redux follow-ups" in `docs/PLANNING.md` §17 (a toast or visible error, the shared mutation slice, the unread count). Don't add a second pattern for state the store already has a home for.
+
 Also check: does the idea **conflict with the constitution or an ADR**? Surface it now and ask; don't comply silently.
 
 ## Phase 2 — Grill
