@@ -93,6 +93,7 @@ The existing journeys are the safety net and must pass **unmodified**: F1 (ballo
 
 **Proving they can fail:** R1 — delete the dispatch of the reset action on mount; the draft reappears and R1 fails. R2 — delete the release-on-unmount; the stale empty selection reappears and R2 fails. R3 — key the ballots slice by brunch only (drop the kind from the key); a failure on places overwrites the times ballot and R3 fails. Each proof is run and reverted in the milestone that adds the journey, and written in its testing note.
 
+| R5 | voter | A place save is held back; the voter leaves and returns in the app and ticks another place (saved); the held save now fails: the new tick stays and no error shows. Proof: remove the request-id guard and R5 fails |
 | R4 | voter, host | Three places; the voter ticked one, then ticks another; the host removes the first; a time vote refreshes the page and the removed place is gone; ticking a remaining place saves with no error (the removed id is not resubmitted). Proof: remove the stale-id filter and R4 fails |
 
 ---
@@ -118,6 +119,7 @@ Each of these is recorded in ADR 0011 and PLANNING §17.
 - **`effectiveSelection` is a pure function**, not a store selector; the hook passes it the stored entry and the server's props.
 - **`useAppStore` not added**; the Redux DevTools question is settled as development only.
 - **Bundle:** `/brunch/[id]` first-load JS 112 kB → 122 kB and `/brunch/new` 107 kB → 117 kB; `/dashboard` (107 kB) and `/brunch/[id]/manage` (111 kB) unchanged; the shared bundle stays 102 kB (measured with `next build` on `main` and on this branch). Why the layout's provider adds nothing to the other routes was not investigated.
+- **Stale-request race (found in the pre-merge review):** the ballot key is the same on every visit to a brunch, so a save still in flight when the voter left and came back could unlock, roll back or flag the new ballot; the wizard had the same hole after a reset. Both entries now keep the id of the request they wait on and ignore any other (unit tests for each, and journey R5 with a held request; each fails without the guard).
 - **Hardening before merge (owner asked for the feature to be complete):** journey R4 now guards the stale-option filter (it fails with the filter removed); `createBrunch` got a `condition` against double submits; selectors moved beside their slices; ESLint now enforces the store boundaries; the State rules, a migration recipe, a root rule and a `/spec-grill` prompt tell the next spec where UI state goes. A sign-out leak journey was considered and dropped: signing in again is a full-page redirect through Google, which discards the store anyway, so the test would pass trivially. The protection is the provider's placement in the `(authenticated)` layout, written down as a rule in `apps/web/CLAUDE.md`.
 
 ## Open Questions

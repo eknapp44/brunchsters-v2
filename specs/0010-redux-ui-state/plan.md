@@ -2,6 +2,8 @@
 
 Why Redux, what is in and out, and the alternatives are in [ADR 0011](../../docs/adrs/0011-redux-toolkit-for-client-ui-state.md). This plan is the how.
 
+> **As built (read this first).** This plan is the design as grilled; the code differs in a few named places, and `spec.md` "Outcome" is the authoritative list. In short: the wizard resets on **unmount**, not mount; ballots use **one** thunk (`toggleBallotOption`, with a `condition`) instead of `ballotToggled` + `saveBallot`, and the optimistic update and rollback are its `pending` / `rejected` reducers; `effectiveSelection` is a pure function rather than `selectEffectiveSelection`; `useAppStore` was not added; and both slices keep the id of the request they are waiting on (`requestId`) so a result from an earlier visit cannot touch the current state.
+
 ## Files
 
 **New** (all under `apps/web/src/store/`)

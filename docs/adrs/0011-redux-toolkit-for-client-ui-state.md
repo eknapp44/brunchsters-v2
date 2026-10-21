@@ -25,7 +25,7 @@ Adopt **Redux Toolkit** (`@reduxjs/toolkit`) and **`react-redux`** in `apps/web`
 3. **The server stays the source of truth for brunch data.** Pages stay Server Components, and mutations still end in `router.refresh()`, called from the component. The store holds only what the server does not know: a half-filled wizard, a not-yet-saved ballot selection, in-flight and error flags.
 4. **Each mutation is a `createAsyncThunk`** that receives `fetch` through the thunk's `extra` argument, so thunks unit-test in node with a fake. Components dispatch and read; they no longer own the `fetch`, the rollback, or the flags for the screens in scope.
 5. **Typed hooks and small slices.** `useAppDispatch` / `useAppSelector` (and `withTypes`) are the only way components touch the store. State is serializable: the wizard keeps times as ISO strings and ballots keep selections as `string[]`, so RTK's serializability check stays on.
-6. **First slices, behavior-preserving:** the plumbing, the **ballot** slice (replaces the two duplicated checklists) and the **wizard** slice. This supersedes spec 0003's "stay local" note for the wizard. The wizard slice resets when the page mounts, so nothing a person can observe changes. The other panels keep their local state until a later spec (see Consequences).
+6. **First slices, behavior-preserving:** the plumbing, the **ballot** slice (replaces the two duplicated checklists) and the **wizard** slice. This supersedes spec 0003's "stay local" note for the wizard. The wizard slice resets when the page unmounts, so nothing a person can observe changes. The other panels keep their local state until a later spec (see Consequences).
 7. **Tests:** reducer, selector and thunk unit tests in node. No component render tests (Constitution 16). The existing journeys must pass unmodified; new journeys cover only the places the store could change behavior.
 
 **Not decided here (left out deliberately):** RTK Query; persisting any state across reloads; a shared mutation/toast slice; surfacing the server's real error text.
@@ -41,7 +41,7 @@ Adopt **Redux Toolkit** (`@reduxjs/toolkit`) and **`react-redux`** in `apps/web`
 **Harder / accepted costs**
 
 - Two new dependencies, and a pattern to learn (slices, thunks, selectors) that is heavier than `useState` for a single control. This is why most panels are _not_ migrated in this spec: where state is local to one component and nothing else will read it, the store adds ceremony.
-- A provider that outlives a page means state can outlive a page. Each slice must say how it is reset or reseeded on mount; the wizard resets, and ballot entries are released on unmount and reseeded from server props.
+- A provider that outlives a page means state can outlive a page. Each slice must say how it is reset or released; the wizard resets on unmount, and ballot entries are released on unmount and reseeded from server props. A request that started before a reset can finish after it, so each entry remembers the request it is waiting for and ignores any other.
 - Redux DevTools is enabled in development only.
 
 **Deferred, to be picked up as their own specs**
