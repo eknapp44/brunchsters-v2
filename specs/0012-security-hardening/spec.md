@@ -80,9 +80,9 @@ No new screen. Two existing controls gain one inline line of copy for a limited 
 
 ### Dependencies
 
-- [ ] `next` at 15.5.28 or newer within 15.x; `next-auth` and `@auth/core` at the newest versions that clear the advisories (or, if none does, each remaining one recorded in `package.json`'s audit config with a reason and a date); the lockfile regenerated
-- [ ] CI runs `pnpm audit --prod --audit-level=high` as a step of an existing job (or its own job) and fails on a new high or critical; every ignore has a reason and a date in one place
-- [ ] The whole suite, `pnpm build` and a real Google sign-in on the dev server pass after the bump; the CHANGELOG-visible commit is `fix(deps):`
+- [x] `next` at 15.5.28 or newer within 15.x; `next-auth` and `@auth/core` at the newest versions that clear the advisories (or, if none does, each remaining one recorded in `package.json`'s audit config with a reason and a date); the lockfile regenerated
+- [x] CI runs `pnpm audit --prod --audit-level=high` as a step of an existing job (or its own job) and fails on a new high or critical; every ignore has a reason and a date in one place
+- [x] The whole suite, `pnpm build` and a real Google sign-in on the dev server pass after the bump; the CHANGELOG-visible commit is `fix(deps):`
 
 ### CSP
 
@@ -149,6 +149,6 @@ Each is recorded in ADR 0013 or 0014 and in PLANNING §17.
 ## Open Questions
 
 1. **Are the starting numbers right?** 100 invite emails per host per day, 50 per brunch per day, resend every 10 minutes, 30 and 20 place calls a minute, 60 writes a minute, 30 bad tokens a minute. Chosen as roomy for a real host and tight for a script; no data yet.
-2. **Does `next-auth@5.0.0-beta.32` clear the advisories** that name a `5.0.0` that does not exist? M1 answers it; if not, the remaining ones are recorded with a reason, and the owner decides whether to wait, patch with an override, or move off the beta.
+2. **Does `next-auth@5.0.0-beta.32` clear the advisories** that name a `5.0.0` that does not exist? **Answered in M1: yes**, every Auth.js advisory is cleared (and `next` 15.5.28 and five transitive overrides clear the rest); nothing is on the ignore list. Recheck when Auth.js v5 goes stable.
 3. **Does Chromium apply `form-action` to the redirect after the sign-in form post?** The policy allows Google's origin for that case; M6's manual sign-in confirms the minimal list. **Owner defers to the recommendation:** keep Google's origin only if the manual sign-in shows it is needed.
 4. **Does Vercel overwrite a client-supplied `x-forwarded-for`?** Checked on the real deployment (deployment spec), not here.
