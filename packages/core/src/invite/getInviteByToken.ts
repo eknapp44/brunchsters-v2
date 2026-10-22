@@ -17,7 +17,9 @@ export async function getInviteByToken(
   ctx: { readonly db: DbClient },
 ): Promise<InvitePreview | undefined> {
   const invite = await ctx.db.brunchInvite.findFirst({
-    where: { token, tokenExpiresAt: { gt: new Date() } },
+    // The soft-delete extension covers only the top-level model, so a deleted brunch must be
+    // excluded here: its link is as dead as a revoked one.
+    where: { token, tokenExpiresAt: { gt: new Date() }, brunch: { deletedAt: null } },
     include: { brunch: { include: { status: true, host: true } } },
   });
   if (invite === null) return undefined;

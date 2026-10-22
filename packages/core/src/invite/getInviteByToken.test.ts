@@ -45,7 +45,7 @@ describe('getInviteByToken', () => {
     expect(result?.description).toBeUndefined();
   });
 
-  it('queries only non-expired tokens', async () => {
+  it('queries only non-expired tokens of brunches that are not deleted', async () => {
     const findFirst = vi.fn().mockResolvedValue(VALID_INVITE);
     const db = makeMockDb(findFirst);
 
@@ -53,7 +53,11 @@ describe('getInviteByToken', () => {
 
     expect(findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { token: 'valid-token', tokenExpiresAt: { gt: expect.any(Date) } },
+        where: {
+          token: 'valid-token',
+          tokenExpiresAt: { gt: expect.any(Date) },
+          brunch: { deletedAt: null },
+        },
       }),
     );
   });
