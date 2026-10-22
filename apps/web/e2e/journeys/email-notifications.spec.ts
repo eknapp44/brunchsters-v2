@@ -166,7 +166,7 @@ test.describe('N3 — confirming the brunch tells the right people', () => {
 });
 
 test.describe('N4 — the queue endpoint', () => {
-  test('is reachable without a session and has both email functions registered', async ({
+  test('is reachable without a session and has its three functions registered', async ({
     request,
   }) => {
     const response = await request.get('/api/inngest');
@@ -175,7 +175,8 @@ test.describe('N4 — the queue endpoint', () => {
     // middleware to the Inngest SDK, which answers its introspection call.
     expect(response.status()).toBe(200);
     const body = (await response.json()) as { function_count?: number; mode?: string };
-    expect(body.function_count).toBe(2);
+    // The two email functions and the daily rate-limit prune (spec 0012).
+    expect(body.function_count).toBe(3);
     expect(body.mode).toBe('dev');
   });
 });

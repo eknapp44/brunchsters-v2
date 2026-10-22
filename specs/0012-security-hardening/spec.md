@@ -55,17 +55,17 @@ No new screen. Two existing controls gain one inline line of copy for a limited 
 
 ### Schema
 
-- [ ] `RateLimitBucket` model (`key`, `windowStart`, `count`, primary key `[key, windowStart]`, index on `windowStart`) and its migration, committed with the schema; not in the soft-delete set (comment says why)
-- [ ] Migration applies on an empty database and over the existing e2e and dev databases
+- [x] `RateLimitBucket` model (`key`, `windowStart`, `count`, primary key `[key, windowStart]`, index on `windowStart`) and its migration, committed with the schema; not in the soft-delete set (comment says why)
+- [x] Migration applies on an empty database and over the existing e2e and dev databases
 
 ### Services (`packages/core`)
 
-- [ ] `RateLimiter` interface, `PostgresRateLimiter` (atomic upsert, denied requests do not increment, cost greater than the limit is denied outright), and an in-memory implementation for unit tests
-- [ ] Policies and their limits as named constants in `packages/shared`; the time-until-reset math is pure and unit-tested
+- [x] `RateLimiter` interface, `PostgresRateLimiter` (atomic upsert, denied requests do not increment, cost greater than the limit is denied outright), and an in-memory implementation for unit tests
+- [x] Policies and their limits as named constants in `packages/shared`; the time-until-reset math is pure and unit-tested
 - [ ] `sendInvites` consumes the per-brunch and per-host budgets after the host check, for the de-duplicated, self-filtered count, and returns a `rate_limited` error with `retryAfterSeconds`; a denied send creates nothing and emits nothing
 - [ ] `resendInvite` consumes the per-invite cooldown and one host invite-email unit after the host check, with the same error
 - [ ] `suggestInvitee` is not limited here (it sends no email; the write catch-all covers it): recorded with a test comment
-- [ ] `pruneRateLimitBuckets` deletes buckets older than two days; an Inngest cron function calls it (registered in `functions.ts`)
+- [x] `pruneRateLimitBuckets` deletes buckets older than two days; an Inngest cron function calls it (registered in `functions.ts`)
 - [ ] Limiter database errors fail closed (503 from the route)
 
 ### API routes

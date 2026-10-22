@@ -251,6 +251,7 @@ User can configure per-type preferences via `UserNotificationPreference`. Per-br
 - Composite unique indexes on join tables
 - Indexed foreign keys
 - Audit logging via generalized `AuditLog`
+- **Operational tables are not domain entities** (`RateLimitBucket`, spec 0012 / [ADR 0013](adrs/0013-rate-limits-in-postgres.md)): no soft delete, no audit row, no foreign keys, and a retention rule instead (hard-deleted after two days by a daily job). They stay out of `SOFT_DELETE_MODELS` on purpose.
 - Immutable audit log rows (no `updatedAt`)
 - `isActive` flag on lookup tables (define future values now, disable until ready)
 
@@ -936,21 +937,21 @@ These tables exist in your Prisma schema from day one but have no UI built aroun
 
 These have no tables in v1. Infrastructure decisions or UI designs need to be made first.
 
-| Item                                    | Reason for full deferral                                                               |
-| --------------------------------------- | -------------------------------------------------------------------------------------- |
-| Photos + ratings                        | Needs storage infrastructure + photo moderation policy + post-brunch status activation |
-| Calendar integration                    | OAuth scope + token encryption strategy decisions needed first                         |
-| External sharing                        | Deep-link only approach for now — no tables needed short term                          |
-| Recommendations engine                  | No schema until approach decided + enough data exists                                  |
-| Bill splitting                          | Out of brunch-planning scope entirely                                                  |
-| Mid-brunch features                     | Out of brunch-planning scope entirely                                                  |
-| Push notifications                      | Email sufficient for web v1                                                            |
-| `RateLimitLog`                          | Use Upstash Redis with TTL keys — not a DB table                                       |
-| `LegalDocument` / `UserLegalAcceptance` | No legal docs written yet                                                              |
-| `Role` / `UserRole` tables              | Simple `User.role` enum sufficient for v1                                              |
-| Embedded map display                    | Place details + address sufficient for v1                                              |
-| Yelp / Foursquare                       | Provider abstraction makes this a clean add later                                      |
-| Mobile app                              | API-first architecture ensures it's possible — build web first                         |
+| Item                                    | Reason for full deferral                                                                          |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Photos + ratings                        | Needs storage infrastructure + photo moderation policy + post-brunch status activation            |
+| Calendar integration                    | OAuth scope + token encryption strategy decisions needed first                                    |
+| External sharing                        | Deep-link only approach for now — no tables needed short term                                     |
+| Recommendations engine                  | No schema until approach decided + enough data exists                                             |
+| Bill splitting                          | Out of brunch-planning scope entirely                                                             |
+| Mid-brunch features                     | Out of brunch-planning scope entirely                                                             |
+| Push notifications                      | Email sufficient for web v1                                                                       |
+| `RateLimitLog`                          | Superseded 2026-10-22: spec 0012 ships `RateLimitBucket` (Postgres, ADR 0013); Redis stays a swap |
+| `LegalDocument` / `UserLegalAcceptance` | No legal docs written yet                                                                         |
+| `Role` / `UserRole` tables              | Simple `User.role` enum sufficient for v1                                                         |
+| Embedded map display                    | Place details + address sufficient for v1                                                         |
+| Yelp / Foursquare                       | Provider abstraction makes this a clean add later                                                 |
+| Mobile app                              | API-first architecture ensures it's possible — build web first                                    |
 
 ---
 

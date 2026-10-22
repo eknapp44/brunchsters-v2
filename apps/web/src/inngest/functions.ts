@@ -1,4 +1,5 @@
 import {
+  pruneRateLimitBuckets,
   resolveConfirmationRecipients,
   sendConfirmationEmail,
   sendInviteEmail,
@@ -9,7 +10,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { getAppUrl, getEmailService } from '@/lib/services';
 import { inngest } from './client';
-import { CONFIRMED_EMAIL_EVENTS, INVITE_EMAIL_EVENTS } from './events';
+import { CONFIRMED_EMAIL_EVENTS, INVITE_EMAIL_EVENTS, PRUNE_RATE_LIMITS_CRON } from './events';
 import { unwrapForQueue } from './unwrapForQueue';
 
 const MAX_CONCURRENT_INVITE_EMAILS = 5;
@@ -107,4 +108,23 @@ export const sendBrunchConfirmedEmailsFunction = inngest.createFunction(
   },
 );
 
-export const functions = [sendInviteEmailFunction, sendBrunchConfirmedEmailsFunction];
+// Rate-limit counters are operational data with a two-day retention (ADR 0013). Daily, at an hour
+// nobody is planning brunch. A failure throws so Inngest retries it; nothing depends on it running
+// at an exact time, because a limiter only ever reads the current window.
+export const pruneRateLimitsFunction = inngest.createFunction(
+  { id: 'prune-rate-limits', triggers: [{ cron: PRUNE_RATE_LIMITS_CRON }] },
+  async ({ step }) =>
+    step.run('prune-rate-limit-buckets', async () => {
+      const result = await pruneRateLimitBuckets({ now: new Date() }, { db });
+      if (result.isErr()) {
+        throw new Error('Pruning rate-limit counters failed', { cause: result.error.cause });
+      }
+      return result.value;
+    }),
+);
+
+export const functions = [
+  sendInviteEmailFunction,
+  sendBrunchConfirmedEmailsFunction,
+  pruneRateLimitsFunction,
+];
