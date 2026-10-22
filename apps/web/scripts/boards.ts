@@ -188,9 +188,15 @@ async function photographPrototype(browser: Browser, port: number): Promise<Capt
     await page.clock.setFixedTime(new Date('2026-10-21T15:00:00'));
     await page.goto(`http://127.0.0.1:${port}/Brunchsters%20Prototype.html`);
     await page.waitForSelector('.desktop-frame, .phone-wrap');
+    // The prototype's dark theme is not the operating-system setting: its tokens.css switches on
+    // a data-theme="dark" attribute, so the board has to set it (the Tweaks panel does the same).
+    const setTheme = (): Promise<void> =>
+      page.evaluate((theme) => document.documentElement.setAttribute('data-theme', theme), scheme);
+    await setTheme();
     for (const pair of PAIRS) {
       try {
         await page.getByText(pair.scene, { exact: true }).first().click({ timeout: 5000 });
+        await setTheme();
         await page.waitForTimeout(1500);
         const frame = page.locator(FRAME_SELECTOR[pair.sceneDevice]).first();
         captures.set(captureKey(pair, scheme), await frame.screenshot());
@@ -239,7 +245,7 @@ async function writeBoards(browser: Browser, captures: Captures): Promise<number
         });
         const label = `${pair.title} · ${scheme} · ${device}`;
         await sheet.setContent(
-          `<body style="margin:0;padding:12px;background:#fff;display:flex;gap:16px;align-items:flex-start">${figure({ caption: `Your design (Claude Design prototype): ${label}${scheme === 'dark' ? ' (the prototype has no dark mode: this is its light scene)' : ''}`, image: proto, device })}${figure({ caption: 'What we built', image: app, device })}</body>`,
+          `<body style="margin:0;padding:12px;background:#fff;display:flex;gap:16px;align-items:flex-start">${figure({ caption: `Your design (Claude Design prototype): ${label}`, image: proto, device })}${figure({ caption: 'What we built', image: app, device })}</body>`,
         );
         await sheet.screenshot({
           path: path.join(SHOTS_DIR, `board-${pair.id}-${scheme}-${device}.png`),
