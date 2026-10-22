@@ -110,9 +110,10 @@ export function ConfirmControl({
             />
             <span className={detail.optionText}>
               <span className={detail.name}>{location.placeName}</span>{' '}
-              <span className={detail.detail}>
-                — {location.placeAddress} ({voteCountLabel(location.voteCount)})
+              <span className={[detail.detail, detail.votes].join(' ')}>
+                ({voteCountLabel(location.voteCount)})
               </span>
+              <span className={detail.address}>{location.placeAddress}</span>
             </span>
           </label>
         ))}
@@ -136,7 +137,9 @@ export function ConfirmControl({
                   timeStyle: 'short',
                 })}
               </span>{' '}
-              <span className={detail.detail}>({voteCountLabel(time.voteCount)})</span>
+              <span className={[detail.detail, detail.votes].join(' ')}>
+                ({voteCountLabel(time.voteCount)})
+              </span>
             </span>
           </label>
         ))}

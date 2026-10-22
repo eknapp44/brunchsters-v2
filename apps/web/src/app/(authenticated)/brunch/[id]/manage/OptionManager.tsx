@@ -154,8 +154,11 @@ export function OptionManager({
               <span className={detail.rowMain}>
                 <PopIcon name="pin" size={22} />
                 <span className={detail.rowText}>
-                  {location.placeName} — {location.placeAddress}{' '}
-                  <span className={detail.detail}>({voteCountLabel(location.voteCount)})</span>
+                  <span className={detail.name}>{location.placeName}</span>{' '}
+                  <span className={[detail.detail, detail.votes].join(' ')}>
+                    ({voteCountLabel(location.voteCount)})
+                  </span>
+                  <span className={detail.address}>{location.placeAddress}</span>
                 </span>
               </span>
               <Button
@@ -189,7 +192,9 @@ export function OptionManager({
                     dateStyle: 'medium',
                     timeStyle: 'short',
                   })}{' '}
-                  <span className={detail.detail}>({voteCountLabel(time.voteCount)})</span>
+                  <span className={[detail.detail, detail.votes].join(' ')}>
+                    ({voteCountLabel(time.voteCount)})
+                  </span>
                 </span>
               </span>
               <Button

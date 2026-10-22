@@ -131,8 +131,16 @@
   color: var(--fg-muted);
 }
 
-.option:has(input:checked) .detail {
+.option:has(input:checked) .detail,
+.option:has(input:checked) .address {
   color: var(--accent-soft-fg);
+}
+
+/* A place's address sits under its name, a step smaller, so the name and the vote count read first. */
+.address {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
 }
 
 .voters {
@@ -466,4 +474,9 @@
   .bar {
     display: none;
   }
+}
+
+/* "(2 votes)" stays on one line. */
+.votes {
+  white-space: nowrap;
 }
