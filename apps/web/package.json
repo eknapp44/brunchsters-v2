@@ -11,7 +11,8 @@
     "e2e:db:reset": "tsx scripts/e2e-db-reset.ts",
     "test:e2e": "pnpm e2e:db:reset && playwright test",
     "screenshots": "node scripts/cleanScreenshots.mjs && pnpm e2e:db:reset && playwright test --config playwright.screenshots.config.ts",
-    "boards": "tsx scripts/boards.ts"
+    "boards": "tsx scripts/boards.ts",
+    "dev:as": "tsx scripts/devAs.ts"
   },
   "dependencies": {
     "@brunchsters/core": "workspace:*",
