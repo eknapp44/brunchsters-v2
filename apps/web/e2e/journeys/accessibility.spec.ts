@@ -289,7 +289,7 @@ test.describe('the app shell', () => {
     await wizard.open();
     const progress = host.page.getByRole('progressbar', { name: 'Brunch planning progress' });
     await expect(progress).toHaveAttribute('aria-valuenow', '1');
-    await expect(progress).toHaveAttribute('aria-valuetext', 'Step 1 of 4: What');
+    await expect(progress).toHaveAttribute('aria-valuetext', 'Step 1 of 4: Title');
 
     await host.page.getByLabel('Title').fill('Progress Brunch');
     await wizard.next();

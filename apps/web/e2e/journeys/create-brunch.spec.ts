@@ -89,7 +89,7 @@ test.describe('C2 — wizard behavior', () => {
     const host = await makeActor('host');
     await new BrunchWizard(host.page).open();
 
-    const next = host.page.getByRole('button', { name: 'Next', exact: true });
+    const next = host.page.getByRole('button', { name: 'Continue', exact: true });
     await expect(next).toBeDisabled();
     await host.page.getByLabel('Title').fill('   ');
     await expect(next).toBeDisabled();

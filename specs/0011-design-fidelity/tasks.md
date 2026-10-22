@@ -93,18 +93,24 @@ Seven milestones, each green on its own, **deployable**, and ending in a commit.
 
 ## M4 — Creation wizard
 
-- [ ] Web: step eyebrow, per-step heading and helper, top Cancel (leaves without saving; hidden on phone), Back / Continue footer, step names Title / Where / When / Who, larger step icons on phone, "Plan a Brunch" kept as the quieter h1; behavior and the Redux slice untouched
-- [ ] `e2e/support/wizard.ts` and the specs that read wizard names directly are edited through it
-- [ ] New journey P8; the wizard added to layout and keyboard checks on phone; axe, light and dark
-- [ ] **Prove the tests can fail:** make the top Cancel create a draft → P8 fails; drop `aria-valuenow` → the existing progress assertion fails
-- [ ] Board: all four steps, light and dark, desktop and phone; owner review
-- [ ] Commit: `feat: redesign the creation wizard with step headings and a Back/Continue footer (M4)`
+- [x] Web: step eyebrow, per-step heading and helper, top Cancel (leaves without saving; hidden on phone), Back / Continue footer (Cancel on the first step), step names Title / Where / When / Who, larger step icons on phone, "Plan a Brunch" kept as the quieter h1; behavior and the Redux slice untouched
+- [x] `e2e/support/wizard.ts` and the specs that read wizard names directly are edited through it
+- [x] New journey P8; the wizard was already in the layout, keyboard and axe checks (steps 1 to 4, light and dark, and the phone project), which pass unchanged apart from the renamed button
+- [x] **Prove the tests can fail:** show the top Cancel on a phone → P8 fails; shrink the phone step icons → P8 fails; send Cancel to the landing page → P8 fails
+- [ ] Board: all four steps, light and dark, desktop and phone (written: `board-wizard-*`, `wizard-1-what-*` to `wizard-4-who-*`); **awaiting the owner's review**
+- [x] Commit: `feat: redesign the creation wizard with step headings and a Back/Continue footer (M4)`
 
-**Journeys that change:** `wizard.ts` (page object), `create-brunch.spec.ts`, `redux-ui-state.spec.ts` (R1, R2), `failure-paths.spec.ts`, any spec that clicks `Next`.
-**Names that change:** `Next` → `Continue`; step `What` → `Title`; new step h2s (`Give it a name`, `Pick a spot`, `Pick a time`, `Round up the crew`); a new `Cancel`. **Unchanged:** `Plan a Brunch` (h1), `Create Brunch`, the field labels.
-**Deployable:** yes.
+**Journeys that change:** `support/wizard.ts` (the page object's `next()` now clicks `Continue`), `create-brunch.spec.ts` and `responsive-layout.spec.ts` (their direct `Next` lookups), `keyboard-and-motion.spec.ts` (the wizard's keyboard path), `accessibility.spec.ts` (the progress text of step 1). `redux-ui-state.spec.ts` and `failure-paths.spec.ts` needed no edit: they go through the page object. **Names that change:** `Next` → `Continue`; the first step's progress name `What` → `Title` (so "Step 1 of 4: Title"); new step headings (`Give it a name`, `Pick a spot`, `Pick a time`, `Round up the crew`) and eyebrows ("Step 1 of 4 · A name everyone will see", and so on); `Cancel` (a link, top and in the first step's footer). **Unchanged:** `Plan a Brunch` (h1), `Create Brunch`, `Back`, the field labels, the progress bar's label and values. **Deployable:** yes.
 
-**Testing notes:** _(fill on completion)_
+**Testing notes:**
+
+- **What was tested:** journey **P8**, three tests. (1) Every step shows its eyebrow ("Step N of 4 · …"), its large heading and its helper line, the progress text follows ("Step 1 of 4: Title"), the first step's footer has Cancel and no Back, the later steps have Back, the first step's Continue is disabled until there is a title, the last step has "Create Brunch" and no Continue, and going Back three times keeps what was typed. (2) Cancel, at the top or in the footer of the first step, goes to the dashboard and creates nothing (the dashboard still shows the empty state and the title that was typed is nowhere). (3) On a phone: only the footer's Cancel exists, the first step icon is a plate at least 47px wide, Continue is on screen, nothing scrolls sideways. Everything the wizard does (what it keeps, what it creates, failure recovery, the 50-address cap) is still covered by C1, C2, F2 and R1 to R3, which pass with only the button name changed.
+- **How:** E2E (Playwright): the new `wizard-page.spec.ts` also runs in the `mobile` project (6 runs); the full suite on the dev server: 171 passed, 2 skipped; CI mode (`CI=true pnpm build && CI=true pnpm test:e2e`): 171 passed, 2 skipped, port 3100 free afterwards. Unit: core 484, web 418, shared 19, unchanged. No new unit tests: the wizard's rules did not change and the slice is untouched. **Stress run: not run for M4** (the M3 one was stopped by the system for low memory and has not been repeated; run both when there is room, ideally with fewer workers).
+- **Proving they can fail** (each file restored from a copy and compared byte for byte): making the top Cancel visible on a phone → P8's phone test failed; shrinking the phone step icons from 48px to 40px → it failed; sending the Cancel link to `/` instead of `/dashboard` → the Cancel test failed. (The plan's "make the top Cancel create a draft" does not apply: Cancel is a plain link; the wizard creates nothing until its last button.)
+- **What's deferred:** the prototype shows "optional" beside the Description label and a divider above the footer; the app keeps the exact labels "Title" and "Description" (journeys find fields by them) and has no divider. A step's helper text on phone is shown (the phone rules hide repetition, and this line does not repeat anything). The page's `h1` is still "Plan a Brunch" (quieter); a voiced success line after creating is not needed because the wizard sends the host straight to the new brunch.
+- **Correction to this milestone's original task list:** the wizard's layout, keyboard and axe checks already existed and cover the new steps, so none were added beyond P8; Cancel is an `<a>` link (`ButtonLink`), not a button, because it only navigates; the first step's footer shows Cancel where later steps show Back, as the prototype does; step 4's helper drops the prototype's "pick from past brunches" (the app has none).
+- **Lifecycle check:** nothing new outlives its owner: Cancel unmounts the page, and the existing unmount reset (R1) clears the draft, which the Cancel test relies on (a second visit starts empty).
+- **How to run it:** `pnpm --filter @brunchsters/web exec playwright test wizard-page create-brunch redux-ui-state`; boards: `pnpm --filter @brunchsters/web screenshots` then `pnpm --filter @brunchsters/web boards`.
 
 ---
 

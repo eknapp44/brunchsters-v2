@@ -5,7 +5,7 @@ import styles from './StepIndicator.module.css';
 type Step = 1 | 2 | 3 | 4;
 
 const STEPS = [
-  { step: 1, label: 'What', icon: 'egg' },
+  { step: 1, label: 'Title', icon: 'egg' },
   { step: 2, label: 'Where', icon: 'pin' },
   { step: 3, label: 'When', icon: 'clock' },
   { step: 4, label: 'Who', icon: 'users' },
@@ -15,12 +15,13 @@ const STEPS = [
   readonly icon: PopIconName;
 }[];
 
-const LABELS: Readonly<Record<Step, string>> = { 1: 'What', 2: 'Where', 3: 'When', 4: 'Who' };
+const LABELS: Readonly<Record<Step, string>> = { 1: 'Title', 2: 'Where', 3: 'When', 4: 'Who' };
 
 // Where the host is in the four steps. It only reads the wizard's current step; it adds no
 // state and no events. A progress bar rather than a list on purpose: the journeys count the
 // page's list items (the places, times and addresses added), so this must not add any.
-// None of its words repeat a field's label ("Title", "Description"), for the same reason.
+// Its step names are `aria-hidden` and not labels, so the first one, "Title", does not collide with
+// the Title field (journeys find that by label).
 export function StepIndicator(props: { readonly step: Step }): ReactElement {
   const { step } = props;
   const fill = ((step - 0.5) / STEPS.length) * 100;

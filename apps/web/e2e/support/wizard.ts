@@ -52,10 +52,9 @@ export class BrunchWizard {
     await this.selectedItem(text).getByRole('button', { name: 'Remove' }).click();
   }
 
-  // Exact: in dev mode Next.js adds an "Open Next.js Dev Tools" button that a substring match
-  // on "Next" would also hit.
+  // The main button of steps 1 to 3 (the last step's is create()).
   async next(): Promise<void> {
-    await this.page.getByRole('button', { name: 'Next', exact: true }).click();
+    await this.page.getByRole('button', { name: 'Continue', exact: true }).click();
   }
 
   async back(): Promise<void> {

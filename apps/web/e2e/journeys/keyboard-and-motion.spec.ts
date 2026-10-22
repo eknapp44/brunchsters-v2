@@ -72,7 +72,7 @@ test.describe('D4 — the keyboard alone', () => {
     await tabTo(host.page, host.page.getByLabel('Title'));
     await host.page.keyboard.type('Typed Without A Mouse');
     await tabTo(host.page, host.page.getByLabel('Description'));
-    await tabTo(host.page, host.page.getByRole('button', { name: 'Next', exact: true }));
+    await tabTo(host.page, host.page.getByRole('button', { name: 'Continue', exact: true }));
     await host.page.keyboard.press('Enter');
     await expect(
       host.page.getByRole('progressbar', { name: 'Brunch planning progress' }),

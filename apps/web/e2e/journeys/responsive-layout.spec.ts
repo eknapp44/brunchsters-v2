@@ -68,7 +68,7 @@ test.describe('D3 — every screen fits and shows its one action', () => {
   test('the creation wizard, every step', async ({ makeActor }) => {
     const host = await makeActor('host');
     const wizard = new BrunchWizard(host.page);
-    const next = host.page.getByRole('button', { name: 'Next', exact: true });
+    const next = host.page.getByRole('button', { name: 'Continue', exact: true });
 
     await wizard.open();
     await host.page

@@ -53,6 +53,7 @@ export default defineConfig({
         '**/confirm.spec.ts',
         '**/design-fidelity.spec.ts',
         '**/brunch-page.spec.ts',
+        '**/wizard-page.spec.ts',
       ],
     },
   ],
