@@ -62,10 +62,12 @@ export default async function ManageBrunchPage({
         <div className={styles.header}>
           <h1>Manage: {brunch.title}</h1>
         </div>
-        <ButtonLink href={`/brunch/${brunchId}`} size="sm">
-          <Icon name="arrowLeft" size={16} />
-          Back to brunch
-        </ButtonLink>
+        <div className={styles.back}>
+          <ButtonLink href={`/brunch/${brunchId}`} size="sm">
+            <Icon name="arrowLeft" size={16} />
+            Back to brunch
+          </ButtonLink>
+        </div>
 
         <section className={detail.panel}>
           <h2>Confirmed</h2>
@@ -117,10 +119,12 @@ export default async function ManageBrunchPage({
       <div className={styles.header}>
         <h1>Manage: {brunch.title}</h1>
       </div>
-      <ButtonLink href={`/brunch/${brunchId}`} size="sm">
-        <Icon name="arrowLeft" size={16} />
-        Back to brunch
-      </ButtonLink>
+      <div className={styles.back}>
+        <ButtonLink href={`/brunch/${brunchId}`} size="sm">
+          <Icon name="arrowLeft" size={16} />
+          Back to brunch
+        </ButtonLink>
+      </div>
 
       {isDraft && (
         <section className={detail.panel}>

@@ -9,6 +9,11 @@
   margin: 0;
 }
 
+/* Room between the Back link and the first panel under it. */
+.back {
+  margin-bottom: var(--space-4);
+}
+
 /* The locations and times lists live in ONE section with two headings (the journeys rely on
    that), so each half is grouped with a plain div. */
 .group > h2 {

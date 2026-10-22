@@ -72,8 +72,10 @@
 }
 
 @media (min-width: 40rem) {
+  /* the 2.5rem plate's centre is 1.75rem down (0.5rem padding + 1.25rem); the 0.5rem bar is
+     centred on it */
   .track {
-    top: 1.25rem;
+    top: 1.5rem;
   }
 
   .plate {
