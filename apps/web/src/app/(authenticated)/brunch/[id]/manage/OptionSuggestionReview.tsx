@@ -72,8 +72,9 @@ export function OptionSuggestionReview({
               <span className={detail.rowMain}>
                 <PopIcon name="pin" size={22} />
                 <span className={detail.rowText}>
-                  {suggestion.placeName} — {suggestion.placeAddress}{' '}
-                  <span className={detail.detail}>— suggested by {suggestion.suggestedByName}</span>
+                  <span className={detail.name}>{suggestion.placeName}</span>{' '}
+                  <span className={detail.detail}>(suggested by {suggestion.suggestedByName})</span>
+                  <span className={detail.address}>{suggestion.placeAddress}</span>
                 </span>
               </span>
               <span className={detail.rowActions}>
@@ -110,7 +111,7 @@ export function OptionSuggestionReview({
                     dateStyle: 'medium',
                     timeStyle: 'short',
                   })}{' '}
-                  <span className={detail.detail}>— suggested by {suggestion.suggestedByName}</span>
+                  <span className={detail.detail}>(suggested by {suggestion.suggestedByName})</span>
                 </span>
               </span>
               <span className={detail.rowActions}>

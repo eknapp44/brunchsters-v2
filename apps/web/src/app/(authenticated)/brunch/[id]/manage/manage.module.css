@@ -9,9 +9,9 @@
   margin: 0;
 }
 
-/* Room between the Back link and the first panel under it. */
+/* Navigation sits at the top, above the title, as on every other screen. */
 .back {
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-3);
 }
 
 /* The locations and times lists live in ONE section with two headings (the journeys rely on

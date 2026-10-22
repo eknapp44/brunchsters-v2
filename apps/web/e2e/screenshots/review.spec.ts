@@ -5,6 +5,7 @@ import { expect, test } from '../support/fixtures';
 import { fixturePlaces } from '../support/places';
 import { captureReviewShots } from '../support/screenshots';
 import { createConfirmedBrunch, createVotingBrunch, inviteNewcomer } from '../support/showcase';
+import { daysFromNow, toDatetimeLocalValue } from '../support/time';
 import { addAttendee, castVotes, closeVoting } from '../support/voting';
 import { BrunchWizard } from '../support/wizard';
 
@@ -103,6 +104,32 @@ test('brunch detail and manage, as host and as invitee', async ({ makeActor }, t
   await host.page.goto(`/brunch/${voting.brunchId}/manage`);
   await expect(host.page.getByRole('heading', { name: /Manage/ })).toBeVisible();
   await captureReviewShots(host.page, 'manage/voting', testInfo);
+
+  // a guest suggests a place and a time: their own panel, then the host's review list
+  const suggester = await makeActor('suggester');
+  await addAttendee({
+    brunchId: voting.brunchId,
+    host: host.user,
+    user: suggester.user,
+    response: 'yes',
+  });
+  await suggester.page.goto(`/brunch/${voting.brunchId}`);
+  await suggester.page.getByRole('textbox', { name: 'Search for a place' }).fill('pacific');
+  await suggester.page
+    .getByRole('button', {
+      name: `${fixturePlaces.pacificBrunchHouse.name} — ${fixturePlaces.pacificBrunchHouse.address}`,
+    })
+    .click();
+  await suggester.page
+    .getByLabel('Suggested date and time')
+    .fill(toDatetimeLocalValue(daysFromNow(12)));
+  await suggester.page.getByRole('button', { name: 'Suggest this time' }).click();
+  await expect(suggester.page.getByText('(awaiting host approval)')).toHaveCount(2);
+  await captureReviewShots(suggester.page, 'brunch/invitee-with-suggestions', testInfo);
+
+  await host.page.goto(`/brunch/${voting.brunchId}/manage`);
+  await expect(host.page.getByRole('heading', { name: 'Pending Suggestions' })).toBeVisible();
+  await captureReviewShots(host.page, 'manage/with-suggestions', testInfo);
 
   await yes.page.goto(`/brunch/${voting.brunchId}`);
   await expect(yes.page.getByRole('heading', { name: voting.title })).toBeVisible();

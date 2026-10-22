@@ -74,8 +74,9 @@ export function LocationSuggestionControl({
               <span className={styles.rowMain}>
                 <PopIcon name="pin" size={22} />
                 <span className={styles.rowText}>
-                  {suggestion.placeName} — {suggestion.placeAddress}{' '}
+                  <span className={styles.name}>{suggestion.placeName}</span>{' '}
                   <span className={styles.detail}>(awaiting host approval)</span>
+                  <span className={styles.address}>{suggestion.placeAddress}</span>
                 </span>
               </span>
             </li>
