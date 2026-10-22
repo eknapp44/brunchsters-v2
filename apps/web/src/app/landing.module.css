@@ -1,0 +1,143 @@
+/* The landing page: a warm hero, three steps, a small footer. Phone first; the hero goes to two
+   columns (words, then the breakfast scene) from 48rem. */
+.page {
+  max-width: none; /* the global <main> width cap is for pages without their own layout */
+  margin: 0;
+  padding: 0;
+}
+
+.hero {
+  padding: var(--space-7) var(--page-gutter);
+  background: linear-gradient(180deg, var(--accent-soft) 0%, var(--bg) 100%);
+}
+
+/* the same left edge as the top bar: its width includes its own side gutters */
+.heroInner {
+  display: grid;
+  gap: var(--space-6);
+  align-items: center;
+  max-width: calc(var(--page-width) - 2 * var(--page-gutter));
+  margin: 0 auto;
+}
+
+.copy,
+.scene {
+  width: 100%;
+  max-width: 34rem;
+  margin: 0 auto;
+}
+
+.headline {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-3xl);
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+.emoji {
+  font-family: var(--font-sans);
+}
+
+.sub {
+  margin: 0 0 var(--space-5);
+  font-size: var(--text-md);
+  color: var(--fg-muted);
+  text-wrap: pretty;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.note {
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+
+.scene {
+  max-width: 28rem;
+}
+
+.how {
+  padding: var(--space-7) var(--page-gutter);
+}
+
+.howInner {
+  max-width: calc(var(--page-width) - 2 * var(--page-gutter));
+  margin: 0 auto;
+}
+
+.howTitle {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-2xl);
+  text-wrap: balance;
+}
+
+.howSub {
+  margin: 0 0 var(--space-6);
+  max-width: 36rem;
+  color: var(--fg-muted);
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+}
+
+.step {
+  padding: var(--space-5);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-4);
+  box-shadow: var(--shadow-sm);
+}
+
+.stepHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+
+.stepNumber {
+  font-family: var(--font-display);
+  font-variation-settings: var(--display-variation);
+  font-size: var(--text-xl);
+  color: var(--fg-muted);
+}
+
+.step h3 {
+  margin: 0 0 var(--space-2);
+}
+
+.step p {
+  margin: 0;
+  color: var(--fg-muted);
+}
+
+.footer {
+  padding: var(--space-5) var(--page-gutter) var(--space-6);
+  font-size: var(--text-sm);
+  text-align: center;
+  color: var(--fg-muted);
+  border-top: 1px solid var(--line-soft);
+}
+
+@media (min-width: 48rem) {
+  .heroInner {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  /* the prototype's hero headline is big: a size derived from the token, not a new one */
+  .headline {
+    font-size: calc(var(--text-3xl) * 1.5);
+  }
+
+  .steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

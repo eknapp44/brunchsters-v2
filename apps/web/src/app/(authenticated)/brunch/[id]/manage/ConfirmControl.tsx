@@ -154,7 +154,7 @@ export function ConfirmControl({
             effectiveTimeId === undefined
           }
         >
-          Confirm brunch
+          Lock it in
         </Button>
       </div>
 

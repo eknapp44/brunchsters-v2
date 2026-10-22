@@ -1,3 +1,4 @@
+import { NOT_FOUND } from '../support/pages';
 import { getDb } from '../support/db';
 import { createBrunch, inviteToBrunch, respondToInvite, uniqueSuffix } from '../support/factories';
 import { expect, test } from '../support/fixtures';
@@ -24,7 +25,7 @@ test.describe('C3 — who can open a brunch', () => {
 
     const denied = await stranger.page.goto(`/brunch/${brunchId}`);
     expect(denied?.status()).toBe(404);
-    await expect(stranger.page.getByText('This page could not be found.')).toBeVisible();
+    await expect(stranger.page.getByText(NOT_FOUND)).toBeVisible();
     // 404, not 403: nothing about the brunch is disclosed.
     await expect(stranger.page.getByText(title)).toHaveCount(0);
   });

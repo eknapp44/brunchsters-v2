@@ -1,3 +1,4 @@
+import { GONE_COLD } from '../support/pages';
 import { EMPTY_DASHBOARD_HEADLINE } from '../support/dashboard';
 import type { Page } from '@playwright/test';
 import { createBrunch } from '../support/factories';
@@ -42,7 +43,7 @@ test.describe('D3 — every screen fits and shows its one action', () => {
     await expectNoSidewaysScroll(page, 'the invite preview');
 
     await page.goto('/invite/not-a-real-token');
-    await expect(page.getByRole('heading', { name: 'Invite not found' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: GONE_COLD })).toBeVisible();
     await expectNoSidewaysScroll(page, 'the invalid invite page');
   });
 

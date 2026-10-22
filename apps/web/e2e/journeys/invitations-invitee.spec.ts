@@ -71,9 +71,9 @@ test.describe('A3 — a newcomer follows an invite link while signed out', () =>
     await page.goto(inviteLink(token));
 
     // A preview: what the brunch is and who is hosting it...
-    await expect(page.getByRole('heading', { name: `You're invited to ${title}` })).toBeVisible();
-    await expect(page.getByText(`Hosted by ${host.user.name}`)).toBeVisible();
-    await expect(page.getByText('Active', { exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
+    await expect(page.getByText(`${host.user.name} wants you at brunch`)).toBeVisible();
+    // (not its status: a friend does not need to know "Active"; journey P10 pins that)
     // ...and nothing else: no other invitee, no host email (Constitution 29).
     await expect(page.locator('body')).not.toContainText(bystander);
     await expect(page.locator('body')).not.toContainText(host.user.email);

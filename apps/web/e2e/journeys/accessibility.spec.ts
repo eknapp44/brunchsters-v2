@@ -1,3 +1,4 @@
+import { GONE_COLD, LANDING_HEADING, NOT_FOUND, SIGN_IN_HEADING } from '../support/pages';
 import { EMPTY_DASHBOARD_HEADLINE } from '../support/dashboard';
 import { COLOR_SCHEMES, expectNoA11yViolations, useColorScheme } from '../support/a11y';
 import { createBrunch } from '../support/factories';
@@ -19,11 +20,11 @@ for (const scheme of COLOR_SCHEMES) {
 
     test('the landing page and the sign-in page', async ({ page }) => {
       await page.goto('/');
-      await expect(page.getByRole('heading', { name: 'Brunchsters' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: LANDING_HEADING })).toBeVisible();
       await expectNoA11yViolations(page, `/ (${scheme})`);
 
       await page.goto('/sign-in');
-      await expect(page.getByRole('heading', { name: 'Sign in to Brunchsters' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: SIGN_IN_HEADING })).toBeVisible();
       await expectNoA11yViolations(page, `/sign-in (${scheme})`);
     });
 
@@ -34,11 +35,11 @@ for (const scheme of COLOR_SCHEMES) {
       const link = await inviteNewcomer({ host, brunchId });
 
       await page.goto(link);
-      await expect(page.getByRole('heading', { name: `You're invited to ${title}` })).toBeVisible();
+      await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
       await expectNoA11yViolations(page, `invite preview (${scheme})`);
 
       await page.goto('/invite/not-a-real-token');
-      await expect(page.getByRole('heading', { name: 'Invite not found' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: GONE_COLD })).toBeVisible();
       await expectNoA11yViolations(page, `invalid invite (${scheme})`);
     });
   });
@@ -195,7 +196,7 @@ for (const scheme of COLOR_SCHEMES) {
       await useColorScheme(stranger.page, scheme);
       const brunchId = await createBrunch({ host: host.user, title: 'Not For Strangers' });
       await stranger.page.goto(`/brunch/${brunchId}`);
-      await expect(stranger.page.getByText('This page could not be found.')).toBeVisible();
+      await expect(stranger.page.getByText(NOT_FOUND)).toBeVisible();
       await expectNoA11yViolations(stranger.page, `not found (${scheme})`);
     });
 
@@ -266,7 +267,7 @@ test.describe('the app shell', () => {
     await expect(host.page.getByRole('button', { name: 'Sign out' })).toBeVisible();
   });
 
-  test('the landing page has one action: Sign in when signed out, Go to dashboard when signed in', async ({
+  test('the landing page: Sign in (and Round up the crew) when signed out, Go to dashboard when signed in', async ({
     page,
     makeActor,
   }) => {

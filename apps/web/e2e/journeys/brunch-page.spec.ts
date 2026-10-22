@@ -1,6 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { createBrunch, uniqueSuffix } from '../support/factories';
 import { expect, test } from '../support/fixtures';
+import { NOT_FOUND } from '../support/pages';
 import { fixturePlaces } from '../support/places';
 import { createConfirmedBrunch, createVotingBrunch, inviteNewcomer } from '../support/showcase';
 import { addAttendee, ballot, castVotes } from '../support/voting';
@@ -61,9 +62,13 @@ test.describe('P5 — who sees whom on the brunch page', () => {
     }
 
     // An outsider: the real brunch and a made-up id answer identically, down to the words.
+    // (wait for the 404 to be on screen before reading it: the text is empty until it paints)
+    const notFound = outsider.page.getByRole('heading', { level: 1, name: NOT_FOUND });
     const real = await outsider.page.goto(`/brunch/${brunchId}`);
+    await expect(notFound).toBeVisible();
     const realText = await outsider.page.locator('body').innerText();
     const made = await outsider.page.goto(`/brunch/${MISSING_BRUNCH}`);
+    await expect(notFound).toBeVisible();
     const madeText = await outsider.page.locator('body').innerText();
     expect(real?.status()).toBe(404);
     expect(made?.status()).toBe(404);

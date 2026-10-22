@@ -1,3 +1,4 @@
+import { GONE_COLD } from '../support/pages';
 import { normalizeEmail } from '@brunchsters/shared';
 import { getDb } from '../support/db';
 import { createBrunch, getInviteToken, uniqueSuffix } from '../support/factories';
@@ -53,9 +54,9 @@ test.describe('I7 — one address, one person', () => {
 
     // One link works; the superseded one does not.
     await page.goto(inviteLink(firstToken));
-    await expect(page.getByRole('heading', { name: 'Invite not found' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: GONE_COLD })).toBeVisible();
     await page.goto(inviteLink(await getInviteToken({ brunchId, email: address })));
-    await expect(page.getByRole('heading', { name: `You're invited to ${title}` })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
   });
 
   test('both spellings in one wizard submission are still one invite', async ({ makeActor }) => {

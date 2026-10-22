@@ -4,6 +4,8 @@ import type { InviteToken } from '@brunchsters/shared';
 export type InvitePreview = {
   readonly brunchTitle: string;
   readonly hostName: string;
+  // Already in the invite email, so a link-holder learns nothing new from it.
+  readonly description: string | undefined;
   readonly brunchStatusLabel: string;
 };
 
@@ -23,6 +25,7 @@ export async function getInviteByToken(
   return {
     brunchTitle: invite.brunch.title,
     hostName: invite.brunch.host.name,
+    description: invite.brunch.description ?? undefined,
     brunchStatusLabel: invite.brunch.status.label,
   };
 }

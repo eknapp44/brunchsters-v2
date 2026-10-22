@@ -7,6 +7,7 @@ const VALID_INVITE = {
   token: 'valid-token',
   brunch: {
     title: 'Weekend Brunch',
+    description: 'Pancakes and mimosas',
     host: { name: 'Alice Host' },
     status: { label: 'Active' },
   },
@@ -26,8 +27,22 @@ describe('getInviteByToken', () => {
     expect(result).toEqual({
       brunchTitle: 'Weekend Brunch',
       hostName: 'Alice Host',
+      description: 'Pancakes and mimosas',
       brunchStatusLabel: 'Active',
     });
+  });
+
+  it('leaves the description undefined when the brunch has none', async () => {
+    const findFirst = vi.fn().mockResolvedValue({
+      ...VALID_INVITE,
+      brunch: { ...VALID_INVITE.brunch, description: null },
+    });
+
+    const result = await getInviteByToken('valid-token' as InviteToken, {
+      db: makeMockDb(findFirst),
+    });
+
+    expect(result?.description).toBeUndefined();
   });
 
   it('queries only non-expired tokens', async () => {

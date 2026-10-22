@@ -150,8 +150,8 @@ Hide on phone, never the only source of a fact: the "N brunches" count, the help
 - [x] The greeting renders neutral on the server and time-aware on the client without a hydration warning (`useSyncExternalStore` with a server snapshot), and the heading is announced once
 - [x] A display mapping turns status codes into Copy Pass wording on the dashboard, with a test that fails when a seeded status code has no entry; the brunch page badge keeps the lookup label
 - [x] Emoji are `aria-hidden` everywhere; the RSVP names are "I'm in", "Maybe", "Can't"
-- [ ] `not-found.tsx` and `error.tsx` exist, use the tokens and voice, and the 404 text is identical for every case; `error.tsx` offers the framework's retry
-- [ ] The landing page replaces "Coming soon."; sign-out lands on it
+- [x] `not-found.tsx` and `error.tsx` exist, use the tokens and voice, and the 404 text is identical for every case; `error.tsx` offers the framework's retry
+- [x] The landing page replaces "Coming soon."; sign-out lands on it
 - [ ] The invite and confirmation emails carry the voice; layout and events unchanged (M6, may be cut)
 
 ### Docs (adoption, not tacked on)

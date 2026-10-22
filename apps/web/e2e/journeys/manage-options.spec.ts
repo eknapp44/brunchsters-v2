@@ -1,3 +1,4 @@
+import { NOT_FOUND } from '../support/pages';
 import { getDb } from '../support/db';
 import { createBrunch, uniqueSuffix } from '../support/factories';
 import { expect, test } from '../support/fixtures';
@@ -24,7 +25,7 @@ test.describe('H4 — only the host gets the manage screen', () => {
 
     const denied = await attendee.page.goto(`/brunch/${brunchId}/manage`);
     expect(denied?.status()).toBe(404);
-    await expect(attendee.page.getByText('This page could not be found.')).toBeVisible();
+    await expect(attendee.page.getByText(NOT_FOUND)).toBeVisible();
 
     const allowed = await host.page.goto(`/brunch/${brunchId}/manage`);
     expect(allowed?.status()).toBe(200);
@@ -143,7 +144,7 @@ test.describe('H5 — historic bug: removing the option selected for confirming'
       .click();
     await expect(sunny).toHaveCount(0);
     await expect(harbor).toBeChecked();
-    const confirmButton = confirm.getByRole('button', { name: 'Confirm brunch' });
+    const confirmButton = confirm.getByRole('button', { name: 'Lock it in' });
     await expect(confirmButton).toBeEnabled();
 
     await confirmButton.click();
@@ -168,7 +169,7 @@ test.describe('H8 — managing a draft brunch', () => {
     });
     const heading = host.page.getByRole('heading', { name: 'Send an invite first' });
     const search = host.page.getByRole('textbox', { name: 'Search for a place' });
-    const confirmButton = host.page.getByRole('button', { name: 'Confirm brunch' });
+    const confirmButton = host.page.getByRole('button', { name: 'Lock it in' });
 
     await host.page.goto(`/brunch/${brunchId}/manage`);
 
@@ -184,7 +185,7 @@ test.describe('H8 — managing a draft brunch', () => {
     await expect(confirmButton).toBeDisabled();
     // Closing voting would start the brunch with voting already over, so that is off too; setting
     // a deadline is fine and stays available.
-    const closeButton = host.page.getByRole('button', { name: 'Close voting now' });
+    const closeButton = host.page.getByRole('button', { name: 'Call it' });
     await expect(closeButton).toBeDisabled();
     await expect(host.page.getByRole('button', { name: 'Save deadline' })).toBeEnabled();
     // It is a rule, not just a disabled button: the server refuses too, and nothing changes.

@@ -1,3 +1,4 @@
+import { LANDING_HEADING, SIGN_IN_HEADING } from '../support/pages';
 import { EMPTY_DASHBOARD_HEADLINE, expectDashboard } from '../support/dashboard';
 import { expect, test } from '../support/fixtures';
 
@@ -10,7 +11,7 @@ test.describe('A1 — signed-out access', () => {
     await page.goto('/dashboard');
 
     await expect(page).toHaveURL(/\/sign-in\?callbackUrl=%2Fdashboard$/);
-    await expect(page.getByRole('heading', { name: 'Sign in to Brunchsters' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: SIGN_IN_HEADING })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Sign in with Google' })).toBeVisible();
   });
 
@@ -23,7 +24,7 @@ test.describe('A1 — signed-out access', () => {
   test('the landing page and sign-in page stay public', async ({ page }) => {
     await page.goto('/');
     await expect(page).toHaveURL('/');
-    await expect(page.getByRole('heading', { name: 'Brunchsters' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: LANDING_HEADING })).toBeVisible();
 
     await page.goto('/sign-in');
     await expect(page).toHaveURL('/sign-in');

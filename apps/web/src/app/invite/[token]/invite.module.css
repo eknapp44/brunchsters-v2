@@ -1,0 +1,35 @@
+/* The invite card: who asked, what for. Inside the Hero column, whose own rules set the
+   heading and paragraph sizes; these only arrange the card. */
+.card {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-5);
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-4);
+  box-shadow: var(--shadow-md);
+}
+
+.card > * {
+  margin: 0;
+}
+
+.from {
+  color: var(--fg);
+}
+
+.quote {
+  font-style: italic;
+  overflow-wrap: anywhere;
+}
+
+.emoji {
+  font-family: var(--font-sans);
+}
+
+.help {
+  text-align: center;
+}

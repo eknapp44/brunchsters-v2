@@ -1,15 +1,19 @@
 import { getInviteByToken, respondToInvite } from '@brunchsters/core';
-import type { InviteToken, UserId } from '@brunchsters/shared';
+import { avatarColorIndex, type InviteToken, type UserId } from '@brunchsters/shared';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
-import { LogoMark } from '@/components/art/LogoMark';
 import { PopIcon } from '@/components/icons/PopIcon';
-import { Badge } from '@/components/ui/Badge';
 import { ButtonLink } from '@/components/ui/ButtonLink';
 import { Hero } from '@/components/ui/Hero';
+import { InitialsAvatar } from '@/components/ui/InitialsAvatar';
 import { InlineAlert } from '@/components/ui/InlineAlert';
 import { db } from '@/lib/db';
 import { eventBus } from '@/lib/services';
+import styles from './invite.module.css';
+
+// Expired, revoked and unknown tokens all end here with the same words, so a bad token cannot
+// say which it was.
+const GONE_COLD = "That invite's gone cold.";
 
 export default async function InviteLandingPage({
   params,
@@ -24,8 +28,8 @@ export default async function InviteLandingPage({
     return (
       <Hero>
         <PopIcon name="clock" size={48} />
-        <h1>Invite not found</h1>
-        <p>This invite has expired or is invalid. Ask the host to resend it.</p>
+        <h1>{GONE_COLD}</h1>
+        <p>It may have expired. Ask whoever sent it to send a new one.</p>
       </Hero>
     );
   }
@@ -43,9 +47,10 @@ export default async function InviteLandingPage({
 
     return (
       <Hero>
-        <h1>Something went wrong</h1>
+        <PopIcon name="clock" size={48} />
+        <h1>{GONE_COLD}</h1>
         <InlineAlert tone="error">
-          <p>We couldn&apos;t process this invite. Ask the host to resend it.</p>
+          <p>We couldn&apos;t use it. Ask whoever sent it for a new one.</p>
         </InlineAlert>
       </Hero>
     );
@@ -53,10 +58,25 @@ export default async function InviteLandingPage({
 
   return (
     <Hero>
-      <LogoMark size={56} />
-      <h1>You&apos;re invited to {preview.brunchTitle}</h1>
-      <p>Hosted by {preview.hostName}</p>
-      <Badge tone="accent">{preview.brunchStatusLabel}</Badge>
+      <div className={styles.card}>
+        <InitialsAvatar
+          name={preview.hostName}
+          colorIndex={avatarColorIndex(preview.hostName)}
+          size="lg"
+          decorative
+        />
+        <p className={styles.from}>
+          <strong>{preview.hostName}</strong> wants you at brunch{' '}
+          <span aria-hidden="true" className={styles.emoji}>
+            🥂
+          </span>
+        </p>
+        <h1>{preview.brunchTitle}</h1>
+        {preview.description !== undefined && preview.description.trim() !== '' && (
+          <p className={styles.quote}>&ldquo;{preview.description}&rdquo;</p>
+        )}
+      </div>
+      <p className={styles.help}>Sign in to RSVP and vote. Takes a second.</p>
       <ButtonLink
         href={`/sign-in?callbackUrl=${encodeURIComponent(`/invite/${token}`)}`}
         variant="primary"

@@ -1,3 +1,4 @@
+import { GONE_COLD, LANDING_HEADING, SIGN_IN_HEADING, NOT_FOUND } from '../support/pages';
 import { EMPTY_DASHBOARD_HEADLINE } from '../support/dashboard';
 import { createBrunch } from '../support/factories';
 import { expect, test } from '../support/fixtures';
@@ -13,21 +14,21 @@ import { BrunchWizard } from '../support/wizard';
 
 test('signed-out pages', async ({ page, makeActor }, testInfo) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Brunchsters' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: LANDING_HEADING })).toBeVisible();
   await captureReviewShots(page, 'landing', testInfo);
 
   await page.goto('/sign-in');
-  await expect(page.getByRole('heading', { name: 'Sign in to Brunchsters' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: SIGN_IN_HEADING })).toBeVisible();
   await captureReviewShots(page, 'sign-in', testInfo);
 
   const host = await makeActor('host');
   const brunchId = await createBrunch({ host: host.user, title: 'Birthday Brunch' });
   await page.goto(await inviteNewcomer({ host, brunchId }));
-  await expect(page.getByRole('heading', { name: /You're invited to/ })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Birthday Brunch' })).toBeVisible();
   await captureReviewShots(page, 'invite-preview', testInfo);
 
   await page.goto('/invite/not-a-real-token');
-  await expect(page.getByRole('heading', { name: 'Invite not found' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: GONE_COLD })).toBeVisible();
   await captureReviewShots(page, 'invite-invalid', testInfo);
 });
 
@@ -119,9 +120,16 @@ test('brunch detail and manage, as host and as invitee', async ({ makeActor }, t
   await expect(declined.page.getByText('Your RSVP does not allow voting.').first()).toBeVisible();
   await captureReviewShots(declined.page, 'brunch-invitee-cannot-vote', testInfo);
 
-  // someone invited who has not answered is not a member yet, so the page is a 404
+  // someone invited who has not answered yet is a member: the same page, with no answer chosen
   await pending.page.goto(`/brunch/${voting.brunchId}`);
-  await captureReviewShots(pending.page, 'not-found', testInfo);
+  await expect(pending.page.getByRole('heading', { name: voting.title })).toBeVisible();
+  await captureReviewShots(pending.page, 'brunch-invitee-unanswered', testInfo);
+
+  // a stranger gets the 404, the same for this brunch as for any address
+  const stranger = await makeActor('stranger');
+  await stranger.page.goto(`/brunch/${voting.brunchId}`);
+  await expect(stranger.page.getByRole('heading', { name: NOT_FOUND })).toBeVisible();
+  await captureReviewShots(stranger.page, 'not-found', testInfo);
 
   await closeVoting({ brunchId: voting.brunchId, host: host.user });
   await yes.page.goto(`/brunch/${voting.brunchId}`);

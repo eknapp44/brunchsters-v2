@@ -75,6 +75,7 @@ export async function createUser(input: {
 export type CreateBrunchParams = {
   readonly host: TestUser;
   readonly title?: string;
+  readonly description?: string;
   readonly locations?: readonly PlaceDetails[];
   // Defaults to a single time one week out.
   readonly times?: readonly Date[];
@@ -93,6 +94,7 @@ export async function createBrunch(params: CreateBrunchParams): Promise<BrunchId
     {
       hostId: params.host.id,
       title: params.title ?? `E2E Brunch ${uniqueSuffix()}`,
+      ...(params.description !== undefined ? { description: params.description } : {}),
       locations: locations.map((location) => ({
         placeId: location.placeId,
         placeName: location.name,

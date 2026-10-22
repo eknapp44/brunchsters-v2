@@ -114,7 +114,7 @@ export function VotingControls({
 
       {(locationsShouldSuggestClosing || timesShouldSuggestClosing) && (
         <InlineAlert>
-          <p>Most eligible attendees have voted — you can close voting now if you&apos;re ready.</p>
+          <p>Most of the crew has voted — call it now if you&apos;re ready.</p>
         </InlineAlert>
       )}
 
@@ -133,7 +133,7 @@ export function VotingControls({
           onClick={() => void closeVotingNow()}
           disabled={submitting || !canClose}
         >
-          Close voting now
+          Call it
         </Button>
       </div>
 

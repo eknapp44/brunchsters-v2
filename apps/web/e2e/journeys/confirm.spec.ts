@@ -56,7 +56,7 @@ test.describe('H3 — confirming the brunch', () => {
     await expect(timeRadios).toHaveCount(2);
     await expect(timeRadios.nth(0)).not.toBeChecked();
     await expect(timeRadios.nth(1)).not.toBeChecked();
-    const confirmButton = confirm.getByRole('button', { name: 'Confirm brunch' });
+    const confirmButton = confirm.getByRole('button', { name: 'Lock it in' });
     await expect(confirmButton).toBeDisabled();
 
     // One action confirms both choices.
@@ -70,9 +70,9 @@ test.describe('H3 — confirming the brunch', () => {
     await expect(
       host.page.getByText(formatIn(TIMES[1] ?? new Date(), 'America/Chicago')),
     ).toBeVisible();
-    await expect(host.page.getByRole('button', { name: 'Confirm brunch' })).toHaveCount(0);
+    await expect(host.page.getByRole('button', { name: 'Lock it in' })).toHaveCount(0);
     await expect(host.page.getByRole('button', { name: 'Add Time' })).toHaveCount(0);
-    await expect(host.page.getByRole('button', { name: 'Close voting now' })).toHaveCount(0);
+    await expect(host.page.getByRole('button', { name: 'Call it' })).toHaveCount(0);
 
     // An attendee sees it everywhere: status, both choices marked, the ballot frozen...
     await ann.page.goto(`/brunch/${brunchId}`);
@@ -114,7 +114,7 @@ test.describe('H6 — confirming with no one else on board', () => {
     await expect(
       host.page.getByText('No one else has accepted yet — you can still confirm.'),
     ).toBeVisible();
-    await host.page.getByRole('button', { name: 'Confirm brunch' }).click();
+    await host.page.getByRole('button', { name: 'Lock it in' }).click();
 
     await expect(host.page.getByRole('heading', { name: 'Confirmed', exact: true })).toBeVisible();
     await expect(host.page.getByText(fixturePlaces.sunnySide.name)).toBeVisible();
@@ -132,7 +132,7 @@ test.describe('H6 — confirming with no one else on board', () => {
 
     await host.page.goto(`/brunch/${brunchId}/manage`);
 
-    await expect(host.page.getByRole('button', { name: 'Confirm brunch' })).toBeEnabled();
+    await expect(host.page.getByRole('button', { name: 'Lock it in' })).toBeEnabled();
     await expect(host.page.getByText('No one else has accepted yet')).toHaveCount(0);
   });
 });
