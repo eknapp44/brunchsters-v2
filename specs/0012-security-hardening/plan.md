@@ -13,6 +13,7 @@
 - `packages/core/src/rateLimit/pruneRateLimitBuckets.ts` (+ integration test).
 - `apps/web/src/lib/rateLimit.ts` (+ test): `rateLimitedResponse(decision)`, `clientIp(headers)`, `enforceWriteLimit(session)`; builds the `PostgresRateLimiter` from `db`.
 - `apps/web/src/lib/limitedCopy.ts` (+ test): the three strings and the duration wording.
+- `apps/web/src/lib/useLimitedUntil.ts` (+ test of the pure parts: read, expiry, blocked storage): the persisted wait.
 - `apps/web/src/app/api/v1/routeLimits.test.ts`: the scanning test.
 - `apps/web/src/lib/contentSecurityPolicy.ts` (+ test): the pure policy builder.
 - `apps/web/e2e/journeys/rate-limits.spec.ts` (L1–L6), `apps/web/e2e/journeys/session-integrity.spec.ts` (S2, or added to `sessions.spec.ts` if it fits), CSP journey S3 in `front-door.spec.ts`.
@@ -74,7 +75,16 @@ Counting happens before the transaction. If the transaction then fails the units
 
 ### Client state
 
-Each control already holds its own `error` in `useState`; the limited line goes through the same state. No slice, no new global state, and it does not trigger a "Redux follow-up" in §17 beyond the one it names (showing the server's real message), which is only done for 429.
+Each control keeps its own state in `useState` (ADR 0011: a single control's state); no slice. A new hook, `apps/web/src/lib/useLimitedUntil.ts`, holds "limited until" for a control:
+
+- `limitedUntil` is an **absolute timestamp** (`Date.now() + retryAfterSeconds * 1000`), written to `localStorage` under `limit:<control>:<userId>[:<id>]` (the Resend button adds its invite id). On mount it reads the key and, if the time is still ahead, starts disabled; a timer re-enables at that moment, and the key is removed.
+- A refresh, a closed tab, or a sign-out and sign-in as the same person keeps the wait. A different person in the same browser has a different key. The windows are fixed, so the saved time is the exact moment the counter resets: the next click after it succeeds.
+- Every `localStorage` call is in `try/catch`; when storage is blocked the hook keeps the time in memory and the server's 429 remains the real enforcement.
+- It does not cover another device or cleared site data: those learn on their first click (the server answers 429, the control disables). An accurate answer there needs a read-only budget check on page load, not built (spec "Does Not Cover").
+- Disabled means `aria-disabled="true"` plus ignoring the click, so the button stays in the tab order and the line beside it (an `InlineAlert`, `role="alert"`) stays attached. The wait is static text, not a ticking countdown. The label does not change.
+- Invites and Resend use it. Place search shows its line and clears it when the wait passes, but the input stays usable (the wait is seconds).
+
+It does not trigger a "Redux follow-up" in §17 beyond the one it names (showing the server's real message), done only for 429.
 
 ### Pruning
 

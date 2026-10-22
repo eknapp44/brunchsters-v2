@@ -45,9 +45,9 @@ The order proves the risky parts early: the dependency patch first (it is the la
 - [ ] `getRateLimiter()` in `lib/services.ts`; `rateLimitedResponse` and `clientIp` in `lib/rateLimit.ts` + tests
 - [ ] `sendInvites` and `resendInvite`: `rateLimiter` in `ctx`, `rate_limited` error, consumed after the host check (order table in the plan); unit tests with the in-memory limiter, integration test with the real one; a denied send creates nothing and emits nothing
 - [ ] The two routes map `rate_limited` to 429; handler tests
-- [ ] `InvitePanel` shows the limited line for send and resend, labels unchanged
-- [ ] Journeys **L1** (cap) and **L2** (resend cooldown, a different invite still works)
-- [ ] **Prove the tests can fail:** consume before the host check → the outsider case in the service test fails; remove the cooldown → L2 fails; charge the raw instead of the de-duplicated count → the count test fails
+- [ ] `useLimitedUntil` (absolute timestamp in `localStorage`, `try/catch`, in-memory fallback) + unit tests; `InvitePanel` disables send and the one invite's Resend after a 429 (`aria-disabled`, focusable, labels unchanged) with the limited line beside it
+- [ ] Journeys **L1** (cap) and **L2** (resend cooldown, a different invite still works), each also asserting disabled, still disabled after a reload, and re-enabled once the browser clock (Playwright `page.clock`) passes the wait
+- [ ] **Prove the tests can fail:** consume before the host check → the outsider case in the service test fails; remove the cooldown → L2 fails; stop persisting the timestamp → the after-reload assertion in L1 fails; charge the raw instead of the de-duplicated count → the count test fails
 - [ ] Commit: `feat: limit invite emails per host, per brunch and per resend (M3)`
 
 **Journeys that change:** the invitations-host journeys that click Resend (grep at start) must not trip the cooldown: each uses its own invite. **Names that change:** none (new text inside the existing alert).
@@ -60,7 +60,7 @@ The order proves the risky parts early: the dependency patch first (it is the la
 
 - [ ] Both Places handlers call `auth()` and consume 30 and 20 per person per minute before Google; their tests gain a session mock
 - [ ] `enforceWriteLimit` in every mutating `v1` handler right after `auth()`; the scanning test with its allowlist (the two invite routes limited in core, the token routes); handler tests per family
-- [ ] Token routes count 404 answers per IP; `PlaceSearchInput` shows its limited line
+- [ ] Token routes count 404 answers per IP; `PlaceSearchInput` shows its limited line, stays usable, and clears the line when the wait passes
 - [ ] Journeys **L3** (places), **L4** (writes, per person), **L5** (outsider equals made-up id under and over budget; edits `api-authorization`), **L6** (tokens, own `x-forwarded-for`)
 - [ ] **Prove the tests can fail:** drop `enforceWriteLimit` from one route → the scanning test fails; key the write limit by brunch id → L5 (real vs made-up) fails; key it globally → L4's second member fails; skip the Places limit → L3 fails
 - [ ] Commit: `feat: limit place search, writes and invalid invite tokens (M4)`
