@@ -36,7 +36,7 @@
 RateLimitBucket(key text, windowStart timestamptz, count int, PK(key, windowStart), INDEX(windowStart))
 
 consume({ policy, subject, cost = 1 }):
-  if cost > policy.limit → denied (retryAfter = full window)
+  if cost > policy.limit → denied, spends nothing (retryAfter = seconds to the window end, like any denial)
   windowStart = floor(now / windowSeconds) * windowSeconds
   INSERT (key, windowStart, cost) ON CONFLICT (key, windowStart)
     DO UPDATE SET count = count + cost WHERE RateLimitBucket.count + cost <= limit
@@ -71,7 +71,7 @@ Counting happens before the transaction. If the transaction then fails the units
 
 ### The 429 and the copy
 
-`rateLimitedResponse` returns `NextResponse.json({ error: 'Too many requests', retryAfterSeconds }, { status: 429, headers: { 'Retry-After': String(seconds) } })`. Controls read `retryAfterSeconds` from the body. `limitedCopy.ts` exports `invitesLimitedMessage(seconds)`, `resendLimitedMessage(seconds)`, `placeSearchLimitedMessage()` and one `formatWait(seconds)` ("about 3 hours", "12 minutes", "a minute"; never "0"). Draft strings (finalized in M3 with the `ui-screen` skill and `design-docs/Brand Voice.html`): "Easy there, that's a lot of invites for one day. Try again in {wait}."; "That one just went out. Give it {wait}."; "Slow down a sec, then try again."
+`rateLimitedResponse` returns `NextResponse.json({ error: 'Too many requests', retryAfterSeconds }, { status: 429, headers: { 'Retry-After': String(seconds) } })`. Controls read `retryAfterSeconds` from the body. `limitedCopy.ts` exports `invitesLimitedMessage(seconds)`, `resendLimitedMessage(seconds)`, `placeSearchLimitedMessage()` and one `formatWait(seconds)` ("about 3 hours", "12 minutes", "a minute"; never "0"). Windows are aligned to the Unix epoch, so a "daily" window is a UTC day and a refused host can be told a short wait late in the day: the wording says "about {wait}", never "tomorrow" or "24 hours". Draft strings (finalized in M3 with the `ui-screen` skill and `design-docs/Brand Voice.html`): "Easy there, that's a lot of invites for one day. Try again in {wait}."; "That one just went out. Give it {wait}."; "Slow down a sec, then try again."
 
 ### Client state
 

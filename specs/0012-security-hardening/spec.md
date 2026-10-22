@@ -100,7 +100,7 @@ No new screen. Two existing controls gain one inline line of copy for a limited 
 
 - [ ] `PLANNING.md` §16 (step 5 now links this spec and names what is in it), §17 "Security and session follow-ups" updated item by item (rate limits and CSP done; HSTS, expired session, invite GET, account deletion still open with their owners)
 - [ ] `docs/SETUP.md`: the audit command, how to run the limit journeys, the `x-forwarded-for` note for local runs
-- [ ] The deployment spec's pre-launch checklist in `PLANNING.md` §17 gains: HSTS, "confirm Vercel overwrites a client-supplied `x-forwarded-for`", "load every screen and read the console for CSP violations", "decide where limit-hit logs go"
+- [ ] The deployment spec's pre-launch checklist in `PLANNING.md` §17 gains: HSTS, "confirm Vercel overwrites a client-supplied `x-forwarded-for`", "load every screen and read the console for CSP violations", "decide where limit-hit logs go, and confirm the daily `prune-rate-limits` job is registered and runs in Inngest Cloud"
 - [ ] `apps/web/CLAUDE.md`: a short "Limited state" note (where the wording lives, 429 handling) and the rule for new endpoints; root `CLAUDE.md` gets one line under Architectural Rules (every mutating route limits writes; limits are keyed by caller)
 - [ ] `.claude/skills/spec-grill` prompts: ask "what limit does a new endpoint need"
 
