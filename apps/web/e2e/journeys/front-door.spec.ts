@@ -72,6 +72,23 @@ test.describe('P9 — the landing page', () => {
   });
 });
 
+test.describe('S1 — security headers', () => {
+  test('every page carries the basic protections, and an invite link never leaks its token in a Referer', async ({
+    request,
+  }) => {
+    const home = await request.get('/');
+    expect(home.headers()['x-content-type-options']).toBe('nosniff');
+    expect(home.headers()['x-frame-options']).toBe('DENY');
+    expect(home.headers()['referrer-policy']).toBe('strict-origin-when-cross-origin');
+    expect(home.headers()['permissions-policy']).toContain('camera=()');
+    expect(home.headers()['x-powered-by']).toBeUndefined();
+
+    const invite = await request.get('/invite/not-a-real-token');
+    expect(invite.headers()['referrer-policy']).toBe('no-referrer');
+    expect(invite.headers()['x-content-type-options']).toBe('nosniff');
+  });
+});
+
 test.describe('P9 — sign-in only goes back to this site', () => {
   test('carries a path on this site through sign-in and drops anything that would leave it', async ({
     page,
