@@ -278,13 +278,20 @@ describe('closing voting (integration — real Postgres)', () => {
       releaseLock = resolve;
     });
 
+    let markLockAcquired: () => void = () => {};
+    const lockAcquired = new Promise<void>((resolve) => {
+      markLockAcquired = resolve;
+    });
+
     const txPromise = dbA.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT 1 FROM "Brunch" WHERE id = ${brunchId}::uuid FOR UPDATE`;
+      markLockAcquired();
       await lockHeld;
     });
 
-    // Give the lock a moment to actually be acquired before racing closeVoting.
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    // Wait until the lock is really held before racing closeVoting. (A fixed sleep here was not
+    // enough on a cold CI runner, where opening the second connection can take longer.)
+    await lockAcquired;
 
     let closeSettled = false;
     const closePromise = closeVoting({ brunchId, requestedById: hostId }, { db }).then((r) => {
