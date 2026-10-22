@@ -54,6 +54,12 @@ async function main(): Promise<void> {
     return;
   }
   const host = new URL(url).hostname;
+  // A Postgres URL can name another server in a ?host= parameter; the hostname alone would not show it.
+  if (new URL(url).searchParams.has('host')) {
+    console.error('Refusing to run: DATABASE_URL has a host= parameter.');
+    process.exitCode = 1;
+    return;
+  }
   if (!LOCAL_HOSTS.has(host)) {
     console.error(`Refusing to run: the database host is "${host}", not a local one.`);
     process.exitCode = 1;

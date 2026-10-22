@@ -62,6 +62,10 @@ async function main(): Promise<void> {
   if (databaseUrl === undefined || databaseUrl === '') fail('DATABASE_URL is not set.');
   if (authUrl === undefined || authUrl === '') fail('AUTH_URL is not set.');
   if (authSecret === undefined || authSecret === '') fail('AUTH_SECRET is not set.');
+  // A Postgres URL can name another server in a ?host= parameter; the hostname alone would not show it.
+  if (new URL(databaseUrl).searchParams.has('host')) {
+    fail('Refusing to run: DATABASE_URL has a host= parameter.');
+  }
   if (!LOCAL_HOSTS.has(hostOf(databaseUrl))) {
     fail(`Refusing to run: the database host is "${hostOf(databaseUrl)}", not a local one.`);
   }

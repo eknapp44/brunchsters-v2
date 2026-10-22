@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -36,11 +37,14 @@ export function DateTimeInput(props: DateTimeInputProps): ReactElement {
     }
   }, [isControlled]);
 
-  function setRefs(element: HTMLInputElement | null): void {
-    innerRef.current = element;
-    if (typeof ref === 'function') ref(element);
-    else if (ref !== undefined && ref !== null) ref.current = element;
-  }
+  const setRefs = useCallback(
+    (element: HTMLInputElement | null): void => {
+      innerRef.current = element;
+      if (typeof ref === 'function') ref(element);
+      else if (ref !== undefined && ref !== null) ref.current = element;
+    },
+    [ref],
+  );
 
   function handleChange(event: ChangeEvent<HTMLInputElement>): void {
     setHasTypedValue(event.target.value !== '');
