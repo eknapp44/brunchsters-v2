@@ -51,4 +51,29 @@ export default tseslint.config(
       ],
     },
   },
+  // A date drawn in the viewer's own zone and locale must go through <LocalDateTime>. A component
+  // that is rendered on the server formats with the server's zone (UTC on Vercel), the browser
+  // disagrees, and React rebuilds the page on hydration, discarding what a person typed early
+  // (journey H8, spec 0011). Pass an explicit zone and locale where a place's time is meant.
+  {
+    files: ['apps/web/src/**/*.tsx'],
+    ignores: ['apps/web/src/components/ui/LocalDateTime.tsx'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "CallExpression[callee.property.name=/^toLocale(Date|Time)?String$/][arguments.0.type='Identifier'][arguments.0.name='undefined']",
+          message:
+            "Do not format a date in the viewer's zone and locale in a component: use <LocalDateTime> (components/ui), or pass an explicit locale and timeZone.",
+        },
+        {
+          selector:
+            'CallExpression[callee.property.name=/^toLocale(Date|Time)?String$/][arguments.length=0]',
+          message:
+            "Do not format a date in the viewer's zone and locale in a component: use <LocalDateTime> (components/ui), or pass an explicit locale and timeZone.",
+        },
+      ],
+    },
+  },
 );

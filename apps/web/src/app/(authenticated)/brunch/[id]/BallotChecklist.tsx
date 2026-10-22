@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactElement } from 'react';
 import { PopIcon } from '@/components/icons/PopIcon';
 import { Badge } from '@/components/ui/Badge';
 import { InlineAlert } from '@/components/ui/InlineAlert';
+import { LocalDateTime } from '@/components/ui/LocalDateTime';
 import styles from './detail.module.css';
 import { useBallot } from './useBallot';
 
@@ -250,16 +251,15 @@ export function TimeBallotChecklist({
     viewerTimezone !== undefined &&
     locationTimezone !== viewerTimezone;
 
-  function timeText(option: TimeOption): string {
-    return option.scheduledAt.toLocaleString(undefined, {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    });
+  function timeText(option: TimeOption): ReactElement {
+    return <LocalDateTime date={option.scheduledAt} />;
   }
 
   // "(at Harbor Bistro's time: ...)": only when the viewer is in another zone than the place
   function zoneNote(option: TimeOption): string | undefined {
     if (!showSubline || locationTimezone === undefined) return undefined;
+    // Drawn only after mount (showSubline needs the viewer's zone), so no hydration mismatch.
+    // eslint-disable-next-line no-restricted-syntax
     const there = option.scheduledAt.toLocaleString(undefined, {
       dateStyle: 'medium',
       timeStyle: 'short',

@@ -213,6 +213,8 @@ function StepThree() {
             <li key={time}>
               <span className={styles.itemText}>
                 <PopIcon name="clock" size={22} />
+                {/* The list only holds times typed in this browser, never rendered on the server. */}
+                {/* eslint-disable-next-line no-restricted-syntax */}
                 {new Date(time).toLocaleString(undefined, {
                   dateStyle: 'medium',
                   timeStyle: 'short',

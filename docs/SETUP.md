@@ -333,6 +333,8 @@ pnpm --filter @brunchsters/web exec playwright show-trace <trace.zip>   # open a
 
 **Adding E2E coverage for a new feature.** Every new feature spec has an `## E2E Journeys` section, and any change to what a user sees or does needs a new or updated journey in the same PR (the bar is defined in `CLAUDE.md` — "User-facing changes keep the E2E suite honest"; the pull request template asks for it). Follow the existing pattern: create state through `e2e/support/factories.ts` / `voting.ts` (real core services), drive only the step under test through the UI, use `makeActor` for each person, and prove a new test can fail (temporarily break the behavior it guards) before trusting it.
 
+The e2e server is started with `TZ=UTC` on purpose, while the browser context is America/Chicago: that is how production looks (Vercel serves in UTC, people are elsewhere), and a server and browser in the same zone hide hydration mismatches. If a journey passes on your machine and fails in CI, compare the zones first.
+
 ### Review screenshots and looking at the UI (spec 0009)
 
 The look is judged by eye, so there is a command that photographs every screen:

@@ -83,7 +83,7 @@ export default async function ManageBrunchPage({
             <p className={styles.fact}>
               <PopIcon name="clock" size={22} />
               <span>
-                {confirmedTime.scheduledAt.toLocaleString(undefined, {
+                {confirmedTime.scheduledAt.toLocaleString('en-US', {
                   dateStyle: 'medium',
                   timeStyle: 'short',
                   // PLANNING §9.3: times render in the location's zone once
