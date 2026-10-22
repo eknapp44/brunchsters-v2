@@ -119,3 +119,48 @@ describe('POST /api/v1/suggestions/[id]/review', () => {
     expect(response.status).toBe(409);
   });
 });
+
+describe('POST /api/v1/suggestions/[id]/review — rate limits', () => {
+  it('hands the service a rate limiter', async () => {
+    mockAuth.mockResolvedValue(SESSION);
+    mockReview.mockResolvedValue(ok({ suggestionId: VALID_SUGGESTION_ID as never }));
+
+    await POST(postRequest({ decision: 'approve' }), { params: params(VALID_SUGGESTION_ID) });
+
+    expect(mockReview).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ rateLimiter: expect.anything() }),
+    );
+  });
+
+  it('answers 429 with Retry-After when approving would go over the host invite budget', async () => {
+    mockAuth.mockResolvedValue(SESSION);
+    mockReview.mockResolvedValue(
+      err({ kind: 'rate_limited', policy: 'invite-emails-host', retryAfterSeconds: 7200 }),
+    );
+
+    const response = await POST(postRequest({ decision: 'approve' }), {
+      params: params(VALID_SUGGESTION_ID),
+    });
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get('Retry-After')).toBe('7200');
+    expect((await response.json()) as { policy: string }).toMatchObject({
+      policy: 'invite-emails-host',
+    });
+  });
+
+  it('fails closed with 503 when the limiter cannot count', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    mockAuth.mockResolvedValue(SESSION);
+    mockReview.mockResolvedValue(
+      err({ kind: 'rate_limiter_unavailable', cause: new Error('down') }),
+    );
+
+    const response = await POST(postRequest({ decision: 'approve' }), {
+      params: params(VALID_SUGGESTION_ID),
+    });
+
+    expect(response.status).toBe(503);
+  });
+});

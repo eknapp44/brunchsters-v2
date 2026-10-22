@@ -21,6 +21,7 @@ import { createBrunch } from './createBrunch';
 import { getBrunchesForUser } from './getBrunchesForUser';
 import { getBrunchRoster } from './getBrunchRoster';
 import { groupDashboard } from './presentation/groupDashboard';
+import { InMemoryRateLimiter } from '../rateLimit/InMemoryRateLimiter';
 
 // What the dashboard and the brunch page read (spec 0011 M2): the roster and the dashboard
 // summaries, against real Postgres. Requires: supabase start + seeded lookup tables.
@@ -114,7 +115,7 @@ async function createInvitedBrunch(title: string): Promise<BrunchId> {
       invitedById: host.id,
       emails: [YES_EMAIL, MAYBE_EMAIL, NO_EMAIL, KNOWN_EMAIL, NEWCOMER_EMAIL],
     },
-    { db, eventBus },
+    { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
   );
   expect(invited.isOk()).toBe(true);
 

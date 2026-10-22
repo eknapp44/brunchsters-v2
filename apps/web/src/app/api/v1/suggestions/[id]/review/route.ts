@@ -4,7 +4,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
-import { eventBus } from '@/lib/services';
+import { rateLimitedResponse, rateLimiterUnavailableResponse } from '@/lib/rateLimit';
+import { eventBus, getRateLimiter } from '@/lib/services';
 
 const suggestionIdSchema = z.uuid();
 
@@ -42,7 +43,7 @@ export async function POST(
       reviewedById: session.user.id as UserId,
       decision: parsed.data.decision,
     },
-    { db, eventBus },
+    { db, eventBus, rateLimiter: getRateLimiter() },
   );
 
   if (result.isErr()) {
@@ -59,6 +60,13 @@ export async function POST(
           { error: 'This suggestion was already reviewed' },
           { status: 409 },
         );
+      case 'rate_limited':
+        return rateLimitedResponse(result.error);
+      case 'rate_limiter_unavailable':
+        return rateLimiterUnavailableResponse({
+          route: 'reviewInviteSuggestion',
+          cause: result.error.cause,
+        });
       default:
         console.error('reviewInviteSuggestion failed', result.error);
         return NextResponse.json({ error: 'Failed to review suggestion' }, { status: 500 });

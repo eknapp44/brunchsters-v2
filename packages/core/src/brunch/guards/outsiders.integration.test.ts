@@ -15,6 +15,7 @@ import { sendInvites } from '../../invite/sendInvites';
 import { createBrunch } from '../createBrunch';
 import { assertHostOf } from './assertHostOf';
 import { isBrunchMember } from './isBrunchMember';
+import { InMemoryRateLimiter } from '../../rateLimit/InMemoryRateLimiter';
 
 // Requires: supabase start + seeded lookup tables (pnpm db:seed).
 //
@@ -51,7 +52,7 @@ beforeAll(async () => {
   brunchId = created._unsafeUnwrap().id;
   await sendInvites(
     { brunchId, invitedById: hostId, emails: [email('attendee')] },
-    { db, eventBus },
+    { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
   );
   const invite = await db.brunchInvite.findFirst({
     where: { brunchId, invitedEmail: email('attendee') },

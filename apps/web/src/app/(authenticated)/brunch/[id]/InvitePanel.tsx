@@ -7,6 +7,10 @@ import { Icon } from '@/components/icons/Icon';
 import { Button } from '@/components/ui/Button';
 import { Field } from '@/components/ui/Field';
 import { InlineAlert } from '@/components/ui/InlineAlert';
+import { limitedMessage, type RateLimitFacts } from '@/lib/limitedCopy';
+import { limitStorageKey } from '@/lib/limitedUntil';
+import { readRateLimit } from '@/lib/readRateLimit';
+import { useLimitedUntil } from '@/lib/useLimitedUntil';
 import styles from './detail.module.css';
 
 type InviteStatus = 'pending' | 'yes' | 'no' | 'maybe';
@@ -45,11 +49,81 @@ function CopyLinkButton({ token }: { readonly token: string }) {
   );
 }
 
+// One invite, with its own Resend wait: after the server says the invite just went out (or the
+// host has sent a lot today), only this Resend button waits, with the reason beside it. The
+// button stays focusable (`aria-disabled`, not `disabled`) so a keyboard or screen-reader user can
+// still find it and read why.
+function InviteRow({
+  invite,
+  viewerId,
+  busy,
+  onResend,
+  onRevoke,
+}: {
+  readonly invite: InviteListItem;
+  readonly viewerId: string;
+  readonly busy: boolean;
+  readonly onResend: (inviteId: string) => Promise<RateLimitFacts | undefined>;
+  readonly onRevoke: (inviteId: string) => Promise<void>;
+}) {
+  const { limit, start } = useLimitedUntil(
+    limitStorageKey({ control: 'resend', viewerId, id: invite.id }),
+  );
+  const limited = limit !== undefined;
+  const noteId = `resend-limit-${invite.id}`;
+
+  async function resend(): Promise<void> {
+    if (limited) return;
+    const facts = await onResend(invite.id);
+    if (facts !== undefined) start(facts);
+  }
+
+  return (
+    <li className={styles.row}>
+      <span className={styles.rowMain}>
+        <span>{invite.invitedEmail}</span>{' '}
+        <Badge tone={badgeToneFor(invite.status)}>{invite.status}</Badge>
+      </span>
+      <span className={styles.rowActions}>
+        <CopyLinkButton token={invite.token} />
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => void resend()}
+          disabled={busy}
+          aria-disabled={limited ? true : undefined}
+          aria-describedby={limited ? noteId : undefined}
+        >
+          Resend
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="danger"
+          onClick={() => void onRevoke(invite.id)}
+          disabled={busy}
+        >
+          Revoke
+        </Button>
+      </span>
+      {limit !== undefined && (
+        <div id={noteId} className={styles.rowNote}>
+          <InlineAlert tone="info" role="status">
+            <p>{limitedMessage(limit)}</p>
+          </InlineAlert>
+        </div>
+      )}
+    </li>
+  );
+}
+
 export function InvitePanel({
   brunchId,
+  viewerId,
   invites,
 }: {
   readonly brunchId: string;
+  readonly viewerId: string;
   readonly invites: readonly InviteListItem[];
 }) {
   const router = useRouter();
@@ -57,8 +131,13 @@ export function InvitePanel({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
   const [pendingInviteId, setPendingInviteId] = useState<string | undefined>(undefined);
+  const sendLimit = useLimitedUntil(
+    limitStorageKey({ control: 'invites-send', viewerId, id: brunchId }),
+  );
+  const sendLimited = sendLimit.limit !== undefined;
 
   async function sendInvite(): Promise<void> {
+    if (sendLimited) return;
     const trimmed = email.trim();
     if (trimmed === '') return;
 
@@ -71,6 +150,12 @@ export function InvitePanel({
         body: JSON.stringify({ emails: [trimmed] }),
       });
       if (!response.ok) {
+        const facts = await readRateLimit(response);
+        if (facts !== undefined) {
+          // The typed address stays, so it is there when the wait is over.
+          sendLimit.start(facts);
+          return;
+        }
         setError('Failed to send invite');
         return;
       }
@@ -83,16 +168,19 @@ export function InvitePanel({
     }
   }
 
-  async function resend(inviteId: string): Promise<void> {
-    if (pendingInviteId !== undefined) return;
+  // Returns the wait when the server said 429, so the row that asked can hold its own button.
+  async function resend(inviteId: string): Promise<RateLimitFacts | undefined> {
+    if (pendingInviteId !== undefined) return undefined;
 
     setPendingInviteId(inviteId);
     setError(undefined);
     try {
       const response = await fetch(`/api/v1/invites/${inviteId}/resend`, { method: 'POST' });
       if (!response.ok) {
+        const facts = await readRateLimit(response);
+        if (facts !== undefined) return facts;
         setError('Failed to resend invite');
-        return;
+        return undefined;
       }
       router.refresh();
     } catch {
@@ -100,6 +188,7 @@ export function InvitePanel({
     } finally {
       setPendingInviteId(undefined);
     }
+    return undefined;
   }
 
   async function revoke(inviteId: string): Promise<void> {
@@ -130,32 +219,14 @@ export function InvitePanel({
       ) : (
         <ul className={styles.rows} role="list">
           {invites.map((invite) => (
-            <li key={invite.id} className={styles.row}>
-              <span className={styles.rowMain}>
-                <span>{invite.invitedEmail}</span>{' '}
-                <Badge tone={badgeToneFor(invite.status)}>{invite.status}</Badge>
-              </span>
-              <span className={styles.rowActions}>
-                <CopyLinkButton token={invite.token} />
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => void resend(invite.id)}
-                  disabled={pendingInviteId === invite.id}
-                >
-                  Resend
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="danger"
-                  onClick={() => void revoke(invite.id)}
-                  disabled={pendingInviteId === invite.id}
-                >
-                  Revoke
-                </Button>
-              </span>
-            </li>
+            <InviteRow
+              key={invite.id}
+              invite={invite}
+              viewerId={viewerId}
+              busy={pendingInviteId === invite.id}
+              onResend={resend}
+              onRevoke={revoke}
+            />
           ))}
         </ul>
       )}
@@ -164,7 +235,13 @@ export function InvitePanel({
         <Field label="Invite more people">
           <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
         </Field>
-        <Button type="button" onClick={() => void sendInvite()} disabled={sending}>
+        <Button
+          type="button"
+          onClick={() => void sendInvite()}
+          disabled={sending}
+          aria-disabled={sendLimited ? true : undefined}
+          aria-describedby={sendLimited ? 'invites-send-limit' : undefined}
+        >
           {sending ? (
             'Sending…'
           ) : (
@@ -175,6 +252,13 @@ export function InvitePanel({
           )}
         </Button>
       </div>
+      {sendLimit.limit !== undefined && (
+        <div id="invites-send-limit" className={styles.limitNote}>
+          <InlineAlert tone="info" role="status">
+            <p>{limitedMessage(sendLimit.limit)}</p>
+          </InlineAlert>
+        </div>
+      )}
       {error !== undefined && (
         <InlineAlert tone="error" role="alert">
           <p>{error}</p>

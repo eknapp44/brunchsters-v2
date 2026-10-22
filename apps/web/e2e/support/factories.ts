@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import {
   createBrunch as createBrunchService,
   NoopEventBus,
+  PostgresRateLimiter,
   respondToInvite as respondToInviteService,
   sendInvites as sendInvitesService,
   signInWithProvider,
@@ -124,7 +125,9 @@ export async function inviteToBrunch(params: {
       invitedById: params.host.id,
       emails: params.invitees.map((invitee) => normalizeEmail(invitee.email)),
     },
-    { db: getDb(), eventBus },
+    // The real counter, like everything else a factory wraps: a state a test seeds is one the app
+    // can reach, and a host who seeds more than the daily budget fails here as it would in the app.
+    { db: getDb(), eventBus, rateLimiter: new PostgresRateLimiter({ db: getDb() }) },
   );
   unwrap(result, 'sendInvites');
 }

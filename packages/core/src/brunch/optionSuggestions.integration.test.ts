@@ -21,6 +21,7 @@ import { reviewLocationSuggestion } from './reviewLocationSuggestion';
 import { reviewTimeSuggestion } from './reviewTimeSuggestion';
 import { suggestLocation } from './suggestLocation';
 import { suggestTime } from './suggestTime';
+import { InMemoryRateLimiter } from '../rateLimit/InMemoryRateLimiter';
 
 // Requires: supabase start + seeded lookup tables (pnpm db:seed).
 const RUN_ID = Date.now();
@@ -83,7 +84,7 @@ async function createBrunchWithOneYesVoter(title: string): Promise<BrunchId> {
 
   const invites = await sendInvites(
     { brunchId, invitedById: hostId, emails: [VOTER_EMAIL] },
-    { db, eventBus },
+    { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
   );
   expect(invites.isOk()).toBe(true);
 
@@ -225,7 +226,7 @@ describe('option suggestions (integration — real Postgres)', () => {
 
     const invites = await sendInvites(
       { brunchId, invitedById: hostId, emails: [VOTER_EMAIL] },
-      { db, eventBus },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
     );
     expect(invites.isOk()).toBe(true);
     const invite = required(
@@ -290,7 +291,7 @@ describe('option suggestions (integration — real Postgres)', () => {
 
     const invites = await sendInvites(
       { brunchId, invitedById: hostId, emails: [VOTER_EMAIL] },
-      { db, eventBus },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
     );
     expect(invites.isOk()).toBe(true);
     const invite = required(

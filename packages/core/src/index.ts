@@ -34,6 +34,8 @@ export type {
 export { PostgresRateLimiter } from './rateLimit/PostgresRateLimiter';
 export { InMemoryRateLimiter } from './rateLimit/InMemoryRateLimiter';
 export { pruneRateLimitBuckets } from './rateLimit/pruneRateLimitBuckets';
+export { consumeBudgets } from './rateLimit/consumeBudgets';
+export type { RateLimited, RateLimiterUnavailable } from './rateLimit/consumeBudgets';
 export type {
   PruneRateLimitBucketsError,
   PruneRateLimitBucketsInput,

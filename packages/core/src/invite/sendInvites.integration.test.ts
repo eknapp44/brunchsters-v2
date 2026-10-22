@@ -16,6 +16,8 @@ import { resendInvite } from './resendInvite';
 import { respondToInvite } from './respondToInvite';
 import { revokeInvite } from './revokeInvite';
 import { sendInvites, sendInvitesRequestSchema } from './sendInvites';
+import { InMemoryRateLimiter } from '../rateLimit/InMemoryRateLimiter';
+import { PostgresRateLimiter } from '../rateLimit/PostgresRateLimiter';
 
 // Requires: supabase start + seeded lookup tables (pnpm db:seed).
 const RUN_ID = Date.now();
@@ -70,7 +72,7 @@ describe('sendInvites integration', () => {
 
     const result = await sendInvites(
       { brunchId, invitedById: hostId, emails: [KNOWN_INVITEE_EMAIL, UNREGISTERED_INVITEE_EMAIL] },
-      { db, eventBus },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
     );
 
     expect(result.isOk()).toBe(true);
@@ -112,7 +114,7 @@ describe('sendInvites integration', () => {
 
     const result = await sendInvites(
       { brunchId, invitedById: hostId, emails: [KNOWN_INVITEE_EMAIL] },
-      { db, eventBus },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
     );
 
     expect(result.isOk()).toBe(true);
@@ -158,7 +160,7 @@ describe('sendInvites integration', () => {
 
     const result = await resendInvite(
       { inviteId: invite.id as InviteId, requestedById: hostId },
-      { db, eventBus },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
     );
 
     expect(result.isOk()).toBe(true);
@@ -226,7 +228,7 @@ describe('sendInvites integration', () => {
 
     const result = await sendInvites(
       { brunchId, invitedById: hostId, emails: [KNOWN_INVITEE_EMAIL] },
-      { db, eventBus },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
     );
     expect(result.isOk()).toBe(true);
 
@@ -267,7 +269,7 @@ describe('sendInvites integration', () => {
 
     const resendResult = await resendInvite(
       { inviteId: invite.id as InviteId, requestedById: hostId },
-      { db, eventBus },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
     );
     expect(resendResult.isErr()).toBe(true);
     expect(resendResult._unsafeUnwrapErr()).toEqual({ kind: 'invite_not_found' });
@@ -288,7 +290,7 @@ describe('sendInvites integration', () => {
 
     const result = await sendInvites(
       { brunchId, invitedById: hostId, emails: [UNREGISTERED_INVITEE_EMAIL] },
-      { db, eventBus },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
     );
 
     expect(result.isOk()).toBe(true);
@@ -304,7 +306,7 @@ describe('sendInvites integration', () => {
 
     const result = await sendInvites(
       { brunchId, invitedById: hostId, emails: [HOST_EMAIL, anotherNewEmail] },
-      { db, eventBus },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
     );
 
     expect(result.isOk()).toBe(true);
@@ -321,7 +323,7 @@ describe('sendInvites integration', () => {
   it('rejects a non-host sender', async () => {
     const result = await sendInvites(
       { brunchId, invitedById: knownInviteeId, emails: [normalizeEmail('someone@example.com')] },
-      { db, eventBus },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
     );
 
     expect(result.isErr()).toBe(true);
@@ -338,11 +340,11 @@ describe('sendInvites integration', () => {
 
     const sentFirst = await sendInvites(
       { brunchId, invitedById: hostId, emails: first.emails },
-      { db, eventBus },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
     );
     const sentLater = await sendInvites(
       { brunchId, invitedById: hostId, emails: later.emails },
-      { db, eventBus },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
     );
 
     // The second request refreshed the existing invite instead of creating another.
@@ -375,7 +377,7 @@ describe('sendInvites integration', () => {
     const invited = sendInvitesRequestSchema.parse({ emails: [`CAPITAL-${RUN_ID}@example.COM`] });
     const sent = await sendInvites(
       { brunchId, invitedById: hostId, emails: invited.emails },
-      { db, eventBus },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
     );
     expect(sent.isOk()).toBe(true);
 
@@ -393,5 +395,101 @@ describe('sendInvites integration', () => {
     });
     await db.userAuthProvider.deleteMany({ where: { userId: accountId } });
     await db.user.deleteMany({ where: { id: accountId } });
+  });
+});
+
+describe('invite budgets against the real counters (spec 0012)', () => {
+  it('stops the 51st address of a brunch, creates nothing for it, and holds a second resend', async () => {
+    const rateLimiter = new PostgresRateLimiter({ db });
+    const host = await db.user.create({
+      data: {
+        name: 'Integration Budget Host',
+        email: normalizeEmail(`budget-host-${RUN_ID}@example.com`),
+      },
+    });
+    const budgetHostId = host.id as UserId;
+    const created = await createBrunch(
+      { title: 'Integration Budget Brunch', locations: [], times: [], hostId: budgetHostId },
+      { db, eventBus },
+    );
+    const budgetBrunchId = created._unsafeUnwrap().id;
+    const emails = Array.from({ length: 50 }, (_, index) =>
+      normalizeEmail(`budget-${index}-${RUN_ID}@example.com`),
+    );
+    const extra = normalizeEmail(`budget-extra-${RUN_ID}@example.com`);
+
+    const inviteIds: string[] = [];
+
+    try {
+      // The brunch's whole daily budget, in one request.
+      const first = await sendInvites(
+        { brunchId: budgetBrunchId, invitedById: budgetHostId, emails },
+        { rateLimiter, db, eventBus },
+      );
+      expect(first._unsafeUnwrap()).toHaveLength(50);
+      inviteIds.push(...first._unsafeUnwrap().map((invite) => invite.id));
+
+      // One more address is refused, by the brunch's budget, and nothing is written for it.
+      const over = await sendInvites(
+        { brunchId: budgetBrunchId, invitedById: budgetHostId, emails: [extra] },
+        { rateLimiter, db, eventBus },
+      );
+      expect(over._unsafeUnwrapErr()).toMatchObject({
+        kind: 'rate_limited',
+        policy: 'invite-emails-brunch',
+      });
+      expect(
+        await db.brunchInvite.count({ where: { brunchId: budgetBrunchId, invitedEmail: extra } }),
+      ).toBe(0);
+
+      // A resend: the first goes through and changes the link, the second straight after is held
+      // and leaves the link as it was.
+      const target = first._unsafeUnwrap()[0];
+      if (target === undefined) throw new Error('expected an invite');
+      const resent = await resendInvite(
+        { inviteId: target.id, requestedById: budgetHostId },
+        { rateLimiter, db, eventBus },
+      );
+      expect(resent.isOk()).toBe(true);
+      const tokenAfter = (await db.brunchInvite.findUniqueOrThrow({ where: { id: target.id } }))
+        .token;
+      const again = await resendInvite(
+        { inviteId: target.id, requestedById: budgetHostId },
+        { rateLimiter, db, eventBus },
+      );
+      expect(again._unsafeUnwrapErr()).toMatchObject({
+        kind: 'rate_limited',
+        policy: 'resend-invite',
+      });
+      expect((await db.brunchInvite.findUniqueOrThrow({ where: { id: target.id } })).token).toBe(
+        tokenAfter,
+      );
+
+      // The host still has room today (51 of 100 spent), so what refuses another address is this
+      // brunch's own spent budget, not the host's: the two are separate counters.
+      const other = await sendInvites(
+        {
+          brunchId: budgetBrunchId,
+          invitedById: budgetHostId,
+          emails: [normalizeEmail(`budget-more-${RUN_ID}@example.com`)],
+        },
+        { rateLimiter, db, eventBus },
+      );
+      expect(other._unsafeUnwrapErr()).toMatchObject({ policy: 'invite-emails-brunch' });
+    } finally {
+      await db.brunchAttendee.deleteMany({ where: { brunchId: budgetBrunchId } });
+      await db.brunchInvite.deleteMany({ where: { brunchId: budgetBrunchId } });
+      await db.brunch.deleteMany({ where: { id: budgetBrunchId } });
+      await db.rateLimitBucket.deleteMany({
+        where: {
+          OR: [
+            { key: { endsWith: `:${budgetBrunchId}` } },
+            { key: { endsWith: `:${budgetHostId}` } },
+            { key: { in: inviteIds.map((id) => `resend-invite:${id}`) } },
+          ],
+        },
+      });
+      await db.user.deleteMany({ where: { id: budgetHostId } });
+    }
   });
 });

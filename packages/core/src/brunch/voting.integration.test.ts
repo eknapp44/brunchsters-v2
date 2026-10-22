@@ -15,6 +15,7 @@ import { castLocationBallot } from './castLocationBallot';
 import { createBrunch } from './createBrunch';
 import { getBrunchVoting } from './getBrunchVoting';
 import { removeLocation } from './removeLocation';
+import { InMemoryRateLimiter } from '../rateLimit/InMemoryRateLimiter';
 
 // Requires: supabase start + seeded lookup tables (pnpm db:seed).
 const RUN_ID = Date.now();
@@ -106,7 +107,7 @@ async function createVotableBrunch(
 
   const invites = await sendInvites(
     { brunchId, invitedById: hostId, emails: [YES_EMAIL, MAYBE_EMAIL, NO_EMAIL] },
-    { db, eventBus },
+    { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
   );
   expect(invites.isOk()).toBe(true);
 
@@ -286,7 +287,7 @@ describe('voting (integration — real Postgres)', () => {
 
     await sendInvites(
       { brunchId, invitedById: hostId, emails: [YES_EMAIL, MAYBE_EMAIL] },
-      { db, eventBus },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
     );
     for (const [email, userId] of [
       [YES_EMAIL, yesVoterId],

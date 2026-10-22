@@ -288,7 +288,9 @@ export default async function BrunchDetailPage({
             pendingSuggestions={pendingSuggestions?.isOk() ? pendingSuggestions.value : undefined}
           />
 
-          {invites?.isOk() && <InvitePanel brunchId={brunchId} invites={invites.value} />}
+          {invites?.isOk() && (
+            <InvitePanel brunchId={brunchId} viewerId={viewerId} invites={invites.value} />
+          )}
         </div>
       </div>
     </Container>

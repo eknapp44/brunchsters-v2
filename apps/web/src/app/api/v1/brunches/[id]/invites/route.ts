@@ -4,7 +4,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
-import { eventBus } from '@/lib/services';
+import { rateLimitedResponse, rateLimiterUnavailableResponse } from '@/lib/rateLimit';
+import { eventBus, getRateLimiter } from '@/lib/services';
 
 const brunchIdSchema = z.uuid();
 
@@ -42,7 +43,7 @@ export async function POST(
       invitedById: session.user.id as UserId,
       emails: parsed.data.emails,
     },
-    { db, eventBus },
+    { db, eventBus, rateLimiter: getRateLimiter() },
   );
 
   if (result.isErr()) {
@@ -51,6 +52,10 @@ export async function POST(
         return NextResponse.json({ error: 'Brunch not found' }, { status: 404 });
       case 'not_host':
         return NextResponse.json({ error: 'Only the host can send invites' }, { status: 403 });
+      case 'rate_limited':
+        return rateLimitedResponse(result.error);
+      case 'rate_limiter_unavailable':
+        return rateLimiterUnavailableResponse({ route: 'sendInvites', cause: result.error.cause });
       default:
         console.error('sendInvites failed', result.error);
         return NextResponse.json({ error: 'Failed to send invites' }, { status: 500 });

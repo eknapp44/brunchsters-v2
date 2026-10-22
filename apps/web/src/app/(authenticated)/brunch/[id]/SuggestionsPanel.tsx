@@ -5,6 +5,8 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Field } from '@/components/ui/Field';
 import { InlineAlert } from '@/components/ui/InlineAlert';
+import { limitedMessage } from '@/lib/limitedCopy';
+import { readRateLimit } from '@/lib/readRateLimit';
 import styles from './detail.module.css';
 
 type SuggestionListItem = {
@@ -65,7 +67,9 @@ export function SuggestionsPanel({
         body: JSON.stringify({ decision }),
       });
       if (!response.ok) {
-        setError('Failed to review suggestion');
+        // Approving emails the address, so the host's daily invite budget applies (spec 0012).
+        const facts = await readRateLimit(response);
+        setError(facts === undefined ? 'Failed to review suggestion' : limitedMessage(facts));
         return;
       }
       router.refresh();

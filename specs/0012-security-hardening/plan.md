@@ -11,8 +11,10 @@
 - `packages/core/src/rateLimit/InMemoryRateLimiter.ts`: for unit tests of services and handlers (named for what it is, like `MockEmailService`).
 - `packages/core/src/rateLimit/retryAfter.ts` (+ test): window math (`windowStart`, `retryAfterSeconds`), pure.
 - `packages/core/src/rateLimit/pruneRateLimitBuckets.ts` (+ integration test).
-- `apps/web/src/lib/rateLimit.ts` (+ test): `rateLimitedResponse(decision)`, `clientIp(headers)`, `enforceWriteLimit(session)`; builds the `PostgresRateLimiter` from `db`.
+- `apps/web/src/lib/rateLimit.ts` (+ test): `rateLimitedResponse(decision)`, `clientIp(headers)`, `enforceWriteLimit(session)`; builds the `PostgresRateLimiter` from `db`. (M3 ships `rateLimitedResponse` and the fail-closed 503; `clientIp` and `enforceWriteLimit` arrive in M4)
 - `apps/web/src/lib/limitedCopy.ts` (+ test): the three strings and the duration wording.
+- `packages/core/src/rateLimit/consumeBudgets.ts` (+ test): spends several budgets in order, names the one that refused, fails closed; `RecordingRateLimiter.ts`: test support that records spends.
+- `apps/web/src/lib/readRateLimit.ts` (+ test): reads a 429 (body, then `Retry-After`, then a minute); `limitedUntil.ts` (+ test): the pure storage half of the hook.
 - `apps/web/src/lib/useLimitedUntil.ts` (+ test of the pure parts: read, expiry, blocked storage): the persisted wait.
 - `apps/web/src/app/api/v1/routeLimits.test.ts`: the scanning test.
 - `apps/web/src/lib/contentSecurityPolicy.ts` (+ test): the pure policy builder.
@@ -51,13 +53,14 @@ One statement, so two concurrent requests cannot both squeeze under the limit, a
 
 ### Order of checks (permission-sensitive)
 
-| Endpoint                         | Order                                                                                                                                                                                                       |
-| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| any mutating `v1` route          | `auth()` → 401 · **write limit (caller)** → 429 · parse/validate · service (membership first: 404, then 403, as today)                                                                                      |
-| `POST brunches/[id]/invites`     | the above · service: brunch lookup → host check (404/403 unchanged) → de-dupe and self-filter → **per-brunch cap, then per-host cap, cost = remaining addresses** → transaction → emit                      |
-| `POST invites/[id]/resend`       | the write limit · service: invite lookup → host check (404/403) → **cooldown (subject = invite id), then per-host cap (cost 1)** → update → emit                                                            |
-| `GET places/search`, `[placeId]` | `auth()` → 401 · **place limit (caller)** → 429 · query validation (400) · Google                                                                                                                           |
-| token `GET` and `respond POST`   | (respond: `auth()` → 401 as today) · lookup · **only a 404 answer is counted** against the caller's IP; if the IP is already over, 429 before the lookup, so a limited address cannot keep probing for free |
+| Endpoint                                                                                                  | Order                                                                                                                                                                                                                                      |
+| --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| any mutating `v1` route                                                                                   | `auth()` → 401 · **write limit (caller)** → 429 · parse/validate · service (membership first: 404, then 403, as today)                                                                                                                     |
+| `POST brunches/[id]/invites`                                                                              | the above · service: brunch lookup → host check (404/403 unchanged) → de-dupe and self-filter → **per-brunch cap, then per-host cap, cost = remaining addresses** → transaction → emit                                                     |
+| `POST invites/[id]/resend`                                                                                | the write limit · service: invite lookup → host check (404/403) → **cooldown (subject = invite id), then per-host cap (cost 1)** → update → emit                                                                                           |
+| `POST suggestions/[id]/review` (approve only), and `POST brunches/[id]/suggestions` when it auto-approves | the write limit · service: suggestion lookup → host check (404/403) → pending check (409) → **brunch budget, then host budget, one unit each** → write → emit. A refused approval leaves the suggestion pending; a decline spends nothing. |
+| `GET places/search`, `[placeId]`                                                                          | `auth()` → 401 · **place limit (caller)** → 429 · query validation (400) · Google                                                                                                                                                          |
+| token `GET` and `respond POST`                                                                            | (respond: `auth()` → 401 as today) · lookup · **only a 404 answer is counted** against the caller's IP; if the IP is already over, 429 before the lookup, so a limited address cannot keep probing for free                                |
 
 Why this is safe for the 404/403 rule: the write limit and the Places limit only read the caller's own counter. The per-brunch and per-invite limits run after the host check, so only a host reaches them. An outsider hits the write limit first (same 429 for real and made-up ids). The per-brunch cap uses the cost of the de-duplicated list, so a re-sent address that already exists still costs one (it re-emails), which matches what is actually sent.
 
@@ -71,7 +74,7 @@ Counting happens before the transaction. If the transaction then fails the units
 
 ### The 429 and the copy
 
-`rateLimitedResponse` returns `NextResponse.json({ error: 'Too many requests', retryAfterSeconds }, { status: 429, headers: { 'Retry-After': String(seconds) } })`. Controls read `retryAfterSeconds` from the body. `limitedCopy.ts` exports `invitesLimitedMessage(seconds)`, `resendLimitedMessage(seconds)`, `placeSearchLimitedMessage()` and one `formatWait(seconds)` ("about 3 hours", "12 minutes", "a minute"; never "0"). Windows are aligned to the Unix epoch, so a "daily" window is a UTC day and a refused host can be told a short wait late in the day: the wording says "about {wait}", never "tomorrow" or "24 hours". Draft strings (finalized in M3 with the `ui-screen` skill and `design-docs/Brand Voice.html`): "Easy there, that's a lot of invites for one day. Try again in {wait}."; "That one just went out. Give it {wait}."; "Slow down a sec, then try again."
+`rateLimitedResponse` returns `NextResponse.json({ error: 'Too many requests', policy, retryAfterSeconds }, { status: 429, headers: { 'Retry-After': String(seconds) } })`. Controls read `retryAfterSeconds` from the body. `limitedCopy.ts` exports `invitesLimitedMessage(seconds)`, `resendLimitedMessage(seconds)`, `placeSearchLimitedMessage()` and one `formatWait(seconds)` ("about 3 hours", "12 minutes", "a minute"; never "0"). Windows are aligned to the Unix epoch, so a "daily" window is a UTC day and a refused host can be told a short wait late in the day: the wording says "about {wait}", never "tomorrow" or "24 hours". Draft strings (finalized in M3 with the `ui-screen` skill and `design-docs/Brand Voice.html`): "Easy there, that's a lot of invites for one day. Try again in {wait}."; "That one just went out. Give it {wait}."; "Slow down a sec, then try again."
 
 ### Client state
 
@@ -81,7 +84,7 @@ Each control keeps its own state in `useState` (ADR 0011: a single control's sta
 - A refresh, a closed tab, or a sign-out and sign-in as the same person keeps the wait. A different person in the same browser has a different key. The windows are fixed, so the saved time is the exact moment the counter resets: the next click after it succeeds.
 - Every `localStorage` call is in `try/catch`; when storage is blocked the hook keeps the time in memory and the server's 429 remains the real enforcement.
 - It does not cover another device or cleared site data: those learn on their first click (the server answers 429, the control disables). An accurate answer there needs a read-only budget check on page load, not built (spec "Does Not Cover").
-- Disabled means `aria-disabled="true"` plus ignoring the click, so the button stays in the tab order and the line beside it (an `InlineAlert`, `role="alert"`) stays attached. The wait is static text, not a ticking countdown. The label does not change.
+- Disabled means `aria-disabled="true"` plus ignoring the click, so the button stays in the tab order and the line beside it (an `InlineAlert`, `role="status"`: it is news about a wait, not an error) stays attached. The wait is static text, not a ticking countdown. The label does not change.
 - Invites and Resend use it. Place search shows its line and clears it when the wait passes, but the input stays usable (the wait is seconds).
 
 It does not trigger a "Redux follow-up" in §17 beyond the one it names (showing the server's real message), done only for 429.

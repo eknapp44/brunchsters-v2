@@ -123,3 +123,51 @@ describe('POST /api/v1/brunches/[id]/invites', () => {
     expect(response.status).toBe(500);
   });
 });
+
+describe('POST /api/v1/brunches/[id]/invites — rate limits', () => {
+  it('hands the service a rate limiter', async () => {
+    mockAuth.mockResolvedValue(SESSION);
+    mockSendInvites.mockResolvedValue(ok([]));
+
+    await POST(postRequest({ emails: ['a@example.com'] }), { params: params(VALID_BRUNCH_ID) });
+
+    expect(mockSendInvites).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ rateLimiter: expect.anything() }),
+    );
+  });
+
+  it('answers 429 with Retry-After, the policy and the wait when a budget is spent', async () => {
+    mockAuth.mockResolvedValue(SESSION);
+    mockSendInvites.mockResolvedValue(
+      err({ kind: 'rate_limited', policy: 'invite-emails-brunch', retryAfterSeconds: 3600 }),
+    );
+
+    const response = await POST(postRequest({ emails: ['a@example.com'] }), {
+      params: params(VALID_BRUNCH_ID),
+    });
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get('Retry-After')).toBe('3600');
+    expect(await response.json()).toEqual({
+      error: 'Too many requests',
+      policy: 'invite-emails-brunch',
+      retryAfterSeconds: 3600,
+    });
+  });
+
+  it('fails closed with 503 when the limiter cannot count', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    mockAuth.mockResolvedValue(SESSION);
+    mockSendInvites.mockResolvedValue(
+      err({ kind: 'rate_limiter_unavailable', cause: new Error('down') }),
+    );
+
+    const response = await POST(postRequest({ emails: ['a@example.com'] }), {
+      params: params(VALID_BRUNCH_ID),
+    });
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: 'Temporarily unavailable' });
+  });
+});

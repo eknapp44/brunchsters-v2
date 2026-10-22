@@ -9,6 +9,8 @@ vi.mock('@brunchsters/core', () => ({
       return Promise.resolve();
     }
   },
+  // services.ts builds this lazily; the route only has to hand it to the (mocked) service.
+  PostgresRateLimiter: vi.fn(),
   resendInvite: vi.fn(),
 }));
 
@@ -86,5 +88,52 @@ describe('POST /api/v1/invites/[id]/resend', () => {
     });
 
     expect(response.status).toBe(404);
+  });
+});
+
+describe('POST /api/v1/invites/[id]/resend — rate limits', () => {
+  it('hands the service a rate limiter', async () => {
+    mockAuth.mockResolvedValue(SESSION);
+    mockResendInvite.mockResolvedValue(ok({ id: VALID_INVITE_ID as never }));
+
+    await POST(new Request('http://localhost'), { params: params(VALID_INVITE_ID) });
+
+    expect(mockResendInvite).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ rateLimiter: expect.anything() }),
+    );
+  });
+
+  it('answers 429 with Retry-After, the policy and the wait when the cooldown is running', async () => {
+    mockAuth.mockResolvedValue(SESSION);
+    mockResendInvite.mockResolvedValue(
+      err({ kind: 'rate_limited', policy: 'resend-invite', retryAfterSeconds: 540 }),
+    );
+
+    const response = await POST(new Request('http://localhost'), {
+      params: params(VALID_INVITE_ID),
+    });
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get('Retry-After')).toBe('540');
+    expect(await response.json()).toEqual({
+      error: 'Too many requests',
+      policy: 'resend-invite',
+      retryAfterSeconds: 540,
+    });
+  });
+
+  it('fails closed with 503 when the limiter cannot count', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    mockAuth.mockResolvedValue(SESSION);
+    mockResendInvite.mockResolvedValue(
+      err({ kind: 'rate_limiter_unavailable', cause: new Error('down') }),
+    );
+
+    const response = await POST(new Request('http://localhost'), {
+      params: params(VALID_INVITE_ID),
+    });
+
+    expect(response.status).toBe(503);
   });
 });

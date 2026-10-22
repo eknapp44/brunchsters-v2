@@ -1,9 +1,11 @@
 import {
   NoopEventBus,
+  PostgresRateLimiter,
   type BrunchEventName,
   type BrunchEventPayloads,
   type EmailService,
   type EventBus,
+  type RateLimiter,
 } from '@brunchsters/core';
 import { Resend } from 'resend';
 import { FileEmailService } from '@/adapters/FileEmailService';
@@ -11,6 +13,7 @@ import { InngestEventBus } from '@/adapters/InngestEventBus';
 import { ResendEmailService } from '@/adapters/ResendEmailService';
 import { inngest } from '@/inngest/client';
 import { QUEUED_EVENTS } from '@/inngest/events';
+import { db } from './db';
 import { resolveServerConfig, type ServerConfig } from './serverConfig';
 
 // The one place the app decides which adapters run (ADR 0009), chosen by configuration.
@@ -50,6 +53,15 @@ export const eventBus: EventBus = {
     return getServices().eventBus.emit(name, data);
   },
 };
+
+// The counters live in the app's own database (ADR 0013), so unlike the adapters above this needs
+// no configuration to choose between implementations.
+let rateLimiter: RateLimiter | undefined;
+
+export function getRateLimiter(): RateLimiter {
+  rateLimiter ??= new PostgresRateLimiter({ db });
+  return rateLimiter;
+}
 
 export function getEmailService(): EmailService {
   return getServices().emailService;

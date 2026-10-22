@@ -7,6 +7,7 @@ vi.mock('./reviewInviteSuggestion', () => ({ reviewInviteSuggestion: vi.fn() }))
 
 import { reviewInviteSuggestion } from './reviewInviteSuggestion';
 import { suggestInvitee, suggestInviteeRequestSchema } from './suggestInvitee';
+import { InMemoryRateLimiter } from '../rateLimit/InMemoryRateLimiter';
 
 const BRUNCH_ID = 'brunch-uuid' as BrunchId;
 const HOST_ID = 'host-uuid' as UserId;
@@ -62,7 +63,11 @@ describe('suggestInvitee', () => {
   it('creates a pending suggestion when host approval is required', async () => {
     const db = makeMockDb();
 
-    const result = await suggestInvitee(BASE_INPUT, { db, eventBus: { emit: vi.fn() } });
+    const result = await suggestInvitee(BASE_INPUT, {
+      rateLimiter: new InMemoryRateLimiter(),
+      db,
+      eventBus: { emit: vi.fn() },
+    });
 
     expect(result.isOk()).toBe(true);
     expect(result._unsafeUnwrap()).toEqual({
@@ -82,7 +87,11 @@ describe('suggestInvitee', () => {
         .mockResolvedValue({ ...OPEN_BRUNCH, requireHostApprovalToInvite: false }),
     });
 
-    const result = await suggestInvitee(BASE_INPUT, { db, eventBus: { emit: vi.fn() } });
+    const result = await suggestInvitee(BASE_INPUT, {
+      rateLimiter: new InMemoryRateLimiter(),
+      db,
+      eventBus: { emit: vi.fn() },
+    });
 
     expect(result.isOk()).toBe(true);
     expect(result._unsafeUnwrap()).toEqual({
@@ -109,10 +118,41 @@ describe('suggestInvitee', () => {
         .mockResolvedValue({ ...OPEN_BRUNCH, requireHostApprovalToInvite: false }),
     });
 
-    const result = await suggestInvitee(BASE_INPUT, { db, eventBus: { emit: vi.fn() } });
+    const result = await suggestInvitee(BASE_INPUT, {
+      rateLimiter: new InMemoryRateLimiter(),
+      db,
+      eventBus: { emit: vi.fn() },
+    });
 
     expect(result.isOk()).toBe(true);
     expect(result._unsafeUnwrap().status).toBe('pending');
+  });
+
+  it("keeps the suggestion pending when the host's invite budgets refuse the auto-approval, and gives the review the same limiter", async () => {
+    vi.mocked(reviewInviteSuggestion).mockResolvedValue(
+      err({ kind: 'rate_limited', policy: 'invite-emails-host', retryAfterSeconds: 600 }),
+    );
+    const rateLimiter = new InMemoryRateLimiter();
+    const db = makeMockDb({
+      brunchFindFirst: vi
+        .fn()
+        .mockResolvedValue({ ...OPEN_BRUNCH, requireHostApprovalToInvite: false }),
+    });
+
+    const result = await suggestInvitee(BASE_INPUT, {
+      rateLimiter,
+      db,
+      eventBus: { emit: vi.fn() },
+    });
+
+    expect(result._unsafeUnwrap()).toEqual({
+      suggestionId: 'new-suggestion-uuid',
+      status: 'pending',
+    });
+    expect(reviewInviteSuggestion).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ rateLimiter }),
+    );
   });
 
   it('allows the host to suggest without an attendee row', async () => {
@@ -121,7 +161,7 @@ describe('suggestInvitee', () => {
 
     const result = await suggestInvitee(
       { ...BASE_INPUT, suggestedById: HOST_ID },
-      { db, eventBus: { emit: vi.fn() } },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus: { emit: vi.fn() } },
     );
 
     expect(result.isOk()).toBe(true);
@@ -131,7 +171,11 @@ describe('suggestInvitee', () => {
   it('returns brunch_not_found when the brunch does not exist', async () => {
     const db = makeMockDb({ brunchFindFirst: vi.fn().mockResolvedValue(null) });
 
-    const result = await suggestInvitee(BASE_INPUT, { db, eventBus: { emit: vi.fn() } });
+    const result = await suggestInvitee(BASE_INPUT, {
+      rateLimiter: new InMemoryRateLimiter(),
+      db,
+      eventBus: { emit: vi.fn() },
+    });
 
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_found' });
@@ -142,7 +186,11 @@ describe('suggestInvitee', () => {
       brunchFindFirst: vi.fn().mockResolvedValue({ ...OPEN_BRUNCH, allowInviteSuggestions: false }),
     });
 
-    const result = await suggestInvitee(BASE_INPUT, { db, eventBus: { emit: vi.fn() } });
+    const result = await suggestInvitee(BASE_INPUT, {
+      rateLimiter: new InMemoryRateLimiter(),
+      db,
+      eventBus: { emit: vi.fn() },
+    });
 
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'suggestions_disabled' });
@@ -151,7 +199,11 @@ describe('suggestInvitee', () => {
   it('treats someone who is not a member as if the brunch does not exist', async () => {
     const db = makeMockDb({ attendeeFindFirst: vi.fn().mockResolvedValue(null) });
 
-    const result = await suggestInvitee(BASE_INPUT, { db, eventBus: { emit: vi.fn() } });
+    const result = await suggestInvitee(BASE_INPUT, {
+      rateLimiter: new InMemoryRateLimiter(),
+      db,
+      eventBus: { emit: vi.fn() },
+    });
 
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_found' });
@@ -165,10 +217,14 @@ describe('suggestInvitee', () => {
     });
     const hostEmail = makeMockDb({ attendeeFindFirst: outsider });
 
-    const turnedOff = await suggestInvitee(BASE_INPUT, { db: off, eventBus: { emit: vi.fn() } });
+    const turnedOff = await suggestInvitee(BASE_INPUT, {
+      rateLimiter: new InMemoryRateLimiter(),
+      db: off,
+      eventBus: { emit: vi.fn() },
+    });
     const probe = await suggestInvitee(
       { ...BASE_INPUT, email: normalizeEmail('host@example.com') },
-      { db: hostEmail, eventBus: { emit: vi.fn() } },
+      { rateLimiter: new InMemoryRateLimiter(), db: hostEmail, eventBus: { emit: vi.fn() } },
     );
 
     expect(turnedOff._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_found' });
@@ -181,7 +237,7 @@ describe('suggestInvitee', () => {
 
     const result = await suggestInvitee(
       { ...BASE_INPUT, email: normalizeEmail('host@example.com') },
-      { db, eventBus: { emit: vi.fn() } },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus: { emit: vi.fn() } },
     );
 
     expect(result.isErr()).toBe(true);
@@ -193,7 +249,7 @@ describe('suggestInvitee', () => {
 
     const result = await suggestInvitee(
       { ...BASE_INPUT, email: 'Host@Example.com' as Email },
-      { db, eventBus: { emit: vi.fn() } },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus: { emit: vi.fn() } },
     );
 
     expect(result.isErr()).toBe(true);
@@ -205,7 +261,11 @@ describe('suggestInvitee', () => {
       suggestionFindUnique: vi.fn().mockResolvedValue({ id: 'existing-suggestion' }),
     });
 
-    const result = await suggestInvitee(BASE_INPUT, { db, eventBus: { emit: vi.fn() } });
+    const result = await suggestInvitee(BASE_INPUT, {
+      rateLimiter: new InMemoryRateLimiter(),
+      db,
+      eventBus: { emit: vi.fn() },
+    });
 
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'already_suggested' });
@@ -214,7 +274,11 @@ describe('suggestInvitee', () => {
   it('returns lookup_not_found when the pending status row is missing', async () => {
     const db = makeMockDb({ statusFindFirst: vi.fn().mockResolvedValue(null) });
 
-    const result = await suggestInvitee(BASE_INPUT, { db, eventBus: { emit: vi.fn() } });
+    const result = await suggestInvitee(BASE_INPUT, {
+      rateLimiter: new InMemoryRateLimiter(),
+      db,
+      eventBus: { emit: vi.fn() },
+    });
 
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr()).toEqual({
@@ -230,7 +294,11 @@ describe('suggestInvitee', () => {
       suggestionCreate,
     });
 
-    await suggestInvitee(BASE_INPUT, { db, eventBus: { emit: vi.fn() } });
+    await suggestInvitee(BASE_INPUT, {
+      rateLimiter: new InMemoryRateLimiter(),
+      db,
+      eventBus: { emit: vi.fn() },
+    });
 
     expect(suggestionCreate).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ suggestedUserId: 'carol-uuid' }) }),
@@ -240,7 +308,11 @@ describe('suggestInvitee', () => {
   it('returns db_error when suggestion creation fails', async () => {
     const db = makeMockDb({ suggestionCreate: vi.fn().mockRejectedValue(new Error('boom')) });
 
-    const result = await suggestInvitee(BASE_INPUT, { db, eventBus: { emit: vi.fn() } });
+    const result = await suggestInvitee(BASE_INPUT, {
+      rateLimiter: new InMemoryRateLimiter(),
+      db,
+      eventBus: { emit: vi.fn() },
+    });
 
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'db_error', cause: expect.any(Error) });

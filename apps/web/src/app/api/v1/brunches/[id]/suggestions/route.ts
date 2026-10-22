@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
-import { eventBus } from '@/lib/services';
+import { eventBus, getRateLimiter } from '@/lib/services';
 
 const brunchIdSchema = z.uuid();
 
@@ -42,7 +42,7 @@ export async function POST(
       suggestedById: session.user.id as UserId,
       email: parsed.data.email,
     },
-    { db, eventBus },
+    { db, eventBus, rateLimiter: getRateLimiter() },
   );
 
   if (result.isErr()) {

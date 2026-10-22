@@ -14,6 +14,7 @@ import { NoopEventBus } from '../events/NoopEventBus';
 import { castLocationBallot } from './castLocationBallot';
 import { confirmBrunch } from './confirmBrunch';
 import { createBrunch } from './createBrunch';
+import { InMemoryRateLimiter } from '../rateLimit/InMemoryRateLimiter';
 
 // Requires: supabase start + seeded lookup tables (pnpm db:seed).
 const RUN_ID = Date.now();
@@ -99,7 +100,7 @@ async function createConfirmableBrunch(title: string): Promise<{
 
   const invites = await sendInvites(
     { brunchId, invitedById: hostId, emails: [VOTER_EMAIL] },
-    { db, eventBus },
+    { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
   );
   expect(invites.isOk()).toBe(true);
 

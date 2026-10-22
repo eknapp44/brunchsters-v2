@@ -6,6 +6,7 @@ import { NoopEventBus } from '../events/NoopEventBus';
 import { respondToInvite } from './respondToInvite';
 import { sendInvites } from './sendInvites';
 import { updateRsvp } from './updateRsvp';
+import { InMemoryRateLimiter } from '../rateLimit/InMemoryRateLimiter';
 
 // Requires: supabase start + seeded lookup tables (pnpm db:seed).
 const RUN_ID = Date.now();
@@ -48,7 +49,7 @@ beforeAll(async () => {
 
   const invites = await sendInvites(
     { brunchId, invitedById: hostId, emails: [ATTENDEE_EMAIL] },
-    { db, eventBus },
+    { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
   );
   expect(invites.isOk()).toBe(true);
 
