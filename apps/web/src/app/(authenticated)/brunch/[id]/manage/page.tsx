@@ -1,6 +1,6 @@
 import { getBrunchById, getBrunchVoting, getInvitesForBrunch } from '@brunchsters/core';
 import type { BrunchId, UserId } from '@brunchsters/shared';
-import { notFound } from 'next/navigation';
+import { forbidden, notFound } from 'next/navigation';
 import { z } from 'zod';
 import { auth } from '@/auth';
 import { Icon } from '@/components/icons/Icon';
@@ -37,8 +37,13 @@ export default async function ManageBrunchPage({
   const brunchId = parsedId.data as BrunchId;
 
   const brunch = await getBrunchById({ brunchId, viewerId }, { db });
-  if (brunch === undefined || !brunch.isHost) {
+  // Membership first: an outsider and a made-up id are both undefined here and get the same 404.
+  // Only then a guest, who is told they may not (403).
+  if (brunch === undefined) {
     notFound();
+  }
+  if (!brunch.isHost) {
+    forbidden();
   }
 
   const voting = await getBrunchVoting({ brunchId, viewerId }, { db });

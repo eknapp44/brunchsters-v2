@@ -14,6 +14,9 @@ export const GONE_COLD_HELP = 'It may have expired. Ask whoever sent it to send 
 // Every 404: a made-up address, a brunch that does not exist, a brunch the visitor is not in.
 export const NOT_FOUND = "This table's empty.";
 
+// A member opening a host-only page (the manage page): 403.
+export const HOST_ONLY = "That one's the host's.";
+
 // A signed-out visitor on the landing page.
 export async function expectLandingPage(page: Page): Promise<void> {
   await expect(page.getByRole('heading', { level: 1, name: LANDING_HEADING })).toBeVisible();

@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ['@prisma/client', '.prisma/client'],
   // pnpm lint is the authoritative ESLint check; don't re-lint during next build
   eslint: { ignoreDuringBuilds: true },
+  // forbidden() and forbidden.tsx: the 403 a member gets for a host-only page.
+  experimental: { authInterrupts: true },
 };
 
 export default nextConfig;

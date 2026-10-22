@@ -1,4 +1,4 @@
-import { NOT_FOUND } from '../support/pages';
+import { HOST_ONLY, NOT_FOUND } from '../support/pages';
 import { getDb } from '../support/db';
 import { createBrunch, inviteToBrunch, respondToInvite, uniqueSuffix } from '../support/factories';
 import { expect, test } from '../support/fixtures';
@@ -28,6 +28,39 @@ test.describe('C3 — who can open a brunch', () => {
     await expect(stranger.page.getByText(NOT_FOUND)).toBeVisible();
     // 404, not 403: nothing about the brunch is disclosed.
     await expect(stranger.page.getByText(title)).toHaveCount(0);
+  });
+
+  test('the host-only manage page: the host gets it, a member a 403, an outsider the same 404 as a made-up id', async ({
+    makeActor,
+  }) => {
+    const host = await makeActor('host');
+    const member = await makeActor('member');
+    const stranger = await makeActor('stranger');
+    const title = `Host Only ${uniqueSuffix()}`;
+    const brunchId = await createBrunch({ host: host.user, title });
+    await inviteToBrunch({ brunchId, host: host.user, invitees: [member.user] });
+    await respondToInvite({ brunchId, user: member.user, response: 'yes' });
+    const manage = `/brunch/${brunchId}/manage`;
+
+    expect((await host.page.goto(manage))?.status()).toBe(200);
+    await expect(host.page.getByRole('heading', { name: `Manage: ${title}` })).toBeVisible();
+
+    // A member is told they may not: 403, with no controls and nothing of the host's page.
+    const denied = await member.page.goto(manage);
+    expect(denied?.status()).toBe(403);
+    await expect(member.page.getByRole('heading', { name: HOST_ONLY })).toBeVisible();
+    await expect(member.page.getByRole('button', { name: 'Lock it in' })).toHaveCount(0);
+    await expect(member.page.getByRole('link', { name: 'Back to dashboard' })).toBeVisible();
+
+    // An outsider learns nothing: the same 404 a made-up id gets, word for word.
+    const outsider = await stranger.page.goto(manage);
+    expect(outsider?.status()).toBe(404);
+    await expect(stranger.page.getByRole('heading', { name: NOT_FOUND })).toBeVisible();
+    const outsiderText = await stranger.page.getByRole('main').innerText();
+    const made = await stranger.page.goto('/brunch/00000000-0000-4000-8000-000000000000/manage');
+    expect(made?.status()).toBe(404);
+    await expect(stranger.page.getByRole('heading', { name: NOT_FOUND })).toBeVisible();
+    expect(await stranger.page.getByRole('main').innerText()).toBe(outsiderText);
   });
 
   test('a malformed or unknown brunch id is a 404, not an error', async ({ makeActor }) => {

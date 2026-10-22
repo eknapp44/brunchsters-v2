@@ -1,4 +1,4 @@
-import { NOT_FOUND } from '../support/pages';
+import { HOST_ONLY } from '../support/pages';
 import { getDb } from '../support/db';
 import { createBrunch, uniqueSuffix } from '../support/factories';
 import { expect, test } from '../support/fixtures';
@@ -12,7 +12,7 @@ const TWO_PLACES = [fixturePlaces.sunnySide, fixturePlaces.harborBistro];
 const TIMES = [daysFromNow(10), daysFromNow(11)];
 
 test.describe('H4 — only the host gets the manage screen', () => {
-  test('an attendee gets a 404, and only the host is offered the link', async ({ makeActor }) => {
+  test('an attendee gets a 403, and only the host is offered the link', async ({ makeActor }) => {
     const host = await makeActor('host');
     const attendee = await makeActor('attendee');
     const brunchId = await createBrunch({ host: host.user, locations: TWO_PLACES, times: TIMES });
@@ -24,8 +24,8 @@ test.describe('H4 — only the host gets the manage screen', () => {
     await expect(attendee.page.getByRole('link', { name: 'Manage brunch' })).toHaveCount(0);
 
     const denied = await attendee.page.goto(`/brunch/${brunchId}/manage`);
-    expect(denied?.status()).toBe(404);
-    await expect(attendee.page.getByText(NOT_FOUND)).toBeVisible();
+    expect(denied?.status()).toBe(403);
+    await expect(attendee.page.getByRole('heading', { name: HOST_ONLY })).toBeVisible();
 
     const allowed = await host.page.goto(`/brunch/${brunchId}/manage`);
     expect(allowed?.status()).toBe(200);
