@@ -97,13 +97,15 @@ function StepOne() {
         <input
           type="text"
           value={state.title}
+          placeholder="e.g. Sunday catch-up"
           maxLength={TITLE_MAX_LENGTH}
           onChange={(event) => dispatch(titleChanged(event.target.value))}
         />
       </Field>
-      <Field label="Description">
+      <Field label="Description" optional>
         <textarea
           value={state.description}
+          placeholder="Anything you want guests to know — the vibe, the occasion, dress code…"
           maxLength={DESCRIPTION_MAX_LENGTH}
           onChange={(event) => dispatch(descriptionChanged(event.target.value))}
         />

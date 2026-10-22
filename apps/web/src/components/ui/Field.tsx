@@ -5,11 +5,16 @@ import styles from './Field.module.css';
 // markup had it, so the control's accessible name is the label text and nothing else changes.
 export function Field(props: {
   readonly label: string;
+  // Marks a field a person may leave empty ("Description · optional"), so nobody has to guess.
+  readonly optional?: boolean;
   readonly children: ReactNode;
 }): ReactElement {
   return (
     <label className={styles.field}>
-      <span className={styles.label}>{props.label}</span>
+      <span className={styles.label}>
+        {props.label}
+        {props.optional === true && <span className={styles.optional}> · optional</span>}
+      </span>
       {props.children}
     </label>
   );

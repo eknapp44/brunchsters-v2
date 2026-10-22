@@ -30,6 +30,9 @@ test.describe('P8 — the creation wizard', () => {
     await expect(page.getByRole('button', { name: 'Back', exact: true })).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'Cancel' })).toHaveCount(2); // top and footer
     await expect(page.getByRole('button', { name: 'Continue', exact: true })).toBeDisabled();
+    // a person is told which field they may leave empty
+    await expect(page.getByLabel('Description · optional')).toBeVisible();
+    await expect(page.getByLabel('Title · optional')).toHaveCount(0);
 
     await page.getByLabel('Title').fill('Typed Title');
     await wizard.next();

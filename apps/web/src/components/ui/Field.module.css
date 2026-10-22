@@ -10,6 +10,11 @@
   letter-spacing: -0.005em;
 }
 
+.optional {
+  font-weight: 400;
+  color: var(--fg-muted);
+}
+
 .field input,
 .field textarea,
 .field select {
