@@ -18,7 +18,7 @@ Bring the built screens closer to the owner's Claude Design prototype: its **com
 
 ### How the decisions were made
 
-Per screen and per element the owner chose **adopt / keep ours / blend**, with the prototype's boards (`apps/web/.screenshots/compare-*.png`, Oct 19; the app's UI has not changed visually since, only Redux refactors) and then **mockups of the outcome** (light, dark, desktop, phone) in front of them. The decisions are in the tables below; `mockups/build.mjs` regenerates the mockups, and the milestone that builds each screen reproduces them as real boards.
+Per screen and per element the owner chose **adopt / keep ours / blend**, with the prototype's boards (`compare-*.png`, Oct 19, since replaced by `pnpm --filter @brunchsters/web boards`; the app's UI has not changed visually since, only Redux refactors) and then **mockups of the outcome** (light, dark, desktop, phone) in front of them. The decisions are in the tables below; `mockups/build.mjs` regenerates the mockups, and the milestone that builds each screen reproduces them as real boards.
 
 ### Grounded in the current code (verified 2026-10-21)
 
@@ -190,7 +190,9 @@ The derived "past" rule has journey **P4** (M2): a confirmed brunch whose time h
 
 Shipped on `feat/0011-design-fidelity` in seven milestones, each committed green and reviewed on phone-width and desktop boards by the owner before the next began.
 
-**What shipped.** The dashboard (greeting, next-up card, date-tile rows, empty state), the brunch page (host line, "You in?" card, quiet vote bars with a leading tag, "Who's coming" roster, confirmed banner), the creation wizard (step headings, Back/Continue footer), the front door and edges (landing, sign-in, invite preview, a single 404, an error page, "Call it" and "Lock it in" on the manage page) and the two emails, all in the Brand Voice, on initials avatars, in light and dark, desktop and phone. The rules behind them are pure functions in `packages/core` with tests (`isVoteWaiting`, `pickNextUp`, `isPastBrunch`, `groupDashboard`, `leadingOptionId`, `getBrunchRoster`), and a dev script (`pnpm db:clear-brunches`) clears local test brunches. Checks at the end: core 485, web 418, shared 19, core integration 113, e2e 183 passed and 2 skipped on the dev server and in CI mode; a stress run (`--workers=2 --repeat-each=3`) 549 passed, 0 failed, 0 flaky.
+**What shipped.** The dashboard (greeting, next-up card, date-tile rows, empty state), the brunch page (host line, "You in?" card, quiet vote bars with a leading tag, "Who's coming" roster, confirmed banner), the creation wizard (step headings, Back/Continue footer), the front door and edges (landing, sign-in, invite preview, a single 404, an error page, "Call it" and "Lock it in" on the manage page) and the two emails, all in the Brand Voice, on initials avatars, in light and dark, desktop and phone. The rules behind them are pure functions in `packages/core` with tests (`isVoteWaiting`, `pickNextUp`, `isPastBrunch`, `groupDashboard`, `leadingOptionId`, `getBrunchRoster`), and a dev script (`pnpm db:clear-brunches`) clears local test brunches. Checks at the end of M7: core 485, web 418, shared 19, core integration 113, e2e 183 passed and 2 skipped on the dev server and in CI mode; a stress run (`--workers=2 --repeat-each=3`) 549 passed, 0 failed, 0 flaky.
+
+**After the M7 close-out (owner review, same branch).** Hardening and polish, each its own commit: a member opening the host-only manage page gets a **403** (`forbidden()`; an outsider keeps the 404); `safeCallbackPath` limits the sign-in redirect to a path on this site; security headers (journey S1); `pnpm dev:as` to be several local people at once; the review screenshots sorted into `.screenshots/app/<area>/` and `boards/`; the `ui-screen` and `real-send-check` skills; `MANUAL-TESTS.md`; and polish the owner asked for (spacing and the Back link above the manage title, the wizard progress bar centred on its icons, a place's name over its address on the manage page and in the suggestion panels, a placeholder on date-and-time fields via `DateTimeInput`, no seconds in the wizard's times). Final checks: shared 40, core 485, web 418, core integration 113, e2e 189 passed and 2 skipped (CI mode). New candidates and follow-ups are in `PLANNING.md` §17 ("Security and session follow-ups", "Product candidates raised after spec 0011 closed").
 
 **What changed from the plan.**
 
@@ -221,7 +223,7 @@ Each is recorded in ADR 0012, here, and `PLANNING.md` §17.
 - **Features the prototype draws that do not exist**: cancel and change ("Call it off", "Tweak details"), the tiebreaker, quiet-nudge, running late, plus-ones, dietary notes, mute, past-brunch "do this again", Quick Brunch, share sheet, add to calendar, join-by-link. Their Copy Pass strings wait for their specs.
 - **The invite email's when and where** (the prototype's invite shows the date, the place and "Voting between 3 spots (closes Thu)"): the invite email job reads neither the options nor the deadline, so adding them is a data change, not copy. The notifications spec reshapes these emails and takes it.
 - **Live regions for vote counts** (flagged in `Accessibility Pass.html`): the feedback-surfaces spec.
-- Any change to state logic, routes, permissions, or schema; the Redux store.
+- Any change to state logic, routes, or schema; the Redux store. (Permissions: none were planned; the manage page's 403 for a member, the sign-in redirect limit and the security headers were added after the review, see the Outcome.)
 - A visual-regression gate with baselines (the boards are for review).
 
 ---
