@@ -1,6 +1,6 @@
 # Spec 0011 — Design Fidelity
 
-**Status:** Draft (grilled with the owner 2026-10-21 against rendered boards and mockups; not started)  
+**Status:** Complete (M1 to M7 done 2026-10-22; owner signed off the boards after each milestone; see "Outcome")  
 **Branch:** `feat/0011-design-fidelity`  
 **PLANNING.md ref:** §1 design principles, §16 Build Order #9 (UI) and the roadmap, §17 (RSVP visibility, new deferrals)  
 **ADRs:** [0012 — Design fidelity: compositions, voice, and where presentation rules live](../../docs/adrs/0012-design-fidelity-and-presentation-rules.md)  
@@ -145,7 +145,7 @@ Hide on phone, never the only source of a fact: the "N brunches" count, the help
 
 ### UI (dashboard, brunch page, wizard, front door)
 
-- [ ] Each screen above matches its "Decisions" table, light and dark, desktop and phone, and passes axe (D2), layout (D3) and, where it adds a main path, keyboard and motion (D4)
+- [x] Each screen above matches its "Decisions" table, light and dark, desktop and phone, and passes axe (D2), layout (D3) and, where it adds a main path, keyboard and motion (D4)
 - [x] The next-up roster uses no `listitem`s; the next-up brunch is not repeated in Upcoming; the Upcoming rows are the page's only `listitem`s
 - [x] The greeting renders neutral on the server and time-aware on the client without a hydration warning (`useSyncExternalStore` with a server snapshot), and the heading is announced once
 - [x] A display mapping turns status codes into Copy Pass wording on the dashboard, with a test that fails when a seeded status code has no entry; the brunch page badge keeps the lookup label
@@ -156,11 +156,11 @@ Hide on phone, never the only source of a fact: the "N brunches" count, the help
 
 ### Docs (adoption, not tacked on)
 
-- [ ] `apps/web/CLAUDE.md` (the three sections are written in M1; the accessible-names list is filled as each milestone changes names): new "Voice and copy" (the rules, the copy table pointer, emoji dial, the display mapping), "Phone" (the omissions rule) and "Derived presentation rules live in core" sections; the accessible-names section lists the names this spec changed
+- [x] `apps/web/CLAUDE.md` (the three sections are written in M1; the accessible-names list is filled as each milestone changes names): new "Voice and copy" (the rules, the copy table pointer, emoji dial, the display mapping), "Phone" (the omissions rule) and "Derived presentation rules live in core" sections; the accessible-names section lists the names this spec changed
 - [x] `PLANNING.md` §17: RSVP visibility reworded (ADR 0012); deferrals added (below); §16 roadmap marks this spec
 - [x] `specs/0009-styling-foundation/spec.md` "Outcome" points to this spec and ADR 0012
 - [x] `docs/SETUP.md`: the `boards` command
-- [ ] The `/spec-grill` skill asks about phone behavior and voice for any new screen
+- [x] The `/spec-grill` skill asks about phone behavior and voice for any new screen
 
 ---
 
@@ -186,6 +186,30 @@ The derived "past" rule has journey **P4** (M2): a confirmed brunch whose time h
 
 ---
 
+## Outcome
+
+Shipped on `feat/0011-design-fidelity` in seven milestones, each committed green and reviewed on phone-width and desktop boards by the owner before the next began.
+
+**What shipped.** The dashboard (greeting, next-up card, date-tile rows, empty state), the brunch page (host line, "You in?" card, quiet vote bars with a leading tag, "Who's coming" roster, confirmed banner), the creation wizard (step headings, Back/Continue footer), the front door and edges (landing, sign-in, invite preview, a single 404, an error page, "Call it" and "Lock it in" on the manage page) and the two emails, all in the Brand Voice, on initials avatars, in light and dark, desktop and phone. The rules behind them are pure functions in `packages/core` with tests (`isVoteWaiting`, `pickNextUp`, `isPastBrunch`, `groupDashboard`, `leadingOptionId`, `getBrunchRoster`), and a dev script (`pnpm db:clear-brunches`) clears local test brunches. Checks at the end: core 485, web 418, shared 19, core integration 113, e2e 183 passed and 2 skipped on the dev server and in CI mode; a stress run (`--workers=2 --repeat-each=3`) 549 passed, 0 failed, 0 flaky.
+
+**What changed from the plan.**
+
+- **Names were included** after the first grill (the roster: full names for the host, "First L." and counts for members). That added one read (`getBrunchRoster`) and no schema change.
+- **A passed confirmed brunch moves to Past** (derived at read time): the one observable rule this spec changed; journey P4.
+- **The roadmap changed mid-spec:** a lifecycle spec (cancel, archive, delete) now follows this one, and deployment moved to last.
+- **Journeys changed deliberately** in each milestone (listed in `tasks.md`); new journeys P1 to P11 and H8.
+- **Manage-page copy:** only the two buttons and the nudge line were adopted; the Copy Pass's "Heads up" card needs the leader's margin on the manage page and waits for the lifecycle spec.
+- **The footer** has only the © line and tagline (a second "Sign in" link would make the landing page's one-link journeys ambiguous), and "Free" was dropped from the prototype's footnote.
+
+**What was found.**
+
+- **A hydration race (closing-voting H2, stress run):** a deadline typed before the page hydrated was lost. Fixed with an uncontrolled field; journey H8 proves it.
+- **The review screenshots called "not-found" were not a 404** (an invited-but-silent person is a member and sees the page); they now show a real stranger's 404.
+- **P5 read the 404 before it painted** and failed about one run in four on the phone project; it now waits for the heading.
+- **Pre-merge review:** one stale line in `docs/SETUP.md` ("Coming soon."), fixed in its own commit; the `/spec-grill` skill gained the phone and voice prompts. Not changed, recorded: `clearBrunches.ts` lower-cases the address by hand because `@brunchsters/database` does not depend on `@brunchsters/shared` (it is a local-only developer script, and the database `CHECK` constraints hold the rule); a soft-deleted user's attendee row would still appear in a roster, as in every other read, until an account-deletion feature exists.
+
+---
+
 ## What This Spec Does Not Cover
 
 Each is recorded in ADR 0012, here, and `PLANNING.md` §17.
@@ -204,10 +228,12 @@ Each is recorded in ADR 0012, here, and `PLANNING.md` §17.
 
 ## Open Questions
 
-1. **Assumed from the approved mockups, veto at the M2 review:** the primary action stays **Plan a Brunch** (the Copy Pass says "Round up the crew"; the owner chose to keep it, before reading the Copy Pass), and status wording is a display mapping on the dashboard only.
-2. **Derived Past rule.** A confirmed brunch whose time has passed moves to Past. Recommended default; it is the one observable rule this spec changes.
-3. ~~**Nav avatar.**~~ **Resolved 2026-10-21 (owner):** initials in the nav too; the Google photo is not shown anywhere until the Settings spec.
-4. **Auto-"yes" on opening an invite link** (spec 0004). Is that still wanted now that the card says "You in?"? Not changed here.
-5. **Unify status wording** (dashboard "Open for votes" vs the brunch page's "Active"): when the lookup labels move to a copy source.
-6. **How many names on desktop** before "+N more" in the next-up card (three on phone). Decided at the M2 review.
-7. **The wizard's last button** keeps "Create Brunch"; revisit if the owner wants a voiced line.
+All resolved or carried (2026-10-22).
+
+1. ~~Primary action label~~ **Resolved (M2 review):** the dashboard's primary action stays **Plan a Brunch**; status wording is a display mapping on the dashboard only.
+2. ~~Derived Past rule~~ **Resolved (M2 review):** adopted; journey P4.
+3. ~~Nav avatar~~ **Resolved (owner):** initials in the nav too; the Google photo is not shown anywhere until the Settings spec.
+4. **Carried to `PLANNING.md` §17 (deferral 4):** auto-"yes" on opening an invite link while signed in.
+5. **Carried to §17 (deferral 5):** unify the dashboard's status wording with the brunch page's lookup label.
+6. ~~Names before "+N more"~~ **Resolved (M2 review):** three on phone, eight on desktop.
+7. ~~The wizard's last button~~ **Resolved:** it stays "Create Brunch".

@@ -162,12 +162,19 @@ Seven milestones, each green on its own, **deployable**, and ending in a commit.
 
 ## M7 — Close-out
 
-- [ ] The full board set (every screen and state, light and dark, desktop and phone) against the prototype and the v3 canvas, for the owner's final sign-off; the owner's real-phone review is taken once the app is deployed (the deployment spec is now last), and until then on the phone-width boards
-- [ ] `spec.md` status → Complete with an "Outcome" (what shipped, what changed from the plan, what was found), Open Questions resolved or carried to `PLANNING.md` §17
-- [ ] `PLANNING.md` §16/§17 and the memory-facing notes brought up to date; the deferrals confirmed in all three places (ADR, spec, §17); the `/spec-grill` skill updated with the phone and voice prompts
-- [ ] `/pre-merge-review`, fixes in their own commits
-- [ ] Commit: `docs: close out spec 0011 design fidelity (M7)`
+- [x] The full board set (every screen and state, light and dark, desktop and phone) against the prototype: 36 boards written (`apps/web/.screenshots/board-*.png`: dashboard, dashboard on a phone, empty dashboard, host, invitee, invite preview, landing, sign-in, wizard); the owner reviewed each milestone's boards and signed off at the end of M6; the real-phone review waits for the deployment
+- [x] `spec.md` status → Complete with an "Outcome"; the Open Questions resolved or carried to `PLANNING.md` §17
+- [x] `PLANNING.md` roadmap line marks this spec shipped; the deferrals are in all three places (ADR 0012 Consequences, spec "Does Not Cover", §17), including the invite email's when and where; the `/spec-grill` skill asks about phone behavior and voice
+- [x] `/pre-merge-review` (below); its one fix is its own commit
+- [x] Commit: `docs: close out spec 0011 design fidelity (M7)`
 
 **Journeys that change:** none. **Deployable:** yes.
 
-**Testing notes:** _(fill on completion)_
+**Testing notes:**
+
+- **What was reviewed:** the whole branch (`git diff main...HEAD`, 138 files) through the four lenses. **Architecture and style:** presentation rules are in `packages/core` and unit-tested, components format and draw, no `any` or suppressions in the diff, one TODO (pre-existing, `auth.ts`). **Acceptance criteria:** each box checked against the code; three were unticked (axe/layout/keyboard coverage of every screen, light and dark: confirmed in `accessibility.spec.ts` D1 and D2, `responsive-layout.spec.ts` D3; the `apps/web/CLAUDE.md` sections: present; the `/spec-grill` prompts: added). **Security and privacy:** the roster checks membership first and its member type has no email, id or "no" name; the invite preview shows only the host, the title and the description; every 404 reads identically (P9); nothing is stored client-side beyond the existing store; `db:clear-brunches` refuses a non-local host and defaults to a dry run. **Loose ends:** one stale doc line (SETUP "Coming soon."), fixed in `e0de6d0`; the old wording grep is otherwise clean outside historical specs.
+- **How:** typecheck, lint, unit (core 485, web 418, shared 19, database 1) run this turn; core integration 113, e2e (dev and CI mode, 183 passed, 2 skipped) and the stress run (549 passed) were last run on M6's code, and nothing but docs has changed since.
+- **Lifecycle and races:** the greeting (`useSyncExternalStore`, neutral server snapshot), the deadline field (uncontrolled, journey H8) and the existing ballot and wizard slices were re-read; no new async state outlives its owner.
+- **Does a test guard it?** each new rule has a unit test and a journey (P1 to P11, H8); the mutation checks are in each milestone's note. Gaps recorded rather than fixed: `error.tsx` has no journey (needs a test-only crash hook, which CLAUDE.md forbids); the "roster could not be read" branch is not reachable in a test.
+- **Not checked:** a real phone (waits for the deployment); an email client other than Gmail; screen readers (axe only).
+- **Ready for the owner:** the branch has no pending changes; pushing, opening the PR and merging are the owner's call.
