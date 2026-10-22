@@ -369,6 +369,15 @@ Four things check the look beyond "it renders", all part of `pnpm test:e2e` and 
 - **The `mobile` Playwright project** (`playwright.config.ts`): an emulated Pixel 7 (Chromium, touch) that runs `responsive-layout.spec.ts` plus the core journeys (`auth`, `access-and-dashboard`, `create-brunch`, `invitations-invitee`, `voting`, `confirm`) at phone width. To run only it: `pnpm --filter @brunchsters/web exec playwright test --project=mobile`. A journey that is purely about rules and data (permissions, emails, option management) is not repeated there: a screen size does not change it.
 - **Layout, keyboard and motion** (`responsive-layout.spec.ts`, `keyboard-and-motion.spec.ts`, journeys D3/D4): no screen scrolls sideways at phone, tablet or desktop widths, controls are at least 44px tall on a phone, the brunch and manage pages use two columns from 60rem up, the main paths work with the keyboard alone with a visible focus indicator at every stop, and nothing animates under "reduce motion".
 
+### Dependency audit (spec 0012)
+
+`pnpm audit --prod --audit-level=high` checks the production dependencies against the advisory database. CI runs it as a step of the `Lint` job, so no new required check is needed, and it fails on a new **high** or **critical** advisory. Run it locally the same way. On 2026-10-22 it found 32 advisories (6 critical) and the fix was `next` 15.5.28, `next-auth` 5.0.0-beta.32 and five overrides; it now reports none.
+
+- **It can turn an unrelated PR red** when an advisory is published for something we already use. That is the point; the fix is its own `fix(deps):` commit: bump the package, or, for a transitive one, add or move an entry under `overrides:` in `pnpm-workspace.yaml` (each is a patched range for a package that `next`, `prisma` or `inngest` pulls in older; remove an entry once its parent no longer needs it). Then run `pnpm install`, `pnpm typecheck`, `pnpm test`, `pnpm --filter @brunchsters/core test:integration`, `pnpm build` and `pnpm test:e2e`.
+- **An advisory with no fix** is recorded, never silently ignored: add its id to `pnpm.auditConfig.ignoreGhsas` in `package.json` and list here the id, why it cannot be reached or fixed, and the date to look again. None today.
+- `next-auth` is on a beta because Auth.js v5 has never had a stable release; the advisories name a `5.0.0` that does not exist, and beta.32 is what clears them. Recheck when v5 goes stable.
+- **Dependabot** (alerts and update PRs) is a repository setting, so it is proposed here and not enabled by any agent: Settings → Code security → turn on "Dependabot alerts" and "Dependabot security updates". The CI step catches the same advisories at PR time; the alerts also catch them on a quiet repository.
+
 ### Testing notes
 
 Per the workflow in `CLAUDE.md`, every milestone records a short testing note (what was tested, how, what's deferred, how to run). These live in the spec's `tasks.md` or a `TESTING-NOTES.md`. This doc describes _how to run_ tests; the per-feature notes describe _what is covered_.
