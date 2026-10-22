@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/Button';
+import { DateTimeInput } from '@/components/ui/DateTimeInput';
 import { Field } from '@/components/ui/Field';
 import { InlineAlert } from '@/components/ui/InlineAlert';
 import detail from '../detail.module.css';
@@ -120,7 +121,12 @@ export function VotingControls({
 
       <div className={detail.addRow}>
         <Field label="Voting closes by">
-          <input ref={deadlineRef} type="datetime-local" min={minDeadline} disabled={submitting} />
+          <DateTimeInput
+            ref={deadlineRef}
+            placeholderText="Pick a deadline"
+            min={minDeadline}
+            disabled={submitting}
+          />
         </Field>
         <Button type="button" onClick={() => void saveDeadline()} disabled={submitting}>
           Save deadline

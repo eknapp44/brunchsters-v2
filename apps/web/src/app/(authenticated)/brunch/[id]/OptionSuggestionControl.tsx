@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { PopIcon } from '@/components/icons/PopIcon';
 import { Button } from '@/components/ui/Button';
+import { DateTimeInput } from '@/components/ui/DateTimeInput';
 import { InlineAlert } from '@/components/ui/InlineAlert';
 import { PlaceSearchInput } from '../PlaceSearchInput';
 import styles from './detail.module.css';
@@ -163,8 +164,8 @@ export function TimeSuggestionControl({
 
       {canSuggest && (
         <div className={styles.addRow}>
-          <input
-            type="datetime-local"
+          <DateTimeInput
+            placeholderText="Suggest a time"
             aria-label="Suggested date and time"
             value={timeInput}
             disabled={submitting}

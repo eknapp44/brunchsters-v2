@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { PopIcon } from '@/components/icons/PopIcon';
 import { Button } from '@/components/ui/Button';
+import { DateTimeInput } from '@/components/ui/DateTimeInput';
 import { InlineAlert } from '@/components/ui/InlineAlert';
 import { PlaceSearchInput } from '../../PlaceSearchInput';
 import detail from '../detail.module.css';
@@ -210,8 +211,8 @@ export function OptionManager({
           ))}
         </ul>
         <div className={detail.addRow}>
-          <input
-            type="datetime-local"
+          <DateTimeInput
+            placeholderText="Add a time"
             aria-label="Date and time to add"
             value={timeInput}
             disabled={disabled || adding}

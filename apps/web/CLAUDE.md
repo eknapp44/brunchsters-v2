@@ -12,8 +12,9 @@ Scoped to the web app. The repo-wide rules are in the root `CLAUDE.md`; why the 
 ## Writing components
 
 - **CSS Modules, next to the component** (`Foo.tsx` + `Foo.module.css`). No Tailwind, no runtime CSS-in-JS, no component library (decide that with the first dialog or popover).
-- **Compose the primitives in `src/components/ui/`** (Button, ButtonLink, Field, Card, Badge, InitialsAvatar, Eyebrow, DateTile, InlineAlert, Container, Hero, SkipLink) instead of restyling raw elements. Icons and artwork (`components/icons`, `components/art`) are inline SVG and always decorative (`aria-hidden`). A `Badge` may carry a decorative icon; the butter panel is `Card tone="accent"`.
+- **Compose the primitives in `src/components/ui/`** (Button, ButtonLink, Field, Card, Badge, InitialsAvatar, Eyebrow, DateTile, DateTimeInput, InlineAlert, Container, Hero, SkipLink) instead of restyling raw elements. Icons and artwork (`components/icons`, `components/art`) are inline SVG and always decorative (`aria-hidden`). A `Badge` may carry a decorative icon; the butter panel is `Card tone="accent"`.
 - **A person is initials on a color, never a photo** (`InitialsAvatar`, ADR 0012). Photos wait for a Settings spec with an opt-in. Pass a stable `seed` (an id, or an email for someone who has not signed in); use `decorative` only where the name is written beside it.
+- **A date-and-time field is a `DateTimeInput`** (with a `placeholderText` like "Add a time"), never a bare `<input type="datetime-local">`: the browser's own blank ("mm/dd/yyyy --:-- --") cannot be restyled, so the primitive covers it while the field is empty and unfocused (in browsers that allow it) and keeps the accessible name from `aria-label` or the wrapping `Field`.
 - **One primary action per screen** (Constitution 24): one `variant="primary"` button. Revoke/Remove are `danger`, everything else `secondary` or `ghost`.
 - **Global element styles are zero-specificity (`:where()`)**, so a component's class always wins. A `<main>` that is not a `Container` or `Hero` still gets a width from the global rule; opt out explicitly.
 

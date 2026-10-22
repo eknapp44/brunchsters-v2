@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { Icon } from '@/components/icons/Icon';
 import { PopIcon } from '@/components/icons/PopIcon';
 import { Button } from '@/components/ui/Button';
+import { DateTimeInput } from '@/components/ui/DateTimeInput';
 import { ButtonLink } from '@/components/ui/ButtonLink';
 import { Container } from '@/components/ui/Container';
 import { Eyebrow } from '@/components/ui/Eyebrow';
@@ -195,8 +196,8 @@ function StepThree() {
     <section className={styles.step}>
       <StepHeader step={3} />
       <div className={styles.addRow}>
-        <input
-          type="datetime-local"
+        <DateTimeInput
+          placeholderText="Add a time"
           aria-label="Date and time"
           value={timeInput}
           onChange={(event) => setTimeInput(event.target.value)}
@@ -212,7 +213,10 @@ function StepThree() {
             <li key={time}>
               <span className={styles.itemText}>
                 <PopIcon name="clock" size={22} />
-                {new Date(time).toLocaleString()}
+                {new Date(time).toLocaleString(undefined, {
+                  dateStyle: 'medium',
+                  timeStyle: 'short',
+                })}
               </span>
               <Button
                 type="button"
@@ -235,8 +239,8 @@ function StepThree() {
 
       {showVotingDeadline && (
         <Field label="Voting closes by">
-          <input
-            type="datetime-local"
+          <DateTimeInput
+            placeholderText="Pick a deadline"
             value={state.votingDeadline}
             min={nowAsDatetimeLocalValue()}
             onChange={(event) => dispatch(votingDeadlineChanged(event.target.value))}
