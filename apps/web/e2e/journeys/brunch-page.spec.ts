@@ -210,7 +210,10 @@ test.describe('P11 — the invitee page at phone width and at desktop width', ()
     await maybe.page.goto(`/brunch/${brunchId}`);
 
     const y = async (name: string): Promise<number> => {
-      const box = await maybe.page.getByRole('heading', { name, exact: true }).boundingBox();
+      const heading = maybe.page.getByRole('heading', { name, exact: true });
+      // wait for it to be on screen: a position read the instant the page loads can find nothing
+      await expect(heading).toBeVisible();
+      const box = await heading.boundingBox();
       if (box === null) throw new Error(`No heading "${name}" on screen`);
       return box.y;
     };
