@@ -1,6 +1,6 @@
 # Spec 0012 — Security Hardening
 
-**Status:** Draft (grilled 2026-10-22; waiting for the owner's go-ahead to start M1)  
+**Status:** In progress (grilled 2026-10-22; M1 to M3 done and reviewed: dependencies, the limiter, invite and resend limits; M4 to M6 to do)  
 **Branch:** `feat/0012-security-hardening`  
 **PLANNING.md ref:** §16 roadmap step 5, §17 "Security and session follow-ups"  
 **ADRs:** [0013 — Rate limits in Postgres](../../docs/adrs/0013-rate-limits-in-postgres.md), [0014 — CSP with a per-request nonce](../../docs/adrs/0014-content-security-policy-with-nonce.md)  
@@ -137,6 +137,7 @@ Each is recorded in ADR 0013 or 0014 and in PLANNING §17.
 - **A sign-in limiter.** Google is the only provider and throttles it; no password exists to guess.
 - **A per-IP limit on signed-in traffic** (shared networks).
 - **Showing remaining budget, or disabling a control before its first refusal.** A control disables only after a 429; a different device or browser (or cleared site data) learns on its first click, which gets the 429 and disables from then on. Making that accurate needs a read-only budget check on every page load.
+- **Waiting Approve buttons, and sharing a wait between tabs or components.** Approving a suggestion that is refused shows the line but its Approve buttons do not wait or remember the wait, and a wait is not shared between tabs or between components on one page (each control learns on its first click; sharing it needs `storage` events and a shared store, more than a beta needs).
 - **The creation wizard's ignored invite response** (spec 0004): a limited batch in the wizard fails silently, like any failure there today. Owned by the feedback-surfaces spec ("Silent failures to surface").
 - **Real error wording for every other control** that receives a 429 from the write catch-all (feedback-surfaces).
 - **A limit on the server-rendered `/invite/[token]` page** (a token is a random UUID; the page already answers bad tokens uniformly).
