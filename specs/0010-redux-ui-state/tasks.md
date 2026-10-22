@@ -78,7 +78,7 @@ Four milestones, each green on its own and ending in a commit. Branch: `feat/001
 
 - [x] `PLANNING.md` §17: new "Redux follow-ups" entry listing every deferred item (the remaining panels' shared mutation slice, toasts and the visible error surface with the server's real message, unread count and realtime, wizard draft persistence, RTK Query), pointing at ADR 0011
 - [x] `specs/0003-create-brunch/plan.md`: the "local state" note points to ADR 0011
-- [x] Spec status → Complete; build-order note in `PLANNING.md` §16 (Redux shipped; fidelity 0011; notifications 0012)
+- [x] Spec status → Complete; build-order note in `PLANNING.md` §16 (Redux shipped; fidelity 0011; notifications unnumbered, see spec 0012's numbering note)
 - [x] Bundle check: record the authenticated-route first-load JS before and after (`next build` output) in the testing note
 - [x] Multi-lens review before merge (architecture/style, acceptance criteria, security, loose ends), as for earlier specs
 - [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e`, CI mode

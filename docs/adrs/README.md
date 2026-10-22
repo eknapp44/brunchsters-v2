@@ -53,3 +53,5 @@ What else was evaluated and why was it not chosen?
 | [0010](./0010-css-modules-and-design-tokens.md)             | CSS Modules and design tokens                                           | Accepted |
 | [0011](./0011-redux-toolkit-for-client-ui-state.md)         | Redux Toolkit for client UI state                                       | Accepted |
 | [0012](./0012-design-fidelity-and-presentation-rules.md)    | Design fidelity: compositions, voice, and where presentation rules live | Accepted |
+| [0013](./0013-rate-limits-in-postgres.md)                   | Rate limits: Postgres counters behind a `RateLimiter` interface         | Accepted |
+| [0014](./0014-content-security-policy-with-nonce.md)        | Content-Security-Policy with a per-request nonce                        | Accepted |
