@@ -31,7 +31,7 @@ Spec 0011 closes that gap. Five questions need a decision that a future reader w
 - Journeys change **deliberately**, in the same commit as their screen: the dashboard heading, `No brunches yet.`, the RSVP button names (`yes/no/maybe` become `I'm in/Maybe/Can't`), `Your RSVP` (becomes `You in?`), the wizard's `Next` and `What`. Each milestone lists them in `tasks.md`.
 - The dashboard and brunch page gain read-only fields and one new read (`getBrunchRoster`). No schema change, no new route, no new permission surface beyond the roster, which has its own 404 test.
 - A confirmed brunch whose time has passed moves to "Past" on the dashboard (derived at read time, as deadlines are). It is the one rule people can observe that this spec changes, and it exists only because dates now show.
-- Every deferral is also written in `PLANNING.md` §17: the Settings spec (photos, upload, dark mode, edit profile), collapsible phone sections (decide after a real-phone review), link-preview (Open Graph) images, privacy and terms pages and a footer for the beta, the auto-"yes" on opening an invite link, and the notification strings the Copy Pass already wrote.
+- Every deferral is also written in `PLANNING.md` §17: the Settings spec (photos, upload, dark mode, edit profile), collapsible phone sections (decide after a real-phone review), link-preview (Open Graph) images, privacy and terms pages and a footer for the beta, the auto-"yes" on opening an invite link, the notification strings the Copy Pass already wrote, and the invite email's when and where (the email job does not read the options or deadline).
 - The landing page stops being a placeholder; the sign-out destination and the front door of the private beta are the same page.
 
 ## Alternatives considered

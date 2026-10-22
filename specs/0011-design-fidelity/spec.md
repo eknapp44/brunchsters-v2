@@ -195,6 +195,7 @@ Each is recorded in ADR 0012, here, and `PLANNING.md` §17.
 - **Link-preview images (Open Graph)**, **privacy and terms pages and a footer**, a `theme-color`: deployment-adjacent (need the public URL and copy).
 - **Notifications, inbox, toasts, bell, push prompt, mute, reminders**: the notifications and feedback-surfaces specs. Planned for, not built: the leading and vote-waiting rules are core functions the notifications spec can reuse; the top bar leaves room for a future bell; the Copy Pass's notification strings are kept in `plan.md` for that spec.
 - **Features the prototype draws that do not exist**: cancel and change ("Call it off", "Tweak details"), the tiebreaker, quiet-nudge, running late, plus-ones, dietary notes, mute, past-brunch "do this again", Quick Brunch, share sheet, add to calendar, join-by-link. Their Copy Pass strings wait for their specs.
+- **The invite email's when and where** (the prototype's invite shows the date, the place and "Voting between 3 spots (closes Thu)"): the invite email job reads neither the options nor the deadline, so adding them is a data change, not copy. The notifications spec reshapes these emails and takes it.
 - **Live regions for vote counts** (flagged in `Accessibility Pass.html`): the feedback-surfaces spec.
 - Any change to state logic, routes, permissions, or schema; the Redux store.
 - A visual-regression gate with baselines (the boards are for review).
