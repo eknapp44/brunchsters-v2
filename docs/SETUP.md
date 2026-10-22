@@ -244,7 +244,7 @@ pnpm db:validate          # should print "The schema at prisma\schema.prisma is 
 pnpm test                 # should print "4 passed" across shared, core, database, web
 
 # 5. App boots?
-pnpm dev                  # visit http://localhost:3000 — should show "Brunchsters / Coming soon."
+pnpm dev                  # visit http://localhost:3000 — should show the landing page ("Your friends are hungry. Probably.")
 ```
 
 If all five pass, the stack is healthy.
