@@ -152,7 +152,7 @@ Hide on phone, never the only source of a fact: the "N brunches" count, the help
 - [x] Emoji are `aria-hidden` everywhere; the RSVP names are "I'm in", "Maybe", "Can't"
 - [x] `not-found.tsx` and `error.tsx` exist, use the tokens and voice, and the 404 text is identical for every case; `error.tsx` offers the framework's retry
 - [x] The landing page replaces "Coming soon."; sign-out lands on it
-- [ ] The invite and confirmation emails carry the voice; layout and events unchanged (M6, may be cut)
+- [x] The invite and confirmation emails carry the voice; layout and events unchanged (M6, may be cut)
 
 ### Docs (adoption, not tacked on)
 

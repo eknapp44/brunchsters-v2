@@ -78,7 +78,7 @@ export async function waitForEmails(params: {
   return emailsTo(params.to);
 }
 
-// The address behind the email's button ("View the invite" / "View the brunch").
+// The address behind the email's button ("See the brunch" in both emails).
 export function linkIn(email: SentEmail): string {
   const match = /<a href="([^"]+)" style="background/.exec(email.html);
   if (match?.[1] === undefined) throw new Error(`No button link in the email "${email.subject}"`);

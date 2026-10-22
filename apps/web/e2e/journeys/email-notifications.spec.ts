@@ -43,7 +43,7 @@ test.describe('N1 — an invite email brings the invitee in', () => {
     await expect(inviteRow(host.page, guest.user.email)).toContainText('pending');
 
     const email = only(await waitForEmails({ to: guest.user.email, count: 1 }));
-    expect(email.subject).toBe(`${host.user.name} invited you to brunch: ${title}`);
+    expect(email.subject).toBe(`${host.user.name} wants you at brunch 🥂`);
     expect(email.html).toContain(title);
 
     // Following the emailed link is the same as following a copied one: the invitee is in.
@@ -146,7 +146,7 @@ test.describe('N3 — confirming the brunch tells the right people', () => {
 
     // The place, its address and the time in the *place's* zone, whatever zone anyone is in.
     for (const email of [silentEmail, hostEmail, annEmail]) {
-      expect(email.subject).toBe(`It's on: ${title}`);
+      expect(email.subject).toBe(`Brunch on. 💕 ${title}`);
       expect(email.html).toContain(place.name);
       expect(email.html).toContain(place.address);
       expect(email.html).toContain(wallClock(when, place.timezone));

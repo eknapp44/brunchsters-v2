@@ -17,8 +17,11 @@ describe('renderInviteEmail', () => {
   it('says who invited whom to what, with the link and its expiry', () => {
     const { subject, html } = renderInviteEmail(base);
 
-    expect(subject).toBe('Evan invited you to brunch: Sunday Funday');
+    expect(subject).toBe('Evan wants you at brunch 🥂');
+    expect(html).toContain('Evan wants you at brunch');
+    expect(html).toContain('Evan just put a brunch on the table');
     expect(html).toContain('Sunday Funday');
+    expect(html).toContain('>See the brunch<');
     expect(html).toContain('Bring an appetite');
     expect(html).toContain('href="https://app.example.com/invite/abc"');
     expect(html).toContain('November 23, 2026 at 12:00 PM UTC');
@@ -76,8 +79,11 @@ describe('renderConfirmedEmail', () => {
   it('names the place and shows the time in the brunch’s timezone', () => {
     const { subject, html } = renderConfirmedEmail(base);
 
-    expect(subject).toBe("It's on: Sunday Funday");
-    expect(html).toContain('Hi Sam,');
+    expect(subject).toBe('Brunch on. 💕 Sunday Funday');
+    expect(html).toContain('>Brunch on.<');
+    expect(html).toContain('Hey Sam —');
+    expect(html).toContain('Evan locked it in.');
+    expect(html).toContain('<strong>Sunday Funday</strong> is happening');
     expect(html).toContain('<a href="https://maps.google.com/?cid=a">Cafe A</a>');
     expect(html).toContain('1 Main St, Chicago');
     expect(html).toContain('Saturday, October 24, 2026 at 10:30 AM CDT');
@@ -85,7 +91,7 @@ describe('renderConfirmedEmail', () => {
   });
 
   it('greets without a name when the recipient has none', () => {
-    expect(renderConfirmedEmail({ ...base, recipientName: undefined }).html).toContain('Hi,');
+    expect(renderConfirmedEmail({ ...base, recipientName: undefined }).html).toContain('Hey —');
   });
 
   it('does not link a place URL that is not http(s)', () => {

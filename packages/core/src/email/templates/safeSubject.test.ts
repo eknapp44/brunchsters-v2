@@ -6,9 +6,7 @@ const LINE_SEPARATOR = String.fromCharCode(0x2028);
 
 describe('safeSubject', () => {
   it('leaves a normal subject unchanged', () => {
-    expect(safeSubject('Evan invited you to brunch: Sunday Funday')).toBe(
-      'Evan invited you to brunch: Sunday Funday',
-    );
+    expect(safeSubject('Evan wants you at brunch 🥂')).toBe('Evan wants you at brunch 🥂');
   });
 
   it('turns a smuggled header into plain text on one line', () => {

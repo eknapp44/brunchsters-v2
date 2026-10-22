@@ -43,7 +43,7 @@ describe('sendInviteEmail', () => {
     expect(emailService.sent).toHaveLength(1);
     const [email] = emailService.sent;
     expect(email?.to).toBe('guest@example.com');
-    expect(email?.subject).toBe('Evan invited you to brunch: Sunday Funday');
+    expect(email?.subject).toBe('Evan wants you at brunch 🥂');
     expect(email?.html).toContain('href="https://app.example.com/invite/token-1"');
     expect(email?.idempotencyKey).toMatch(/^invite:invite-uuid:[0-9a-f]{16}$/);
   });
