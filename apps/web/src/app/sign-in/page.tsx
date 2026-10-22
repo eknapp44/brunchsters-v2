@@ -1,3 +1,4 @@
+import { safeCallbackPath } from '@brunchsters/shared';
 import { signIn } from '@/auth';
 import { LogoMark } from '@/components/art/LogoMark';
 import { Button } from '@/components/ui/Button';
@@ -8,9 +9,7 @@ import styles from './signIn.module.css';
 async function googleSignIn(formData: FormData) {
   'use server';
   const callbackUrl = formData.get('callbackUrl');
-  await signIn('google', {
-    redirectTo: typeof callbackUrl === 'string' ? callbackUrl : '/dashboard',
-  });
+  await signIn('google', { redirectTo: safeCallbackPath(callbackUrl) });
 }
 
 export default async function SignInPage({
@@ -30,7 +29,7 @@ export default async function SignInPage({
         handle the rest.
       </p>
       <form action={googleSignIn}>
-        <input type="hidden" name="callbackUrl" value={callbackUrl ?? '/dashboard'} />
+        <input type="hidden" name="callbackUrl" value={safeCallbackPath(callbackUrl)} />
         <Button type="submit" variant="primary" size="lg" block>
           Sign in with Google
         </Button>

@@ -72,6 +72,22 @@ test.describe('P9 — the landing page', () => {
   });
 });
 
+test.describe('P9 — sign-in only goes back to this site', () => {
+  test('carries a path on this site through sign-in and drops anything that would leave it', async ({
+    page,
+  }) => {
+    const target = page.locator('input[name="callbackUrl"]');
+
+    await page.goto('/sign-in?callbackUrl=/invite/abc123');
+    await expect(target).toHaveValue('/invite/abc123');
+
+    for (const hostile of ['https://evil.test/steal', '//evil.test', '/\\evil.test']) {
+      await page.goto(`/sign-in?callbackUrl=${encodeURIComponent(hostile)}`);
+      await expect(target, hostile).toHaveValue('/dashboard');
+    }
+  });
+});
+
 test.describe('P9 — the 404', () => {
   test('every address nobody can open says exactly the same thing, and never says why', async ({
     makeActor,
