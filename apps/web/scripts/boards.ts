@@ -5,7 +5,7 @@ import path from 'node:path';
 import { chromium, type Browser } from '@playwright/test';
 
 // Prototype-vs-app boards (spec 0011): for each screen, the Claude Design prototype next to the
-// built app, light and dark, desktop and phone, written to .screenshots/board-<screen>-<light|dark>-<device>.png.
+// built app, light and dark, desktop and phone, written to .screenshots/boards/<screen>-<light|dark>-<device>.png.
 // This is the review artifact at every milestone.
 //
 //   pnpm --filter @brunchsters/web screenshots   (the app side; needs the local database)
@@ -20,6 +20,8 @@ import { chromium, type Browser } from '@playwright/test';
 const WEB_ROOT = path.resolve(__dirname, '..');
 const REPO_ROOT = path.resolve(WEB_ROOT, '../..');
 const SHOTS_DIR = path.join(WEB_ROOT, '.screenshots');
+const APP_DIR = path.join(SHOTS_DIR, 'app');
+const BOARDS_DIR = path.join(SHOTS_DIR, 'boards');
 
 type Scheme = 'light' | 'dark';
 type Device = 'desktop' | 'phone';
@@ -38,63 +40,63 @@ const PAIRS: readonly Pair[] = [
   {
     id: 'dashboard',
     title: 'Dashboard',
-    app: 'dashboard-full',
+    app: 'dashboard/full',
     scene: 'Dashboard (v3)',
     sceneDevice: 'desktop',
   },
   {
     id: 'dashboard-mobile',
     title: 'Dashboard (phone)',
-    app: 'dashboard-full',
+    app: 'dashboard/full',
     scene: 'Dashboard (mobile shell)',
     sceneDevice: 'phone',
   },
   {
     id: 'empty-dashboard',
     title: 'Empty dashboard',
-    app: 'dashboard-empty',
+    app: 'dashboard/empty',
     scene: 'Empty dashboard',
     sceneDevice: 'desktop',
   },
   {
     id: 'host',
     title: 'Brunch page, host',
-    app: 'brunch-host-voting',
+    app: 'brunch/host-voting',
     scene: 'Host detail',
     sceneDevice: 'desktop',
   },
   {
     id: 'invitee',
     title: 'Brunch page, invitee',
-    app: 'brunch-invitee-voting',
+    app: 'brunch/invitee-voting',
     scene: 'Invitee detail',
     sceneDevice: 'desktop',
   },
   {
     id: 'wizard',
     title: 'Creation wizard, step 1',
-    app: 'wizard-1-what',
+    app: 'wizard/1-what',
     scene: 'Create-brunch wizard',
     sceneDevice: 'desktop',
   },
   {
     id: 'landing',
     title: 'Landing',
-    app: 'landing',
+    app: 'front-door/landing',
     scene: 'Marketing landing',
     sceneDevice: 'desktop',
   },
   {
     id: 'sign-in',
     title: 'Sign-in',
-    app: 'sign-in',
+    app: 'front-door/sign-in',
     scene: 'Welcome / Sign-in',
     sceneDevice: 'phone',
   },
   {
     id: 'invite-preview',
     title: 'Invite preview',
-    app: 'invite-preview',
+    app: 'front-door/invite-preview',
     scene: 'Invite preview',
     sceneDevice: 'phone',
   },
@@ -234,7 +236,7 @@ async function writeBoards(browser: Browser, captures: Captures): Promise<number
   for (const pair of PAIRS) {
     for (const scheme of SCHEMES) {
       for (const device of DEVICES) {
-        const appFile = path.join(SHOTS_DIR, `${pair.app}-${scheme}-${device}.png`);
+        const appFile = path.join(APP_DIR, `${pair.app}-${scheme}-${device}.png`);
         const app = fs.existsSync(appFile) ? fs.readFileSync(appFile) : undefined;
         const proto =
           pair.sceneDevice === device ? captures.get(captureKey(pair, scheme)) : undefined;
@@ -248,7 +250,7 @@ async function writeBoards(browser: Browser, captures: Captures): Promise<number
           `<body style="margin:0;padding:12px;background:#fff;display:flex;gap:16px;align-items:flex-start">${figure({ caption: `Your design (Claude Design prototype): ${label}`, image: proto, device })}${figure({ caption: 'What we built', image: app, device })}</body>`,
         );
         await sheet.screenshot({
-          path: path.join(SHOTS_DIR, `board-${pair.id}-${scheme}-${device}.png`),
+          path: path.join(BOARDS_DIR, `${pair.id}-${scheme}-${device}.png`),
           fullPage: true,
         });
         await sheet.close();
@@ -260,18 +262,21 @@ async function writeBoards(browser: Browser, captures: Captures): Promise<number
 }
 
 async function main(): Promise<void> {
-  if (!fs.existsSync(SHOTS_DIR) || fs.readdirSync(SHOTS_DIR).length === 0) {
+  if (!fs.existsSync(APP_DIR) || fs.readdirSync(APP_DIR).length === 0) {
     throw new Error(
       'No app screenshots yet. Run `pnpm --filter @brunchsters/web screenshots` first (needs the local database).',
     );
   }
+  // Start clean so a board for a screen that no longer exists cannot linger.
+  fs.rmSync(BOARDS_DIR, { recursive: true, force: true });
+  fs.mkdirSync(BOARDS_DIR, { recursive: true });
   const scratch = makeScratchCopy();
   const { server, port } = await serve(scratch);
   const browser = await chromium.launch();
   try {
     const captures = await photographPrototype(browser, port);
     const written = await writeBoards(browser, captures);
-    console.log(`Wrote ${written} boards to ${SHOTS_DIR} (board-*.png).`);
+    console.log(`Wrote ${written} boards to ${BOARDS_DIR}.`);
   } finally {
     await browser.close();
     server.close();

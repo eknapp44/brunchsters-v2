@@ -94,7 +94,7 @@ Adopt fully: a step eyebrow ("Step 1 of 4 · a name everyone will see"), a big p
 | Invalid invite, and one that cannot be used | Playful                              | h1 **That invite's gone cold.** with "It may have expired. Ask whoever sent it to send a new one." The same words for expired, revoked and unknown tokens, as today.                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | Manage page                                 | Rename two buttons and the banner    | **Close voting now** → **Call it**, **Confirm brunch** → **Lock it in**, and the nudge reads "Most of the crew has voted — call it now if you're ready." Headings, "Save deadline" and the rest stay. About 30 journey locators in 8 files are renamed together.                                                                                                                                                                                                                                                                                                                                |
 
-M5 starts from these boards (`board-landing-*`, `board-sign-in-*`, `board-invite-preview-*`; the 404, error and manage page have no prototype scene).
+M5 starts from these boards (`boards/landing-*`, `boards/sign-in-*`, `boards/invite-preview-*`; the 404, error and manage page have no prototype scene).
 
 ### Emails (copy only, M6, can be cut)
 

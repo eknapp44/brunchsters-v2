@@ -338,16 +338,16 @@ pnpm --filter @brunchsters/web exec playwright show-trace <trace.zip>   # open a
 The look is judged by eye, so there is a command that photographs every screen:
 
 ```bash
-pnpm --filter @brunchsters/web screenshots   # recreates the e2e database, then writes apps/web/.screenshots/
+pnpm --filter @brunchsters/web screenshots   # clears apps/web/.screenshots/app, recreates the e2e database, then writes it again
 ```
 
-It uses the same isolated e2e server, database and queue as `pnpm test:e2e` (stop your own `pnpm dev` first), logs in as fixture users, and saves one PNG per screen: `<screen>-<light|dark>-<desktop|tablet|phone>.png` (desktop is 1280px wide, the tablet 820px, below the width where two columns start, and the phone an emulated Pixel 7). The folder is git-ignored and nothing compares against it; it exists so you and Claude can look at the same pictures. Re-run it after a change; it overwrites the files.
+It uses the same isolated e2e server, database and queue as `pnpm test:e2e` (stop your own `pnpm dev` first), logs in as fixture users, and saves one PNG per screen and state under `apps/web/.screenshots/app/<area>/` (`front-door`, `dashboard`, `brunch`, `manage`, `wizard`): `<state>-<light|dark>-<desktop|tablet|phone>.png`, for example `app/brunch/host-voting-dark-phone.png` (desktop is 1280px wide, the tablet 820px, below the width where two columns start, and the phone an emulated Pixel 7). The folder is git-ignored and nothing compares against it; it exists so you and Claude can look at the same pictures. Re-run it after a change; it overwrites the files.
 
 **Boards: the prototype next to the app (spec 0011).** Each design-fidelity milestone is reviewed with a board per screen, light and dark, desktop and phone:
 
 ```bash
 pnpm --filter @brunchsters/web screenshots   # the app side (above)
-pnpm --filter @brunchsters/web boards        # photographs the prototype and writes apps/web/.screenshots/board-<screen>-<light|dark>-<desktop|phone>.png
+pnpm --filter @brunchsters/web boards        # photographs the prototype and writes apps/web/.screenshots/boards/<screen>-<light|dark>-<desktop|phone>.png (the folder is emptied first)
 ```
 
 `boards` needs the network (the prototype loads React and Babel from unpkg) and the screenshots from the first command; it says so if they are missing. It serves a **scratch copy** of `prototype/` (with the Design v3 canvas files placed next to its HTML, and `ios-frame.jsx` for the prototype's phone scenes; a plain stand-in box is used if that file is missing) and removes it, and its server, when it ends: `prototype/` and `design-docs/` are never written. A board shows "Nothing to show at this size" where the prototype has no scene for that size (it draws most screens at desktop width only). The approved target for spec 0011 is also reproducible as static pages with `node specs/0011-design-fidelity/mockups/build.mjs` (needs the network for the fonts).

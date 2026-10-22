@@ -3,8 +3,9 @@ import type { Page, TestInfo } from '@playwright/test';
 import { COLOR_SCHEMES, useColorScheme } from './a11y';
 import { E2E_SCREENSHOT_DIR } from './env';
 
-// Saves the current page in both palettes as <name>-<light|dark>-<project>.png, where the
-// project is the device ("desktop" or "phone"). For looking at, not for comparing against:
+// Saves the current page in both palettes as <name>-<light|dark>-<project>.png under
+// .screenshots/app/, where the name is "<area>/<state>" (a folder per area) and the project is
+// the device ("desktop", "tablet" or "phone"). For looking at, not for comparing against:
 // there are no baselines (spec 0009).
 export async function captureReviewShots(
   page: Page,
