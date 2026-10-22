@@ -4,6 +4,8 @@ import type { InviteToken } from '@brunchsters/shared';
 export type InvitePreview = {
   readonly brunchTitle: string;
   readonly hostName: string;
+  // Already in the invite email, so a link-holder learns nothing new from it.
+  readonly description: string | undefined;
   readonly brunchStatusLabel: string;
 };
 
@@ -15,7 +17,9 @@ export async function getInviteByToken(
   ctx: { readonly db: DbClient },
 ): Promise<InvitePreview | undefined> {
   const invite = await ctx.db.brunchInvite.findFirst({
-    where: { token, tokenExpiresAt: { gt: new Date() } },
+    // The soft-delete extension covers only the top-level model, so a deleted brunch must be
+    // excluded here: its link is as dead as a revoked one.
+    where: { token, tokenExpiresAt: { gt: new Date() }, brunch: { deletedAt: null } },
     include: { brunch: { include: { status: true, host: true } } },
   });
   if (invite === null) return undefined;
@@ -23,6 +27,7 @@ export async function getInviteByToken(
   return {
     brunchTitle: invite.brunch.title,
     hostName: invite.brunch.host.name,
+    description: invite.brunch.description ?? undefined,
     brunchStatusLabel: invite.brunch.status.label,
   };
 }

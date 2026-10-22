@@ -1,3 +1,5 @@
+import { GONE_COLD } from '../support/pages';
+import { EMPTY_DASHBOARD_HEADLINE } from '../support/dashboard';
 import type { Page } from '@playwright/test';
 import { createBrunch } from '../support/factories';
 import { expect, test } from '../support/fixtures';
@@ -41,14 +43,14 @@ test.describe('D3 — every screen fits and shows its one action', () => {
     await expectNoSidewaysScroll(page, 'the invite preview');
 
     await page.goto('/invite/not-a-real-token');
-    await expect(page.getByRole('heading', { name: 'Invite not found' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: GONE_COLD })).toBeVisible();
     await expectNoSidewaysScroll(page, 'the invalid invite page');
   });
 
   test('the dashboard, empty and full', async ({ makeActor }) => {
     const host = await makeActor('host');
     await host.page.goto('/dashboard');
-    await expect(host.page.getByText('No brunches yet.')).toBeVisible();
+    await expect(host.page.getByText(EMPTY_DASHBOARD_HEADLINE)).toBeVisible();
     await expect(host.page.getByRole('link', { name: 'Plan a Brunch' })).toBeInViewport();
     await expectNoSidewaysScroll(host.page, 'the empty dashboard');
 
@@ -67,7 +69,7 @@ test.describe('D3 — every screen fits and shows its one action', () => {
   test('the creation wizard, every step', async ({ makeActor }) => {
     const host = await makeActor('host');
     const wizard = new BrunchWizard(host.page);
-    const next = host.page.getByRole('button', { name: 'Next', exact: true });
+    const next = host.page.getByRole('button', { name: 'Continue', exact: true });
 
     await wizard.open();
     await host.page
@@ -104,11 +106,11 @@ test.describe('D3 — every screen fits and shows its one action', () => {
 
     await host.page.goto(detail);
     await expect(host.page.getByRole('heading', { name: voting.title })).toBeVisible();
-    await expect(host.page.getByRole('button', { name: 'yes', exact: true })).toBeInViewport();
+    await expect(host.page.getByRole('button', { name: "I'm in", exact: true })).toBeInViewport();
     await expectNoSidewaysScroll(host.page, 'the brunch page (host)');
 
     await yes.page.goto(detail);
-    await expect(yes.page.getByRole('button', { name: 'yes', exact: true })).toBeInViewport();
+    await expect(yes.page.getByRole('button', { name: "I'm in", exact: true })).toBeInViewport();
     await expectNoSidewaysScroll(yes.page, 'the brunch page (invitee)');
 
     await host.page.goto(`${detail}/manage`);
@@ -184,8 +186,8 @@ test.describe('D3 — a wide window uses its width', () => {
       await page.setViewportSize({ width, height: 900 });
       await page.goto(detail);
       await expect(page.getByRole('heading', { name: 'Invites', exact: true })).toBeVisible();
-      expect(await x('Invites'), `Invites sit beside Locations at ${width}px`).toBeGreaterThan(
-        (await x('Locations')) + 250,
+      expect(await x('Invites'), `Invites sit beside Where to? at ${width}px`).toBeGreaterThan(
+        (await x('Where to?')) + 250,
       );
       await expectNoSidewaysScroll(page, `the brunch page at ${width}px`);
 
@@ -201,8 +203,8 @@ test.describe('D3 — a wide window uses its width', () => {
       await page.setViewportSize({ width, height: 900 });
       await page.goto(detail);
       await expect(page.getByRole('heading', { name: 'Invites', exact: true })).toBeVisible();
-      expect(await x('Invites'), `Invites stack under Locations at ${width}px`).toBe(
-        await x('Locations'),
+      expect(await x('Invites'), `Invites stack under Where to? at ${width}px`).toBe(
+        await x('Where to?'),
       );
       await expectNoSidewaysScroll(page, `the brunch page at ${width}px`);
     }

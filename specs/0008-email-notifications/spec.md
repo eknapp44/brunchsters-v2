@@ -16,7 +16,7 @@ This spec wires the real queue (Inngest) and the real email provider (Resend) an
 1. **Invite received** — the invitee gets an email with their personal link.
 2. **Brunch confirmed** — the host and everyone who has not declined learn the confirmed place and time.
 
-Nothing else sends mail yet. With no preferences UI, every email is on for everybody, so the first slice sends only what the flow needs (Constitution 2 and 5). The in-app inbox, per-type preferences, per-brunch mute, realtime, deadline reminders and host-facing emails (RSVPs, suggestions, the 66% close-voting nudge) are the follow-up spec (0012).
+Nothing else sends mail yet. With no preferences UI, every email is on for everybody, so the first slice sends only what the flow needs (Constitution 2 and 5). The in-app inbox, per-type preferences, per-brunch mute, realtime, deadline reminders and host-facing emails (RSVPs, suggestions, the 66% close-voting nudge) are the follow-up (the notifications spec).
 
 Grounded in the current code:
 
@@ -98,7 +98,7 @@ See the section below.
 ### Docs
 
 - [x] `docs/SETUP.md`: running the Inngest dev server, the local outbox, env vars, and a step-by-step **verifying a sending domain in Resend** walkthrough; `.env.example` updated (`EMAIL_FROM`, `EMAIL_OUTBOX_DIR`, `INNGEST_DEV`)
-- [x] `PLANNING.md` §7, §10, §16 updated (event list, build order #8 split into 0008/0012, `vote.autoclose.prompted` note)
+- [x] `PLANNING.md` §7, §10, §16 updated (event list, build order #8 split into spec 0008 and the notifications spec, `vote.autoclose.prompted` note)
 - [x] ADR 0009 and the README index row
 - [x] Testing notes per milestone in `tasks.md`
 
@@ -121,7 +121,7 @@ A fifth journey, **C2 (50-address cap)**, was added after M3 in `create-brunch.s
 
 ## What This Spec Does Not Cover
 
-- The in-app notification inbox, `Notification` rows, `UserNotificationPreference` and per-brunch mute (spec 0012)
+- The in-app notification inbox, `Notification` rows, `UserNotificationPreference` and per-brunch mute (the notifications spec)
 - Realtime / presence-aware notifications (Supabase Realtime is not wired anywhere yet)
 - Emails to the host for RSVPs, votes, option or invite suggestions, and the 66% close-voting nudge; deadline-approaching reminders (these need scheduled jobs)
 - Cancel-with-5-second-undo, running-late and host transfer: the services and UI do not exist yet, so they are their own feature specs (their notification types stay seeded and unused)

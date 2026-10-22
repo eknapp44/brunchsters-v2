@@ -39,16 +39,17 @@ What else was evaluated and why was it not chosen?
 
 ## Index
 
-| #                                                           | Title                                     | Status   |
-| ----------------------------------------------------------- | ----------------------------------------- | -------- |
-| [0001](./0001-monorepo-structure.md)                        | Monorepo structure with pnpm + Turborepo  | Accepted |
-| [0002](./0002-hosting-vercel-supabase.md)                   | Hosting: Vercel + Supabase                | Accepted |
-| [0003](./0003-no-email-password-auth.md)                    | No email/password authentication          | Accepted |
-| [0004](./0004-semantic-release-and-conventional-commits.md) | Semantic release and conventional commits | Accepted |
-| [0005](./0005-defer-next-intl.md)                           | Defer next-intl until pre-launch          | Accepted |
-| [0006](./0006-derive-decision-type.md)                      | Derive brunch decision type               | Accepted |
-| [0007](./0007-e2e-testing-stack.md)                         | End-to-end testing stack                  | Accepted |
-| [0008](./0008-normalize-email-addresses.md)                 | Normalize email addresses to lowercase    | Accepted |
-| [0009](./0009-inngest-event-bus-and-email-delivery.md)      | Inngest EventBus and email delivery       | Accepted |
-| [0010](./0010-css-modules-and-design-tokens.md)             | CSS Modules and design tokens             | Accepted |
-| [0011](./0011-redux-toolkit-for-client-ui-state.md)         | Redux Toolkit for client UI state         | Accepted |
+| #                                                           | Title                                                                   | Status   |
+| ----------------------------------------------------------- | ----------------------------------------------------------------------- | -------- |
+| [0001](./0001-monorepo-structure.md)                        | Monorepo structure with pnpm + Turborepo                                | Accepted |
+| [0002](./0002-hosting-vercel-supabase.md)                   | Hosting: Vercel + Supabase                                              | Accepted |
+| [0003](./0003-no-email-password-auth.md)                    | No email/password authentication                                        | Accepted |
+| [0004](./0004-semantic-release-and-conventional-commits.md) | Semantic release and conventional commits                               | Accepted |
+| [0005](./0005-defer-next-intl.md)                           | Defer next-intl until pre-launch                                        | Accepted |
+| [0006](./0006-derive-decision-type.md)                      | Derive brunch decision type                                             | Accepted |
+| [0007](./0007-e2e-testing-stack.md)                         | End-to-end testing stack                                                | Accepted |
+| [0008](./0008-normalize-email-addresses.md)                 | Normalize email addresses to lowercase                                  | Accepted |
+| [0009](./0009-inngest-event-bus-and-email-delivery.md)      | Inngest EventBus and email delivery                                     | Accepted |
+| [0010](./0010-css-modules-and-design-tokens.md)             | CSS Modules and design tokens                                           | Accepted |
+| [0011](./0011-redux-toolkit-for-client-ui-state.md)         | Redux Toolkit for client UI state                                       | Accepted |
+| [0012](./0012-design-fidelity-and-presentation-rules.md)    | Design fidelity: compositions, voice, and where presentation rules live | Accepted |

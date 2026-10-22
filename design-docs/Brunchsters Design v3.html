@@ -1,0 +1,1598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Brunchsters — Design v1</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght,SOFT@9..144,400,0;9..144,500,0;9..144,600,0;9..144,500,100;9..144,600,100&family=Nunito:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display:ital@0;1&family=Quicksand:wght@400;500;600;700&family=Lora:ital,wght@0,500;0,600;1,500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles/tokens.css" />
+  <link rel="stylesheet" href="styles/screens.css" />
+  <link rel="stylesheet" href="styles/mobile-shell.css" />
+  <link rel="stylesheet" href="styles/a11y.css" />
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <style>
+    html, body, #root { height: 100%; margin: 0; }
+    body { background: #f3eee7; }
+    .ab-frame { width: 100%; height: 100%; overflow: hidden; contain: paint; }
+    .ab-frame .bs-app { min-height: 100%; }
+
+    /* ─────────────────────────────────────────────────────────────
+       Tablecloth — applied INSIDE each .ab-frame (each app page) so
+       the UI sits on top of a real linen-with-stains surface.
+       The design-canvas backdrop returns to a calm neutral.
+       Cards, topbars, inputs etc keep their opaque `--surface` so
+       they read as plates / placemats on the cloth.
+       ───────────────────────────────────────────────────────────── */
+    .ab-frame.has-tablecloth { position: relative; }
+    .ab-frame.has-tablecloth .bs-app { background: transparent !important; }
+    .ab-frame.has-tablecloth::before,
+    .ab-frame.has-tablecloth::after {
+      content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 0;
+    }
+    /* Base linen + weave + creases */
+    .ab-frame.has-tablecloth::before {
+      background-color: #f1ece4;
+      background-image:
+        /* linen weave — tight cross-hatch, very subtle */
+        repeating-linear-gradient( 90deg, rgba(155,135,105,0.04) 0 1px, transparent 1px 3px),
+        repeating-linear-gradient(  0deg, rgba(155,135,105,0.035) 0 1px, transparent 1px 3px),
+        /* slightly looser broken twill, slow diagonal */
+        repeating-linear-gradient( 45deg, rgba(125,100,75,0.022) 0 2px, transparent 2px 9px),
+        /* long, soft creases */
+        linear-gradient(118deg, transparent 0 38%, rgba(120,95,70,0.045) 39% 40%, transparent 41% 100%),
+        linear-gradient(74deg,  transparent 0 62%, rgba(120,95,70,0.04)  63% 64%, transparent 65% 100%),
+        /* huge, slow vignette so the cloth looks gathered, not flat */
+        radial-gradient(120% 90% at 30% 25%, rgba(255,247,232,0.55) 0%, transparent 55%),
+        radial-gradient(110% 80% at 80% 80%, rgba(180,150,115,0.10) 0%, transparent 60%);
+      background-size:
+        3px 3px,
+        3px 3px,
+        12px 12px,
+        100% 100%,
+        100% 100%,
+        100% 100%,
+        100% 100%;
+    }
+
+    /* Stains layer — sits over the linen base, inside each app page */
+    .ab-frame.has-tablecloth::after {
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1400 1000'>\
+<defs>\
+<filter id='rough' x='-20%25' y='-20%25' width='140%25' height='140%25'>\
+<feTurbulence type='fractalNoise' baseFrequency='0.018 0.022' numOctaves='2' seed='3'/>\
+<feDisplacementMap in='SourceGraphic' scale='14'/>\
+</filter>\
+<filter id='roughHi' x='-20%25' y='-20%25' width='140%25' height='140%25'>\
+<feTurbulence type='fractalNoise' baseFrequency='0.04 0.05' numOctaves='3' seed='7'/>\
+<feDisplacementMap in='SourceGraphic' scale='8'/>\
+</filter>\
+<filter id='soft'>\
+<feGaussianBlur stdDeviation='1.4'/>\
+</filter>\
+<filter id='softer'>\
+<feGaussianBlur stdDeviation='2.6'/>\
+</filter>\
+<radialGradient id='coffeePool' cx='50%25' cy='50%25' r='50%25'>\
+<stop offset='0%25' stop-color='%23b8896a' stop-opacity='0.10'/>\
+<stop offset='55%25' stop-color='%239a6a3c' stop-opacity='0.06'/>\
+<stop offset='80%25' stop-color='%237a4a22' stop-opacity='0.0'/>\
+</radialGradient>\
+<radialGradient id='coffeeRim' cx='50%25' cy='50%25' r='50%25'>\
+<stop offset='0%25' stop-color='%235a3410' stop-opacity='0'/>\
+<stop offset='80%25' stop-color='%235a3410' stop-opacity='0'/>\
+<stop offset='88%25' stop-color='%23472808' stop-opacity='0.55'/>\
+<stop offset='95%25' stop-color='%233a2008' stop-opacity='0.65'/>\
+<stop offset='100%25' stop-color='%23472808' stop-opacity='0'/>\
+</radialGradient>\
+<radialGradient id='coffeeRimInner' cx='50%25' cy='50%25' r='50%25'>\
+<stop offset='0%25' stop-color='%235a3410' stop-opacity='0'/>\
+<stop offset='70%25' stop-color='%235a3410' stop-opacity='0'/>\
+<stop offset='82%25' stop-color='%23583214' stop-opacity='0.30'/>\
+<stop offset='90%25' stop-color='%23583214' stop-opacity='0.18'/>\
+<stop offset='100%25' stop-color='%23583214' stop-opacity='0'/>\
+</radialGradient>\
+<radialGradient id='waterRim' cx='50%25' cy='50%25' r='50%25'>\
+<stop offset='0%25' stop-color='%236a5030' stop-opacity='0'/>\
+<stop offset='86%25' stop-color='%236a5030' stop-opacity='0'/>\
+<stop offset='93%25' stop-color='%23553e22' stop-opacity='0.22'/>\
+<stop offset='98%25' stop-color='%234a3418' stop-opacity='0.28'/>\
+<stop offset='100%25' stop-color='%234a3418' stop-opacity='0'/>\
+</radialGradient>\
+<radialGradient id='greaseG' cx='50%25' cy='50%25' r='50%25'>\
+<stop offset='0%25' stop-color='%23b08850' stop-opacity='0.18'/>\
+<stop offset='60%25' stop-color='%2398703a' stop-opacity='0.10'/>\
+<stop offset='100%25' stop-color='%2398703a' stop-opacity='0'/>\
+</radialGradient>\
+<radialGradient id='splatG' cx='40%25' cy='40%25' r='65%25'>\
+<stop offset='0%25' stop-color='%23b03820' stop-opacity='0.62'/>\
+<stop offset='35%25' stop-color='%23952a16' stop-opacity='0.50'/>\
+<stop offset='75%25' stop-color='%23822612' stop-opacity='0.28'/>\
+<stop offset='100%25' stop-color='%23822612' stop-opacity='0'/>\
+</radialGradient>\
+<radialGradient id='yolkG' cx='40%25' cy='40%25' r='60%25'>\
+<stop offset='0%25' stop-color='%23d8a040' stop-opacity='0.50'/>\
+<stop offset='60%25' stop-color='%23b87820' stop-opacity='0.32'/>\
+<stop offset='100%25' stop-color='%23a06010' stop-opacity='0'/>\
+</radialGradient>\
+<radialGradient id='crumbG' cx='40%25' cy='40%25' r='55%25'>\
+<stop offset='0%25' stop-color='%235a3a18' stop-opacity='0.75'/>\
+<stop offset='100%25' stop-color='%235a3a18' stop-opacity='0'/>\
+</radialGradient>\
+</defs>\
+\
+<!-- ─── COFFEE RING 1 — full mug print, dripping a little ─── -->\
+<g transform='translate(1280 480)' filter='url(%23rough)'>\
+<circle cx='0' cy='0' r='95' fill='url(%23coffeePool)'/>\
+<circle cx='0' cy='0' r='95' fill='url(%23coffeeRim)'/>\
+<circle cx='0' cy='0' r='90' fill='url(%23coffeeRimInner)'/>\
+<!-- meniscus ridges inside -->\
+<circle cx='0' cy='0' r='78' fill='none' stroke='%23472808' stroke-opacity='0.18' stroke-width='1.2'/>\
+<circle cx='0' cy='0' r='66' fill='none' stroke='%23472808' stroke-opacity='0.10' stroke-width='1'/>\
+<!-- handle smudge / drip -->\
+<path d='M 80 -10 q 30 -8 42 6 q 8 14 -10 22 q -22 8 -38 -8 z' fill='%23472808' fill-opacity='0.22'/>\
+<path d='M -60 88 q 6 22 -4 38 q -10 16 -18 4 q -6 -14 6 -32 z' fill='%23472808' fill-opacity='0.18'/>\
+</g>\
+<!-- a few escaped droplets near ring 1 -->\
+<g filter='url(%23roughHi)'>\
+<ellipse cx='1340' cy='600' rx='4' ry='3' fill='%23472808' fill-opacity='0.32'/>\
+<ellipse cx='1210' cy='390' rx='3' ry='2.4' fill='%23472808' fill-opacity='0.28'/>\
+<ellipse cx='1360' cy='540' rx='2.6' ry='2' fill='%23472808' fill-opacity='0.22'/>\
+</g>\
+\
+<!-- ─── COFFEE RING 2 — overlapping double print, lifted off-axis ─── -->\
+<g transform='translate(1320 880)' filter='url(%23rough)'>\
+<g transform='rotate(-8)'>\
+<circle cx='0' cy='0' r='78' fill='url(%23coffeePool)'/>\
+<circle cx='0' cy='0' r='78' fill='url(%23coffeeRim)'/>\
+<circle cx='0' cy='0' r='73' fill='url(%23coffeeRimInner)'/>\
+</g>\
+<g transform='translate(38 24) rotate(14)' opacity='0.78'>\
+<circle cx='0' cy='0' r='72' fill='url(%23coffeeRim)'/>\
+<circle cx='0' cy='0' r='66' fill='url(%23coffeeRimInner)'/>\
+</g>\
+</g>\
+\
+<!-- ─── COFFEE RING 3 — partial half-moon, cup lifted at angle ─── -->\
+<g transform='translate(940 720) rotate(-22)' filter='url(%23rough)' opacity='0.78'>\
+<path d='M -60 0 A 60 60 0 0 1 60 0' stroke='%23472808' stroke-opacity='0.45' stroke-width='5' fill='none' stroke-linecap='round'/>\
+<path d='M -55 -8 A 55 55 0 0 1 55 -8' stroke='%23583214' stroke-opacity='0.22' stroke-width='2' fill='none' stroke-linecap='round'/>\
+<ellipse cx='0' cy='0' rx='60' ry='58' fill='url(%23coffeePool)' opacity='0.6'/>\
+</g>\
+\
+<!-- ─── WATER RING — big, faint, on the lower table ─── -->\
+<g transform='translate(620 740)' filter='url(%23rough)'>\
+<circle cx='0' cy='0' r='128' fill='url(%23waterRim)'/>\
+<circle cx='0' cy='0' r='115' fill='none' stroke='%234a3418' stroke-opacity='0.12' stroke-width='1'/>\
+<!-- a 2nd, offset water ring (someone moved the glass) -->\
+<g transform='translate(80 -60)' opacity='0.7'>\
+<circle cx='0' cy='0' r='92' fill='url(%23waterRim)'/>\
+</g>\
+</g>\
+\
+<!-- ─── GREASE / butter blot ─── -->\
+<g transform='translate(150 600)' filter='url(%23rough)'>\
+<ellipse cx='0' cy='0' rx='95' ry='60' fill='url(%23greaseG)'/>\
+<ellipse cx='30' cy='-12' rx='40' ry='26' fill='url(%23greaseG)' opacity='0.6'/>\
+</g>\
+\
+<!-- ─── EGG-YOLK SMEAR (broken yolk dragged by toast) ─── -->\
+<g transform='translate(800 480) rotate(20)' filter='url(%23rough)'>\
+<ellipse cx='0' cy='0' rx='62' ry='34' fill='url(%23yolkG)'/>\
+<ellipse cx='52' cy='10' rx='36' ry='14' fill='url(%23yolkG)' opacity='0.7'/>\
+<ellipse cx='90' cy='18' rx='22' ry='8' fill='url(%23yolkG)' opacity='0.55'/>\
+<ellipse cx='-30' cy='-18' rx='14' ry='8' fill='url(%23yolkG)' opacity='0.5'/>\
+</g>\
+\
+<!-- ─── SAUCE SPLAT — main blob + heavy droplet field ─── -->\
+<g transform='translate(440 480)' filter='url(%23rough)'>\
+<ellipse cx='0' cy='0' rx='52' ry='40' fill='url(%23splatG)'/>\
+<ellipse cx='-12' cy='-6' rx='28' ry='20' fill='%23822612' fill-opacity='0.42'/>\
+<!-- runaway tendril -->\
+<path d='M 38 14 q 26 6 48 22 q 10 8 4 16 q -8 6 -22 -2 q -18 -10 -34 -22 z' fill='%23952a16' fill-opacity='0.34'/>\
+</g>\
+<!-- splatter droplets, 30+ at varying sizes/opacities -->\
+<g filter='url(%23roughHi)'>\
+<ellipse cx='540' cy='460' rx='6'   ry='4.5' fill='%23822612' fill-opacity='0.55'/>\
+<ellipse cx='565' cy='475' rx='3.5' ry='2.8' fill='%23822612' fill-opacity='0.45'/>\
+<ellipse cx='510' cy='420' rx='4'   ry='3'   fill='%23822612' fill-opacity='0.50'/>\
+<ellipse cx='590' cy='498' rx='2.4' ry='1.8' fill='%23822612' fill-opacity='0.42'/>\
+<ellipse cx='480' cy='402' rx='3'   ry='2.2' fill='%23822612' fill-opacity='0.40'/>\
+<ellipse cx='620' cy='510' rx='2'   ry='1.5' fill='%23822612' fill-opacity='0.38'/>\
+<ellipse cx='402' cy='540' rx='3.6' ry='2.6' fill='%23822612' fill-opacity='0.42'/>\
+<ellipse cx='370' cy='560' rx='2.4' ry='1.8' fill='%23822612' fill-opacity='0.36'/>\
+<ellipse cx='460' cy='560' rx='3'   ry='2.2' fill='%23822612' fill-opacity='0.38'/>\
+<ellipse cx='420' cy='590' rx='2'   ry='1.6' fill='%23822612' fill-opacity='0.32'/>\
+<ellipse cx='350' cy='510' rx='1.8' ry='1.4' fill='%23822612' fill-opacity='0.30'/>\
+<ellipse cx='320' cy='480' rx='2.2' ry='1.6' fill='%23822612' fill-opacity='0.28'/>\
+<ellipse cx='655' cy='455' rx='1.6' ry='1.2' fill='%23822612' fill-opacity='0.34'/>\
+<ellipse cx='670' cy='490' rx='2.2' ry='1.6' fill='%23822612' fill-opacity='0.30'/>\
+<ellipse cx='498' cy='600' rx='1.8' ry='1.4' fill='%23822612' fill-opacity='0.32'/>\
+<ellipse cx='540' cy='580' rx='1.6' ry='1.2' fill='%23822612' fill-opacity='0.28'/>\
+<ellipse cx='604' cy='430' rx='1.4' ry='1.1' fill='%23822612' fill-opacity='0.26'/>\
+<ellipse cx='450' cy='380' rx='1.6' ry='1.2' fill='%23822612' fill-opacity='0.30'/>\
+<ellipse cx='720' cy='520' rx='1.2' ry='1'   fill='%23822612' fill-opacity='0.24'/>\
+<ellipse cx='760' cy='540' rx='1.6' ry='1.2' fill='%23822612' fill-opacity='0.22'/>\
+</g>\
+\
+<!-- ─── crumbs — toast / muffin debris field, varying tones ─── -->\
+<g filter='url(%23roughHi)'>\
+<ellipse cx='280' cy='380' rx='3.4' ry='2.2' fill='url(%23crumbG)'/>\
+<ellipse cx='305' cy='395' rx='2.2' ry='1.6' fill='url(%23crumbG)'/>\
+<ellipse cx='258' cy='402' rx='2.6' ry='1.8' fill='url(%23crumbG)'/>\
+<ellipse cx='320' cy='370' rx='1.8' ry='1.4' fill='url(%23crumbG)'/>\
+<ellipse cx='335' cy='420' rx='2.2' ry='1.6' fill='url(%23crumbG)'/>\
+<ellipse cx='770' cy='340' rx='3' ry='2'    fill='url(%23crumbG)'/>\
+<ellipse cx='790' cy='360' rx='2.2' ry='1.5' fill='url(%23crumbG)'/>\
+<ellipse cx='810' cy='325' rx='2.6' ry='1.8' fill='url(%23crumbG)'/>\
+<ellipse cx='745' cy='370' rx='1.8' ry='1.3' fill='url(%23crumbG)'/>\
+<ellipse cx='1175' cy='420' rx='2.4' ry='1.6' fill='url(%23crumbG)'/>\
+<ellipse cx='1198' cy='438' rx='1.8' ry='1.2' fill='url(%23crumbG)'/>\
+<ellipse cx='1160' cy='450' rx='2.0' ry='1.4' fill='url(%23crumbG)'/>\
+<ellipse cx='100'  cy='340' rx='2.2' ry='1.5' fill='url(%23crumbG)'/>\
+<ellipse cx='130'  cy='358' rx='1.8' ry='1.2' fill='url(%23crumbG)'/>\
+<ellipse cx='1240' cy='820' rx='2.4' ry='1.6' fill='url(%23crumbG)'/>\
+<ellipse cx='1265' cy='838' rx='1.8' ry='1.3' fill='url(%23crumbG)'/>\
+<ellipse cx='495'  cy='720' rx='2.0' ry='1.4' fill='url(%23crumbG)'/>\
+<ellipse cx='870'  cy='160' rx='1.6' ry='1.2' fill='url(%23crumbG)'/>\
+<ellipse cx='65'   cy='820' rx='2.4' ry='1.6' fill='url(%23crumbG)'/>\
+</g>\
+\
+<!-- ─── pepper / black flecks ─── -->\
+<g>\
+<circle cx='465' cy='510' r='0.9' fill='%23222' fill-opacity='0.6'/>\
+<circle cx='482' cy='495' r='0.8' fill='%23222' fill-opacity='0.5'/>\
+<circle cx='450' cy='525' r='0.7' fill='%23222' fill-opacity='0.55'/>\
+<circle cx='510' cy='488' r='0.8' fill='%23222' fill-opacity='0.5'/>\
+<circle cx='820' cy='430' r='0.8' fill='%23222' fill-opacity='0.45'/>\
+<circle cx='838' cy='448' r='0.7' fill='%23222' fill-opacity='0.40'/>\
+</g>\
+\
+<!-- ─── light tea/maple drip — narrow translucent streak ─── -->\
+<g transform='translate(1200 600) rotate(78)' filter='url(%23softer)' opacity='0.45'>\
+<path d='M 0 0 q -6 60 -2 130 q 4 30 -10 60' stroke='%23583214' stroke-width='9' stroke-opacity='0.25' fill='none' stroke-linecap='round'/>\
+<path d='M 0 0 q -6 60 -2 130 q 4 30 -10 60' stroke='%23472808' stroke-width='3' stroke-opacity='0.35' fill='none' stroke-linecap='round'/>\
+</g>\
+\
+</svg>");
+      background-repeat: repeat;
+      background-size: 1400px 1000px;
+      mix-blend-mode: multiply;
+      opacity: var(--stain-opacity, 1);
+    }
+
+    /* Per-intensity opacity on the stains layer */
+    .ab-frame.has-tablecloth.t-subtle::after { opacity: 0.55; }
+    .ab-frame.has-tablecloth.t-medium::after { opacity: 0.85; filter: saturate(1.05); }
+    .ab-frame.has-tablecloth.t-full::after   { opacity: 1.0;  filter: saturate(1.15) contrast(1.06); }
+
+    /* Cards / surfaces sit above the cloth — bump shadow so they look like
+       real plates / placemats catching light on the tablecloth. */
+    .ab-frame.has-tablecloth .bs-card { box-shadow: 0 1px 2px rgba(60,40,20,0.06), 0 12px 28px -14px rgba(60,40,20,0.18); }
+    .ab-frame.has-tablecloth .bs-topbar { background: rgba(255,251,243,0.72); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); border-bottom-color: rgba(120,95,70,0.10); }
+
+    /* Ensure app content stacks above the cloth pseudo-elements */
+    .ab-frame.has-tablecloth > * { position: relative; z-index: 1; }
+
+    /* ---- Font-pair overrides (live-switchable via Tweaks) ----
+       Each pair retunes --font-sans / --font-display + a couple of
+       per-pair tracking tweaks so headings sit right. */
+    .ab-frame[data-fontpair="soft"] {
+      --font-sans: "Nunito", ui-sans-serif, system-ui, sans-serif;
+      --font-display: "Fraunces", "Nunito", Georgia, serif;
+      font-variation-settings: "SOFT" 100;
+    }
+    .ab-frame[data-fontpair="soft"] .bs-h1,
+    .ab-frame[data-fontpair="soft"] .bs-wordmark {
+      font-variation-settings: "SOFT" 100, "opsz" 144;
+      letter-spacing: -0.018em;
+    }
+
+    .ab-frame[data-fontpair="friendly"] {
+      --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+      --font-display: "DM Serif Display", "DM Sans", Georgia, serif;
+    }
+    .ab-frame[data-fontpair="friendly"] .bs-h1,
+    .ab-frame[data-fontpair="friendly"] .bs-wordmark,
+    .ab-frame[data-fontpair="friendly"] .bs-h2 {
+      font-weight: 400;
+      letter-spacing: -0.025em;
+    }
+
+    .ab-frame[data-fontpair="playful"] {
+      --font-sans: "Quicksand", ui-sans-serif, system-ui, sans-serif;
+      --font-display: "Lora", "Quicksand", Georgia, serif;
+    }
+    .ab-frame[data-fontpair="playful"] .bs-wordmark {
+      font-style: italic;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+    }
+    .ab-frame[data-fontpair="playful"] .bs-h1 {
+      font-style: italic;
+      font-weight: 500;
+    }
+
+    .logo-gallery {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;
+    }
+    .logo-tile {
+      border: 1px solid var(--line);
+      border-radius: var(--r-3);
+      background: var(--surface);
+      padding: 24px;
+      display: flex; flex-direction: column; gap: 14px;
+    }
+    .logo-tile h4 {
+      margin: 0; font-size: 12px; font-weight: 500;
+      color: var(--fg-subtle); text-transform: uppercase; letter-spacing: 0.08em;
+    }
+    .logo-tile .preview {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      padding: 24px; background: var(--surface-2);
+      border-radius: var(--r-2); min-height: 100px;
+    }
+    .logo-tile .preview.dark {
+      background: oklch(0.18 0.01 70);
+    }
+    .logo-tile .preview.dark .bs-wordmark { color: oklch(0.95 0.005 70); }
+    .logo-tile .desc { font-size: 13px; color: var(--fg-muted); line-height: 1.5; margin: 0; }
+
+    /* Icon set comparison */
+    .iconset-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px;
+    }
+    .iconset {
+      border: 1px solid var(--line);
+      border-radius: var(--r-3);
+      background: var(--surface);
+      padding: 28px;
+    }
+    .iconset h4 {
+      margin: 0 0 4px; font-size: 13px; font-weight: 600;
+      letter-spacing: -0.005em; color: var(--fg);
+    }
+    .iconset .sub {
+      font-size: 12.5px; color: var(--fg-muted);
+      margin: 0 0 22px; line-height: 1.5;
+    }
+    .icon-row {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 18px 12px;
+    }
+    .icon-cell {
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      padding: 14px 6px;
+      border-radius: var(--r-2);
+      background: var(--surface-2);
+    }
+    .icon-cell .lbl {
+      font-family: var(--font-mono); font-size: 10.5px;
+      color: var(--fg-subtle); letter-spacing: 0.02em;
+    }
+    .icon-context {
+      margin-top: 22px; padding-top: 22px;
+      border-top: 1px solid var(--line-soft);
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    .icon-context .ctx-card {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 14px;
+      background: var(--surface-2);
+      border-radius: var(--r-2);
+      font-size: 13.5px;
+      color: var(--fg);
+    }
+    .icon-context .ctx-card .meta { color: var(--fg-muted); font-size: 12.5px; }
+
+    .egg-row {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+    }
+    .egg-tile {
+      border: 1px solid var(--line);
+      border-radius: var(--r-3);
+      background: var(--surface);
+      padding: 20px;
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    .egg-tile .label {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--fg-subtle);
+      letter-spacing: 0.04em;
+    }
+    .egg-tile .label b {
+      font-weight: 600; color: var(--fg);
+    }
+    .egg-tile .stage {
+      flex: 1;
+      background: var(--surface-2);
+      border-radius: var(--r-2);
+      display: flex; align-items: center; justify-content: center;
+      padding: 28px 12px;
+      min-height: 180px;
+      color: var(--fg);
+    }
+    .egg-tile .small-row {
+      display: flex; gap: 14px; align-items: center; justify-content: center;
+      padding: 10px 0 4px;
+      color: var(--fg-muted);
+    }
+    .egg-tile .small-row .cap {
+      font-family: var(--font-mono); font-size: 10px; color: var(--fg-subtle);
+    }
+    .egg-tile p.note { font-size: 12.5px; color: var(--fg-muted); line-height: 1.45; margin: 0; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel" src="components/Icons.jsx"></script>
+  <script type="text/babel" src="components/IconsPop.jsx"></script>
+  <script type="text/babel" src="components/Logos.jsx"></script>
+  <script type="text/babel" src="components/sampleData.jsx"></script>
+  <script type="text/babel" src="components/useResponsive.jsx"></script>
+  <script type="text/babel" src="components/useFocusTrap.jsx"></script>
+  <script type="text/babel" src="components/Drawer.jsx"></script>
+  <script type="text/babel" src="components/TopBar.jsx"></script>
+  <script type="text/babel" src="components/SignIn.jsx"></script>
+  <script type="text/babel" src="components/Dashboard.jsx"></script>
+  <script type="text/babel" src="components/CreateBrunchWizard.jsx"></script>
+  <script type="text/babel" src="components/HostDetail.jsx"></script>
+  <script type="text/babel" src="components/InviteeDetail.jsx"></script>
+  <script type="text/babel" src="components/QuickBrunch.jsx"></script>
+  <script type="text/babel" src="components/EmptyDashboard.jsx"></script>
+  <script type="text/babel" src="components/CountdownRing.jsx"></script>
+  <script type="text/babel" src="components/PlateProgressBar.jsx"></script>
+  <script type="text/babel" src="components/CalendarChip.jsx"></script>
+  <script type="text/babel" src="components/InviteeDetailV3.jsx"></script>
+  <script type="text/babel" src="components/HostDetailV3.jsx"></script>
+  <script type="text/babel" src="components/DashboardV3.jsx"></script>
+  <script type="text/babel" src="components/MobileShell.jsx"></script>
+  <script type="text/babel" src="components/CancelChangeModals.jsx"></script>
+  <script type="text/babel" src="components/InboxScreen.jsx"></script>
+  <script type="text/babel" src="components/PlusOneSetting.jsx"></script>
+  <script type="text/babel" src="components/SendingLoader.jsx"></script>
+  <script type="text/babel" src="components/EdgeStates.jsx"></script>
+  <script type="text/babel" src="components/MeTab.jsx"></script>
+  <script type="text/babel" src="components/OpenGraphPreview.jsx"></script>
+  <script type="text/babel" src="components/WelcomeScreen.jsx"></script>
+  <script type="text/babel" src="components/InvitePreview.jsx"></script>
+  <script type="text/babel" src="components/PushPermPrompt.jsx"></script>
+  <script type="text/babel" src="components/MarketingLanding.jsx"></script>
+  <script type="text/babel" src="components/SignOutModal.jsx"></script>
+  <script type="text/babel" src="components/Toasts.jsx"></script>
+  <script type="text/babel" src="components/DeleteAccount.jsx"></script>
+  <script type="text/babel" src="components/PastBrunchDetail.jsx"></script>
+  <script type="text/babel" src="components/ShareSheet.jsx"></script>
+  <script type="text/babel" src="components/HelpFAQ.jsx"></script>
+  <script type="text/babel" src="components/MuteBrunchControl.jsx"></script>
+  <script type="text/babel" src="components/FirstBrunchCoach.jsx"></script>
+  <script type="text/babel" src="components/PhotoUpload.jsx"></script>
+  <script type="text/babel" src="components/SkeletonStates.jsx"></script>
+  <script type="text/babel" src="components/V11LateAdditions.jsx"></script>
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <script type="text/babel" src="tweaks-panel.jsx"></script>
+
+  <script type="text/babel">
+    const { DesignCanvas, DCSection, DCArtboard,
+            Step1Title, Step2Where, Step3When, Step4Who, SuccessScreen,
+            LogoMarkA, LogoMarkA1, LogoMarkA2, LogoMarkA3,
+            SAMPLE_LOCATIONS, SAMPLE_TIMES, SAMPLE_FRIENDS } = window;
+
+    const Themed = ({ theme = 'light', fontpair = 'original', tablecloth = 'subtle', children }) => (
+      <div className={"ab-frame" + (tablecloth !== 'off' ? ' has-tablecloth t-' + tablecloth : '')}
+           data-theme={theme} data-fontpair={fontpair}
+           style={{ background: tablecloth !== 'off' ? 'transparent' : 'var(--bg)', color: 'var(--fg)' }}>
+        {children}
+      </div>
+    );
+
+    // Static wizard step preview — uses the real Step components with seeded data
+    const WizardStepView = ({ step }) => {
+      const seeds = [
+        { title: '', description: '', locations: [], times: [], invited: [] },
+        { title: 'Birthday brunch for Sam', description: 'Sunday vibes, low-key 💕', locations: [SAMPLE_LOCATIONS[0]], times: [], invited: [] },
+        { title: 'Birthday brunch for Sam', description: 'Sunday vibes, low-key 💕', locations: [SAMPLE_LOCATIONS[0], SAMPLE_LOCATIONS[1], SAMPLE_LOCATIONS[2]], times: [], invited: [] },
+        { title: 'Birthday brunch for Sam', description: 'Sunday vibes, low-key 💕', locations: [SAMPLE_LOCATIONS[0], SAMPLE_LOCATIONS[1]], times: [SAMPLE_TIMES[1], SAMPLE_TIMES[2]], invited: [] },
+        { title: 'Birthday brunch for Sam', description: 'Sunday vibes, low-key 💕', locations: [SAMPLE_LOCATIONS[0]], times: [SAMPLE_TIMES[1]], invited: [SAMPLE_FRIENDS[0], SAMPLE_FRIENDS[1], SAMPLE_FRIENDS[2]] },
+      ];
+      const [data, setData] = React.useState(seeds[step]);
+      React.useEffect(() => { setData(seeds[step]); }, [step]);
+
+      const StepCmp = [Step1Title, Step2Where, Step3When, Step4Who][step];
+
+      if (step === 4) {
+        return (
+          <div className="bs-app">
+            <header className="bs-topbar">
+              <Wordmark size="md" />
+              <button className="bs-btn ghost"><IconClose size={16} /> <span>Cancel</span></button>
+            </header>
+            <main className="bs-page" style={{ maxWidth: 720 }}>
+              <SuccessScreen data={seeds[4]} onDone={() => {}} />
+            </main>
+          </div>
+        );
+      }
+
+      return (
+        <div className="bs-app">
+          <header className="bs-topbar">
+            <Wordmark size="md" />
+            <button className="bs-btn ghost"><IconClose size={16} /> <span>Cancel</span></button>
+          </header>
+          <main className="bs-page" style={{ maxWidth: 720 }}>
+            <StepCmp value={data} onChange={setData} />
+            <div className="bs-row" style={{ marginTop: 40, gap: 10, paddingTop: 24, borderTop: '1px solid var(--line-soft)' }}>
+              <button className="bs-btn">
+                <IconArrowLeft size={16} /> <span>{step === 0 ? 'Cancel' : 'Back'}</span>
+              </button>
+              <div className="bs-spacer" />
+              <button className="bs-btn primary lg">
+                <span>{step < 3 ? 'Continue' : 'Send invites'}</span> <IconArrowRight size={16} />
+              </button>
+            </div>
+          </main>
+        </div>
+      );
+    };
+
+    const IconsGallery = ({ theme = 'light', fontpair = 'original', tablecloth = 'subtle' }) => {
+      const stroke = [
+        { Cmp: window.IconCalendar, name: 'calendar' },
+        { Cmp: window.IconPin,      name: 'pin' },
+        { Cmp: window.IconUsers,    name: 'users' },
+        { Cmp: window.IconClock,    name: 'clock' },
+        { Cmp: window.IconSparkle,  name: 'sparkle' },
+        { Cmp: window.IconCheck,    name: 'check' },
+        { Cmp: window.IconShare,    name: 'share' },
+        { Cmp: window.IconPlus,     name: 'plus' },
+      ];
+      const pop = [
+        { Cmp: window.PopCalendar, name: 'calendar', tone: 'butter' },
+        { Cmp: window.PopPin,      name: 'pin',      tone: 'tomato' },
+        { Cmp: window.PopUsers,    name: 'users',    tone: 'mint' },
+        { Cmp: window.PopClock,    name: 'clock',    tone: 'peri' },
+        { Cmp: window.PopSparkle,  name: 'sparkle',  tone: 'peach' },
+        { Cmp: window.PopCheck,    name: 'check',    tone: 'mint' },
+        { Cmp: window.PopShare,    name: 'share',    tone: 'lavender' },
+        { Cmp: window.PopPlus,     name: 'plus',     tone: 'butter' },
+      ];
+
+      return (
+        <Themed theme={theme} fontpair={fontpair} tablecloth={tablecloth}>
+          <div style={{ padding: '40px 48px' }}>
+            <p className="bs-eyebrow">Iconography</p>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 500, letterSpacing: '-0.02em', margin: '0 0 8px' }}>
+              Strokes vs. Pop
+            </h2>
+            <p style={{ color: 'var(--fg-muted)', fontSize: 15, margin: '0 0 28px', maxWidth: 620 }}>
+              The stroke set is the workhorse — used inline with text, in buttons, anywhere icons need to disappear into the UI.
+              The Pop set is for moments where color earns its place: empty states, success flourishes, badges, primary CTAs, dashboard tiles.
+              Same silhouettes, so swapping is one-for-one.
+            </p>
+
+            <div className="iconset-grid">
+              <div className="iconset">
+                <h4>Strokes · default</h4>
+                <p className="sub">currentColor inherit. Already in use across the app.</p>
+                <div className="icon-row">
+                  {stroke.map(({ Cmp, name }) => (
+                    <div className="icon-cell" key={name}>
+                      <Cmp size={26} />
+                      <span className="lbl">{name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="iconset">
+                <h4>Pop · used sparingly</h4>
+                <p className="sub">Each carries a tuned hue from the brand palette — same chroma, different angle.</p>
+                <div className="icon-row">
+                  {pop.map(({ Cmp, name, tone }) => (
+                    <div className="icon-cell" key={name}>
+                      <Cmp size={28} />
+                      <span className="lbl">{name} · {tone}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="icon-context">
+                  <div className="ctx-card">
+                    <window.PopCalendar size={26} />
+                    <div>
+                      <div>Sun, May 4 · 11:30am</div>
+                      <div className="meta">A scheduled brunch</div>
+                    </div>
+                  </div>
+                  <div className="ctx-card">
+                    <window.PopPin size={26} />
+                    <div>
+                      <div>Cafe Mogador</div>
+                      <div className="meta">East Village · 0.4 mi</div>
+                    </div>
+                  </div>
+                  <div className="ctx-card">
+                    <window.PopCheck size={26} />
+                    <div>
+                      <div>You’re going!</div>
+                      <div className="meta">RSVP confirmed</div>
+                    </div>
+                  </div>
+                  <div className="ctx-card">
+                    <window.PopEgg size={26} />
+                    <div>
+                      <div>Brunchster bonus</div>
+                      <div className="meta">Mark, in icon form</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Themed>
+      );
+    };
+
+    const LogoGallery = ({ theme = 'light', fontpair = 'original', tablecloth = 'subtle' }) => (
+      <Themed theme={theme} fontpair={fontpair} tablecloth={tablecloth}>
+        <div style={{ padding: '40px 48px' }}>
+          <p className="bs-eyebrow">Egg shape — exploration</p>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 500, letterSpacing: '-0.02em', margin: '0 0 8px' }}>
+            Making the egg read as an egg
+          </h2>
+          <p style={{ color: 'var(--fg-muted)', fontSize: 15, margin: '0 0 24px', maxWidth: 620 }}>
+            A0 is the original — concentric circles read as a target as much as an egg.
+            A1 → A3 progressively add the visual cues that say "fried egg": off-center yolk, ovoid white, irregular edge.
+            A4 → A5 try a double-yolk that hints at a capital B.
+          </p>
+
+          <div className="egg-row" style={{ marginBottom: 20 }}>
+            <div className="egg-tile">
+              <div className="label"><b>A0</b> · circle + center yolk</div>
+              <div className="stage"><LogoMarkA size={132} /></div>
+              <div className="small-row">
+                <LogoMarkA size={40} />
+                <LogoMarkA size={20} />
+                <span className="cap">40 / 20px</span>
+              </div>
+              <p className="note">Original. Geometrically clean but symmetric — reads bullseye first.</p>
+            </div>
+
+            <div className="egg-tile">
+              <div className="label"><b>A1</b> · circle + off-center yolk</div>
+              <div className="stage"><LogoMarkA1 size={132} /></div>
+              <div className="small-row">
+                <LogoMarkA1 size={40} />
+                <LogoMarkA1 size={20} />
+                <span className="cap">40 / 20px</span>
+              </div>
+              <p className="note">Cheapest fix. Asymmetry alone is enough — your eye stops reading target.</p>
+            </div>
+
+            <div className="egg-tile">
+              <div className="label"><b>A2</b> · ovoid + off-center yolk</div>
+              <div className="stage"><LogoMarkA2 size={132} /></div>
+              <div className="small-row">
+                <LogoMarkA2 size={40} />
+                <LogoMarkA2 size={20} />
+                <span className="cap">40 / 20px</span>
+              </div>
+              <p className="note">Still primitive (one ellipse), now unmistakably egg-shaped. My pick.</p>
+            </div>
+
+            <div className="egg-tile">
+              <div className="label"><b>A3</b> · irregular blob</div>
+              <div className="stage"><LogoMarkA3 size={132} /></div>
+              <div className="small-row">
+                <LogoMarkA3 size={40} />
+                <LogoMarkA3 size={20} />
+                <span className="cap">40 / 20px</span>
+              </div>
+              <p className="note">Most literal. Warmer, more illustrative — pulls the brand a touch away from minimal-utility.</p>
+            </div>
+          </div>
+
+          <div className="egg-row" style={{ marginBottom: 32 }}>
+            <div className="egg-tile">
+              <div className="label"><b>A4</b> · double yolk · equal</div>
+              <div className="stage"><LogoMarkA4 size={132} /></div>
+              <div className="small-row">
+                <LogoMarkA4 size={40} />
+                <LogoMarkA4 size={20} />
+                <span className="cap">40 / 20px</span>
+              </div>
+              <p className="note">Two stacked yolks left-of-center — reads as a B's bumps. Risk: at small sizes they merge into a peanut.</p>
+            </div>
+            <div className="egg-tile">
+              <div className="label"><b>A5</b> · double yolk · B-proportions</div>
+              <div className="stage"><LogoMarkA5 size={132} /></div>
+              <div className="small-row">
+                <LogoMarkA5 size={40} />
+                <LogoMarkA5 size={20} />
+                <span className="cap">40 / 20px</span>
+              </div>
+              <p className="note">Lower yolk slightly larger (real B proportions). The asymmetry sells the letterform.</p>
+            </div>
+            <div className="egg-tile" style={{ visibility: 'hidden' }}></div>
+            <div className="egg-tile" style={{ visibility: 'hidden' }}></div>
+          </div>
+
+          <p className="bs-eyebrow">In context — full lockup</p>
+          <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 500, letterSpacing: '-0.01em', margin: '0 0 18px' }}>
+            Each variant paired with the wordmark
+          </h3>
+
+          <div className="logo-gallery">
+            <div className="logo-tile">
+              <h4>A0 · original</h4>
+              <div className="preview"><Wordmark size="lg" mark="a" /></div>
+              <div className="preview dark"><Wordmark size="lg" mark="a" /></div>
+            </div>
+            <div className="logo-tile">
+              <h4>A1 · off-center yolk</h4>
+              <div className="preview"><Wordmark size="lg" mark="a1" /></div>
+              <div className="preview dark"><Wordmark size="lg" mark="a1" /></div>
+            </div>
+            <div className="logo-tile">
+              <h4>A2 · ovoid</h4>
+              <div className="preview"><Wordmark size="lg" mark="a2" /></div>
+              <div className="preview dark"><Wordmark size="lg" mark="a2" /></div>
+            </div>
+            <div className="logo-tile">
+              <h4>A3 · blob</h4>
+              <div className="preview"><Wordmark size="lg" mark="a3" /></div>
+              <div className="preview dark"><Wordmark size="lg" mark="a3" /></div>
+            </div>
+
+            <div className="logo-tile">
+              <h4>A4 · double yolk (equal)</h4>
+              <div className="preview"><Wordmark size="lg" mark="a4" /></div>
+              <div className="preview dark"><Wordmark size="lg" mark="a4" /></div>
+            </div>
+            <div className="logo-tile">
+              <h4>A5 · double yolk (B-prop.)</h4>
+              <div className="preview"><Wordmark size="lg" mark="a5" /></div>
+              <div className="preview dark"><Wordmark size="lg" mark="a5" /></div>
+            </div>
+
+            <div className="logo-tile">
+              <h4>B · monogram (kept for ref)</h4>
+              <div className="preview"><Wordmark size="lg" mark="b" /></div>
+              <div className="preview dark"><Wordmark size="lg" mark="b" /></div>
+              <p className="desc">Solid butter-yolk square with a stenciled B. Strong at favicon size.</p>
+            </div>
+            <div className="logo-tile">
+              <h4>C · wordmark only (kept for ref)</h4>
+              <div className="preview" style={{ padding: 32 }}><WordmarkOnly size="xl" /></div>
+              <div className="preview dark" style={{ padding: 32 }}><WordmarkOnly size="xl" /></div>
+              <p className="desc">No mark — Fraunces with a butter dot. Cleanest in tight chrome.</p>
+            </div>
+          </div>
+        </div>
+      </Themed>
+    );
+
+    const InteractiveFlow = ({ theme = 'light', fontpair = 'original', tablecloth = 'subtle', startAt = 'dashboard' }) => {
+      const [view, setView] = React.useState(startAt);
+      const [creating, setCreating] = React.useState(false);
+
+      if (creating) {
+        return (
+          <Themed theme={theme} fontpair={fontpair} tablecloth={tablecloth}>
+            <CreateBrunchWizard
+              onClose={() => setCreating(false)}
+              onComplete={() => { setCreating(false); setView('dashboard'); }}
+              theme={theme}
+            />
+          </Themed>
+        );
+      }
+
+      return (
+        <Themed theme={theme} fontpair={fontpair} tablecloth={tablecloth}>
+          {view === 'signin' && <SignIn />}
+          {view === 'dashboard' && (
+            <Dashboard
+              onCreate={() => setCreating(true)}
+              onOpenBrunch={(b) => setView(b.role === 'host' ? 'host' : 'invitee')}
+              theme={theme}
+            />
+          )}
+          {view === 'host' && <HostDetail onBack={() => setView('dashboard')} theme={theme} />}
+          {view === 'invitee' && <InviteeDetail onBack={() => setView('dashboard')} theme={theme} />}
+        </Themed>
+      );
+    };
+
+    const PlusOneInlineDemo = () => {
+      const [allowed, setAllowed] = React.useState(true);
+      const [max, setMax] = React.useState(1);
+      return (
+        <window.PlusOneSetting allowed={allowed} max={max}
+          onChange={(a, m) => { setAllowed(a); setMax(m); }} />
+      );
+    };
+
+    window.MuteDemo = () => {
+      const [value, setValue] = React.useState('on');
+      return (
+        <div style={{ padding: 32, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', background: 'var(--bg)' }}>
+          <div style={{ marginBottom: 200, fontSize: 13, color: 'var(--fg-muted)' }}>
+            Footer of invitee detail. Tap "Notifications on" to switch.
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <window.MuteBrunchControl value={value} onChange={setValue} />
+          </div>
+        </div>
+      );
+    };
+
+    window.CoachDemo = () => {
+      const [open, setOpen] = React.useState(true);
+      return (
+        <div style={{ position: 'relative', height: '100%', background: 'var(--bg)', overflow: 'hidden' }}>
+          {/* Dashboard underneath */}
+          <div style={{ transform: 'scale(0.5)', transformOrigin: 'top left', width: '200%', height: '200%', pointerEvents: 'none', opacity: 0.92 }}>
+            <window.DashboardV3 onCreate={() => {}} onOpenBrunch={() => {}} theme="light" popMode="surgical" />
+          </div>
+          {open && <window.FirstBrunchCoach open={true} onDismiss={() => setOpen(false)} />}
+          {!open && (
+            <button onClick={() => setOpen(true)} className="bs-btn" style={{ position: 'absolute', top: 16, right: 16, zIndex: 200 }}>
+              Replay tour
+            </button>
+          )}
+        </div>
+      );
+    };
+
+    window.PhotoCropDemo = () => (
+      <div style={{ padding: 0, position: 'relative', height: '100%', background: 'oklch(0.20 0.01 70 / 0.40)' }}>
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: 'var(--surface)', borderRadius: 'var(--r-3)', maxWidth: 520, width: '100%', boxShadow: '0 24px 60px -12px oklch(0.20 0.01 70 / 0.30)', overflow: 'hidden' }}>
+            <div style={{ height: 4, background: 'var(--accent-strong)' }} />
+            <div style={{ padding: '24px 24px 4px' }}>
+              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 500, letterSpacing: '-0.015em', margin: '0 0 6px' }}>Update your photo</h2>
+              <p style={{ color: 'var(--fg-muted)', fontSize: 14, margin: 0, lineHeight: 1.5 }}>Square works best — JPG or PNG, up to 5 MB.</p>
+            </div>
+            <div style={{ padding: '16px 24px' }}>
+              <div className="bs-col" style={{ gap: 14, alignItems: 'center' }}>
+                <div style={{ width: 200, height: 200, borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent-soft) 0%, var(--accent) 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', boxShadow: 'inset 0 0 0 2px var(--accent-strong)' }}>
+                  <span style={{ fontFamily: 'var(--font-display)', fontSize: 64, fontWeight: 500, color: 'var(--accent-fg)' }}>YO</span>
+                  {[['top','left'], ['top','right'], ['bottom','left'], ['bottom','right']].map(([v, h], i) => (
+                    <span key={i} style={{ position: 'absolute', [v]: -4, [h]: -4, width: 12, height: 12, borderRadius: 2, background: 'var(--surface)', border: '1.5px solid var(--accent-strong)' }} />
+                  ))}
+                </div>
+                <p style={{ fontSize: 12.5, color: 'var(--fg-subtle)', margin: 0, textAlign: 'center' }}>your-photo.jpg · drag to reposition</p>
+                <div className="bs-row" style={{ gap: 14, alignItems: 'center', width: '100%' }}>
+                  <span style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>−</span>
+                  <input type="range" min="100" max="200" defaultValue="130" style={{ flex: 1, accentColor: 'var(--accent-strong)' }} />
+                  <span style={{ fontSize: 11, color: 'var(--fg-subtle)' }}>+</span>
+                </div>
+              </div>
+            </div>
+            <div style={{ padding: '16px 24px', display: 'flex', gap: 10, background: 'var(--surface-2)', borderTop: '1px solid var(--line-soft)' }}>
+              <button className="bs-btn ghost">Pick a different one</button>
+              <span className="bs-spacer" />
+              <button className="bs-btn primary lg">
+                <window.PopCheck size={18} /> <span>Save photo</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+
+    window.ShareAdvancedDemo = () => {
+      const [confirm, setConfirm] = React.useState(false);
+      return (
+        <div style={{ padding: 0, position: 'relative', height: '100%', background: 'oklch(0.20 0.01 70 / 0.40)' }}>
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+            <div style={{ background: 'var(--surface)', borderRadius: 'var(--r-3)', maxWidth: 520, width: '100%', boxShadow: '0 24px 60px -12px oklch(0.20 0.01 70 / 0.30)', overflow: 'hidden' }}>
+              <div style={{ height: 4, background: 'var(--accent-strong)' }} />
+              <div style={{ padding: '24px 24px 4px' }}>
+                <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 500, letterSpacing: '-0.015em', margin: '0 0 6px' }}>Share this brunch</h2>
+                <p style={{ color: 'var(--fg-muted)', fontSize: 14, margin: 0, lineHeight: 1.5 }}>Anyone with this link can RSVP and vote. Expires 7 days after the brunch.</p>
+              </div>
+              <div style={{ padding: '16px 24px' }}>
+                <div style={{ display: 'flex', gap: 6, padding: 6, border: '1px solid var(--line)', borderRadius: 'var(--r-2)', background: 'var(--surface)', marginBottom: 14 }}>
+                  <div style={{ flex: 1, padding: '8px 12px', fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>brunchsters.app/b/sam-birthday-8fX2k</div>
+                  <button className="bs-btn" style={{ background: 'var(--accent-strong)', color: 'var(--accent-fg)', borderColor: 'transparent', minWidth: 100, justifyContent: 'center' }}>
+                    <window.PopShare size={18} /> Copy link
+                  </button>
+                </div>
+                <div style={{ padding: 14, borderRadius: 'var(--r-2)', background: 'oklch(0.98 0.012 30)', border: '1px solid oklch(0.88 0.060 30)' }}>
+                  <div className="bs-row" style={{ gap: 12, alignItems: 'flex-start' }}>
+                    <window.PopSparkle size={22} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 500, marginBottom: 2 }}>Revoke and regenerate</div>
+                      <div style={{ fontSize: 12.5, color: 'var(--fg-muted)', lineHeight: 1.5 }}>Kills the current link. Anyone who hasn't opened it yet won't be able to RSVP. People already in are unaffected.</div>
+                    </div>
+                  </div>
+                  {confirm ? (
+                    <div className="bs-row" style={{ gap: 8, marginTop: 12 }}>
+                      <button className="bs-btn sm" onClick={() => setConfirm(false)}>Cancel</button>
+                      <button className="bs-btn sm" style={{ background: 'oklch(0.78 0.140 30)', color: '#fff', borderColor: 'transparent' }}>Yes, revoke &amp; regenerate</button>
+                    </div>
+                  ) : (
+                    <button className="bs-btn sm" onClick={() => setConfirm(true)} style={{ marginTop: 12, color: 'oklch(0.42 0.140 30)', borderColor: 'oklch(0.78 0.140 30 / 0.5)' }}>Revoke this link</button>
+                  )}
+                </div>
+              </div>
+              <div style={{ padding: '16px 24px', display: 'flex', gap: 10, justifyContent: 'flex-end', background: 'var(--surface-2)', borderTop: '1px solid var(--line-soft)' }}>
+                <button className="bs-btn lg">Done</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // Open the DeleteAccountModal at step 2 directly for the artboard
+    window.DeleteStep2Demo = () => {
+      const [t, setT] = React.useState('');
+      return (
+        <div style={{ padding: 0, position: 'relative', height: '100%', background: 'oklch(0.20 0.01 70 / 0.40)' }}>
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+            <div style={{
+              background: 'var(--surface)', borderRadius: 'var(--r-3)', maxWidth: 520, width: '100%',
+              boxShadow: '0 24px 60px -12px oklch(0.20 0.01 70 / 0.30)', overflow: 'hidden',
+            }}>
+              <div style={{ height: 4, background: 'oklch(0.78 0.140 30)' }} />
+              <div style={{ padding: '24px 24px 4px' }}>
+                <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 500,
+                              letterSpacing: '-0.015em', margin: '0 0 6px' }}>Last check.</h2>
+                <p style={{ color: 'var(--fg-muted)', fontSize: 14, margin: 0, lineHeight: 1.5 }}>
+                  Type 'delete' below to confirm. We hope you come back.
+                </p>
+              </div>
+              <div style={{ padding: '16px 24px' }}>
+                <input className="bs-input" autoFocus placeholder="type 'delete' to confirm"
+                       value={t} onChange={(e) => setT(e.target.value)}
+                       style={{ fontFamily: 'var(--font-mono)' }} />
+                <p style={{ fontSize: 12.5, color: 'var(--fg-subtle)', margin: '12px 0 0', lineHeight: 1.5 }}>
+                  Your account will be soft-deleted today. We'll fully erase it on{' '}
+                  <strong style={{ color: 'var(--fg-muted)' }}>
+                    {new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                  </strong>.
+                </p>
+              </div>
+              <div style={{
+                padding: '16px 24px', display: 'flex', gap: 10,
+                borderTop: '1px solid var(--line-soft)', background: 'var(--surface-2)',
+              }}>
+                <button className="bs-btn ghost">Back</button>
+                <span className="bs-spacer" />
+                <button className="bs-btn lg" style={{
+                  background: t.toLowerCase().trim() === 'delete' ? 'oklch(0.78 0.140 30)' : 'var(--surface-2)',
+                  color: t.toLowerCase().trim() === 'delete' ? '#fff' : 'var(--fg-subtle)',
+                  borderColor: 'transparent',
+                }}>Delete my account</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    const App = () => {
+      const { useTweaks, TweaksPanel, TweakSection, TweakRadio, TweakSelect } = window;
+      const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+        "theme": "light",
+        "fontpair": "soft",
+        "tablecloth": "subtle",
+        "popMode": "surgical"
+      }/*EDITMODE-END*/;
+      const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+
+      return (
+        <>
+          <DesignCanvas title="Brunchsters — v1 design" subtitle="Modern minimal-utility · warm neutrals · butter accent">
+            <DCSection id="brand" title="Brand">
+              <DCArtboard id="logos" label="Logo & wordmark" width={1200} height={2000}>
+                <LogoGallery theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth={tweaks.tablecloth} />
+              </DCArtboard>
+              <DCArtboard id="icons" label="Iconography — strokes vs. pop" width={1200} height={1080}>
+                <IconsGallery theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth={tweaks.tablecloth} />
+              </DCArtboard>
+            </DCSection>
+
+            <DCSection id="auth" title="Sign-in">
+              <DCArtboard id="signin" label="Landing / sign-in (desktop)" width={1280} height={760}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth={tweaks.tablecloth}><SignIn /></Themed>
+              </DCArtboard>
+            </DCSection>
+
+            <DCSection id="home" title="Dashboard">
+              <DCArtboard id="dashboard" label="Home (desktop)" width={1280} height={1380}>
+                <InteractiveFlow theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth={tweaks.tablecloth} startAt="dashboard" />
+              </DCArtboard>
+              <DCArtboard id="dashboard-mobile" label="Home (mobile)" width={420} height={1380}>
+                <InteractiveFlow theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth={tweaks.tablecloth} startAt="dashboard" />
+              </DCArtboard>
+            </DCSection>
+
+            <DCSection id="wizard" title="Create brunch — 4-step wizard">
+              <DCArtboard id="wiz-1" label="Step 1 · Title" width={900} height={780}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth={tweaks.tablecloth}><WizardStepView step={0} /></Themed>
+              </DCArtboard>
+              <DCArtboard id="wiz-2" label="Step 2 · Where (3 picked → voting)" width={900} height={1200}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth={tweaks.tablecloth}><WizardStepView step={1} /></Themed>
+              </DCArtboard>
+              <DCArtboard id="wiz-3" label="Step 3 · When" width={900} height={900}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth={tweaks.tablecloth}><WizardStepView step={2} /></Themed>
+              </DCArtboard>
+              <DCArtboard id="wiz-4" label="Step 4 · Who" width={900} height={1200}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth={tweaks.tablecloth}><WizardStepView step={3} /></Themed>
+              </DCArtboard>
+              <DCArtboard id="wiz-5" label="Confirmation flourish" width={900} height={760}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth={tweaks.tablecloth}><WizardStepView step={4} /></Themed>
+              </DCArtboard>
+            </DCSection>
+
+            <DCSection id="detail" title="Brunch detail">
+              <DCArtboard id="host" label="Host's manage view" width={1280} height={1180}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth={tweaks.tablecloth}>
+                  <HostDetail onBack={() => {}} theme={tweaks.theme} />
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="invitee" label="Invitee's RSVP + vote view" width={1100} height={1380}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth={tweaks.tablecloth}>
+                  <InviteeDetail onBack={() => {}} theme={tweaks.theme} />
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="invitee-mobile" label="Invitee (mobile)" width={420} height={1380}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth={tweaks.tablecloth}>
+                  <InviteeDetail onBack={() => {}} theme={tweaks.theme} />
+                </Themed>
+              </DCArtboard>
+            </DCSection>
+
+            <DCSection id="v3-quick" title="v3 · Quick brunch (single-screen path)">
+              <DCArtboard id="quick-blank" label="Quick brunch · blank state" width={1100} height={820}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth={tweaks.tablecloth}>
+                  <window.QuickBrunch
+                    onClose={() => {}}
+                    onComplete={() => {}}
+                    onUpgradeToWizard={() => {}}
+                    initialData={{ title: '', description: '', locations: [], times: [], invited: [] }}
+                  />
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="quick-filled" label="Quick brunch · everyone-decides path" width={1100} height={1080}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth={tweaks.tablecloth}>
+                  <window.QuickBrunch
+                    onClose={() => {}}
+                    onComplete={() => {}}
+                    onUpgradeToWizard={() => {}}
+                    initialData={{
+                      title: "Maya's birthday brunch",
+                      description: "Sunday vibes, low-key, bring whoever 💕",
+                      locations: [SAMPLE_LOCATIONS[0]],
+                      times: [SAMPLE_TIMES[1]],
+                      invited: [SAMPLE_FRIENDS[0], SAMPLE_FRIENDS[1], SAMPLE_FRIENDS[2]]
+                    }}
+                  />
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="quick-mobile" label="Quick brunch · mobile bottom-sheet" width={420} height={900}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <window.MobileShell />
+                </Themed>
+              </DCArtboard>
+            </DCSection>
+
+            <DCSection id="v3-empty" title="v3 · Empty state hero">
+              <DCArtboard id="empty-dash" label="First-time dashboard — no upcoming brunches" width={1280} height={1100}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth={tweaks.tablecloth}>
+                  <window.EmptyDashboard
+                    onCreate={() => {}}
+                    theme={tweaks.theme}
+                  />
+                </Themed>
+              </DCArtboard>
+            </DCSection>
+
+            <DCSection id="v3-host" title="v3 · Host detail w/ countdown + auto-close prompt">
+              <DCArtboard id="host-v3" label="Host detail · countdown ring + auto-close prompt" width={1280} height={1240}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth={tweaks.tablecloth}>
+                  <window.HostDetailV3 onBack={() => {}} theme={tweaks.theme} popMode={tweaks.popMode} />
+                </Themed>
+              </DCArtboard>
+            </DCSection>
+
+            <DCSection id="v3-dash" title="v3 · Dashboard with Pop audit + 'Plan another' card">
+              <DCArtboard id="dash-v3" label="Dashboard v3 · surgical/broad Pop usage via tweak" width={1280} height={1380}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth={tweaks.tablecloth}>
+                  <window.DashboardV3
+                    onCreate={() => {}}
+                    onOpenBrunch={() => {}}
+                    theme={tweaks.theme}
+                    popMode={tweaks.popMode}
+                  />
+                </Themed>
+              </DCArtboard>
+            </DCSection>
+
+            <DCSection id="v3-invitee" title="v3 · Invitee detail (paired hero + social proof)">
+              <DCArtboard id="invitee-v3" label="Invitee detail · paired RSVP + Vote with social proof" width={1100} height={1100}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth={tweaks.tablecloth}>
+                  <window.InviteeDetailV3 onBack={() => {}} theme={tweaks.theme} />
+                </Themed>
+              </DCArtboard>
+            </DCSection>
+
+            <DCSection id="v3-mobile" title="v3 · Mobile shell (designed, not just responsive)">
+              <DCArtboard id="mobile-shell" label="Mobile · bottom tab bar + swipeable hero" width={420} height={900}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <window.MobileShell initialView="home" />
+                </Themed>
+              </DCArtboard>
+            </DCSection>
+
+            <DCSection id="v3-cancel" title="Cancel + change flows (host)">
+              <DCArtboard id="host-v3-actions" label="Host detail — Edit / Cancel actions" width={1280} height={1280}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth={tweaks.tablecloth}>
+                  <window.HostDetailV3 onBack={() => {}} popMode={tweaks.popMode} theme={tweaks.theme} />
+                </Themed>
+              </DCArtboard>
+            </DCSection>
+
+            <DCSection id="v3-invitee" title="Invitee detail v3 (rich RSVP)">
+              <DCArtboard id="invitee-v3" label="Invitee — desktop" width={1100} height={1500}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth={tweaks.tablecloth}>
+                  <window.InviteeDetailV3 onBack={() => {}} theme={tweaks.theme} />
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="invitee-v3-mobile" label="Invitee — mobile" width={420} height={1500}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth={tweaks.tablecloth}>
+                  <window.InviteeDetailV3 onBack={() => {}} theme={tweaks.theme} />
+                </Themed>
+              </DCArtboard>
+            </DCSection>
+
+            <DCSection id="v3-extras" title="v3 · Extras (plus-ones, loading, edges, Me, share)">
+              <DCArtboard id="plusones" label="Plus-ones setting (host toggle)" width={600} height={320}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <div style={{ padding: 28 }}>
+                    <PlusOneInlineDemo />
+                  </div>
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="loading" label="Sending invites — loading state" width={600} height={520}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <div style={{ padding: 0, background: 'var(--surface)', height: '100%' }}>
+                    <window.SendingLoader duration={8000} />
+                  </div>
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="quiet" label="Edge — nobody RSVP'd (T-24h)" width={680} height={420}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <div style={{ padding: 28 }}>
+                    <window.QuietNudge />
+                  </div>
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="tie" label="Edge — voting tie at close" width={680} height={520}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <div style={{ padding: 28 }}>
+                    <window.TieBreaker />
+                  </div>
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="me" label="Me tab (bare bones)" width={1100} height={1180}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth={tweaks.tablecloth}>
+                  <window.MeTab theme={tweaks.theme} />
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="og" label="Open Graph share preview" width={1200} height={620}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <window.OpenGraphPreview />
+                </Themed>
+              </DCArtboard>
+            </DCSection>
+
+            <DCSection id="v3-onboarding" title="v3 · First-run onboarding (two paths)">
+              <DCArtboard id="welcome" label="Organic · Welcome screen (mobile)" width={420} height={840}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <window.WelcomeScreen onAuth={() => {}} />
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="invite-preview" label="Invited · Tap Sam's link (mobile)" width={420} height={900}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <window.InvitePreview onAuth={() => {}} />
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="push-perm-rsvp" label="Push permission · after first RSVP" width={420} height={800}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <window.PushPermPrompt kind="first-rsvp" onAllow={() => {}} onLater={() => {}} />
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="push-perm-send" label="Push permission · after first send" width={420} height={800}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <window.PushPermPrompt kind="first-send" onAllow={() => {}} onLater={() => {}} />
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="onboard-flow-organic" label="Organic flow · welcome → empty dash" width={920} height={900}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <div style={{ padding: 28, background: 'var(--bg)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, height: '100%' }}>
+                    <div style={{ border: '1px solid var(--line)', borderRadius: 'var(--r-3)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                      <div style={{ padding: '8px 14px', borderBottom: '1px solid var(--line-soft)', background: 'var(--surface-2)', fontSize: 11, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>1 · Welcome</div>
+                      <div style={{ flex: 1, transform: 'scale(0.78)', transformOrigin: 'top left', width: '128%', height: '128%' }}>
+                        <window.WelcomeScreen onAuth={() => {}} />
+                      </div>
+                    </div>
+                    <div style={{ border: '1px solid var(--line)', borderRadius: 'var(--r-3)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                      <div style={{ padding: '8px 14px', borderBottom: '1px solid var(--line-soft)', background: 'var(--surface-2)', fontSize: 11, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>2 · Empty dashboard</div>
+                      <div style={{ flex: 1, transform: 'scale(0.62)', transformOrigin: 'top left', width: '161%', height: '161%' }}>
+                        <window.EmptyDashboard onCreate={() => {}} theme={tweaks.theme} />
+                      </div>
+                    </div>
+                  </div>
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="onboard-flow-invited" label="Invited flow · invite preview → invitee detail → push perm" width={1280} height={900}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <div style={{ padding: 28, background: 'var(--bg)', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 20, height: '100%' }}>
+                    <div style={{ border: '1px solid var(--line)', borderRadius: 'var(--r-3)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                      <div style={{ padding: '8px 14px', borderBottom: '1px solid var(--line-soft)', background: 'var(--surface-2)', fontSize: 11, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>1 · Sam's invite link</div>
+                      <div style={{ flex: 1, transform: 'scale(0.78)', transformOrigin: 'top left', width: '128%', height: '128%' }}>
+                        <window.InvitePreview onAuth={() => {}} />
+                      </div>
+                    </div>
+                    <div style={{ border: '1px solid var(--line)', borderRadius: 'var(--r-3)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                      <div style={{ padding: '8px 14px', borderBottom: '1px solid var(--line-soft)', background: 'var(--surface-2)', fontSize: 11, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>2 · RSVP</div>
+                      <div style={{ flex: 1, transform: 'scale(0.46)', transformOrigin: 'top left', width: '217%', height: '217%' }}>
+                        <window.InviteeDetailV3 onBack={() => {}} theme={tweaks.theme} />
+                      </div>
+                    </div>
+                    <div style={{ border: '1px solid var(--line)', borderRadius: 'var(--r-3)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                      <div style={{ padding: '8px 14px', borderBottom: '1px solid var(--line-soft)', background: 'var(--surface-2)', fontSize: 11, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>3 · Push perm (after RSVP)</div>
+                      <div style={{ flex: 1, transform: 'scale(0.78)', transformOrigin: 'top left', width: '128%', height: '128%' }}>
+                        <window.PushPermPrompt kind="first-rsvp" onAllow={() => {}} onLater={() => {}} />
+                      </div>
+                    </div>
+                  </div>
+                </Themed>
+              </DCArtboard>
+            </DCSection>
+
+            <DCSection id="v3-public" title="v3 · Public &amp; logged-out surfaces">
+              <DCArtboard id="landing" label="Marketing landing page (brunchsters.app)" width={1280} height={1500}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <window.MarketingLanding onSignUp={() => {}} onSignIn={() => {}} />
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="landing-mobile" label="Marketing landing — mobile" width={420} height={1700}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <window.MarketingLanding onSignUp={() => {}} onSignIn={() => {}} />
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="welcome-expired" label="Welcome — expired session variant" width={420} height={840}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <window.WelcomeScreen onAuth={() => {}} sessionExpired={true} />
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="signout-flow" label="Sign-out flow — Me tab → confirm → Welcome" width={1280} height={900}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <div style={{ padding: 28, background: 'var(--bg)', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 20, height: '100%' }}>
+                    <div style={{ border: '1px solid var(--line)', borderRadius: 'var(--r-3)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                      <div style={{ padding: '8px 14px', borderBottom: '1px solid var(--line-soft)', background: 'var(--surface-2)', fontSize: 11, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>1 · Me tab</div>
+                      <div style={{ flex: 1, transform: 'scale(0.42)', transformOrigin: 'top left', width: '238%', height: '238%' }}>
+                        <window.MeTab theme={tweaks.theme} />
+                      </div>
+                    </div>
+                    <div style={{ border: '1px solid var(--line)', borderRadius: 'var(--r-3)', overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative', background: 'var(--bg)' }}>
+                      <div style={{ padding: '8px 14px', borderBottom: '1px solid var(--line-soft)', background: 'var(--surface-2)', fontSize: 11, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>2 · Confirm modal</div>
+                      <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+                        <div style={{ position: 'absolute', inset: 0, transform: 'scale(0.42)', transformOrigin: 'top left', width: '238%', height: '238%', opacity: 0.5 }}>
+                          <window.MeTab theme={tweaks.theme} />
+                        </div>
+                        <div style={{ position: 'absolute', inset: 0, background: 'oklch(0.20 0.01 70 / 0.40)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+                          <div style={{ background: 'var(--surface)', borderRadius: 'var(--r-3)', overflow: 'hidden', boxShadow: '0 24px 60px -12px oklch(0.20 0.01 70 / 0.30)', maxWidth: '100%' }}>
+                            <div style={{ height: 4, background: 'var(--accent-strong)' }} />
+                            <div style={{ padding: '20px 22px 4px' }}>
+                              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 19, fontWeight: 500, letterSpacing: '-0.015em', margin: '0 0 6px' }}>Heading out?</h2>
+                              <p style={{ fontSize: 13, color: 'var(--fg-muted)', margin: 0 }}>You can come back anytime — your brunches will still be here.</p>
+                            </div>
+                            <div style={{ padding: 12, display: 'flex', gap: 8, justifyContent: 'flex-end', background: 'var(--surface-2)', borderTop: '1px solid var(--line-soft)' }}>
+                              <button className="bs-btn ghost sm">Stay signed in</button>
+                              <button className="bs-btn sm" style={{ background: 'var(--surface)' }}>Sign out</button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ border: '1px solid var(--line)', borderRadius: 'var(--r-3)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                      <div style={{ padding: '8px 14px', borderBottom: '1px solid var(--line-soft)', background: 'var(--surface-2)', fontSize: 11, color: 'var(--fg-subtle)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>3 · Land on Welcome</div>
+                      <div style={{ flex: 1, transform: 'scale(0.78)', transformOrigin: 'top left', width: '128%', height: '128%' }}>
+                        <window.WelcomeScreen onAuth={() => {}} />
+                      </div>
+                    </div>
+                  </div>
+                </Themed>
+              </DCArtboard>
+            </DCSection>
+
+            <DCSection id="v1-delete" title="v1 ship-blocking · Account deletion">
+              <DCArtboard id="me-danger" label="Me tab · Danger zone section" width={1100} height={1380}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth={tweaks.tablecloth}>
+                  <window.MeTab theme={tweaks.theme} />
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="delete-step1" label="Delete · step 1 (consequences)" width={680} height={780}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <div style={{ padding: 0, position: 'relative', height: '100%', background: 'oklch(0.20 0.01 70 / 0.40)' }}>
+                    <window.DeleteAccountModal open={true} onClose={() => {}} onConfirm={() => {}} />
+                  </div>
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="delete-step2" label="Delete · step 2 (type to confirm)" width={680} height={500}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <window.DeleteStep2Demo />
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="goodbye" label="Goodbye screen · post-deletion" width={520} height={780}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <window.GoodbyeScreen daysLeft={30} />
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="restore" label="Restore prompt · signed in mid-grace" width={520} height={780}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <window.RestorePrompt daysLeft={22} onRestore={() => {}} onComplete={() => {}} />
+                </Themed>
+              </DCArtboard>
+            </DCSection>
+
+            <DCSection id="v1-polish" title="v1 polish · Mute · Coachmarks · Photo upload · Skeletons">
+              <DCArtboard id="mute" label="Per-brunch notification mute" width={640} height={420}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <window.MuteDemo />
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="coach" label="First-brunch coach card (post-success)" width={1100} height={680}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <window.CoachDemo />
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="photo-pick" label="Photo upload · pick state" width={680} height={620}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <div style={{ padding: 0, position: 'relative', height: '100%', background: 'oklch(0.20 0.01 70 / 0.40)' }}>
+                    <window.PhotoUploadModal open={true} onClose={() => {}} onSave={() => {}} />
+                  </div>
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="photo-crop" label="Photo upload · crop state" width={680} height={680}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <window.PhotoCropDemo />
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="skeleton-dash" label="Loading · Dashboard skeleton" width={1280} height={1100}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <window.DashboardSkeleton />
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="skeleton-detail" label="Loading · Detail skeleton" width={1100} height={780}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <window.DetailSkeleton />
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="skeleton-inbox" label="Loading · Inbox skeleton" width={420} height={680}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <window.InboxSkeleton />
+                </Themed>
+              </DCArtboard>
+            </DCSection>
+
+            <DCSection id="v1-help" title="v1 ship-blocking · Help & contact">
+              <DCArtboard id="help-faq" label="Help / FAQ page" width={900} height={1280}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth={tweaks.tablecloth}>
+                  <window.HelpFAQ onBack={() => {}} />
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="help-faq-mobile" label="Help / FAQ — mobile" width={420} height={1280}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth={tweaks.tablecloth}>
+                  <window.HelpFAQ onBack={() => {}} />
+                </Themed>
+              </DCArtboard>
+            </DCSection>
+
+            <DCSection id="v1-share" title="v1 ship-blocking · Invite link & share">
+              <DCArtboard id="share-default" label="Share sheet · default state" width={680} height={680}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <div style={{ padding: 0, position: 'relative', height: '100%', background: 'oklch(0.20 0.01 70 / 0.40)' }}>
+                    <window.ShareSheet open={true} onClose={() => {}} />
+                  </div>
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="share-advanced" label="Share sheet · advanced open (revoke)" width={680} height={820}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <window.ShareAdvancedDemo />
+                </Themed>
+              </DCArtboard>
+            </DCSection>
+
+            <DCSection id="v1-past" title="v1 ship-blocking · Past brunch detail">
+              <DCArtboard id="past-host" label="Past brunch · you hosted" width={1100} height={1080}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth={tweaks.tablecloth}>
+                  <window.PastBrunchDetail onBack={() => {}} theme={tweaks.theme} />
+                </Themed>
+              </DCArtboard>
+            </DCSection>
+
+            <DCSection id="v1-errors" title="v1 ship-blocking · Toasts &amp; error states">
+              <DCArtboard id="toasts" label="Toast variants (error · success · info)" width={680} height={380}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <div style={{ padding: 32, background: 'var(--bg)', height: '100%', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <p className="bs-eyebrow">Stacked for preview · in practice only one shows at a time</p>
+                    <div style={{ position: 'relative', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <div style={{ background: 'oklch(0.22 0.060 30)', color: '#fff', borderRadius: 'var(--r-3)', padding: '12px 14px 12px 16px', display: 'flex', alignItems: 'center', gap: 12, minWidth: 280, maxWidth: 480, boxShadow: '0 12px 32px -8px oklch(0.20 0.01 70 / 0.30)' }}>
+                        <window.PopSparkle size={20} />
+                        <span style={{ flex: 1, fontSize: 14 }}>Couldn't send invites just now. We'll try again — your tap stuck.</span>
+                        <button style={{ background: 'transparent', border: 0, color: '#fff', fontSize: 13, fontWeight: 600, padding: '4px 8px', textDecoration: 'underline', textUnderlineOffset: 3 }}>Retry</button>
+                      </div>
+                    </div>
+                    <div style={{ position: 'relative', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <div style={{ background: 'var(--mint)', color: 'var(--mint-fg)', borderRadius: 'var(--r-3)', padding: '12px 14px 12px 16px', display: 'flex', alignItems: 'center', gap: 12, minWidth: 280, maxWidth: 480, boxShadow: '0 12px 32px -8px oklch(0.20 0.01 70 / 0.30)' }}>
+                        <window.PopCheck size={20} />
+                        <span style={{ flex: 1, fontSize: 14 }}>You're in. Sam'll know in a sec. 🥂</span>
+                        <button style={{ background: 'transparent', border: 0, color: 'var(--mint-fg)', fontSize: 13, fontWeight: 600, padding: '4px 8px', textDecoration: 'underline', textUnderlineOffset: 3 }}>Undo</button>
+                      </div>
+                    </div>
+                    <div style={{ position: 'relative', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <div style={{ background: 'var(--surface)', color: 'var(--fg)', borderRadius: 'var(--r-3)', padding: '12px 14px 12px 16px', display: 'flex', alignItems: 'center', gap: 12, minWidth: 280, maxWidth: 480, boxShadow: '0 12px 32px -8px oklch(0.20 0.01 70 / 0.30)', border: '1px solid var(--line)' }}>
+                        <window.PopSparkle size={20} />
+                        <span style={{ flex: 1, fontSize: 14 }}>Voting closes in 2h. Tartine's leading.</span>
+                      </div>
+                    </div>
+                  </div>
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="inline-error" label="Inline error · per-card retry" width={680} height={220}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <div style={{ padding: 28, background: 'var(--bg)' }}>
+                    <window.InlineError message="Couldn't load votes. Connection's flaky." onRetry={() => {}} />
+                    <p style={{ fontSize: 12, color: 'var(--fg-subtle)', margin: '12px 0 0', textAlign: 'center' }}>Used inline when a section fails but the rest of the page is fine.</p>
+                  </div>
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="error-404" label="Error state · 404 (brunch doesn't exist)" width={680} height={620}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <window.ErrorState kind="404" onHome={() => {}} />
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="error-load" label="Error state · couldn't load" width={680} height={620}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <window.ErrorState kind="load-fail" onRetry={() => {}} onHome={() => {}} />
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="error-gone" label="Error state · brunch is over" width={680} height={620}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <window.ErrorState kind="gone" onHome={() => {}} />
+                </Themed>
+              </DCArtboard>
+            </DCSection>
+
+            <DCSection id="v3-inbox" title="Inbox">
+              <DCArtboard id="inbox-mobile" label="Inbox — mobile" width={420} height={900}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <window.InboxScreen />
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="inbox-desktop" label="Inbox — desktop panel" width={520} height={900}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <window.InboxScreen />
+                </Themed>
+              </DCArtboard>
+            </DCSection>
+
+            <DCSection id="v11-late-additions" title="v1.1 · Late additions (from engineering review)">
+              <DCArtboard id="v11-running-late" label="Running late — two surfaces (planning-ahead + day-of)" width={680} height={1180}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <div style={{ padding: 32 }}>
+                    <window.RunningLateSurfaces />
+                  </div>
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="v11-plus-one-edit" label="Plus-one names editable post-RSVP" width={680} height={560}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <div style={{ padding: 32 }}>
+                    <window.PlusOneEditSurface />
+                  </div>
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="v11-host-transfer" label="Host transfer — &quot;Hand off hosting&quot; modal" width={680} height={780}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <div style={{ padding: 32 }}>
+                    <window.HostTransferSurface />
+                  </div>
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="v11-undo-cancel" label="Undo on cancel — 5-second window (interactive)" width={680} height={620}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <div style={{ padding: 32 }}>
+                    <window.UndoCancelSurface />
+                  </div>
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="v11-timezone" label="Timezone — invitee-local + host's-time subline" width={760} height={680}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <div style={{ padding: 32 }}>
+                    <window.TimezoneSurface />
+                  </div>
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="v11-reduced-data" label="Reduced-data states — six inline patterns" width={1040} height={620}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <div style={{ padding: 32 }}>
+                    <window.ReducedDataGallery />
+                  </div>
+                </Themed>
+              </DCArtboard>
+              <DCArtboard id="v11-tie-inline" label="Inline tie-breaker (replaces voting card on host detail)" width={880} height={680}>
+                <Themed theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth="off">
+                  <div style={{ padding: 32 }}>
+                    <window.InlineTieBreakerSurface />
+                  </div>
+                </Themed>
+              </DCArtboard>
+            </DCSection>
+
+            <DCSection id="full-flow" title="Full interactive flow">
+              <DCArtboard id="play" label="Click around — sign-in → dashboard → wizard → detail" width={1280} height={900}>
+                <InteractiveFlow theme={tweaks.theme} fontpair={tweaks.fontpair} tablecloth={tweaks.tablecloth} startAt="signin" />
+              </DCArtboard>
+            </DCSection>
+          </DesignCanvas>
+
+          <TweaksPanel title="Tweaks">
+            <TweakSection title="Appearance">
+              <TweakRadio label="Theme" value={tweaks.theme} onChange={(v) => setTweak('theme', v)}
+                options={[{ value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]} />
+              <TweakSelect label="Font pair" value={tweaks.fontpair} onChange={(v) => setTweak('fontpair', v)}
+                options={[
+                  { value: 'original', label: 'Original · Inter + Fraunces' },
+                  { value: 'soft',     label: 'Soft · Nunito + Fraunces (soft)' },
+                  { value: 'friendly', label: 'Friendly · DM Sans + DM Serif Display' },
+                  { value: 'playful',  label: 'Playful · Quicksand + Lora italic' },
+                ]} />
+              <TweakSelect label="Tablecloth" value={tweaks.tablecloth} onChange={(v) => setTweak('tablecloth', v)}
+                options={[
+                  { value: 'off',    label: 'Off · plain warm paper' },
+                  { value: 'subtle', label: 'Subtle · just a hint' },
+                  { value: 'medium', label: 'Medium · lived-in' },
+                  { value: 'full',   label: 'Full · "we just left brunch"' },
+                ]} />
+            </TweakSection>
+            <TweakSection title="v3 explorations">
+              <TweakRadio label="Pop icon usage" value={tweaks.popMode} onChange={(v) => setTweak('popMode', v)}
+                options={[
+                  { value: 'surgical', label: 'Surgical' },
+                  { value: 'broad',    label: 'Broad' },
+                ]} />
+            </TweakSection>
+            <p style={{ fontSize: 12, color: 'var(--tp-muted, #888)', margin: '8px 12px 12px', lineHeight: 1.4 }}>
+              Toggles theme + type system across all artboards.
+              Tablecloth lives behind the canvas — coffee rings, crumbs, fork shadow.
+            </p>
+          </TweaksPanel>
+        </>
+      );
+    };
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    // Artboard previews (open modals, autoFocus inputs) can scroll the canvas on focus — pin it.
+    document.addEventListener('scroll', (e) => {
+      const el = e.target;
+      if (el && el.classList && el.classList.contains('design-canvas') && (el.scrollTop || el.scrollLeft)) { el.scrollTop = 0; el.scrollLeft = 0; }
+    }, true);
+  </script>
+</body>
+</html>

@@ -1,3 +1,4 @@
+import { expectDashboard } from '../support/dashboard';
 import type { Locator, Page } from '@playwright/test';
 import { createBrunch } from '../support/factories';
 import { expect, test } from '../support/fixtures';
@@ -71,7 +72,7 @@ test.describe('D4 — the keyboard alone', () => {
     await tabTo(host.page, host.page.getByLabel('Title'));
     await host.page.keyboard.type('Typed Without A Mouse');
     await tabTo(host.page, host.page.getByLabel('Description'));
-    await tabTo(host.page, host.page.getByRole('button', { name: 'Next', exact: true }));
+    await tabTo(host.page, host.page.getByRole('button', { name: 'Continue', exact: true }));
     await host.page.keyboard.press('Enter');
     await expect(
       host.page.getByRole('progressbar', { name: 'Brunch planning progress' }),
@@ -87,7 +88,7 @@ test.describe('D4 — the keyboard alone', () => {
     await yes.page.goto(`/brunch/${voting.brunchId}`);
     await expect(yes.page.getByText('Current: yes')).toBeVisible();
 
-    await tabTo(yes.page, yes.page.getByRole('button', { name: 'no', exact: true }));
+    await tabTo(yes.page, yes.page.getByRole('button', { name: "Can't", exact: true }));
     await yes.page.keyboard.press('Space');
     await expect(yes.page.getByText('Current: no')).toBeVisible();
   });
@@ -131,7 +132,7 @@ test.describe('D4 — reduced motion', () => {
     await host.page.emulateMedia({ reducedMotion: 'reduce' });
 
     await host.page.goto('/dashboard');
-    await expect(host.page.getByRole('heading', { name: 'Upcoming' })).toBeVisible();
+    await expectDashboard(host.page);
     expect(await longestMotion(host.page), 'motion on the dashboard').toEqual([]);
 
     const wizard = new BrunchWizard(host.page);

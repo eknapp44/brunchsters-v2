@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
+import { Icon } from '@/components/icons/Icon';
 import { Button } from '@/components/ui/Button';
 import { Field } from '@/components/ui/Field';
 import { InlineAlert } from '@/components/ui/InlineAlert';
@@ -164,7 +165,14 @@ export function InvitePanel({
           <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
         </Field>
         <Button type="button" onClick={() => void sendInvite()} disabled={sending}>
-          {sending ? 'Sending…' : 'Send Invite'}
+          {sending ? (
+            'Sending…'
+          ) : (
+            <>
+              Round up the crew
+              <Icon name="arrowRight" size={16} />
+            </>
+          )}
         </Button>
       </div>
       {error !== undefined && (

@@ -121,6 +121,22 @@ export type {
 } from './brunch/reviewTimeSuggestion';
 export { getBrunchesForUser } from './brunch/getBrunchesForUser';
 export type { BrunchSummary } from './brunch/getBrunchesForUser';
+export { getBrunchRoster } from './brunch/getBrunchRoster';
+export type {
+  BrunchRoster,
+  HostRosterPerson,
+  MemberRosterPerson,
+  RosterCounts,
+  RosterState,
+} from './brunch/getBrunchRoster';
+export { groupDashboard } from './brunch/presentation/groupDashboard';
+export type { DashboardGroups } from './brunch/presentation/groupDashboard';
+export { isPastBrunch } from './brunch/presentation/isPastBrunch';
+export type { DashboardFacts } from './brunch/presentation/isPastBrunch';
+export { pickNextUp } from './brunch/presentation/pickNextUp';
+export { barPercent, leadingOptionId } from './brunch/presentation/leadingOptionId';
+export { isVoteWaiting } from './brunch/presentation/isVoteWaiting';
+export type { VotableList } from './brunch/presentation/isVoteWaiting';
 export { sendInvites, sendInvitesRequestSchema } from './invite/sendInvites';
 export type {
   InviteSummary,

@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { PopIcon } from '@/components/icons/PopIcon';
 import { Button } from '@/components/ui/Button';
 import { InlineAlert } from '@/components/ui/InlineAlert';
+import { LocalDateTime } from '@/components/ui/LocalDateTime';
 import detail from '../detail.module.css';
 
 type PendingLocationSuggestion = {
@@ -72,8 +73,9 @@ export function OptionSuggestionReview({
               <span className={detail.rowMain}>
                 <PopIcon name="pin" size={22} />
                 <span className={detail.rowText}>
-                  {suggestion.placeName} — {suggestion.placeAddress}{' '}
-                  <span className={detail.detail}>— suggested by {suggestion.suggestedByName}</span>
+                  <span className={detail.name}>{suggestion.placeName}</span>{' '}
+                  <span className={detail.detail}>(suggested by {suggestion.suggestedByName})</span>
+                  <span className={detail.address}>{suggestion.placeAddress}</span>
                 </span>
               </span>
               <span className={detail.rowActions}>
@@ -106,11 +108,8 @@ export function OptionSuggestionReview({
               <span className={detail.rowMain}>
                 <PopIcon name="clock" size={22} />
                 <span className={detail.rowText}>
-                  {suggestion.scheduledAt.toLocaleString(undefined, {
-                    dateStyle: 'medium',
-                    timeStyle: 'short',
-                  })}{' '}
-                  <span className={detail.detail}>— suggested by {suggestion.suggestedByName}</span>
+                  <LocalDateTime date={suggestion.scheduledAt} />{' '}
+                  <span className={detail.detail}>(suggested by {suggestion.suggestedByName})</span>
                 </span>
               </span>
               <span className={detail.rowActions}>

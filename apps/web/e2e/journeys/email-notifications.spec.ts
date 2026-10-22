@@ -1,3 +1,4 @@
+import { GONE_COLD } from '../support/pages';
 import { normalizeEmail, type Email } from '@brunchsters/shared';
 import { createBrunch, inviteToBrunch, uniqueSuffix } from '../support/factories';
 import { expect, test } from '../support/fixtures';
@@ -38,11 +39,11 @@ test.describe('N1 — an invite email brings the invitee in', () => {
 
     await host.page.goto(`/brunch/${brunchId}`);
     await host.page.getByLabel('Invite more people').fill(guest.user.email);
-    await host.page.getByRole('button', { name: 'Send Invite' }).click();
+    await host.page.getByRole('button', { name: 'Round up the crew' }).click();
     await expect(inviteRow(host.page, guest.user.email)).toContainText('pending');
 
     const email = only(await waitForEmails({ to: guest.user.email, count: 1 }));
-    expect(email.subject).toBe(`${host.user.name} invited you to brunch: ${title}`);
+    expect(email.subject).toBe(`${host.user.name} wants you at brunch 🥂`);
     expect(email.html).toContain(title);
 
     // Following the emailed link is the same as following a copied one: the invitee is in.
@@ -67,14 +68,14 @@ test.describe('N1 — an invite email brings the invitee in', () => {
 
     await host.page.goto(`/brunch/${brunchId}`);
     await host.page.getByLabel('Invite more people').fill(newcomer);
-    await host.page.getByRole('button', { name: 'Send Invite' }).click();
+    await host.page.getByRole('button', { name: 'Round up the crew' }).click();
     await expect(inviteRow(host.page, newcomer)).toContainText('pending');
 
     const email = only(await waitForEmails({ to: newcomer, count: 1 }));
 
     await page.goto(linkIn(email));
-    await expect(page.getByRole('heading', { name: `You're invited to ${title}` })).toBeVisible();
-    await expect(page.getByText(`Hosted by ${host.user.name}`)).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
+    await expect(page.getByText(`${host.user.name} wants you at brunch`)).toBeVisible();
   });
 });
 
@@ -87,7 +88,7 @@ test.describe('N2 — a resend retires the old email’s link', () => {
 
     await host.page.goto(`/brunch/${brunchId}`);
     await host.page.getByLabel('Invite more people').fill(invitee);
-    await host.page.getByRole('button', { name: 'Send Invite' }).click();
+    await host.page.getByRole('button', { name: 'Round up the crew' }).click();
     await expect(inviteRow(host.page, invitee)).toContainText('pending');
     await waitForEmails({ to: invitee, count: 1 });
 
@@ -101,11 +102,11 @@ test.describe('N2 — a resend retires the old email’s link', () => {
     expect(second.idempotencyKey).not.toBe(first.idempotencyKey);
 
     await page.goto(linkIn(first));
-    await expect(page.getByRole('heading', { name: 'Invite not found' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: GONE_COLD })).toBeVisible();
     await expect(page.getByText(title)).toHaveCount(0);
 
     await page.goto(linkIn(second));
-    await expect(page.getByRole('heading', { name: `You're invited to ${title}` })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
   });
 });
 
@@ -134,7 +135,7 @@ test.describe('N3 — confirming the brunch tells the right people', () => {
     await inviteToBrunch({ brunchId, host: host.user, invitees: [{ email: silent }] });
 
     await host.page.goto(`/brunch/${brunchId}/manage`);
-    await host.page.getByRole('button', { name: 'Confirm brunch' }).click();
+    await host.page.getByRole('button', { name: 'Lock it in' }).click();
     await expect(host.page.getByRole('heading', { name: 'Confirmed', exact: true })).toBeVisible();
 
     // The silent invitee is emailed last, so once theirs is here the others have been sent.
@@ -145,7 +146,7 @@ test.describe('N3 — confirming the brunch tells the right people', () => {
 
     // The place, its address and the time in the *place's* zone, whatever zone anyone is in.
     for (const email of [silentEmail, hostEmail, annEmail]) {
-      expect(email.subject).toBe(`It's on: ${title}`);
+      expect(email.subject).toBe(`Brunch on. 💕 ${title}`);
       expect(email.html).toContain(place.name);
       expect(email.html).toContain(place.address);
       expect(email.html).toContain(wallClock(when, place.timezone));
@@ -160,7 +161,7 @@ test.describe('N3 — confirming the brunch tells the right people', () => {
 
     // That invite page still works after confirming.
     await page.goto(linkIn(silentEmail));
-    await expect(page.getByRole('heading', { name: `You're invited to ${title}` })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
   });
 });
 

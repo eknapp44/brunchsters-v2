@@ -1,27 +1,105 @@
 import {
+  barPercent,
   getBrunchById,
+  getBrunchRoster,
   getBrunchVoting,
   getInvitesForBrunch,
   getPendingSuggestionsForBrunch,
+  leadingOptionId,
 } from '@brunchsters/core';
 import type { BrunchId, UserId } from '@brunchsters/shared';
 import { notFound } from 'next/navigation';
+import type { ReactElement, ReactNode } from 'react';
 import { z } from 'zod';
 import { auth } from '@/auth';
 import { Icon } from '@/components/icons/Icon';
 import { Badge } from '@/components/ui/Badge';
-import { ButtonLink } from '@/components/ui/ButtonLink';
 import { Container } from '@/components/ui/Container';
-import { statusTone } from '@/components/ui/statusTone';
+import { closesIn } from '@/lib/dashboardFormat';
+import { formatWhenLong } from '@/lib/brunchPageFormat';
 import { db } from '@/lib/db';
 import { LocationBallotChecklist, TimeBallotChecklist } from './BallotChecklist';
+import { BrunchHeader } from './BrunchHeader';
+import { ConfirmedBanner } from './ConfirmedBanner';
 import styles from './detail.module.css';
 import { InvitePanel } from './InvitePanel';
 import { LocationSuggestionControl, TimeSuggestionControl } from './OptionSuggestionControl';
 import { RsvpControl } from './RsvpControl';
 import { SuggestionsPanel } from './SuggestionsPanel';
+import { WhosComingPanel } from './WhosComingPanel';
 
 const brunchIdSchema = z.uuid();
+
+// An option list as the checklists draw it: each row gets its quiet bar's width, and the one
+// option that is strictly ahead (if any) is named. Core decides both; this only passes them on.
+function withBars<T extends { readonly id: string; readonly voteCount: number }>(
+  options: readonly T[],
+): { readonly options: readonly (T & { readonly barPercent: number })[]; readonly top: number } {
+  const top = Math.max(0, ...options.map((option) => option.voteCount));
+  return {
+    top,
+    options: options.map((option) => ({
+      ...option,
+      barPercent: barPercent({ voteCount: option.voteCount, topVoteCount: top }),
+    })),
+  };
+}
+
+// The header chip of a Where/When card: "Locked in" once confirmed, else how long voting has left.
+// The "closes in" chip repeats the page header's, so a phone leaves it out.
+function CardChip(props: {
+  readonly confirmed: boolean;
+  readonly votingOpen: boolean;
+  readonly deadline: Date | undefined;
+  readonly now: Date;
+}): ReactElement | null {
+  if (props.confirmed) {
+    return (
+      <Badge tone="mint" icon={<Icon name="check" size={12} />}>
+        Locked in
+      </Badge>
+    );
+  }
+  if (props.votingOpen && props.deadline !== undefined) {
+    const text = closesIn({ deadline: props.deadline, now: props.now });
+    return (
+      <span className={styles.phoneHiddenInline}>
+        <Badge icon={<Icon name="clock" size={12} />}>
+          {text.charAt(0).toUpperCase() + text.slice(1)}
+        </Badge>
+      </span>
+    );
+  }
+  return null;
+}
+
+function CardResult(props: {
+  readonly text: string;
+  readonly detail?: string | undefined;
+}): ReactElement {
+  return (
+    <div className={styles.result}>
+      <p className={styles.resultText}>{props.text}</p>
+      {props.detail !== undefined && <p className={styles.resultDetail}>{props.detail}</p>}
+    </div>
+  );
+}
+
+function Card(props: {
+  readonly heading: string;
+  readonly chip: ReactNode;
+  readonly children: ReactNode;
+}): ReactElement {
+  return (
+    <section className={styles.panel}>
+      <div className={styles.cardHead}>
+        <h2>{props.heading}</h2>
+        {props.chip}
+      </div>
+      {props.children}
+    </section>
+  );
+}
 
 export default async function BrunchDetailPage({
   params,
@@ -67,75 +145,128 @@ export default async function BrunchDetailPage({
     );
   }
 
-  const voting = await getBrunchVoting({ brunchId, viewerId }, { db });
+  const [voting, roster] = await Promise.all([
+    getBrunchVoting({ brunchId, viewerId }, { db }),
+    getBrunchRoster({ brunchId, viewerId }, { db }),
+  ]);
   if (voting === undefined) {
     // Same access rule as getBrunchById, which already succeeded above —
     // fail loudly rather than silently omitting voting with no trace.
     console.error('getBrunchVoting returned undefined for a viewer with confirmed access');
   }
+  if (roster === undefined) {
+    console.error('getBrunchRoster returned undefined for a viewer with confirmed access');
+  }
+
+  const now = new Date();
+  const confirmed = brunch.statusCode === 'confirmed';
+  const votingOpen =
+    brunch.statusCode === 'active' && voting !== undefined && !voting.locations.closed;
+
+  const confirmedLocation = voting?.locations.options.find((option) => option.isConfirmed);
+  const confirmedTime = voting?.times.options.find((option) => option.isConfirmed);
 
   // Which candidate location's zone the time options' subline is shown
   // against: the confirmed location once there is one, else the first
   // candidate — a deliberate simplification documented in the M7 testing
   // notes (candidates may span multiple zones before voting closes).
-  const representativeLocation =
-    voting?.locations.options.find((option) => option.isConfirmed) ?? voting?.locations.options[0];
+  const representativeLocation = confirmedLocation ?? voting?.locations.options[0];
+
+  const places = voting === undefined ? undefined : withBars(voting.locations.options);
+  const times = voting === undefined ? undefined : withBars(voting.times.options);
+  // A confirmed list has its winner; "leading" is only for a vote still being decided.
+  const placeLeader =
+    voting === undefined || places === undefined || confirmedLocation !== undefined
+      ? undefined
+      : leadingOptionId(places.options);
+  const timeLeader =
+    voting === undefined || times === undefined || confirmedTime !== undefined
+      ? undefined
+      : leadingOptionId(times.options);
+
+  const goingNames =
+    roster === undefined
+      ? []
+      : roster.people.filter((person) => person.state === 'yes').map((person) => person.name);
 
   return (
     <Container as="main">
-      <div className={styles.header}>
-        <h1>{brunch.title}</h1>
-        <Badge tone={statusTone(brunch.statusCode)}>{brunch.statusLabel}</Badge>
-      </div>
-      <div className={styles.nav}>
-        <ButtonLink href="/dashboard" size="sm">
-          <Icon name="arrowLeft" size={16} />
-          Back to Dashboard
-        </ButtonLink>
-        {brunch.isHost && (
-          <ButtonLink href={`/brunch/${brunchId}/manage`} size="sm">
-            <Icon name="arrowRight" size={16} />
-            Manage brunch
-          </ButtonLink>
-        )}
-      </div>
+      <BrunchHeader brunch={brunch} brunchId={brunchId} votingOpen={votingOpen} now={now} />
+
+      {confirmed && <ConfirmedBanner goingNames={goingNames} />}
+
+      <RsvpControl brunchId={brunchId} currentStatus={brunch.viewerRsvpStatus} />
 
       <div className={styles.columns}>
         <div className={styles.column}>
-          <RsvpControl brunchId={brunchId} currentStatus={brunch.viewerRsvpStatus} />
-
-          {voting !== undefined && (
+          {voting !== undefined && places !== undefined && times !== undefined && (
             <>
-              <section className={styles.panel}>
-                <h2>Locations</h2>
+              <Card
+                heading="Where to?"
+                chip={
+                  <CardChip
+                    confirmed={confirmedLocation !== undefined}
+                    votingOpen={votingOpen}
+                    deadline={brunch.votingDeadline}
+                    now={now}
+                  />
+                }
+              >
+                {confirmedLocation !== undefined && (
+                  <CardResult
+                    text={confirmedLocation.placeName}
+                    detail={confirmedLocation.placeAddress}
+                  />
+                )}
                 <LocationBallotChecklist
                   brunchId={brunchId}
-                  options={voting.locations.options}
+                  options={places.options}
                   canVote={voting.canVote}
                   closed={voting.locations.closed}
                   suggestionsEnabled={!brunch.isHost && brunch.allowLocationSuggestions}
+                  leadingId={placeLeader}
                   votable={voting.locations.mode === 'group_vote'}
                 />
-              </section>
+              </Card>
 
-              <section className={styles.panel}>
-                <h2>Times</h2>
+              <Card
+                heading="When?"
+                chip={
+                  <CardChip
+                    confirmed={confirmedTime !== undefined}
+                    votingOpen={votingOpen}
+                    deadline={brunch.votingDeadline}
+                    now={now}
+                  />
+                }
+              >
+                {confirmedTime !== undefined && (
+                  <CardResult
+                    text={formatWhenLong({
+                      scheduledAt: confirmedTime.scheduledAt,
+                      timeZone: confirmedLocation?.timezone,
+                    })}
+                  />
+                )}
                 <TimeBallotChecklist
                   brunchId={brunchId}
-                  options={voting.times.options}
+                  options={times.options}
                   canVote={voting.canVote}
                   closed={voting.times.closed}
                   suggestionsEnabled={!brunch.isHost && brunch.allowTimeSuggestions}
                   locationTimezone={representativeLocation?.timezone}
                   locationName={representativeLocation?.placeName}
+                  leadingId={timeLeader}
                   votable={voting.times.mode === 'group_vote'}
                 />
-              </section>
+              </Card>
             </>
           )}
         </div>
 
         <div className={styles.column}>
+          {roster !== undefined && <WhosComingPanel roster={roster} />}
+
           {voting !== undefined && !brunch.isHost && (
             <>
               <LocationSuggestionControl

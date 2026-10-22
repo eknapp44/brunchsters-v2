@@ -1,0 +1,149 @@
+/* The next-up feature card: details on the left, who is coming on a butter panel on the right
+   (stacked below on a phone). The butter is --accent-soft, a pair tokenContrast already checks. */
+.feature {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  overflow: hidden;
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-4);
+  box-shadow: var(--shadow-md);
+}
+
+.left {
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+  padding: var(--space-5);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-2xl);
+}
+
+.facts {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.fact {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.who {
+  padding: var(--space-5);
+  color: var(--accent-soft-fg);
+  background: var(--accent-soft);
+}
+
+.who > :first-child {
+  color: inherit;
+}
+
+.people {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.person {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  color: var(--mint-fg);
+  background: var(--mint);
+  border-radius: 50%;
+}
+
+.stateWord {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.silent {
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-sm);
+}
+
+.morePhone,
+.moreDesktop {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.moreDesktop {
+  display: none;
+}
+
+/* On a phone only the first few names show, and "+N more" says how many are left. */
+.beyondPhone {
+  display: none;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (min-width: 48rem) {
+  .feature {
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  }
+
+  .beyondPhone {
+    display: flex;
+  }
+
+  .morePhone {
+    display: none;
+  }
+
+  .moreDesktop {
+    display: block;
+  }
+}
+
+@media (forced-colors: active) {
+  .feature {
+    border-color: CanvasText;
+  }
+
+  .check {
+    border: 1px solid CanvasText;
+  }
+}

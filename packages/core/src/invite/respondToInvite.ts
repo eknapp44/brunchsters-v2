@@ -35,7 +35,8 @@ export async function respondToInvite(
   // findFirst is soft-delete-filtered — a revoked invite correctly looks
   // the same as a nonexistent one here.
   const invite = await db.brunchInvite.findFirst({
-    where: { token: input.token, tokenExpiresAt: { gt: new Date() } },
+    // A deleted brunch is not reachable by its old links (the extension filters only this model).
+    where: { token: input.token, tokenExpiresAt: { gt: new Date() }, brunch: { deletedAt: null } },
   });
   if (invite === null) return err({ kind: 'invalid_token' });
 

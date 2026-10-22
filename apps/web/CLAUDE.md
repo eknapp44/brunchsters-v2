@@ -12,7 +12,10 @@ Scoped to the web app. The repo-wide rules are in the root `CLAUDE.md`; why the 
 ## Writing components
 
 - **CSS Modules, next to the component** (`Foo.tsx` + `Foo.module.css`). No Tailwind, no runtime CSS-in-JS, no component library (decide that with the first dialog or popover).
-- **Compose the primitives in `src/components/ui/`** (Button, ButtonLink, Field, Card, Badge, Avatar, InlineAlert, Container, Hero, SkipLink) instead of restyling raw elements. Icons and artwork (`components/icons`, `components/art`) are inline SVG and always decorative (`aria-hidden`).
+- **Compose the primitives in `src/components/ui/`** (Button, ButtonLink, Field, Card, Badge, InitialsAvatar, Eyebrow, DateTile, DateTimeInput, InlineAlert, Container, Hero, SkipLink) instead of restyling raw elements. Icons and artwork (`components/icons`, `components/art`) are inline SVG and always decorative (`aria-hidden`). A `Badge` may carry a decorative icon; the butter panel is `Card tone="accent"`.
+- **A person is initials on a color, never a photo** (`InitialsAvatar`, ADR 0012). Photos wait for a Settings spec with an opt-in. Pass a stable `seed` (an id, or an email for someone who has not signed in); use `decorative` only where the name is written beside it.
+- **A date-and-time field is a `DateTimeInput`** (with a `placeholderText` like "Add a time"), never a bare `<input type="datetime-local">`: the browser's own blank ("mm/dd/yyyy --:-- --") cannot be restyled, so the primitive covers it while the field is empty and unfocused (in browsers that allow it) and keeps the accessible name from `aria-label` or the wrapping `Field`.
+- **A date shown in the viewer's own zone is a `<LocalDateTime>`**, never `toLocaleString(undefined, …)` in a component (a lint rule fails it). The server formats in its own zone (UTC on Vercel) and the browser in the viewer's, React reports the difference as a hydration mismatch and rebuilds the page, and anything a person typed before it finished loading is lost (journey H8). `LocalDateTime` says it in UTC (labelled) on the server and switches to the viewer's reading after hydration. A place's time in the place's own zone passes an explicit locale and `timeZone` instead.
 - **One primary action per screen** (Constitution 24): one `variant="primary"` button. Revoke/Remove are `danger`, everything else `secondary` or `ghost`.
 - **Global element styles are zero-specificity (`:where()`)**, so a component's class always wins. A `<main>` that is not a `Container` or `Hero` still gets a width from the global rule; opt out explicitly.
 
@@ -44,6 +47,8 @@ The journeys find things by role, label and text. A restyle must not change them
 - The text "Active", "Draft" and "Confirmed" appears exactly once where the status is shown (the status badge); the voting markers stay "— Confirmed".
 - Messages keep their `role` (`role="alert"` stays where it was). `InlineAlert` adds none by itself.
 - If a change does need a journey edited, stop and say so: that is a behavior change, not a restyle.
+- **Names changed on purpose by spec 0011 (design fidelity).** Dashboard (M2): the h1 `Dashboard` is now the greeting ("Morning, Evan"; "Hey, Evan" until the browser has filled the time in), so journeys wait on `expectDashboard` (`e2e/support/dashboard.ts`), never on one word of it; `No brunches yet.` is "The table's set. Now invite some people." (`EMPTY_DASHBOARD_HEADLINE`); rows and the next-up card word the status "Open for votes" / "In the works" (the brunch page badge keeps the lookup label); the next-up brunch is a card (`h2` = its title, a link "Open <title>"), not a row, and is not repeated in the list. Unchanged: `Plan a Brunch`, `Upcoming`, `Past`, the title link, `(Host)`, `N going`. Brunch page (M3): the RSVP buttons are `I'm in` / `Maybe` / `Can't` (in that order; the emoji are `aria-hidden`), the card heading is `You in?`, the ballots are `Where to?` and `When?` (the manage page keeps `Locations` and `Times`, so journeys use `ballot()` on the brunch page and `manageOptions()` on the manage page), the host's invite button is `Round up the crew`, and a confirmed brunch shows a `Brunch on.` heading and two `Locked in` chips. The status badge still reads exactly "Active", "Draft" or "Confirmed" once. "Who's coming" is plain grouped text (`role="group"`), not a list; a pending person's address appears in it and in the invite list, so a journey that means the invite list uses `inviteRow`. Creation wizard (M4): the main button of steps 1 to 3 is `Continue` (was `Next`; the page object's `next()` clicks it), the first step's progress name is `Title` (was `What`), each step has an `h2` heading (`Give it a name`, `Pick a spot`, `Pick a time`, `Round up the crew`) with an eyebrow "Step N of 4 · …", and `Cancel` is a link (top, left out on a phone, and in the first step's footer). `Plan a Brunch` is still the page `h1`. Front door and edges (M5): the landing page and the sign-in page share the h1 "Your friends are hungry. Probably." (journeys use `expectLandingPage` / `expectSignInPage` in `e2e/support/pages.ts`, which also look for something only that page has), the landing page's links are `Round up the crew`, `See how` and a small `Sign in`, the invite preview's h1 is the brunch title with "{host} wants you at brunch" above it (no status badge), an unusable invite says "That invite's gone cold.", every 404 says "This table's empty." and nothing more (it must never say "brunch", "private" or why), and the host's manage buttons are `Call it` and `Lock it in`. After M7: a member who is not the host opening the manage page gets a **403** with the h1 "That one's the host's." (`HOST_ONLY` in `e2e/support/pages.ts`), while an outsider still gets the 404 text. Later milestones add their changes here.
+- **The dashboard's only list items are the brunch rows.** The next-up roster is plain grouped text (`role="group"`), because journeys count `listitem`s.
 
 ## Layout
 
@@ -51,10 +56,33 @@ The journeys find things by role, label and text. A restyle must not change them
 - **Widths:** `Container` is the wide app page (`--page-width`, 68rem); `size="narrow"` is one column of form content (`--content-width`, the wizard); `Hero` is a centered column on the gradient. On a wide screen a page uses two columns from 60rem (`.columns` / `.column` in `brunch/[id]/detail.module.css`); each column is a consecutive group in page order, so reading and tab order do not change.
 - **Touch targets are at least 44px** (a `sm` button grows to 44px on a touch screen). Focus is always visible. Animation respects `prefers-reduced-motion` (the base styles reduce it; do not undo that).
 
+## Phone
+
+Phone is the base style and the place to be strict about space (spec 0011). Leave things out instead of squeezing them:
+
+- **Drop repetition and secondary lines, never the only source of a fact.** Allowed: a count that repeats a heading, a helper line under a list heading, a chip that repeats the header's, the top bar's name (visually only: it stays in the accessibility tree), the wizard's top Cancel when the footer has one. Not allowed: hiding something a person could not learn elsewhere on the same screen.
+- Rows go vertical on phone (a date tile, then the title, one line, then the pill and count) and long lists show a few items plus "+N more" (the next-up roster shows three).
+- Collapsing sections is not used yet; it is decided after a real-phone review (PLANNING §17). Do not add collapsible or auto-collapsing sections without that decision.
+- A change to a screen is judged on the phone board as well as the desktop one.
+
+## Voice and copy
+
+The voice is `design-docs/Brand Voice.html`; the line-by-line rewrites are `design-docs/Copy Pass.html`; what spec 0011 adopted, adapted and refused is the copy table in `specs/0011-design-fidelity/plan.md`. Check it before writing a string.
+
+- **Friend, not service.** Verbs over nouns, specific over generic, no corporate words (event, attendees, leverage, engage, community, "action required", "successfully").
+- **Emoji at moments, not in labels that carry state.** Greetings, celebrations, the empty state. Emoji are always `aria-hidden`, so the accessible name is the words ("I'm in", not "🙌 I'm in"). The RSVP buttons are the one place an emoji sits in a control, by the owner's choice.
+- **Do not promise what the app does not do** (no "we'll try again" without a retry). Error wording belongs to the feedback-surfaces spec; the generic error strings stay as they are until then.
+- **Status wording on the dashboard is a display mapping** (`src/lib/brunchCopy.ts`, M2), not a change to the status lookup table; the brunch page badge keeps the lookup label and the exact-text rule below. A test fails when a seeded status code has no mapping.
+- A copy change is a journey change: list the names it touches before making it.
+
+## Derived presentation rules live in core
+
+Anything a screen shows that depends on a rule (the leading option, "a vote is waiting on you", which brunch is next up, whether a brunch is past, who may see whose name) is a pure function in `packages/core`, unit-tested, and the Server Component only formats and draws it (ADR 0012). A component never decides who is leading or who may see a name. The roster is a service with the membership check first; its member view has no type for an email, an id, or a "no" name.
+
 ## Checking a screen
 
 - **Axe** (`e2e/journeys/accessibility.spec.ts`, journey D2): add every new screen and state, in light and dark.
 - **Layout** (`responsive-layout.spec.ts`, D3): add the screen so it is checked for sideways scrolling and its main action on screen, on a desktop and a phone. The `mobile` Playwright project runs a chosen subset of journeys at phone width; add a journey there when it is part of the core path.
 - **Keyboard and motion** (`keyboard-and-motion.spec.ts`, D4) when a screen adds a main path.
-- **Look at it:** `pnpm --filter @brunchsters/web screenshots` writes every screen (light/dark, desktop/tablet/phone) to `apps/web/.screenshots/`. Add the new screen to `e2e/screenshots/review.spec.ts`.
+- **Look at it:** `pnpm --filter @brunchsters/web screenshots` clears and rewrites `apps/web/.screenshots/app/<area>/<state>-<light|dark>-<desktop|tablet|phone>.png` for every screen (the folder is git-ignored; nothing compares against it). Add the new screen to `e2e/screenshots/review.spec.ts`. `pnpm --filter @brunchsters/web boards` then puts the prototype next to each screen (`.screenshots/boards/<screen>-<light|dark>-<device>.png`); a design-fidelity milestone is reviewed with those, light and dark, desktop and phone.
 - Per the root `CLAUDE.md`, a new or changed user-facing screen also needs its journey; styling-only changes need `pnpm test:e2e` to pass unmodified.

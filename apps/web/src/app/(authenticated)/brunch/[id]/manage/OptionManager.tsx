@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { PopIcon } from '@/components/icons/PopIcon';
 import { Button } from '@/components/ui/Button';
+import { DateTimeInput } from '@/components/ui/DateTimeInput';
 import { InlineAlert } from '@/components/ui/InlineAlert';
+import { LocalDateTime } from '@/components/ui/LocalDateTime';
 import { PlaceSearchInput } from '../../PlaceSearchInput';
 import detail from '../detail.module.css';
 import styles from './manage.module.css';
@@ -154,8 +156,11 @@ export function OptionManager({
               <span className={detail.rowMain}>
                 <PopIcon name="pin" size={22} />
                 <span className={detail.rowText}>
-                  {location.placeName} — {location.placeAddress}{' '}
-                  <span className={detail.detail}>({voteCountLabel(location.voteCount)})</span>
+                  <span className={detail.name}>{location.placeName}</span>{' '}
+                  <span className={[detail.detail, detail.votes].join(' ')}>
+                    ({voteCountLabel(location.voteCount)})
+                  </span>
+                  <span className={detail.address}>{location.placeAddress}</span>
                 </span>
               </span>
               <Button
@@ -185,11 +190,10 @@ export function OptionManager({
               <span className={detail.rowMain}>
                 <PopIcon name="clock" size={22} />
                 <span className={detail.rowText}>
-                  {time.scheduledAt.toLocaleString(undefined, {
-                    dateStyle: 'medium',
-                    timeStyle: 'short',
-                  })}{' '}
-                  <span className={detail.detail}>({voteCountLabel(time.voteCount)})</span>
+                  <LocalDateTime date={time.scheduledAt} />{' '}
+                  <span className={[detail.detail, detail.votes].join(' ')}>
+                    ({voteCountLabel(time.voteCount)})
+                  </span>
                 </span>
               </span>
               <Button
@@ -205,8 +209,8 @@ export function OptionManager({
           ))}
         </ul>
         <div className={detail.addRow}>
-          <input
-            type="datetime-local"
+          <DateTimeInput
+            placeholderText="Add a time"
             aria-label="Date and time to add"
             value={timeInput}
             disabled={disabled || adding}

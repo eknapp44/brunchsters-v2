@@ -100,7 +100,7 @@ test.describe('V2 — attendees who cannot vote', () => {
     }
 
     // Changing their answer to yes hands the ballot back.
-    await declined.page.getByRole('button', { name: 'yes', exact: true }).click();
+    await declined.page.getByRole('button', { name: "I'm in", exact: true }).click();
     await expect(declined.page.getByText('Current: yes')).toBeVisible();
     const { locations } = ballot(declined.page);
     await expect(locations).not.toContainText('Your RSVP does not allow voting.');

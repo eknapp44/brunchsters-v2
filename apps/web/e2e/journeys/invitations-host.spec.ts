@@ -1,3 +1,4 @@
+import { GONE_COLD, GONE_COLD_HELP } from '../support/pages';
 import type { Email } from '@brunchsters/shared';
 import { getDb } from '../support/db';
 import {
@@ -59,14 +60,14 @@ test.describe('I3 — inviting more people later', () => {
     await expect(host.page.getByText('No invites sent yet.')).toBeVisible();
 
     await host.page.getByLabel('Invite more people').fill(first);
-    await host.page.getByRole('button', { name: 'Send Invite' }).click();
+    await host.page.getByRole('button', { name: 'Round up the crew' }).click();
     await expect(inviteRow(host.page, first)).toContainText('pending');
     await expect(host.page.getByText('Active', { exact: true })).toBeVisible();
     // The input is cleared, ready for the next one.
     await expect(host.page.getByLabel('Invite more people')).toHaveValue('');
 
     await host.page.getByLabel('Invite more people').fill(second);
-    await host.page.getByRole('button', { name: 'Send Invite' }).click();
+    await host.page.getByRole('button', { name: 'Round up the crew' }).click();
     await expect(inviteRow(host.page, second)).toContainText('pending');
     await expect(inviteRow(host.page, first)).toContainText('pending');
   });
@@ -89,8 +90,8 @@ test.describe('I4 — links that stop working', () => {
     await expect(inviteRow(host.page, invitee)).toHaveCount(0);
 
     await page.goto(link);
-    await expect(page.getByRole('heading', { name: 'Invite not found' })).toBeVisible();
-    await expect(page.getByText('This invite has expired or is invalid.')).toBeVisible();
+    await expect(page.getByRole('heading', { name: GONE_COLD })).toBeVisible();
+    await expect(page.getByText(GONE_COLD_HELP)).toBeVisible();
     await expect(page.getByText(title)).toHaveCount(0);
     await expect(page.getByText(host.user.name)).toHaveCount(0);
   });
@@ -108,7 +109,7 @@ test.describe('I4 — links that stop working', () => {
     await expireInvite({ brunchId, email: invitee });
 
     await page.goto(oldLink);
-    await expect(page.getByRole('heading', { name: 'Invite not found' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: GONE_COLD })).toBeVisible();
     await expect(page.getByText(title)).toHaveCount(0);
 
     await host.page.goto(`/brunch/${brunchId}`);
@@ -119,17 +120,17 @@ test.describe('I4 — links that stop working', () => {
       .not.toBe(oldLink);
 
     await page.goto(oldLink);
-    await expect(page.getByRole('heading', { name: 'Invite not found' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: GONE_COLD })).toBeVisible();
 
     const newLink = await inviteLinkFor({ brunchId, email: invitee });
     await page.goto(newLink);
-    await expect(page.getByRole('heading', { name: `You're invited to ${title}` })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
   });
 
   test('a made-up token is the same "not found" page', async ({ page }) => {
     await page.goto('/invite/00000000-0000-4000-8000-000000000000');
 
-    await expect(page.getByRole('heading', { name: 'Invite not found' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: GONE_COLD })).toBeVisible();
   });
 });
 

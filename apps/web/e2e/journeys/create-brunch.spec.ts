@@ -1,6 +1,8 @@
+import { EMPTY_DASHBOARD_HEADLINE } from '../support/dashboard';
 import { getDb } from '../support/db';
 import { uniqueSuffix } from '../support/factories';
 import { expect, test } from '../support/fixtures';
+import { inviteRow } from '../support/invites';
 import { fixturePlaces } from '../support/places';
 import { daysFromNow, toDatetimeLocalValue } from '../support/time';
 import { BrunchWizard } from '../support/wizard';
@@ -20,7 +22,7 @@ test.describe('C1 — host creates a brunch with the wizard', () => {
     const guestTwo = `guest-two-${uniqueSuffix()}@example.com`;
 
     await host.page.goto('/dashboard');
-    await expect(host.page.getByText('No brunches yet.')).toBeVisible();
+    await expect(host.page.getByText(EMPTY_DASHBOARD_HEADLINE)).toBeVisible();
     await host.page.getByRole('link', { name: 'Plan a Brunch' }).click();
     await expect(host.page).toHaveURL('/brunch/new');
 
@@ -61,8 +63,8 @@ test.describe('C1 — host creates a brunch with the wizard', () => {
       host.page.getByRole('checkbox', { name: new RegExp(`^${fixturePlaces.harborBistro.name}`) }),
     ).toBeVisible();
     await expect(host.page.getByRole('checkbox')).toHaveCount(4);
-    await expect(host.page.getByText(guestOne)).toBeVisible();
-    await expect(host.page.getByText(guestTwo)).toBeVisible();
+    await expect(inviteRow(host.page, guestOne)).toBeVisible();
+    await expect(inviteRow(host.page, guestTwo)).toBeVisible();
 
     // What the browser round trip actually persisted.
     const db = getDb();
@@ -87,7 +89,7 @@ test.describe('C2 — wizard behavior', () => {
     const host = await makeActor('host');
     await new BrunchWizard(host.page).open();
 
-    const next = host.page.getByRole('button', { name: 'Next', exact: true });
+    const next = host.page.getByRole('button', { name: 'Continue', exact: true });
     await expect(next).toBeDisabled();
     await host.page.getByLabel('Title').fill('   ');
     await expect(next).toBeDisabled();

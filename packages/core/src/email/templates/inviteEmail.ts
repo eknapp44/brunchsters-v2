@@ -18,17 +18,18 @@ export function renderInviteEmail(params: InviteEmailParams): RenderedEmail {
       : `<p style="margin:0 0 12px;white-space:pre-line">${escapeHtml(params.description)}</p>`;
 
   return {
-    subject: safeSubject(`${params.hostName} invited you to brunch: ${params.brunchTitle}`),
+    subject: safeSubject(`${params.hostName} wants you at brunch 🥂`),
     html: renderEmail({
-      heading: `${params.hostName} invited you to brunch`,
+      heading: `${params.hostName} wants you at brunch`,
       bodyHtml: [
+        `<p style="margin:0 0 12px">${escapeHtml(params.hostName)} just put a brunch on the table:</p>`,
         `<p style="margin:0 0 12px"><strong>${escapeHtml(params.brunchTitle)}</strong></p>`,
         description,
-        '<p style="margin:0">Let them know if you can make it, and help pick the place and time.</p>',
+        '<p style="margin:0">Tap to RSVP, throw in your vote, and we\'ll keep you posted on what wins.</p>',
       ].join(''),
-      buttonLabel: 'View the invite',
+      buttonLabel: 'See the brunch',
       buttonUrl: params.link,
-      footerHtml: `This link is personal to you and expires on ${escapeHtml(formatInstantUtc(params.linkExpiresAt))}. If you weren't expecting this, you can ignore the email.`,
+      footerHtml: `P.S. No app to download. Just tap the link. It's personal to you and expires on ${escapeHtml(formatInstantUtc(params.linkExpiresAt))}. If you weren't expecting this, you can ignore the email.`,
     }),
   };
 }

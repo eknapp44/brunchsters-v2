@@ -131,8 +131,16 @@
   color: var(--fg-muted);
 }
 
-.option:has(input:checked) .detail {
+.option:has(input:checked) .detail,
+.option:has(input:checked) .address {
   color: var(--accent-soft-fg);
+}
+
+/* A place's address sits under its name, a step smaller, so the name and the vote count read first. */
+.address {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
 }
 
 .voters {
@@ -258,4 +266,217 @@
 .optionBody > .voters {
   display: block;
   font-size: var(--text-sm);
+}
+
+/* ── The brunch page, redesigned (spec 0011 M3) ─────────────────────────────────────────────── */
+
+.top {
+  display: grid;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+.topNav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.inviter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-2xl);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.subtitle {
+  margin: 0;
+  font-size: var(--text-md);
+  color: var(--fg-muted);
+}
+
+.emoji {
+  font-family: var(--font-sans);
+}
+
+/* "You in?": three equal, generous buttons */
+.rsvpChoices {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.rsvpChoice {
+  min-height: 3.5rem;
+  padding-inline: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+/* a card's heading with a chip or a count at its right */
+.cardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.cardHead > h2,
+.cardHead > h3 {
+  margin: 0;
+}
+
+.summary {
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+
+.helper {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
+
+/* the confirmed place or time, in the display face */
+.result {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.resultText {
+  margin: 0;
+  font-family: var(--font-display);
+  font-variation-settings: var(--display-variation);
+  font-size: var(--text-xl);
+  line-height: var(--leading-tight);
+}
+
+.resultDetail {
+  margin: 0;
+  color: var(--fg-muted);
+}
+
+/* The quiet bar behind a voting row: its votes as a share of the top option's. Decoration only;
+   a selected row hides it, so a second fill never competes with the selection. */
+.option {
+  position: relative;
+  overflow: hidden;
+}
+
+.option > :not(.bar) {
+  position: relative;
+}
+
+.bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--bar);
+  pointer-events: none;
+}
+
+.option:has(input:checked) .bar {
+  display: none;
+}
+
+.nameLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/* who is coming */
+.roster {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.rosterRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.rosterName {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Brunch on. */
+.banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+  padding: var(--space-4) var(--space-5);
+  color: var(--mint-fg);
+  background: var(--mint);
+  border-radius: var(--r-4);
+}
+
+.banner h2 {
+  margin: 0;
+  font-size: var(--text-xl);
+  color: inherit;
+}
+
+.banner p {
+  margin: var(--space-1) 0 0;
+}
+
+.bannerEmoji {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+/* Left out on a phone, where space is short: a line that repeats the heading above it, and the
+   chip that repeats the header's own. Nothing here is the only way to learn something. */
+.phoneHidden,
+.phoneHiddenInline {
+  display: none;
+}
+
+@media (min-width: 40rem) {
+  .title {
+    font-size: var(--text-3xl);
+  }
+
+  .rsvpChoice {
+    min-height: 4rem;
+    font-size: var(--text-base);
+  }
+
+  .phoneHidden {
+    display: block;
+  }
+
+  .phoneHiddenInline {
+    display: inline-flex;
+  }
+}
+
+@media (forced-colors: active) {
+  .bar {
+    display: none;
+  }
+}
+
+/* "(2 votes)" stays on one line. */
+.votes {
+  white-space: nowrap;
 }

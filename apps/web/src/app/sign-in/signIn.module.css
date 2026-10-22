@@ -1,0 +1,7 @@
+/* The small print under the button. A <small>, not a <p>, so the Hero column's paragraph rule
+   (the larger, muted text) does not apply to it. */
+.note {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}

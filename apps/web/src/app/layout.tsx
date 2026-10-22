@@ -33,7 +33,6 @@ export default async function RootLayout({ children }: { readonly children: Reac
               : {
                   name: user.name ?? undefined,
                   email: user.email ?? undefined,
-                  image: user.image ?? undefined,
                 }
           }
           signOutAction={signOutAction}

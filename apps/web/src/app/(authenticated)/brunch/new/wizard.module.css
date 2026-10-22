@@ -50,10 +50,6 @@
   margin-top: var(--space-3);
 }
 
-.actionsEnd {
-  justify-content: flex-end;
-}
-
 @media (max-width: 30rem) {
   .actions > * {
     flex: 1;
@@ -62,4 +58,50 @@
 
 .hint {
   margin: 0;
+}
+
+/* the page's own title is quiet now: each step has its own large heading */
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.pageTitle {
+  margin: 0;
+  font-size: var(--text-lg);
+  color: var(--fg-muted);
+}
+
+/* a phone leaves this one out: the footer has a way out as well */
+.topCancel {
+  display: none;
+}
+
+.stepHeader {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.stepTitle {
+  margin: 0;
+  font-size: var(--text-2xl);
+}
+
+.stepHelp {
+  margin: 0;
+  font-size: var(--text-md);
+  color: var(--fg-muted);
+}
+
+@media (min-width: 40rem) {
+  .topCancel {
+    display: block;
+  }
+
+  .stepTitle {
+    font-size: var(--text-3xl);
+  }
 }

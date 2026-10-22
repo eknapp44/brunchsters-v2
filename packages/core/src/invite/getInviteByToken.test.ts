@@ -7,6 +7,7 @@ const VALID_INVITE = {
   token: 'valid-token',
   brunch: {
     title: 'Weekend Brunch',
+    description: 'Pancakes and mimosas',
     host: { name: 'Alice Host' },
     status: { label: 'Active' },
   },
@@ -26,11 +27,25 @@ describe('getInviteByToken', () => {
     expect(result).toEqual({
       brunchTitle: 'Weekend Brunch',
       hostName: 'Alice Host',
+      description: 'Pancakes and mimosas',
       brunchStatusLabel: 'Active',
     });
   });
 
-  it('queries only non-expired tokens', async () => {
+  it('leaves the description undefined when the brunch has none', async () => {
+    const findFirst = vi.fn().mockResolvedValue({
+      ...VALID_INVITE,
+      brunch: { ...VALID_INVITE.brunch, description: null },
+    });
+
+    const result = await getInviteByToken('valid-token' as InviteToken, {
+      db: makeMockDb(findFirst),
+    });
+
+    expect(result?.description).toBeUndefined();
+  });
+
+  it('queries only non-expired tokens of brunches that are not deleted', async () => {
     const findFirst = vi.fn().mockResolvedValue(VALID_INVITE);
     const db = makeMockDb(findFirst);
 
@@ -38,7 +53,11 @@ describe('getInviteByToken', () => {
 
     expect(findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { token: 'valid-token', tokenExpiresAt: { gt: expect.any(Date) } },
+        where: {
+          token: 'valid-token',
+          tokenExpiresAt: { gt: expect.any(Date) },
+          brunch: { deletedAt: null },
+        },
       }),
     );
   });

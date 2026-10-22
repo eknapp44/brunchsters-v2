@@ -117,6 +117,19 @@ export function ballot(page: Page): { readonly locations: Locator; readonly time
     page.locator('section').filter({
       has: page.getByRole('heading', { name: heading, exact: true }),
     });
+  return { locations: section('Where to?'), times: section('When?') };
+}
+
+// The host's option lists on /brunch/[id]/manage, found by their headings (the manage page keeps
+// "Locations" and "Times"; the brunch page's ballots are "Where to?" and "When?").
+export function manageOptions(page: Page): {
+  readonly locations: Locator;
+  readonly times: Locator;
+} {
+  const section = (heading: string): Locator =>
+    page.locator('section').filter({
+      has: page.getByRole('heading', { name: heading, exact: true }),
+    });
   return { locations: section('Locations'), times: section('Times') };
 }
 
@@ -183,4 +196,15 @@ export async function closeVoting(params: {
     ),
     'closeVoting',
   );
+}
+
+// A confirmed brunch's time passes by itself; no service puts a confirmed time in the past (they
+// all require a future one), and the server's clock cannot be moved from a test. So, like
+// `passVotingDeadline`, this reaches state directly, leaving the brunch exactly as it is the day
+// after it happened: still `confirmed`, nobody having acted.
+export async function passConfirmedTime(brunchId: BrunchId): Promise<void> {
+  await getDb().brunchTime.updateMany({
+    where: { brunchId, isConfirmed: true },
+    data: { scheduledAt: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+  });
 }

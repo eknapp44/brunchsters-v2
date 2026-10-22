@@ -213,6 +213,17 @@ git commit -m "feat(...): ..."   # commit at each green milestone
 supabase stop             # when done for the day (frees Docker resources)
 ```
 
+### Clearing your test brunches
+
+After a while the dashboard fills with test brunches. Until the app can archive or delete a brunch itself (the brunch lifecycle spec), a developer script clears one person's out of the **local** database:
+
+```bash
+pnpm db:clear-brunches you@example.com            # shows what it would clear; changes nothing
+pnpm db:clear-brunches you@example.com --apply    # clears it
+```
+
+It soft-deletes (sets `deletedAt`, the app's default for major entities): every brunch the person **hosts** (it goes for everyone in it) and the person's own place in brunches they only **attend** (it goes for them alone). Nothing is lost; clearing a row's `deletedAt` brings it back. It refuses to run against any database that is not on `127.0.0.1` or `localhost`, and it asks for an email so it can never clear everyone's. Behavior and the safety checks are covered by `packages/core/src/brunch/clearBrunchesScript.integration.test.ts`.
+
 ---
 
 ## 7. 30-Second Smoke Test
@@ -233,7 +244,7 @@ pnpm db:validate          # should print "The schema at prisma\schema.prisma is 
 pnpm test                 # should print "4 passed" across shared, core, database, web
 
 # 5. App boots?
-pnpm dev                  # visit http://localhost:3000 — should show "Brunchsters / Coming soon."
+pnpm dev                  # visit http://localhost:3000 — should show the landing page ("Your friends are hungry. Probably.")
 ```
 
 If all five pass, the stack is healthy.
@@ -322,15 +333,30 @@ pnpm --filter @brunchsters/web exec playwright show-trace <trace.zip>   # open a
 
 **Adding E2E coverage for a new feature.** Every new feature spec has an `## E2E Journeys` section, and any change to what a user sees or does needs a new or updated journey in the same PR (the bar is defined in `CLAUDE.md` — "User-facing changes keep the E2E suite honest"; the pull request template asks for it). Follow the existing pattern: create state through `e2e/support/factories.ts` / `voting.ts` (real core services), drive only the step under test through the UI, use `makeActor` for each person, and prove a new test can fail (temporarily break the behavior it guards) before trusting it.
 
+The e2e server is started with `TZ=UTC` on purpose, while the browser context is America/Chicago: that is how production looks (Vercel serves in UTC, people are elsewhere), and a server and browser in the same zone hide hydration mismatches. If a journey passes on your machine and fails in CI, compare the zones first.
+
 ### Review screenshots and looking at the UI (spec 0009)
 
 The look is judged by eye, so there is a command that photographs every screen:
 
 ```bash
-pnpm --filter @brunchsters/web screenshots   # recreates the e2e database, then writes apps/web/.screenshots/
+pnpm --filter @brunchsters/web screenshots   # clears apps/web/.screenshots/app, recreates the e2e database, then writes it again
 ```
 
-It uses the same isolated e2e server, database and queue as `pnpm test:e2e` (stop your own `pnpm dev` first), logs in as fixture users, and saves one PNG per screen: `<screen>-<light|dark>-<desktop|tablet|phone>.png` (desktop is 1280px wide, the tablet 820px, below the width where two columns start, and the phone an emulated Pixel 7). The folder is git-ignored and nothing compares against it; it exists so you and Claude can look at the same pictures. Re-run it after a change; it overwrites the files.
+It uses the same isolated e2e server, database and queue as `pnpm test:e2e` (stop your own `pnpm dev` first), logs in as fixture users, and saves one PNG per screen and state under `apps/web/.screenshots/app/<area>/` (`front-door`, `dashboard`, `brunch`, `manage`, `wizard`): `<state>-<light|dark>-<desktop|tablet|phone>.png`, for example `app/brunch/host-voting-dark-phone.png` (desktop is 1280px wide, the tablet 820px, below the width where two columns start, and the phone an emulated Pixel 7). The folder is git-ignored and nothing compares against it; it exists so you and Claude can look at the same pictures. Re-run it after a change; it overwrites the files.
+
+**Boards: the prototype next to the app (spec 0011).** Each design-fidelity milestone is reviewed with a board per screen, light and dark, desktop and phone:
+
+```bash
+pnpm --filter @brunchsters/web screenshots   # the app side (above)
+pnpm --filter @brunchsters/web boards        # photographs the prototype and writes apps/web/.screenshots/boards/<screen>-<light|dark>-<desktop|phone>.png (the folder is emptied first)
+```
+
+`boards` needs the network (the prototype loads React and Babel from unpkg) and the screenshots from the first command; it says so if they are missing. It serves a **scratch copy** of `prototype/` (with the Design v3 canvas files placed next to its HTML, and `ios-frame.jsx` for the prototype's phone scenes; a plain stand-in box is used if that file is missing) and removes it, and its server, when it ends: `prototype/` and `design-docs/` are never written. A board shows "Nothing to show at this size" where the prototype has no scene for that size (it draws most screens at desktop width only). The approved target for spec 0011 is also reproducible as static pages with `node specs/0011-design-fidelity/mockups/build.mjs` (needs the network for the fonts).
+
+**Being several people at once (`pnpm dev:as`).** Google has no sandbox accounts, so testing a brunch with a host and two friends would need three Google accounts. Locally you do not: with `pnpm dev` running, `pnpm dev:as ava` opens a browser window already signed in as Ava (created as `ava@example.com` the first time), `pnpm dev:as ben` a second window as Ben, and so on. Each person has their own browser profile (`apps/web/.dev-profiles/`, git-ignored), so the sessions never mix. Add `--phone` for a phone-sized window, or pass an email that is already in your local database (`pnpm dev:as you@gmail.com`) to open a window as yourself. `--check` signs in without a window and prints the page it landed on, which is how to see that it works.
+
+A typical session: sign in as yourself in your normal browser, plan a brunch and invite `ava@example.com` and `ben@example.com` from the invite panel, then `pnpm dev:as ava` and `pnpm dev:as ben` and paste each invite's link (the invite panel has a Copy link button) into that person's window to answer and vote as them. It mints the same session cookie a real sign-in ends with, as the e2e suite does, so nothing in the app changes. It refuses to run unless the database and `AUTH_URL` are local, and it never prints `AUTH_SECRET`. The people it creates are ordinary rows in your local database: `pnpm db:clear-brunches ava@example.com` clears their brunches. The real beta uses real Google accounts (see the deployment spec).
 
 For poking around yourself, `pnpm dev` plus your browser's device mode (Chrome: DevTools, then the phone icon) shows the phone layout, and DevTools → Rendering → "Emulate CSS media feature prefers-color-scheme" shows dark mode. A **real phone** is a harder case, because signed-in screens need Google sign-in, and Google rejects a redirect URI that is a bare IP address (so `http://192.168.x.x:3000` cannot sign in). Until the app is deployed (PLANNING §17 pre-launch checklist), a real phone can see the signed-out pages over your network (`pnpm --filter @brunchsters/web exec next dev --turbopack -H 0.0.0.0`, then open your computer's address on port 3000; Windows Firewall may ask to allow it). Seeing the signed-in screens on a phone needs a deployed preview, or a tunnel with a real hostname that is added to the OAuth client's redirect URIs and set as `AUTH_URL`.
 

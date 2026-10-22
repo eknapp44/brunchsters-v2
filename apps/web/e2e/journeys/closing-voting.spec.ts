@@ -9,7 +9,7 @@ import { addAttendee, ballot, castVotes, listOptions, passVotingDeadline } from 
 
 const TWO_PLACES = [fixturePlaces.sunnySide, fixturePlaces.harborBistro];
 const TIMES = [daysFromNow(10), daysFromNow(11)];
-const NUDGE = 'Most eligible attendees have voted';
+const NUDGE = 'Most of the crew has voted';
 
 test.describe('H2 — the nudge to close voting', () => {
   test('appears once at least three are eligible and two thirds of them have voted', async ({
@@ -45,7 +45,7 @@ test.describe('H2 — the nudge to close voting', () => {
     });
     await host.page.reload();
     await expect(host.page.getByText(NUDGE)).toBeVisible();
-    await expect(host.page.getByRole('button', { name: 'Close voting now' })).toBeEnabled();
+    await expect(host.page.getByRole('button', { name: 'Call it' })).toBeEnabled();
   });
 
   test('never appears with fewer than three eligible, however many have voted', async ({
@@ -102,9 +102,9 @@ test.describe('H2 — setting a deadline and closing voting', () => {
     const annLocations = ballot(ann.page).locations;
     await expect(annLocations.getByRole('checkbox').first()).toBeEnabled();
 
-    await host.page.getByRole('button', { name: 'Close voting now' }).click();
+    await host.page.getByRole('button', { name: 'Call it' }).click();
     await expect(host.page.getByText('Voting is closed.')).toBeVisible();
-    await expect(host.page.getByRole('button', { name: 'Close voting now' })).toHaveCount(0);
+    await expect(host.page.getByRole('button', { name: 'Call it' })).toHaveCount(0);
     await expect(host.page.getByRole('button', { name: 'Save deadline' })).toHaveCount(0);
 
     // The attendee's ballot is now read-only...
@@ -150,7 +150,7 @@ test.describe('H7 — a deadline that passes closes voting by itself', () => {
 
     await host.page.goto(`/brunch/${brunchId}/manage`);
     await expect(host.page.getByText('Voting is closed.')).toBeVisible();
-    await expect(host.page.getByRole('button', { name: 'Close voting now' })).toHaveCount(0);
+    await expect(host.page.getByRole('button', { name: 'Call it' })).toHaveCount(0);
 
     // Derived, not stored: nobody acted, and the server refuses a late vote all the same.
     expect(
@@ -161,5 +161,44 @@ test.describe('H7 — a deadline that passes closes voting by itself', () => {
       data: { optionIds: [options.times[0]?.id] },
     });
     expect(late.status()).toBe(409);
+  });
+});
+
+test.describe('H8 — a deadline typed before the page has finished loading', () => {
+  test('is kept, and saving it saves it', async ({ makeActor }) => {
+    const host = await makeActor('host');
+    const brunchId = await createBrunch({ host: host.user, locations: TWO_PLACES, times: TIMES });
+
+    // Hold the page's scripts back, so the server-rendered form is on screen and usable well
+    // before React has taken it over: what a person with a slow phone sees.
+    await host.page.route('**/_next/static/**', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 2500));
+      await route.continue();
+    });
+    await host.page.goto(`/brunch/${brunchId}/manage`, { waitUntil: 'commit' });
+
+    const deadline = daysFromNow(5, 18, 0);
+    const typed = datetimeLocalIn(deadline, 'America/Chicago');
+    const deadlineInput = host.page.getByLabel('Voting closes by');
+    await deadlineInput.fill(typed);
+
+    // Wait until React owns the page (it marks the nodes it has taken over), then let its
+    // first effects run: they must not wipe what was typed.
+    const saveButton = host.page.getByRole('button', { name: 'Save deadline' });
+    await expect
+      .poll(() =>
+        saveButton.evaluate((node) =>
+          Object.keys(node).some((key) => key.startsWith('__reactProps')),
+        ),
+      )
+      .toBe(true);
+    await expect(deadlineInput).toHaveValue(typed);
+
+    await saveButton.click();
+    await expect
+      .poll(async () =>
+        (await getDb().brunch.findFirst({ where: { id: brunchId } }))?.votingDeadline?.getTime(),
+      )
+      .toBe(deadline.getTime());
   });
 });

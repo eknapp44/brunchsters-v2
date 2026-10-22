@@ -17,6 +17,8 @@
     "db:migrate": "pnpm --filter @brunchsters/database exec prisma migrate dev",
     "db:generate": "pnpm --filter @brunchsters/database exec prisma generate",
     "db:seed": "pnpm --filter @brunchsters/database run seed",
+    "dev:as": "pnpm --filter @brunchsters/web run dev:as",
+    "db:clear-brunches": "pnpm --filter @brunchsters/database run clear-brunches",
     "db:validate": "pnpm --filter @brunchsters/database exec prisma validate",
     "prepare": "husky"
   },

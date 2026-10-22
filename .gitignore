@@ -48,3 +48,6 @@ apps/web/.screenshots/
 
 # Claude Code: personal, never committed (the shared skills in .claude/skills are)
 .claude/settings.local.json
+
+# Browser profiles for pnpm dev:as (one per person)
+apps/web/.dev-profiles/

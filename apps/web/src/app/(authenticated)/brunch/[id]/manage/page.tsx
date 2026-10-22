@@ -1,6 +1,6 @@
 import { getBrunchById, getBrunchVoting, getInvitesForBrunch } from '@brunchsters/core';
 import type { BrunchId, UserId } from '@brunchsters/shared';
-import { notFound } from 'next/navigation';
+import { forbidden, notFound } from 'next/navigation';
 import { z } from 'zod';
 import { auth } from '@/auth';
 import { Icon } from '@/components/icons/Icon';
@@ -37,8 +37,13 @@ export default async function ManageBrunchPage({
   const brunchId = parsedId.data as BrunchId;
 
   const brunch = await getBrunchById({ brunchId, viewerId }, { db });
-  if (brunch === undefined || !brunch.isHost) {
+  // Membership first: an outsider and a made-up id are both undefined here and get the same 404.
+  // Only then a guest, who is told they may not (403).
+  if (brunch === undefined) {
     notFound();
+  }
+  if (!brunch.isHost) {
+    forbidden();
   }
 
   const voting = await getBrunchVoting({ brunchId, viewerId }, { db });
@@ -54,13 +59,15 @@ export default async function ManageBrunchPage({
 
     return (
       <Container as="main">
+        <div className={styles.back}>
+          <ButtonLink href={`/brunch/${brunchId}`} size="sm">
+            <Icon name="arrowLeft" size={16} />
+            Back to brunch
+          </ButtonLink>
+        </div>
         <div className={styles.header}>
           <h1>Manage: {brunch.title}</h1>
         </div>
-        <ButtonLink href={`/brunch/${brunchId}`} size="sm">
-          <Icon name="arrowLeft" size={16} />
-          Back to brunch
-        </ButtonLink>
 
         <section className={detail.panel}>
           <h2>Confirmed</h2>
@@ -76,7 +83,7 @@ export default async function ManageBrunchPage({
             <p className={styles.fact}>
               <PopIcon name="clock" size={22} />
               <span>
-                {confirmedTime.scheduledAt.toLocaleString(undefined, {
+                {confirmedTime.scheduledAt.toLocaleString('en-US', {
                   dateStyle: 'medium',
                   timeStyle: 'short',
                   // PLANNING §9.3: times render in the location's zone once
@@ -109,13 +116,15 @@ export default async function ManageBrunchPage({
 
   return (
     <Container as="main">
+      <div className={styles.back}>
+        <ButtonLink href={`/brunch/${brunchId}`} size="sm">
+          <Icon name="arrowLeft" size={16} />
+          Back to brunch
+        </ButtonLink>
+      </div>
       <div className={styles.header}>
         <h1>Manage: {brunch.title}</h1>
       </div>
-      <ButtonLink href={`/brunch/${brunchId}`} size="sm">
-        <Icon name="arrowLeft" size={16} />
-        Back to brunch
-      </ButtonLink>
 
       {isDraft && (
         <section className={detail.panel}>

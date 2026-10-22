@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { PopIcon } from '@/components/icons/PopIcon';
 import { Button } from '@/components/ui/Button';
+import { DateTimeInput } from '@/components/ui/DateTimeInput';
 import { InlineAlert } from '@/components/ui/InlineAlert';
+import { LocalDateTime } from '@/components/ui/LocalDateTime';
 import { PlaceSearchInput } from '../PlaceSearchInput';
 import styles from './detail.module.css';
 
@@ -73,8 +75,9 @@ export function LocationSuggestionControl({
               <span className={styles.rowMain}>
                 <PopIcon name="pin" size={22} />
                 <span className={styles.rowText}>
-                  {suggestion.placeName} — {suggestion.placeAddress}{' '}
+                  <span className={styles.name}>{suggestion.placeName}</span>{' '}
                   <span className={styles.detail}>(awaiting host approval)</span>
+                  <span className={styles.address}>{suggestion.placeAddress}</span>
                 </span>
               </span>
             </li>
@@ -149,10 +152,7 @@ export function TimeSuggestionControl({
               <span className={styles.rowMain}>
                 <PopIcon name="clock" size={22} />
                 <span className={styles.rowText}>
-                  {suggestion.scheduledAt.toLocaleString(undefined, {
-                    dateStyle: 'medium',
-                    timeStyle: 'short',
-                  })}{' '}
+                  <LocalDateTime date={suggestion.scheduledAt} />{' '}
                   <span className={styles.detail}>(awaiting host approval)</span>
                 </span>
               </span>
@@ -163,8 +163,8 @@ export function TimeSuggestionControl({
 
       {canSuggest && (
         <div className={styles.addRow}>
-          <input
-            type="datetime-local"
+          <DateTimeInput
+            placeholderText="Suggest a time"
             aria-label="Suggested date and time"
             value={timeInput}
             disabled={submitting}

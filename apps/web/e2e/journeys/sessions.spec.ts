@@ -1,3 +1,4 @@
+import { EMPTY_DASHBOARD_HEADLINE, expectDashboard } from '../support/dashboard';
 import { createBrunch, createUser } from '../support/factories';
 import { expect, test } from '../support/fixtures';
 import { mintSessionCookie } from '../support/session';
@@ -65,8 +66,8 @@ test.describe('sessions that stop working', () => {
     await page.goto('/dashboard');
 
     // Whatever it shows, it must not show someone else's brunches or crash the page.
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
-    await expect(page.getByText('No brunches yet.')).toBeVisible();
+    await expectDashboard(page);
+    await expect(page.getByText(EMPTY_DASHBOARD_HEADLINE)).toBeVisible();
     const brunches = await context.request.get(
       '/api/v1/brunches/00000000-0000-4000-8000-000000000000/votes/locations',
       { maxRedirects: 0 },

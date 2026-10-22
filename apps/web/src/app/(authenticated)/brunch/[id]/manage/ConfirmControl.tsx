@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { InlineAlert } from '@/components/ui/InlineAlert';
+import { LocalDateTime } from '@/components/ui/LocalDateTime';
 import detail from '../detail.module.css';
 import styles from './manage.module.css';
 
@@ -110,9 +111,10 @@ export function ConfirmControl({
             />
             <span className={detail.optionText}>
               <span className={detail.name}>{location.placeName}</span>{' '}
-              <span className={detail.detail}>
-                — {location.placeAddress} ({voteCountLabel(location.voteCount)})
+              <span className={[detail.detail, detail.votes].join(' ')}>
+                ({voteCountLabel(location.voteCount)})
               </span>
+              <span className={detail.address}>{location.placeAddress}</span>
             </span>
           </label>
         ))}
@@ -131,12 +133,11 @@ export function ConfirmControl({
             />
             <span className={detail.optionText}>
               <span className={detail.name}>
-                {time.scheduledAt.toLocaleString(undefined, {
-                  dateStyle: 'medium',
-                  timeStyle: 'short',
-                })}
+                <LocalDateTime date={time.scheduledAt} />
               </span>{' '}
-              <span className={detail.detail}>({voteCountLabel(time.voteCount)})</span>
+              <span className={[detail.detail, detail.votes].join(' ')}>
+                ({voteCountLabel(time.voteCount)})
+              </span>
             </span>
           </label>
         ))}
@@ -154,7 +155,7 @@ export function ConfirmControl({
             effectiveTimeId === undefined
           }
         >
-          Confirm brunch
+          Lock it in
         </Button>
       </div>
 

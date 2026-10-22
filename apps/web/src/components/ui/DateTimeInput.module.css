@@ -1,0 +1,36 @@
+.wrap {
+  position: relative;
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.wrap input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Off by default: only browsers that let us blank the native "mm/dd/yyyy --:-- --" text get the
+   overlay, so a browser that cannot (Firefox) keeps its own readable format. */
+.placeholder {
+  display: none;
+}
+
+@supports selector(input::-webkit-datetime-edit) {
+  .wrap[data-empty] input:not(:focus)::-webkit-datetime-edit {
+    color: transparent;
+  }
+
+  .wrap[data-empty]:not(:focus-within) .placeholder {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: var(--space-3);
+    display: flex;
+    align-items: center;
+    font-size: var(--text-base);
+    /* the same color the app's other placeholders use (WCAG 1.4.3) */
+    color: var(--fg-muted);
+    pointer-events: none;
+  }
+}

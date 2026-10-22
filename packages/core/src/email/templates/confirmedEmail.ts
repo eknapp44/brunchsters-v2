@@ -22,22 +22,22 @@ export function renderConfirmedEmail(params: ConfirmedEmailParams): RenderedEmai
       ? escapeHtml(params.placeName)
       : `<a href="${escapeHtml(placeUrl)}">${escapeHtml(params.placeName)}</a>`;
   const greeting =
-    params.recipientName === undefined ? 'Hi,' : `Hi ${escapeHtml(params.recipientName)},`;
+    params.recipientName === undefined ? 'Hey —' : `Hey ${escapeHtml(params.recipientName)} —`;
 
   return {
-    subject: safeSubject(`It's on: ${params.brunchTitle}`),
+    subject: safeSubject(`Brunch on. 💕 ${params.brunchTitle}`),
     html: renderEmail({
-      heading: `${params.brunchTitle} is confirmed`,
+      heading: 'Brunch on.',
       bodyHtml: [
         `<p style="margin:0 0 12px">${greeting}</p>`,
-        `<p style="margin:0 0 12px">${escapeHtml(params.hostName)} locked in the plan.</p>`,
+        `<p style="margin:0 0 12px">${escapeHtml(params.hostName)} locked it in. <strong>${escapeHtml(params.brunchTitle)}</strong> is happening:</p>`,
         `<p style="margin:0 0 4px"><strong>Where:</strong> ${place}</p>`,
         `<p style="margin:0 0 12px;color:#6b7280">${escapeHtml(params.placeAddress)}</p>`,
         `<p style="margin:0"><strong>When:</strong> ${escapeHtml(formatBrunchTime({ scheduledAt: params.scheduledAt, timezone: params.timezone }))}</p>`,
       ].join(''),
-      buttonLabel: 'View the brunch',
+      buttonLabel: 'See the brunch',
       buttonUrl: params.link,
-      footerHtml: 'You are getting this because you are part of this brunch.',
+      footerHtml: "You're getting this because you're in on this brunch.",
     }),
   };
 }

@@ -1,3 +1,5 @@
+import { GONE_COLD, LANDING_HEADING, NOT_FOUND, SIGN_IN_HEADING } from '../support/pages';
+import { EMPTY_DASHBOARD_HEADLINE } from '../support/dashboard';
 import { COLOR_SCHEMES, expectNoA11yViolations, useColorScheme } from '../support/a11y';
 import { createBrunch } from '../support/factories';
 import { expect, test } from '../support/fixtures';
@@ -18,11 +20,11 @@ for (const scheme of COLOR_SCHEMES) {
 
     test('the landing page and the sign-in page', async ({ page }) => {
       await page.goto('/');
-      await expect(page.getByRole('heading', { name: 'Brunchsters' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: LANDING_HEADING })).toBeVisible();
       await expectNoA11yViolations(page, `/ (${scheme})`);
 
       await page.goto('/sign-in');
-      await expect(page.getByRole('heading', { name: 'Sign in to Brunchsters' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: SIGN_IN_HEADING })).toBeVisible();
       await expectNoA11yViolations(page, `/sign-in (${scheme})`);
     });
 
@@ -33,11 +35,11 @@ for (const scheme of COLOR_SCHEMES) {
       const link = await inviteNewcomer({ host, brunchId });
 
       await page.goto(link);
-      await expect(page.getByRole('heading', { name: `You're invited to ${title}` })).toBeVisible();
+      await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
       await expectNoA11yViolations(page, `invite preview (${scheme})`);
 
       await page.goto('/invite/not-a-real-token');
-      await expect(page.getByRole('heading', { name: 'Invite not found' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: GONE_COLD })).toBeVisible();
       await expectNoA11yViolations(page, `invalid invite (${scheme})`);
     });
   });
@@ -48,7 +50,7 @@ for (const scheme of COLOR_SCHEMES) {
       await useColorScheme(host.page, scheme);
 
       await host.page.goto('/dashboard');
-      await expect(host.page.getByText('No brunches yet.')).toBeVisible();
+      await expect(host.page.getByText(EMPTY_DASHBOARD_HEADLINE)).toBeVisible();
       await expectNoA11yViolations(host.page, `empty dashboard (${scheme})`);
 
       const yes = await makeActor('yes');
@@ -62,6 +64,18 @@ for (const scheme of COLOR_SCHEMES) {
       await expect(host.page.getByRole('heading', { name: 'Upcoming' })).toBeVisible();
       await expect(host.page.getByRole('link', { name: 'A Draft Brunch' })).toBeVisible();
       await expectNoA11yViolations(host.page, `dashboard with brunches (${scheme})`);
+
+      // A member's view: the next-up card with the butter panel, names as "First L." and counts.
+      await useColorScheme(yes.page, scheme);
+      await yes.page.goto('/dashboard');
+      await expect(yes.page.getByRole('group', { name: "Who's coming" })).toBeVisible();
+      await expectNoA11yViolations(yes.page, `a member's dashboard (${scheme})`);
+
+      // The same page on a phone: rows stacked, the roster cut to its first names.
+      await host.page.setViewportSize({ width: 390, height: 844 });
+      await host.page.goto('/dashboard');
+      await expect(host.page.getByRole('heading', { name: 'Upcoming' })).toBeVisible();
+      await expectNoA11yViolations(host.page, `dashboard at phone width (${scheme})`);
     });
 
     test('the brunch detail page, as host and as invitee, in every state', async ({
@@ -87,6 +101,27 @@ for (const scheme of COLOR_SCHEMES) {
       await maybe.page.goto(detail);
       await expect(maybe.page.getByText('Current: maybe')).toBeVisible();
       await expectNoA11yViolations(maybe.page, `detail, invitee who said maybe (${scheme})`);
+
+      // the same page at phone width: rows, helper lines and chips as a phone shows them
+      await maybe.page.setViewportSize({ width: 390, height: 844 });
+      await maybe.page.goto(detail);
+      await expect(maybe.page.getByText('Current: maybe')).toBeVisible();
+      await expectNoA11yViolations(maybe.page, `detail, invitee, phone width (${scheme})`);
+
+      // someone who said no can see the ballot but not vote on it
+      const declined = await makeActor('declined');
+      await useColorScheme(declined.page, scheme);
+      await addAttendee({
+        brunchId: voting.brunchId,
+        host: host.user,
+        user: declined.user,
+        response: 'no',
+      });
+      await declined.page.goto(detail);
+      await expect(
+        declined.page.getByText('Your RSVP does not allow voting.').first(),
+      ).toBeVisible();
+      await expectNoA11yViolations(declined.page, `detail, invitee who cannot vote (${scheme})`);
 
       await closeVoting({ brunchId: voting.brunchId, host: host.user });
       await yes.page.goto(detail);
@@ -161,7 +196,7 @@ for (const scheme of COLOR_SCHEMES) {
       await useColorScheme(stranger.page, scheme);
       const brunchId = await createBrunch({ host: host.user, title: 'Not For Strangers' });
       await stranger.page.goto(`/brunch/${brunchId}`);
-      await expect(stranger.page.getByText('This page could not be found.')).toBeVisible();
+      await expect(stranger.page.getByText(NOT_FOUND)).toBeVisible();
       await expectNoA11yViolations(stranger.page, `not found (${scheme})`);
     });
 
@@ -232,7 +267,7 @@ test.describe('the app shell', () => {
     await expect(host.page.getByRole('button', { name: 'Sign out' })).toBeVisible();
   });
 
-  test('the landing page has one action: Sign in when signed out, Go to dashboard when signed in', async ({
+  test('the landing page: Sign in (and Round up the crew) when signed out, Go to dashboard when signed in', async ({
     page,
     makeActor,
   }) => {
@@ -255,7 +290,7 @@ test.describe('the app shell', () => {
     await wizard.open();
     const progress = host.page.getByRole('progressbar', { name: 'Brunch planning progress' });
     await expect(progress).toHaveAttribute('aria-valuenow', '1');
-    await expect(progress).toHaveAttribute('aria-valuetext', 'Step 1 of 4: What');
+    await expect(progress).toHaveAttribute('aria-valuetext', 'Step 1 of 4: Title');
 
     await host.page.getByLabel('Title').fill('Progress Brunch');
     await wizard.next();

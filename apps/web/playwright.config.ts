@@ -51,6 +51,10 @@ export default defineConfig({
         '**/invitations-invitee.spec.ts',
         '**/voting.spec.ts',
         '**/confirm.spec.ts',
+        '**/design-fidelity.spec.ts',
+        '**/brunch-page.spec.ts',
+        '**/wizard-page.spec.ts',
+        '**/front-door.spec.ts',
       ],
     },
   ],
@@ -84,6 +88,12 @@ export default defineConfig({
         INNGEST_SIGNING_KEY: '',
         INNGEST_DEV: E2E_INNGEST_URL,
         EMAIL_OUTBOX_DIR: E2E_OUTBOX_DIR,
+        // The server runs in UTC, as Vercel does, while the browser context below is America/Chicago:
+        // anything the server renders in its own zone differs from what the browser renders, which
+        // React reports as a hydration mismatch and answers by rebuilding the page, wiping what a
+        // person typed early (journey H8). On a developer machine in the browser's own zone that
+        // never showed; this makes every run, locally and in CI, the way production is.
+        TZ: 'UTC',
       },
     },
     {

@@ -36,7 +36,11 @@ test.describe('multi-actor fixtures', () => {
 
     await expect(host.page.getByText(host.user.name)).toBeVisible();
     await expect(guest.page.getByText(guest.user.name)).toBeVisible();
-    await expect(host.page.getByText(guest.user.name)).toHaveCount(0);
+    // Separate sessions: each browser's account area is its own person. (The host does see the
+    // guest in the brunch's roster, by design, so this checks the account area, not the page.)
+    const hostAccount = host.page.getByRole('navigation', { name: 'Account' });
+    await expect(hostAccount).toContainText(host.user.name);
+    await expect(hostAccount).not.toContainText(guest.user.name);
     // The invite went through the real services: active brunch, both people going.
     await expect(guest.page.getByRole('link', { name: 'Two Identity Brunch' })).toBeVisible();
     await expect(guest.page.getByText('2 going')).toBeVisible();

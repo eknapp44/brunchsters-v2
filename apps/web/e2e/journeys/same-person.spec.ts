@@ -1,3 +1,4 @@
+import { GONE_COLD } from '../support/pages';
 import { normalizeEmail } from '@brunchsters/shared';
 import { getDb } from '../support/db';
 import { createBrunch, getInviteToken, uniqueSuffix } from '../support/factories';
@@ -29,7 +30,7 @@ test.describe('I7 — one address, one person', () => {
     const brunchId = await createBrunch({ host: host.user, title });
     const invite = async (typed: string): Promise<void> => {
       await host.page.getByLabel('Invite more people').fill(typed);
-      await host.page.getByRole('button', { name: 'Send Invite' }).click();
+      await host.page.getByRole('button', { name: 'Round up the crew' }).click();
       await expect(host.page.getByLabel('Invite more people')).toHaveValue('');
     };
 
@@ -53,9 +54,9 @@ test.describe('I7 — one address, one person', () => {
 
     // One link works; the superseded one does not.
     await page.goto(inviteLink(firstToken));
-    await expect(page.getByRole('heading', { name: 'Invite not found' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: GONE_COLD })).toBeVisible();
     await page.goto(inviteLink(await getInviteToken({ brunchId, email: address })));
-    await expect(page.getByRole('heading', { name: `You're invited to ${title}` })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
   });
 
   test('both spellings in one wizard submission are still one invite', async ({ makeActor }) => {
@@ -95,7 +96,7 @@ test.describe('I7 — one address, one person', () => {
     // The host types it in yet another case.
     await host.page.goto(`/brunch/${brunchId}`);
     await host.page.getByLabel('Invite more people').fill(`CAPITAL-${suffix}@example.com`);
-    await host.page.getByRole('button', { name: 'Send Invite' }).click();
+    await host.page.getByRole('button', { name: 'Round up the crew' }).click();
     await expect(inviteRow(host.page, invitee.user.email)).toContainText('pending');
 
     // The invite found the existing account, so the brunch is on their dashboard already,
@@ -123,7 +124,7 @@ test.describe('I7 — one address, one person', () => {
     // The host has already invited this person, in lowercase.
     await host.page.goto(`/brunch/${brunchId}`);
     await host.page.getByLabel('Invite more people').fill(address);
-    await host.page.getByRole('button', { name: 'Send Invite' }).click();
+    await host.page.getByRole('button', { name: 'Round up the crew' }).click();
     await expect(inviteRow(host.page, address)).toContainText('pending');
 
     // The attendee suggests the same person with capitals; a second suggestion in a third

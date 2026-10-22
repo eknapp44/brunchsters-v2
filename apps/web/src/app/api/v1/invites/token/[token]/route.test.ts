@@ -21,6 +21,7 @@ describe('GET /api/v1/invites/token/[token]', () => {
     mockGetInviteByToken.mockResolvedValue({
       brunchTitle: 'Weekend Brunch',
       hostName: 'Alice Host',
+      description: 'Pancakes and mimosas',
       brunchStatusLabel: 'Active',
     });
 
@@ -30,6 +31,7 @@ describe('GET /api/v1/invites/token/[token]', () => {
     expect(await response.json()).toEqual({
       brunchTitle: 'Weekend Brunch',
       hostName: 'Alice Host',
+      description: 'Pancakes and mimosas',
       brunchStatusLabel: 'Active',
     });
   });

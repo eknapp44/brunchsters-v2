@@ -3,9 +3,13 @@
 import { MAX_INVITES_PER_REQUEST } from '@brunchsters/shared';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { Icon } from '@/components/icons/Icon';
 import { PopIcon } from '@/components/icons/PopIcon';
 import { Button } from '@/components/ui/Button';
+import { DateTimeInput } from '@/components/ui/DateTimeInput';
+import { ButtonLink } from '@/components/ui/ButtonLink';
 import { Container } from '@/components/ui/Container';
+import { Eyebrow } from '@/components/ui/Eyebrow';
 import { Field } from '@/components/ui/Field';
 import { InlineAlert } from '@/components/ui/InlineAlert';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -40,34 +44,87 @@ function nowAsDatetimeLocalValue(): string {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
 }
 
+type Step = 1 | 2 | 3 | 4;
+
+// What each step says about itself: the prototype's wording (Brand Voice, Copy Pass), minus its
+// "pick from past brunches", which the app does not have.
+const STEP_COPY: Readonly<
+  Record<Step, { readonly eyebrow: string; readonly title: string; readonly help: string }>
+> = {
+  1: {
+    eyebrow: 'A name everyone will see',
+    title: 'Give it a name',
+    help: 'Keep it casual — "Sunday catch-up" works just fine.',
+  },
+  2: {
+    eyebrow: 'Pick one — or a few to vote on',
+    title: 'Pick a spot',
+    help: "Lock in one place, or toss in a few and we'll put it to a vote.",
+  },
+  3: {
+    eyebrow: 'Same logic — one or several',
+    title: 'Pick a time',
+    help: 'Lock in a time, or float a few and the gang picks.',
+  },
+  4: {
+    eyebrow: 'Last step!',
+    title: 'Round up the crew',
+    help: 'Add them by email. You can invite more from the brunch page once it exists.',
+  },
+};
+
+// The top of a step: where you are, what this step is, and one line of help. It is the step's
+// heading, so each step's section has one.
+function StepHeader(props: { readonly step: Step }) {
+  const copy = STEP_COPY[props.step];
+  return (
+    <div className={styles.stepHeader}>
+      <Eyebrow>
+        Step {props.step} of 4 · {copy.eyebrow}
+      </Eyebrow>
+      <h2 className={styles.stepTitle}>{copy.title}</h2>
+      <p className={styles.stepHelp}>{copy.help}</p>
+    </div>
+  );
+}
+
 function StepOne() {
   const state = useAppSelector(selectWizard);
   const dispatch = useAppDispatch();
   return (
     <section className={styles.step}>
+      <StepHeader step={1} />
       <Field label="Title">
         <input
           type="text"
           value={state.title}
+          placeholder="e.g. Sunday catch-up"
           maxLength={TITLE_MAX_LENGTH}
           onChange={(event) => dispatch(titleChanged(event.target.value))}
         />
       </Field>
-      <Field label="Description">
+      <Field label="Description" optional>
         <textarea
           value={state.description}
+          placeholder="Anything you want guests to know — the vibe, the occasion, dress code…"
           maxLength={DESCRIPTION_MAX_LENGTH}
           onChange={(event) => dispatch(descriptionChanged(event.target.value))}
         />
       </Field>
-      <div className={`${styles.actions} ${styles.actionsEnd}`}>
+      <div className={styles.actions}>
+        {/* the first step has nothing to go back to, so its footer leaves instead */}
+        <ButtonLink href="/dashboard">
+          <Icon name="arrowLeft" size={16} />
+          Cancel
+        </ButtonLink>
         <Button
           type="button"
           variant="primary"
           disabled={state.title.trim().length === 0}
           onClick={() => dispatch(stepChosen(2))}
         >
-          Next
+          Continue
+          <Icon name="arrowRight" size={16} />
         </Button>
       </div>
     </section>
@@ -79,6 +136,7 @@ function StepTwo() {
   const dispatch = useAppDispatch();
   return (
     <section className={styles.step}>
+      <StepHeader step={2} />
       <PlaceSearchInput onSelect={(location) => dispatch(locationAdded(location))} />
 
       {state.locations.length > 0 && (
@@ -110,10 +168,12 @@ function StepTwo() {
 
       <div className={styles.actions}>
         <Button type="button" onClick={() => dispatch(stepChosen(1))}>
+          <Icon name="arrowLeft" size={16} />
           Back
         </Button>
         <Button type="button" variant="primary" onClick={() => dispatch(stepChosen(3))}>
-          Next
+          Continue
+          <Icon name="arrowRight" size={16} />
         </Button>
       </div>
     </section>
@@ -134,9 +194,10 @@ function StepThree() {
 
   return (
     <section className={styles.step}>
+      <StepHeader step={3} />
       <div className={styles.addRow}>
-        <input
-          type="datetime-local"
+        <DateTimeInput
+          placeholderText="Add a time"
           aria-label="Date and time"
           value={timeInput}
           onChange={(event) => setTimeInput(event.target.value)}
@@ -152,7 +213,12 @@ function StepThree() {
             <li key={time}>
               <span className={styles.itemText}>
                 <PopIcon name="clock" size={22} />
-                {new Date(time).toLocaleString()}
+                {/* The list only holds times typed in this browser, never rendered on the server. */}
+                {/* eslint-disable-next-line no-restricted-syntax */}
+                {new Date(time).toLocaleString(undefined, {
+                  dateStyle: 'medium',
+                  timeStyle: 'short',
+                })}
               </span>
               <Button
                 type="button"
@@ -175,8 +241,8 @@ function StepThree() {
 
       {showVotingDeadline && (
         <Field label="Voting closes by">
-          <input
-            type="datetime-local"
+          <DateTimeInput
+            placeholderText="Pick a deadline"
             value={state.votingDeadline}
             min={nowAsDatetimeLocalValue()}
             onChange={(event) => dispatch(votingDeadlineChanged(event.target.value))}
@@ -186,10 +252,12 @@ function StepThree() {
 
       <div className={styles.actions}>
         <Button type="button" onClick={() => dispatch(stepChosen(2))}>
+          <Icon name="arrowLeft" size={16} />
           Back
         </Button>
         <Button type="button" variant="primary" onClick={() => dispatch(stepChosen(4))}>
-          Next
+          Continue
+          <Icon name="arrowRight" size={16} />
         </Button>
       </div>
     </section>
@@ -212,6 +280,7 @@ function StepFour({ onSubmit }: { readonly onSubmit: () => void }) {
 
   return (
     <section className={styles.step}>
+      <StepHeader step={4} />
       <div className={styles.addRow}>
         <input
           type="email"
@@ -262,6 +331,7 @@ function StepFour({ onSubmit }: { readonly onSubmit: () => void }) {
 
       <div className={styles.actions}>
         <Button type="button" onClick={() => dispatch(stepChosen(3))}>
+          <Icon name="arrowLeft" size={16} />
           Back
         </Button>
         <Button type="button" variant="primary" onClick={onSubmit} disabled={submitting}>
@@ -290,7 +360,16 @@ export default function NewBrunchPage() {
 
   return (
     <Container as="main" size="narrow">
-      <h1>Plan a Brunch</h1>
+      <div className={styles.top}>
+        <h1 className={styles.pageTitle}>Plan a Brunch</h1>
+        {/* the footer has a way out too; a phone leaves this one out to save the room */}
+        <span className={styles.topCancel}>
+          <ButtonLink href="/dashboard" variant="ghost" size="sm">
+            <Icon name="close" size={16} />
+            Cancel
+          </ButtonLink>
+        </span>
+      </div>
       <StepIndicator step={step} />
       {step === 1 && <StepOne />}
       {step === 2 && <StepTwo />}

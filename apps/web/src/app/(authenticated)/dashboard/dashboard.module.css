@@ -1,14 +1,25 @@
 .header {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: var(--space-3);
+  gap: var(--space-4);
   margin-bottom: var(--space-5);
 }
 
-.header h1 {
+.greeting {
   margin: 0;
+  font-size: var(--text-2xl);
+}
+
+.wave {
+  font-family: var(--font-sans);
+}
+
+.summary {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-md);
+  color: var(--fg-muted);
 }
 
 .section h2 {
@@ -16,9 +27,12 @@
   margin-bottom: var(--space-3);
 }
 
+.nextUp {
+  margin-bottom: var(--space-2);
+}
+
 .list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
   gap: var(--space-3);
   margin: 0;
   padding: 0;
@@ -29,69 +43,7 @@
   margin: 0;
 }
 
-/* The whole card is the link: the title's link stretches over it, so the accessible name stays
-   the brunch title while the target is the full card. */
-.title {
-  color: var(--fg);
-  font-family: var(--font-display);
-  font-variation-settings: var(--display-variation);
-  font-size: var(--text-lg);
-  font-weight: 500;
-  text-decoration: none;
-}
-
-.title::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: var(--r-3);
-}
-
-.title:focus-visible {
-  outline: none;
-}
-
-.title:focus-visible::after {
-  outline: 3px solid var(--accent-strong);
-  outline-offset: 2px;
-}
-
-.list > li > div {
-  transition:
-    border-color var(--duration-base) var(--ease),
-    box-shadow var(--duration-base) var(--ease);
-}
-
-.list > li:hover > div {
-  border-color: var(--fg-subtle);
-  box-shadow: var(--shadow-md);
-}
-
-.top {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-2);
-  margin-bottom: var(--space-3);
-}
-
-.role {
-  font-size: var(--text-sm);
-  color: var(--fg-muted);
-}
-
-.meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.going {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: var(--text-sm);
+.muted {
   color: var(--fg-muted);
 }
 
@@ -110,12 +62,47 @@
   box-shadow: var(--shadow-md);
 }
 
+.empty h2 {
+  margin: 0;
+  font-size: var(--text-2xl);
+}
+
 .empty p {
   margin: 0;
   font-size: var(--text-md);
   color: var(--fg-muted);
 }
 
-.muted {
+.steps {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3) var(--space-5);
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
   color: var(--fg-muted);
+}
+
+.step {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.stepNumber {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  font-weight: 700;
+  color: var(--accent-soft-fg);
+  background: var(--accent-soft);
+  border-radius: 50%;
+}
+
+@media (min-width: 40rem) {
+  .greeting {
+    font-size: var(--text-3xl);
+  }
 }

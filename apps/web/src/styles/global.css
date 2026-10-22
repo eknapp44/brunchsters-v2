@@ -21,7 +21,11 @@ body {
   font-size: var(--text-base);
   line-height: var(--leading-body);
   color: var(--fg);
-  background: var(--bg);
+  /* the warm wash: two soft glows at the top of the page fading into the page color */
+  background:
+    radial-gradient(70rem 28rem at 15% -8%, var(--wash-a), transparent 62%),
+    radial-gradient(52rem 26rem at 100% 0, var(--wash-b), transparent 58%), var(--bg);
+  background-repeat: no-repeat;
   -webkit-font-smoothing: antialiased;
 }
 

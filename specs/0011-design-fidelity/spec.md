@@ -1,0 +1,242 @@
+# Spec 0011 — Design Fidelity
+
+**Status:** Complete (M1 to M7 done 2026-10-22; owner signed off the boards after each milestone; see "Outcome")  
+**Branch:** `feat/0011-design-fidelity`  
+**PLANNING.md ref:** §1 design principles, §16 Build Order #9 (UI) and the roadmap, §17 (RSVP visibility, new deferrals)  
+**ADRs:** [0012 — Design fidelity: compositions, voice, and where presentation rules live](../../docs/adrs/0012-design-fidelity-and-presentation-rules.md)  
+**Builds on:** [spec 0009](../0009-styling-foundation/spec.md) (the foundation; its "Outcome" says this spec exists) and [spec 0010](../0010-redux-ui-state/spec.md) (the store; nothing here changes it)
+
+> **Roadmap (revised 2026-10-21).** Design fidelity (this spec) → **brunch lifecycle** (cancel, archive, delete) → **feedback surfaces** (shared mutation slice, toasts, real server errors) → **notifications** → **deployment** (cloud private beta, last; the owner reviews on a real phone then, and on phone-width boards until then). Later specs are named, not numbered. Every milestone here is deployable.
+
+---
+
+## What
+
+Bring the built screens closer to the owner's Claude Design prototype: its **compositions**, its **copy and tone** (`design-docs/Brand Voice.html`, `Copy Pass.html`), and the small **read-only data** a few compositions need. The owner's own design choices are kept where they prefer them: the dark palette, the two-column desktop layout, and the lighter voting rows.
+
+**No state-logic change.** No new mutation, route, schema change or permission, and the Redux store is untouched. The feedback-surfaces spec is next.
+
+### How the decisions were made
+
+Per screen and per element the owner chose **adopt / keep ours / blend**, with the prototype's boards (`compare-*.png`, Oct 19, since replaced by `pnpm --filter @brunchsters/web boards`; the app's UI has not changed visually since, only Redux refactors) and then **mockups of the outcome** (light, dark, desktop, phone) in front of them. The decisions are in the tables below; `mockups/build.mjs` regenerates the mockups, and the milestone that builds each screen reproduces them as real boards.
+
+### Grounded in the current code (verified 2026-10-21)
+
+- `BrunchSummary` (`getBrunchesForUser.ts`) carries id, title, status, `isHost`, `goingCount`, `createdAt`. No date, place, description, deadline or "vote waiting".
+- `BrunchDetail` (`getBrunchById.ts`) has no host name and no confirmed date or place; the confirmed ones are the `isConfirmed` options inside `getBrunchVoting`. `votingDeadline` is there.
+- `getInvitesForBrunch` returns **emails**, not names. Every `BrunchAttendee` has a `userId` and `User.name` is required, so everyone who has accepted has a name; only people who have not responded are just an email. (An earlier note that attendees could lack names was wrong.)
+- The host already sees voter names on vote counts (`voters`, host only). A roster is not a new kind of exposure for the host.
+- Ballots take a **list** of option ids (`optionIds`, minimum 1), so the prototype's radio-style "Pick your one" would be a rule change. Checkboxes stay.
+- **Opening an invite link while signed in RSVPs "yes" at once** (`app/invite/[token]/page.tsx` calls `respondToInvite` with `yes`, then redirects). The "You in?" card therefore opens with "I'm in" selected. Existing behavior (spec 0004); the copy has to work with it. See Open Questions.
+- **Sign-out has no screen.** It is a server action that redirects to `/` (`app/layout.tsx`), and `/` is a "Coming soon." placeholder. The landing page is the sign-out destination and the beta's front door.
+- **There is no `not-found.tsx` or `error.tsx`.** Every outsider gets Next's default 404, which is the page the 404-vs-403 rule leans on.
+- Statuses seeded: `draft`, `active`, `confirmed`, `completed`, `cancelled`. Nothing produces the last two (no scheduler), so a confirmed brunch is "Upcoming" forever; harmless without dates, wrong once date tiles show.
+- The dashboard journeys count `listitem`s (C4), so the next-up card's roster cannot be a list, and the next-up brunch is not repeated in the Upcoming list.
+- `Avatar` already falls back to initials; callers pass the Google photo today, in the nav only.
+- Both existing emails (`inviteEmail.ts`, `confirmedEmail.ts`) are plain strings; `safeSubject` only strips control characters, so an emoji in a subject is fine.
+- Design v3's canvas renders (144 artboards) once `design-canvas.jsx` and `tweaks-panel.jsx` sit next to the HTML (they were added under `prototype/components/`; the board script copies them into a scratch folder, so the reference files are untouched).
+
+### Principles
+
+1. **Presentation only, and the rules behind it live in `packages/core`.** "Leading", "vote waiting", "next up", "past" and the roster are pure, unit-tested functions; components format and draw (ADR 0012).
+2. **A deliberate journey edit is a feature of this spec, not a surprise.** Each milestone lists the journeys and accessible names it changes; none changes silently. The exact-text rule for "Active", "Draft" and "Confirmed" holds on the brunch page.
+3. **Phone leaves things out.** Phone-width screens drop repetition and secondary lines instead of squeezing them (see "Phone rules"); nothing hidden is the only way to learn something.
+4. **Accessibility overrides the drawing.** Emoji and bars are decorative; names stay words; new color pairs go through `tokenContrast.test.ts` in both palettes.
+5. **Every milestone ends with a board** (prototype vs app, light and dark, desktop and phone) and the owner's review. Green checks prove it works; only the owner can say it is right.
+
+---
+
+## Decisions by screen
+
+### Dashboard
+
+| Element                   | Choice                                | What                                                                                                                                                                                                                                                                                                                 |
+| ------------------------- | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Greeting and date eyebrow | Adopt (time-aware, client-side)       | "Morning/Afternoon/Evening, Evan 👋" and "Tuesday, October 21", from the browser clock; neutral "Hey, Evan 👋" and no eyebrow on the server snapshot. Morning 05–12, afternoon 12–17, evening 17–22, otherwise "Hey".                                                                                                |
+| Summary line              | Adopt, with `votesWaiting`            | "You've got 2 brunches coming up and [＋ 1 vote waiting] on you." A brunch is _waiting_ when its voting is open, the viewer can vote, and on at least one open group-vote list they have cast no vote (host included). Counts brunches, not ballots.                                                                 |
+| `Dashboard` h1            | Replaced by the greeting              | Edits the journeys that wait on `heading "Dashboard"`.                                                                                                                                                                                                                                                               |
+| Next-up card              | Adopt, two panels                     | Left: status pill, "In 7 days" chip, serif title, date, place, "N going", **Open →**. Right (butter): **Who's coming** with names under the visibility rule. **Share link** dropped (no backend; links are per invite).                                                                                              |
+| Which brunch is next up   | Soonest confirmed, else newest active | Ties: newest created. Drafts, past and cancelled never. Not repeated in Upcoming.                                                                                                                                                                                                                                    |
+| Upcoming list             | Adopt rows with date tiles            | Full-width rows: date tile (`NOV 8`, or `TBD`), title with `(Host)`, one line (description if present, else place when confirmed, else "closes Thu" when voting, else "Not set yet"), status pill and "N going". Our card grid is replaced. If the next-up card is the only upcoming brunch, the section is omitted. |
+| Status pill wording       | Copy Pass, as a display mapping       | `active` → "Open for votes", `draft` → "In the works", `confirmed` → "Confirmed"; Past rows keep the status lookup labels. The brunch page's badge keeps the lookup label (about 37 journey lines mention those labels). Unifying is an Open Question.                                                               |
+| Past                      | Keep our section, new rows            | Same rows, muted. A **confirmed brunch whose time has passed is Past** (derived at read time).                                                                                                                                                                                                                       |
+| Empty state               | Adopt                                 | "The table's set. Now invite some people." sub-line, **Plan a Brunch** (name kept), a static 3-step strip (name it, pick spots and times, round up the crew). The prototype's join-by-link tile is dropped (no backend).                                                                                             |
+| Top bar                   | Keep ours, polish                     | Avatar (initials), name, Sign out. On phone: initials and Sign out only; the name stays in the accessibility tree, visually hidden. No avatar menu (it would be the app's first popover).                                                                                                                            |
+| Option counts in rows     | Not adopted                           | "3 options · 3 places proposed" would add two more fields for little value.                                                                                                                                                                                                                                          |
+
+### Brunch page (host and invitee)
+
+| Element                 | Choice                              | What                                                                                                                                                                                                                                                                                                                |
+| ----------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Header                  | Adopt, with `hostName`              | Invitee: avatar and "**Sam Liu** wants you at brunch". Host: "You're hosting" pill. Serif title, description as the subtitle. The status badge keeps its exact text; a separate "Votes coming in · closes in 1d 4h" chip sits beside it (coarse, rendered on the server, refreshes with the page).                  |
+| RSVP                    | Adopt, big card                     | Heading **You in?**, three equal buttons **🙌 I'm in / 🤔 Maybe / 😬 Can't** (owner's choice of emoji; they are `aria-hidden`, so the names are "I'm in", "Maybe", "Can't"). Opens with "I'm in" selected when the link already counted as yes.                                                                     |
+| Voting rows             | Keep ours (checkboxes, count badge) | Plus a **quiet butter bar** behind each row, proportional to the top option, and a **leading** tag on the single top option (ties and zero votes: none). The bar is decorative (`aria-hidden`), so the count badge stays the information. The tint is quieter than a selected row, which keeps its border and tick. |
+| Where / When            | Adopt cards per list                | "Where to?" and "When?" cards with a header chip; once confirmed, the card leads with the winner in serif and a **Locked in** pill. Subline: "Pick any you like — change it anytime before voting closes." (not "Pick your one"). **Add to calendar** is out (no backend).                                          |
+| Who's coming            | Adopt, with the roster              | Host: full names and states, plus invited-but-silent people as their email, **Hasn't said yet**. Other members: `First L.` for yes and maybe, "You" for themselves, and counts for "can't" and "hasn't said yet". Outsiders: nothing (404).                                                                         |
+| Confirmed state         | Adopt                               | A **Brunch on. 💕** banner above the Locked-in cards; the "Confirmed" badge keeps its exact text.                                                                                                                                                                                                                   |
+| Suggest / invite panels | Keep ours, restyled                 | Right column below Who's coming. The host's invite button reads **Round up the crew →** where it currently reads "Send Invite" (see the copy table).                                                                                                                                                                |
+| Phone order             | Reorder and thin                    | RSVP, then Where, When, Who's coming, Suggest. Collapsing is not added; it is decided after a real-phone review.                                                                                                                                                                                                    |
+
+### Creation wizard
+
+Adopt fully: a step eyebrow ("Step 1 of 4 · a name everyone will see"), a big per-step heading and helper text ("Give it a name", "Pick a spot", "Pick a time", "Round up the crew"), a **Cancel** at the top (leaves without saving) and a **Back / Continue** footer on each step (the top Cancel is hidden on phone, where the footer has one), step names Title / Where / When / Who, and larger step icons on phone (48px). "Plan a Brunch" stays the page's h1, visually quieter (the page object waits on it). The last button keeps "Create Brunch" (the Copy Pass has no line for it).
+
+### Front door and edges (decided with the owner at the M5 boards, 2026-10-21)
+
+| Screen                                      | Choice                               | What                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ------------------------------------------- | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Landing (`/`)                               | Adopt: hero, how it works, footer    | Eyebrow "For groups who keep saying 'we should brunch'", h1 "Your friends are hungry. Probably. 🥂", the sub-line, the breakfast scene; primary **Round up the crew** (to sign-in) and **See how →**; a footnote "No app to download. Already in? **Sign in**" (the one "Sign in" link); then "Three taps. Brunch on. 💕" with three truthful cards (pick a spot or a few, round up the crew by link or email, show up: we handle the voting deadline and tell everyone when it is locked in); a footer with only © and the tagline. A signed-in visitor's primary link is **Go to dashboard**. |
+| Not said on the landing page                | Dropped from the prototype's copy    | Apple, plus-ones, dietary notes, reminders, "free", and Privacy/Terms links: none of it exists yet. They come back with the feature (or the deployment spec's pages).                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| Sign-in (`/sign-in`)                        | Adopt the welcome composition        | "Welcome" eyebrow, h1 **Your friends are hungry. Probably.**, a sub-line, the button keeping its exact name **Sign in with Google**, and "We never post for you. Promise." Replaces the h1 "Sign in to Brunchsters" (3 journey lookups edited).                                                                                                                                                                                                                                                                                                                                                 |
+| Invite preview (`/invite/…`)                | Adopt the card, with the description | Host initials, "{Host} wants you at brunch 🥂", the title as the h1 in serif, the description as a quote (it is already in the invite email), "Sign in to RSVP and vote. Takes a second.", and **Sign in with Google**. No date, places or head count (Constitution 29: the preview stays minimal). One read-only field, `description`, is added to `getInviteByToken`.                                                                                                                                                                                                                         |
+| 404 (`not-found.tsx`)                       | Playful, identical for every case    | h1 **This table's empty.**, one line, and **Back home**. It never says "brunch" or "private", so it reveals nothing.                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| Error (`error.tsx`)                         | Playful                              | h1 **Cracked the egg.**, "Something went wrong on our end. Try again?", **Try again** (the framework's reset) and **Back home**.                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| Invalid invite, and one that cannot be used | Playful                              | h1 **That invite's gone cold.** with "It may have expired. Ask whoever sent it to send a new one." The same words for expired, revoked and unknown tokens, as today.                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| Manage page                                 | Rename two buttons and the banner    | **Close voting now** → **Call it**, **Confirm brunch** → **Lock it in**, and the nudge reads "Most of the crew has voted — call it now if you're ready." Headings, "Save deadline" and the rest stay. About 30 journey locators in 8 files are renamed together.                                                                                                                                                                                                                                                                                                                                |
+
+M5 starts from these boards (`boards/landing-*`, `boards/sign-in-*`, `boards/invite-preview-*`; the 404, error and manage page have no prototype scene).
+
+### Emails (copy only, M6, can be cut)
+
+The invite and confirmation emails get the voice (the Brand Voice invite email is the model). Layout, delivery and events are untouched.
+
+### Phone rules
+
+Hide on phone, never the only source of a fact: the "N brunches" count, the helper line under Where/When, the repeated "closes in…" chip on each card, the top bar's name (visually only), the top Cancel in the wizard. The next-up roster shows three names plus "+N more". Upcoming rows are vertical (tile left; title; one line; pill and count). The approved mockups are regenerable from `specs/0011-design-fidelity/mockups/build.mjs`.
+
+---
+
+## User flows
+
+1. **Anyone opens the dashboard.** They see a greeting, a summary line, the next-up card when they have an upcoming brunch (with who's coming under the visibility rule), then their other upcoming brunches as date-tile rows, then Past. With none, the empty state.
+2. **An invitee opens the brunch page.** They see who invited them, the status and deadline, the "You in?" card, the Where and When cards with bars and the leading option, and who's coming. They pick as many options as they like.
+3. **A host opens the brunch page.** Same, plus the full roster (with emails for people who have not responded) and the invite panel.
+4. **A host confirms the brunch.** The page shows "Brunch on. 💕" and the Locked-in cards.
+5. **A friend follows an invite link.** They see the invite preview, sign in, land on the brunch page with "I'm in" selected.
+6. **A stranger or outsider follows a brunch link.** The branded 404, with the same text whether or not the brunch exists.
+7. **Someone signs out.** They land on the real landing page.
+
+---
+
+## Acceptance Criteria
+
+### Tooling and shared look (M1)
+
+- [x] `pnpm --filter @brunchsters/web boards` photographs the prototype scenes and writes side-by-side boards with the app's screenshots, light and dark, desktop and phone (the prototype's phone scenes draw in its own `ios-frame.jsx` frame; the prototype's dark theme is a `data-theme="dark"` attribute, not the operating-system setting, so the script sets it for the dark boards); it serves from a scratch copy so `prototype/` and `design-docs/` are never edited, and stops its server when it ends. The Design v3 canvas is placed in the scratch copy but not photographed yet (nothing needs its artboards until M5)
+- [x] The warm page wash (`--wash-a`, `--wash-b`) and the vote-bar tint (`--bar`) are tokens with dark values; the butter panel is the existing `--accent-soft` (`Card tone="accent"`) and the avatar colors are the existing `--pop-*` family, so no duplicate tokens; every pair that carries text is in `tokenContrast.test.ts` (initials are held to the 4.5:1 text ratio); `styleGuard.test.ts` still passes
+- [x] New primitives in `components/ui/`: `Eyebrow`, `DateTile`, `InitialsAvatar` (deterministic color from a seed, no image path); `Badge` gains an optional decorative icon (it is the "Pill"); the nav avatar is initials too
+- [x] Phone top bar: initials and Sign out, name visually hidden but still announced (the hiding already existed from spec 0009; M1 made the avatar initials)
+
+### Schema
+
+- [x] No schema or migration change.
+
+### Services (`packages/core`, `packages/shared`)
+
+- [x] `@brunchsters/shared`: `formatPersonName` (`First L.`; single names and trailing spaces handled; host sees the full name) and `initialsOf` and `avatarColorIndex` shared by the web `InitialsAvatar` and the roster
+- [x] `getBrunchesForUser` also returns `description`, the confirmed `scheduledAt` with its place name and timezone, `votingDeadline`, `votingClosed` and `votesWaiting`, in one query (no per-brunch round trips)
+- [x] Pure, unit-tested rules: `isVoteWaiting`, `pickNextUp` (ties by newest created), `isPastBrunch` (confirmed and its time has passed, or completed or cancelled) and `groupDashboard` and `leadingOptionId` (single top option only) are done (M2 and M3)
+- [x] `getBrunchRoster({ brunchId, viewerId })` returns `undefined` unless the viewer is the host or a live attendee (membership first, via `isBrunchMember`); host view: every attendee by full name and state, plus un-accepted invites as email; other members: `First L.` for yes and maybe, "You" for the viewer, counts for no and not-yet; soft-deleted attendees excluded; integration tests against the local database, including an outsider case indistinguishable from a made-up id
+- [x] `getBrunchById` also returns `hostName` (members only, same row)
+
+### API routes
+
+- [x] No new route. The roster is a service called from Server Components; the API-authorization e2e test needs a case only for a new brunch-scoped _endpoint_, so the 404 case lives in the roster's integration test and in the page-level journey (P5)
+
+### UI (dashboard, brunch page, wizard, front door)
+
+- [x] Each screen above matches its "Decisions" table, light and dark, desktop and phone, and passes axe (D2), layout (D3) and, where it adds a main path, keyboard and motion (D4)
+- [x] The next-up roster uses no `listitem`s; the next-up brunch is not repeated in Upcoming; the Upcoming rows are the page's only `listitem`s
+- [x] The greeting renders neutral on the server and time-aware on the client without a hydration warning (`useSyncExternalStore` with a server snapshot), and the heading is announced once
+- [x] A display mapping turns status codes into Copy Pass wording on the dashboard, with a test that fails when a seeded status code has no entry; the brunch page badge keeps the lookup label
+- [x] Emoji are `aria-hidden` everywhere; the RSVP names are "I'm in", "Maybe", "Can't"
+- [x] `not-found.tsx` and `error.tsx` exist, use the tokens and voice, and the 404 text is identical for every case; `error.tsx` offers the framework's retry
+- [x] The landing page replaces "Coming soon."; sign-out lands on it
+- [x] The invite and confirmation emails carry the voice; layout and events unchanged (M6, may be cut)
+
+### Docs (adoption, not tacked on)
+
+- [x] `apps/web/CLAUDE.md` (the three sections are written in M1; the accessible-names list is filled as each milestone changes names): new "Voice and copy" (the rules, the copy table pointer, emoji dial, the display mapping), "Phone" (the omissions rule) and "Derived presentation rules live in core" sections; the accessible-names section lists the names this spec changed
+- [x] `PLANNING.md` §17: RSVP visibility reworded (ADR 0012); deferrals added (below); §16 roadmap marks this spec
+- [x] `specs/0009-styling-foundation/spec.md` "Outcome" points to this spec and ADR 0012
+- [x] `docs/SETUP.md`: the `boards` command
+- [x] The `/spec-grill` skill asks about phone behavior and voice for any new screen
+
+---
+
+## E2E Journeys
+
+Existing journeys that change are edited in the same commit as their screen (named per milestone in `tasks.md`). New journeys:
+
+| ID  | Who                                      | Asserted                                                                                                                                                                                            | Milestone |
+| --- | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| P1  | one signed-in person                     | the greeting is time-aware: with the browser clock set to morning, afternoon, evening and late night it reads Morning, Afternoon, Evening and Hey; the date eyebrow matches the browser's date      | M2        |
+| P2  | host, a "yes", a "maybe", a "no"         | next-up card: soonest confirmed wins over a newer active one; host sees full names; the "yes" sees `First L.` for yes and maybe and only a count for the "no"; the card is not repeated in Upcoming | M2        |
+| P3  | host and invitee                         | "vote waiting" shows for an invitee who has not voted, clears after they vote, never shows for a closed or confirmed brunch; the host counts                                                        | M2        |
+| P4  | host and a guest                         | a confirmed brunch whose time has passed leaves the next-up card and is a row under Past for both, still labelled "Confirmed"; the dashboard says nothing is upcoming                               | M2        |
+| P5  | host, member, outsider                   | brunch-page roster by viewer (full names and emails for the host; `First L.` and counts for a member); an outsider and a made-up id get the identical 404 text                                      | M3        |
+| P6  | invitee                                  | RSVP card: choose I'm in / Maybe / Can't; a failed save keeps the card and shows the error (edits `failure-paths`); the **leading** tag sits on the single top option and disappears on a tie       | M3        |
+| P7  | host and invitee                         | confirmed: "Brunch on. 💕" banner, Locked in cards, the serif winner, for both people                                                                                                               | M3        |
+| P8  | host                                     | wizard: top Cancel leaves without saving (nothing created), Back keeps entries, Continue advances, step headings change                                                                             | M4        |
+| P9  | outsider, signed-out                     | the branded 404 text is identical for a real brunch the viewer cannot see, a made-up id and a malformed id; the landing page's sign-in link works and sign-out returns to it                        | M5        |
+| P10 | friend with an invite link               | invite preview copy and the invalid-invite message (existing C-journeys edited)                                                                                                                     | M5        |
+| P11 | host and invitee on the `mobile` project | the dashboard and the invitee page at phone width: vertical rows, initials-only bar, no sideways scroll, the main action on screen                                                                  | M2, M3    |
+
+The derived "past" rule has journey **P4** (M2): a confirmed brunch whose time has passed moves from the next-up card to Past for the host and a guest, still labelled "Confirmed". It reaches that state the way `passVotingDeadline` reaches a passed deadline (`passConfirmedTime` in `e2e/support/voting.ts` writes the database directly, as a test-side exception; the production code has no seam). Not covered by an e2e journey, and why: `error.tsx` (no way to cause a render error without a production seam).
+
+---
+
+## Outcome
+
+Shipped on `feat/0011-design-fidelity` in seven milestones, each committed green and reviewed on phone-width and desktop boards by the owner before the next began.
+
+**What shipped.** The dashboard (greeting, next-up card, date-tile rows, empty state), the brunch page (host line, "You in?" card, quiet vote bars with a leading tag, "Who's coming" roster, confirmed banner), the creation wizard (step headings, Back/Continue footer), the front door and edges (landing, sign-in, invite preview, a single 404, an error page, "Call it" and "Lock it in" on the manage page) and the two emails, all in the Brand Voice, on initials avatars, in light and dark, desktop and phone. The rules behind them are pure functions in `packages/core` with tests (`isVoteWaiting`, `pickNextUp`, `isPastBrunch`, `groupDashboard`, `leadingOptionId`, `getBrunchRoster`), and a dev script (`pnpm db:clear-brunches`) clears local test brunches. Checks at the end of M7: core 485, web 418, shared 19, core integration 113, e2e 183 passed and 2 skipped on the dev server and in CI mode; a stress run (`--workers=2 --repeat-each=3`) 549 passed, 0 failed, 0 flaky.
+
+**After the M7 close-out (owner review, same branch).** Hardening and polish, each its own commit: a member opening the host-only manage page gets a **403** (`forbidden()`; an outsider keeps the 404); `safeCallbackPath` limits the sign-in redirect to a path on this site; security headers (journey S1); `pnpm dev:as` to be several local people at once; the review screenshots sorted into `.screenshots/app/<area>/` and `boards/`; the `ui-screen` and `real-send-check` skills; `MANUAL-TESTS.md`; and polish the owner asked for (spacing and the Back link above the manage title, the wizard progress bar centred on its icons, a place's name over its address on the manage page and in the suggestion panels, a placeholder on date-and-time fields via `DateTimeInput`, no seconds in the wizard's times). Final checks: shared 40, core 485, web 418, core integration 113, e2e 189 passed and 2 skipped (CI mode). New candidates and follow-ups are in `PLANNING.md` §17 ("Security and session follow-ups", "Product candidates raised after spec 0011 closed").
+
+**What changed from the plan.**
+
+- **Names were included** after the first grill (the roster: full names for the host, "First L." and counts for members). That added one read (`getBrunchRoster`) and no schema change.
+- **A passed confirmed brunch moves to Past** (derived at read time): the one observable rule this spec changed; journey P4.
+- **The roadmap changed mid-spec:** a lifecycle spec (cancel, archive, delete) now follows this one, and deployment moved to last.
+- **Journeys changed deliberately** in each milestone (listed in `tasks.md`); new journeys P1 to P11 and H8.
+- **Manage-page copy:** only the two buttons and the nudge line were adopted; the Copy Pass's "Heads up" card needs the leader's margin on the manage page and waits for the lifecycle spec.
+- **The footer** has only the © line and tagline (a second "Sign in" link would make the landing page's one-link journeys ambiguous), and "Free" was dropped from the prototype's footnote.
+
+**What was found.**
+
+- **A hydration race (closing-voting H2, stress run):** a deadline typed before the page hydrated was lost. Fixed with an uncontrolled field; journey H8 proves it.
+- **The review screenshots called "not-found" were not a 404** (an invited-but-silent person is a member and sees the page); they now show a real stranger's 404.
+- **P5 read the 404 before it painted** and failed about one run in four on the phone project; it now waits for the heading.
+- **GitHub's first CI run of the branch** found two things local runs could not. (1) A **hydration mismatch**: client components that are also server-rendered drew times in the runtime's own zone and locale, so on a UTC server and a browser elsewhere the text differed and React rebuilt the page, wiping a deadline typed early (H8 had passed only because the developer's laptop shares the browser's zone, Chicago). Fixed with `LocalDateTime`, a lint rule against `toLocaleString(undefined, …)` in components, and an e2e server that now runs in UTC against a Chicago browser; this also affects real users on Vercel. (2) Two timing assumptions in tests: a fixed 100 ms sleep waiting for a row lock (`closingVoting.integration.test.ts`) and a heading position read the instant the page loaded (P11).
+- **Pre-merge review:** one stale line in `docs/SETUP.md` ("Coming soon."), fixed in its own commit; the `/spec-grill` skill gained the phone and voice prompts. Not changed, recorded: `clearBrunches.ts` lower-cases the address by hand because `@brunchsters/database` does not depend on `@brunchsters/shared` (it is a local-only developer script, and the database `CHECK` constraints hold the rule); a soft-deleted user's attendee row would still appear in a roster, as in every other read, until an account-deletion feature exists.
+
+---
+
+## What This Spec Does Not Cover
+
+Each is recorded in ADR 0012, here, and `PLANNING.md` §17.
+
+- **Settings and profile photos** (Google photo or upload, opt-in, dark mode toggle, edit profile): its own spec.
+- **Collapsible or auto-collapsing phone sections**: decide after a real-phone review on the deployment.
+- **Link-preview images (Open Graph)**, **privacy and terms pages and a footer**, a `theme-color`: deployment-adjacent (need the public URL and copy).
+- **Notifications, inbox, toasts, bell, push prompt, mute, reminders**: the notifications and feedback-surfaces specs. Planned for, not built: the leading and vote-waiting rules are core functions the notifications spec can reuse; the top bar leaves room for a future bell; the Copy Pass's notification strings are kept in `plan.md` for that spec.
+- **Features the prototype draws that do not exist**: cancel and change ("Call it off", "Tweak details"), the tiebreaker, quiet-nudge, running late, plus-ones, dietary notes, mute, past-brunch "do this again", Quick Brunch, share sheet, add to calendar, join-by-link. Their Copy Pass strings wait for their specs.
+- **The invite email's when and where** (the prototype's invite shows the date, the place and "Voting between 3 spots (closes Thu)"): the invite email job reads neither the options nor the deadline, so adding them is a data change, not copy. The notifications spec reshapes these emails and takes it.
+- **Live regions for vote counts** (flagged in `Accessibility Pass.html`): the feedback-surfaces spec.
+- Any change to state logic, routes, or schema; the Redux store. (Permissions: none were planned; the manage page's 403 for a member, the sign-in redirect limit and the security headers were added after the review, see the Outcome.)
+- A visual-regression gate with baselines (the boards are for review).
+
+---
+
+## Open Questions
+
+All resolved or carried (2026-10-22).
+
+1. ~~Primary action label~~ **Resolved (M2 review):** the dashboard's primary action stays **Plan a Brunch**; status wording is a display mapping on the dashboard only.
+2. ~~Derived Past rule~~ **Resolved (M2 review):** adopted; journey P4.
+3. ~~Nav avatar~~ **Resolved (owner):** initials in the nav too; the Google photo is not shown anywhere until the Settings spec.
+4. **Carried to `PLANNING.md` §17 (deferral 4):** auto-"yes" on opening an invite link while signed in.
+5. **Carried to §17 (deferral 5):** unify the dashboard's status wording with the brunch page's lookup label.
+6. ~~Names before "+N more"~~ **Resolved (M2 review):** three on phone, eight on desktop.
+7. ~~The wizard's last button~~ **Resolved:** it stays "Create Brunch".

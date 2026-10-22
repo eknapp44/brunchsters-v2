@@ -9,7 +9,7 @@
 /* The bar runs behind the four icons, from the first to the last. */
 .track {
   position: absolute;
-  top: 1.25rem;
+  top: 1.75rem;
   right: 1.5rem;
   left: 1.5rem;
   height: 0.5rem;
@@ -38,8 +38,8 @@
 .plate {
   display: grid;
   place-items: center;
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 3rem;
+  height: 3rem;
   background: var(--bg);
   border: 1px solid var(--line-soft);
   border-radius: 50%;
@@ -62,4 +62,29 @@
 
 .current .label {
   color: var(--fg);
+}
+
+/* Phone first: the icons are 48px plates so they are easy to read. From 40rem they settle back to
+   the smaller desktop size. */
+.plate svg {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+@media (min-width: 40rem) {
+  /* the 2.5rem plate's centre is 1.75rem down (0.5rem padding + 1.25rem); the 0.5rem bar is
+     centred on it */
+  .track {
+    top: 1.5rem;
+  }
+
+  .plate {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .plate svg {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
 }

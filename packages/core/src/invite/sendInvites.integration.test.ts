@@ -145,6 +145,7 @@ describe('sendInvites integration', () => {
     expect(preview).toEqual({
       brunchTitle: 'Integration Invite Brunch',
       hostName: 'Integration Invite Host',
+      description: undefined,
       brunchStatusLabel: 'Active',
     });
   });

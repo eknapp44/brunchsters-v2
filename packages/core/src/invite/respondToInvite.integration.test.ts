@@ -3,6 +3,7 @@ import { normalizeEmail, type BrunchId, type InviteToken, type UserId } from '@b
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createBrunch } from '../brunch/createBrunch';
 import { NoopEventBus } from '../events/NoopEventBus';
+import { getInviteByToken } from './getInviteByToken';
 import { respondToInvite } from './respondToInvite';
 import { sendInvites } from './sendInvites';
 
@@ -132,6 +133,38 @@ describe('respondToInvite integration', () => {
       include: { rsvpStatus: true },
     });
     expect(attendee.rsvpStatus.code).toBe('no');
+  });
+
+  it('treats the links of a soft-deleted brunch as dead: no preview, no joining', async () => {
+    const deleted = await createBrunch(
+      { title: 'Integration Deleted Brunch', locations: [], times: [], hostId },
+      { db, eventBus },
+    );
+    const deletedId = deleted._unsafeUnwrap().id;
+    createdBrunchIds.push(deletedId);
+    await sendInvites(
+      { brunchId: deletedId, invitedById: hostId, emails: [KNOWN_INVITEE_EMAIL] },
+      { db, eventBus },
+    );
+    const invite = await db.brunchInvite.findFirstOrThrow({
+      where: { brunchId: deletedId, invitedEmail: KNOWN_INVITEE_EMAIL },
+    });
+    const token = invite.token as InviteToken;
+
+    // while the brunch exists, the link works
+    expect(await getInviteByToken(token, { db })).toBeDefined();
+
+    await db.brunch.update({
+      where: { id: deletedId },
+      data: { deletedAt: new Date(), deletedBy: hostId },
+    });
+
+    expect(await getInviteByToken(token, { db })).toBeUndefined();
+    const result = await respondToInvite(
+      { token, viewerId: knownInviteeId, response: 'yes' },
+      { db, eventBus },
+    );
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'invalid_token' });
   });
 
   it('returns invalid_token for a nonexistent token', async () => {

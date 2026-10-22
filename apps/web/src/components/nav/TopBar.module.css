@@ -1,5 +1,6 @@
 .bar {
-  background: var(--bg);
+  /* mostly the page color, so the wash behind the page shows through a little */
+  background: color-mix(in oklab, var(--bg) 80%, transparent);
   border-bottom: 1px solid var(--line-soft);
 }
 
