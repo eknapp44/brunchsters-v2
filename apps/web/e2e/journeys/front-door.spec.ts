@@ -185,7 +185,7 @@ test.describe('P10 — the invite preview', () => {
     await expect(page.getByText(/^[“"]/)).toHaveCount(0);
   });
 
-  test('an invite that cannot be used says so in the same words however it failed', async ({
+  test('an unknown invite token says it has gone cold, with no way to sign in (revoked and expired links: journey I4)', async ({
     page,
   }) => {
     await page.goto('/invite/not-a-real-token');
