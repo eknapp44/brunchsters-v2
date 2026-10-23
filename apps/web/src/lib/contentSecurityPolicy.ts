@@ -45,7 +45,10 @@ export function buildContentSecurityPolicy(params: {
     // (two computed bar widths) have their own allowance, which cannot run script (ADR 0014).
     ['style-src', "'self'", ...(isDevelopment ? ["'unsafe-inline'"] : [`'nonce-${nonce}'`])],
     ['style-src-attr', "'unsafe-inline'"],
-    ['img-src', "'self'", 'data:'],
+    // Avatars are initials, not photos (ADR 0012), and no stylesheet uses a data: URI, so there is
+    // no `data:` here (found unnecessary in the pre-merge review of spec 0012). A photo opt-in will
+    // have to add its origin, deliberately.
+    ['img-src', "'self'"],
     ['font-src', "'self'"],
     ['connect-src', "'self'", ...(isDevelopment ? ['ws:', 'wss:'] : [])],
     ['object-src', "'none'"],

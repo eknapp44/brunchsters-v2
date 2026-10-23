@@ -46,7 +46,8 @@ describe('buildContentSecurityPolicy', () => {
 
   it('keeps everything else on this site', () => {
     expect(directive(production, 'default-src')).toEqual(["'self'"]);
-    expect(directive(production, 'img-src')).toEqual(["'self'", 'data:']);
+    // No data: images: nothing needs them, and an image from a data: URI is a way to smuggle one in.
+    expect(directive(production, 'img-src')).toEqual(["'self'"]);
     expect(directive(production, 'font-src')).toEqual(["'self'"]);
     expect(directive(production, 'object-src')).toEqual(["'none'"]);
     expect(directive(production, 'base-uri')).toEqual(["'self'"]);
