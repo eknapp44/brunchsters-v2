@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatWait, limitedMessage } from './limitedCopy';
+import { formatWait, holdsAllInvites, limitedMessage } from './limitedCopy';
 
 describe('formatWait', () => {
   it.each([
@@ -58,5 +58,25 @@ describe('limitedMessage', () => {
     ].join(' ');
 
     expect(everything).not.toMatch(/rate.?limit|quota|throttl|successfully|we'll|we will/i);
+  });
+});
+
+describe('holdsAllInvites', () => {
+  it('is true for the brunch and host budgets: nothing can be emailed until the window ends', () => {
+    expect(holdsAllInvites('invite-emails-brunch')).toBe(true);
+    expect(holdsAllInvites('invite-emails-host')).toBe(true);
+  });
+
+  it('is false for a single resend cooldown and for everything that is not about invites', () => {
+    for (const policy of [
+      'resend-invite',
+      'place-search',
+      'place-details',
+      'writes',
+      'invite-token',
+      'unknown',
+    ]) {
+      expect(holdsAllInvites(policy)).toBe(false);
+    }
   });
 });

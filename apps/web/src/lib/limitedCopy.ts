@@ -24,15 +24,23 @@ export function formatWait(seconds: number): string {
   return hours <= 1 ? 'about an hour' : `about ${hours} hours`;
 }
 
+// Whether a refusal means no invite email can go out for this brunch or host until the window ends
+// (the day's budget), as opposed to one invite's resend cooldown. Every control that sends mail
+// waits then, not only the one that was pressed.
+export function holdsAllInvites(policy: string): boolean {
+  return (
+    policy === RATE_LIMIT_POLICIES.inviteEmailsPerBrunch.name ||
+    policy === RATE_LIMIT_POLICIES.inviteEmailsPerHost.name
+  );
+}
+
 export function limitedMessage(facts: RateLimitFacts): string {
-  switch (facts.policy) {
-    case RATE_LIMIT_POLICIES.resendPerInvite.name:
-      return `That one just went out. Give it ${formatWait(facts.retryAfterSeconds)}.`;
-    case RATE_LIMIT_POLICIES.inviteEmailsPerBrunch.name:
-    case RATE_LIMIT_POLICIES.inviteEmailsPerHost.name:
-      return `Easy there, that's a lot of invites for one day. Try again in ${formatWait(facts.retryAfterSeconds)}.`;
-    default:
-      // Place search, the write limit, and any policy a later spec adds.
-      return 'Slow down a sec, then try again.';
+  if (facts.policy === RATE_LIMIT_POLICIES.resendPerInvite.name) {
+    return `That one just went out. Give it ${formatWait(facts.retryAfterSeconds)}.`;
   }
+  if (holdsAllInvites(facts.policy)) {
+    return `Easy there, that's a lot of invites for one day. Try again in ${formatWait(facts.retryAfterSeconds)}.`;
+  }
+  // Place search, the write limit, and any policy a later spec adds.
+  return 'Slow down a sec, then try again.';
 }

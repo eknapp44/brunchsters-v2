@@ -47,10 +47,10 @@ export default auth((req) => {
   }
 
   // The policy goes on the request as well: Next reads the nonce from it and stamps the inline
-  // scripts it renders (the page's own data and bootstrap) with it.
+  // scripts it renders (the page's own data and bootstrap) with it. (This Next version also finds
+  // it on the response, so this is belt and braces, as Next's own guide shows it.)
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set(CSP_HEADER_NAME, policy);
-  requestHeaders.set('x-nonce', nonce);
   return withPolicy(NextResponse.next({ request: { headers: requestHeaders } }), policy);
 });
 

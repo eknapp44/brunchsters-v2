@@ -7,8 +7,7 @@ import { Icon } from '@/components/icons/Icon';
 import { Button } from '@/components/ui/Button';
 import { Field } from '@/components/ui/Field';
 import { InlineAlert } from '@/components/ui/InlineAlert';
-import { RATE_LIMIT_POLICIES } from '@brunchsters/shared';
-import { limitedMessage, type RateLimitFacts } from '@/lib/limitedCopy';
+import { holdsAllInvites, limitedMessage, type RateLimitFacts } from '@/lib/limitedCopy';
 import { handoffStorageKey, limitStorageKey } from '@/lib/limitedUntil';
 import { readRateLimit } from '@/lib/readRateLimit';
 import { useLimitedUntil } from '@/lib/useLimitedUntil';
@@ -33,12 +32,6 @@ function badgeToneFor(status: InviteStatus): 'neutral' | 'accent' | 'mint' {
   if (status === 'maybe') return 'accent';
   return 'neutral';
 }
-
-// The policies that hold back every invite email of a brunch or host, not one invite's cooldown.
-const INVITE_BUDGET_POLICIES: ReadonlySet<string> = new Set([
-  RATE_LIMIT_POLICIES.inviteEmailsPerBrunch.name,
-  RATE_LIMIT_POLICIES.inviteEmailsPerHost.name,
-]);
 
 function CopyLinkButton({ token }: { readonly token: string }) {
   const [copied, setCopied] = useState(false);
@@ -87,7 +80,7 @@ function InviteRow({
     const facts = await onResend(invite.id);
     if (facts === undefined) return;
     start(facts);
-    if (INVITE_BUDGET_POLICIES.has(facts.policy)) onBudgetRefused(facts);
+    if (holdsAllInvites(facts.policy)) onBudgetRefused(facts);
   }
 
   return (

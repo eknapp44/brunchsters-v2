@@ -70,6 +70,8 @@ export function useLimitedUntil(
       if (handed !== undefined) {
         writeLimit({ storage, key: storageKey, limit: handed });
         clearLimit({ storage, key: adoptFrom });
+        // Other controls on this page that share the key (they may have mounted before this one).
+        announceLimitChange(storageKey);
       }
     }
     reread();
