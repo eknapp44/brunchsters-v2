@@ -15,6 +15,7 @@ function makeMockDb(
     readonly brunch?: unknown;
     readonly updateMany?: ReturnType<typeof vi.fn>;
     readonly member?: boolean;
+    readonly cancellation?: { cancelledAt: Date | null; cancelNoticeSentAt: Date | null };
   } = {},
 ) {
   const updateMany = overrides.updateMany ?? vi.fn().mockResolvedValue({ count: 1 });
@@ -28,6 +29,8 @@ function makeMockDb(
               hostId: HOST_ID,
               statusId: 'status-x',
               status: { code: overrides.statusCode ?? 'draft' },
+              cancelledAt: overrides.cancellation?.cancelledAt ?? null,
+              cancelNoticeSentAt: overrides.cancellation?.cancelNoticeSentAt ?? null,
             },
       ),
       updateMany,
@@ -41,7 +44,13 @@ function makeMockDb(
 
 describe('deleteBrunch', () => {
   it.each(['draft', 'cancelled'])('soft-deletes a %s brunch', async (statusCode) => {
-    const { db, updateMany } = makeMockDb({ statusCode });
+    const { db, updateMany } = makeMockDb({
+      statusCode,
+      cancellation: {
+        cancelledAt: new Date(NOW.getTime() - 3 * 3_600_000),
+        cancelNoticeSentAt: NOW,
+      },
+    });
 
     const result = await deleteBrunch(input, { db });
 
@@ -49,6 +58,67 @@ describe('deleteBrunch', () => {
     expect(updateMany).toHaveBeenCalledWith({
       where: { id: BRUNCH_ID, statusId: 'status-x', deletedAt: null },
       data: { deletedAt: NOW, deletedBy: HOST_ID },
+    });
+  });
+
+  describe('a called-off brunch whose guests may not have been told yet', () => {
+    const minutesAgo = (minutes: number): Date => new Date(NOW.getTime() - minutes * 60_000);
+    const deleteWith = async (cancellation: {
+      cancelledAt: Date | null;
+      cancelNoticeSentAt: Date | null;
+    }) => {
+      const { db, updateMany } = makeMockDb({ statusCode: 'cancelled', cancellation });
+      return { result: await deleteBrunch(input, { db }), updateMany };
+    };
+
+    it('waits while the notice has not gone out, and deletes nothing', async () => {
+      const { result, updateMany } = await deleteWith({
+        cancelledAt: minutesAgo(1),
+        cancelNoticeSentAt: null,
+      });
+
+      expect(result._unsafeUnwrapErr()).toEqual({ kind: 'notice_pending' });
+      expect(updateMany).not.toHaveBeenCalled();
+    });
+
+    it('still waits just after the hold is over, until the function has run', async () => {
+      const { result } = await deleteWith({ cancelledAt: minutesAgo(6), cancelNoticeSentAt: null });
+
+      expect(result._unsafeUnwrapErr()).toEqual({ kind: 'notice_pending' });
+    });
+
+    it('deletes once the notice has gone out', async () => {
+      const { result, updateMany } = await deleteWith({
+        cancelledAt: minutesAgo(6),
+        cancelNoticeSentAt: minutesAgo(1),
+      });
+
+      expect(result.isOk()).toBe(true);
+      expect(updateMany).toHaveBeenCalled();
+    });
+
+    it('does not trap the host if the notice never goes out: it opens up after a grace period', async () => {
+      const { result } = await deleteWith({
+        cancelledAt: minutesAgo(5 + 61),
+        cancelNoticeSentAt: null,
+      });
+
+      expect(result.isOk()).toBe(true);
+    });
+
+    it('has nothing to wait for when no cancellation moment is recorded', async () => {
+      const { result } = await deleteWith({ cancelledAt: null, cancelNoticeSentAt: null });
+
+      expect(result.isOk()).toBe(true);
+    });
+
+    it('does not apply to a draft, which nobody was ever told about', async () => {
+      const { db } = makeMockDb({
+        statusCode: 'draft',
+        cancellation: { cancelledAt: minutesAgo(1), cancelNoticeSentAt: null },
+      });
+
+      expect((await deleteBrunch(input, { db })).isOk()).toBe(true);
     });
   });
 

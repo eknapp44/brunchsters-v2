@@ -2,6 +2,7 @@ import type { DbClient } from '@brunchsters/database';
 import type { BrunchId, UserId } from '@brunchsters/shared';
 import { err, ok, type Result } from 'neverthrow';
 import { assertHostOf, type AssertHostOfError } from './guards/assertHostOf';
+import { isCancelNoticePending } from './guards/isCancelNoticePending';
 
 // Only a brunch nobody has been told about (a draft) or one that was called off, so people always
 // get the "called off" state before a brunch disappears from their dashboard (ADR 0015).
@@ -18,6 +19,9 @@ export type DeleteBrunchError =
   | AssertHostOfError
   // A live brunch (active or confirmed), or the status changed under the request.
   | { readonly kind: 'not_deletable'; readonly statusCode: string }
+  // Called off a moment ago and the guests have not been told yet: deleting now would leave them
+  // never knowing. Passes by itself once the notice goes out.
+  | { readonly kind: 'notice_pending' }
   | { readonly kind: 'db_error'; readonly cause: unknown };
 
 // The host removes a draft or a called-off brunch (spec 0013, ADR 0015). A soft delete
@@ -41,12 +45,25 @@ export async function deleteBrunch(
     return err({ kind: 'not_deletable', statusCode: brunch.status.code });
   }
 
+  // A called-off brunch can be deleted only once its guests have been told (isCancelNoticePending).
+  const now = input.now ?? new Date();
+  if (
+    isCancelNoticePending({
+      statusCode: brunch.status.code,
+      cancelledAt: brunch.cancelledAt,
+      cancelNoticeSentAt: brunch.cancelNoticeSentAt,
+      now,
+    })
+  ) {
+    return err({ kind: 'notice_pending' });
+  }
+
   try {
     // Conditional on the status read above (a confirm or a bring-back that got there first matches
     // no row), and on not being deleted already.
     const deleted = await ctx.db.brunch.updateMany({
       where: { id: input.brunchId, statusId: brunch.statusId, deletedAt: null },
-      data: { deletedAt: input.now ?? new Date(), deletedBy: input.requestedById },
+      data: { deletedAt: now, deletedBy: input.requestedById },
     });
     if (deleted.count === 0) return err({ kind: 'not_deletable', statusCode: brunch.status.code });
   } catch (cause) {

@@ -15,6 +15,17 @@ export type {
 } from './email/sendInviteEmail';
 export { resolveConfirmationRecipients } from './email/resolveConfirmationRecipients';
 export { sendConfirmationEmail } from './email/sendConfirmationEmail';
+export { sendCancelledEmail } from './email/sendCancelledEmail';
+export { sendBackOnEmail } from './email/sendBackOnEmail';
+export { resolveCancelNotice } from './email/resolveCancelNotice';
+export { resolveBackOnNotice } from './email/resolveBackOnNotice';
+export { markCancelNoticeSent } from './email/markCancelNoticeSent';
+export type {
+  NoticeBrunchSummary,
+  NoticeStopReason,
+  ResolvedNotice,
+  ResolveNoticeError,
+} from './email/noticeTypes';
 export type {
   ConfirmationDestination,
   ConfirmationRecipient,
@@ -75,6 +86,7 @@ export { setBrunchHidden } from './brunch/setBrunchHidden';
 export type { SetBrunchHiddenError, SetBrunchHiddenInput } from './brunch/setBrunchHidden';
 export { limitPast } from './brunch/presentation/limitPast';
 export { assertBrunchOpen } from './brunch/guards/assertBrunchOpen';
+export { isCancelNoticePending } from './brunch/guards/isCancelNoticePending';
 export type { AssertBrunchOpenError } from './brunch/guards/assertBrunchOpen';
 export { assertCanTransition, BRUNCH_TRANSITIONS } from './brunch/guards/brunchTransitions';
 export type { InvalidTransitionError } from './brunch/guards/brunchTransitions';

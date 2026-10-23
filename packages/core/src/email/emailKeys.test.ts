@@ -1,6 +1,12 @@
 import type { BrunchId, InviteId } from '@brunchsters/shared';
 import { describe, expect, it } from 'vitest';
-import { confirmedEmailKey, inviteEmailKey, joinUrl } from './emailKeys';
+import {
+  backOnEmailKey,
+  cancelledEmailKey,
+  confirmedEmailKey,
+  inviteEmailKey,
+  joinUrl,
+} from './emailKeys';
 
 const INVITE_ID = 'invite-1' as InviteId;
 const BRUNCH_ID = 'brunch-1' as BrunchId;
@@ -36,6 +42,41 @@ describe('confirmedEmailKey', () => {
     expect(confirmedEmailKey({ brunchId: BRUNCH_ID, recipientKey: 'invite:i1' })).not.toBe(
       confirmedEmailKey({ brunchId: BRUNCH_ID, recipientKey: 'invite:i2' }),
     );
+  });
+});
+
+describe('cancelledEmailKey and backOnEmailKey', () => {
+  const FIRST = new Date('2026-10-23T12:00:00.000Z');
+  const SECOND = new Date('2026-10-23T12:30:00.000Z');
+
+  it('are per brunch, per cancellation and per recipient', () => {
+    expect(
+      cancelledEmailKey({ brunchId: BRUNCH_ID, cancelledAt: FIRST, recipientKey: 'invite:i1' }),
+    ).toBe(`cancelled:brunch-1:${FIRST.getTime()}:invite:i1`);
+    expect(
+      backOnEmailKey({ brunchId: BRUNCH_ID, cancelledAt: FIRST, recipientKey: 'invite:i1' }),
+    ).toBe(`backon:brunch-1:${FIRST.getTime()}:invite:i1`);
+  });
+
+  it('change with the cancellation, so a second one tells people again', () => {
+    const first = cancelledEmailKey({
+      brunchId: BRUNCH_ID,
+      cancelledAt: FIRST,
+      recipientKey: 'host',
+    });
+    const second = cancelledEmailKey({
+      brunchId: BRUNCH_ID,
+      cancelledAt: SECOND,
+      recipientKey: 'host',
+    });
+
+    expect(first).not.toBe(second);
+  });
+
+  it('keep the called-off and back-on emails apart for the same cancellation and person', () => {
+    const params = { brunchId: BRUNCH_ID, cancelledAt: FIRST, recipientKey: 'invite:i1' };
+
+    expect(cancelledEmailKey(params)).not.toBe(backOnEmailKey(params));
   });
 });
 

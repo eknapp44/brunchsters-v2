@@ -20,6 +20,7 @@ import { suggestInvitee } from '../invite/suggestInvitee';
 import { updateRsvp } from '../invite/updateRsvp';
 import { InMemoryRateLimiter } from '../rateLimit/InMemoryRateLimiter';
 import { castLocationBallot } from './castLocationBallot';
+import { markCancelNoticeSent } from '../email/markCancelNoticeSent';
 import { cancelBrunch } from './cancelBrunch';
 import { confirmBrunch } from './confirmBrunch';
 import { createBrunch } from './createBrunch';
@@ -428,9 +429,14 @@ describe('deleting a brunch (integration — real Postgres)', () => {
     const draft = await setUp({ stage: 'draft' });
     const live = await setUp({ stage: 'confirmed' });
     const off = await setUp({ stage: 'confirmed' });
+    // Called off long enough ago that the guests have long since been told (or the grace is over).
     (
       await cancelBrunch(
-        { brunchId: off.brunchId, requestedById: hostId },
+        {
+          brunchId: off.brunchId,
+          requestedById: hostId,
+          now: new Date(Date.now() - 3 * 3_600_000),
+        },
         { db, eventBus, rateLimiter },
       )
     )._unsafeUnwrap();
@@ -469,7 +475,10 @@ describe('deleting a brunch (integration — real Postgres)', () => {
     );
     const suggestionId = suggested._unsafeUnwrap().suggestionId as InviteSuggestionId;
     (
-      await cancelBrunch({ brunchId, requestedById: hostId }, { db, eventBus, rateLimiter })
+      await cancelBrunch(
+        { brunchId, requestedById: hostId, now: new Date(Date.now() - 3 * 3_600_000) },
+        { db, eventBus, rateLimiter },
+      )
     )._unsafeUnwrap();
     (await deleteBrunch({ brunchId, requestedById: hostId }, { db }))._unsafeUnwrap();
 
@@ -627,6 +636,42 @@ describe('deleting a brunch (integration — real Postgres)', () => {
       const dashboard = await getBrunchesForUser({ userId }, { db });
       expect(dashboard.map((row) => row.id)).not.toContain(brunchId);
     }
+  });
+});
+
+describe('deleting a called-off brunch before its guests were told (integration — real Postgres)', () => {
+  it('waits for the notice, then deletes: nobody is left never knowing it was off', async () => {
+    const { brunchId } = await setUp({ stage: 'confirmed' });
+    (
+      await cancelBrunch({ brunchId, requestedById: hostId }, { db, eventBus, rateLimiter })
+    )._unsafeUnwrap();
+
+    // Just called off: the notice is still on hold, so the brunch cannot be deleted yet.
+    const early = await deleteBrunch({ brunchId, requestedById: hostId }, { db });
+    expect(early._unsafeUnwrapErr()).toEqual({ kind: 'notice_pending' });
+    expect(await db.brunch.findFirst({ where: { id: brunchId } })).not.toBeNull();
+
+    // The queue function tells the guests and records it; from then on deleting is allowed.
+    const cancelledAt = (await db.brunch.findFirstOrThrow({ where: { id: brunchId } }))
+      .cancelledAt as Date;
+    (await markCancelNoticeSent({ brunchId, cancelledAt }, { db }))._unsafeUnwrap();
+    const later = await deleteBrunch({ brunchId, requestedById: hostId }, { db });
+    expect(later.isOk()).toBe(true);
+  });
+
+  it('does not trap the host forever when the notice never goes out', async () => {
+    const { brunchId } = await setUp({ stage: 'active' });
+    (
+      await cancelBrunch({ brunchId, requestedById: hostId }, { db, eventBus, rateLimiter })
+    )._unsafeUnwrap();
+
+    // The same brunch, judged after the hold and the grace have both passed.
+    const result = await deleteBrunch(
+      { brunchId, requestedById: hostId, now: new Date(Date.now() + 2 * 3_600_000) },
+      { db },
+    );
+
+    expect(result.isOk()).toBe(true);
   });
 });
 

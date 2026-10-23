@@ -86,6 +86,11 @@ describe('DELETE /api/v1/brunches/[id]', () => {
       { kind: 'not_deletable' as const, statusCode: 'confirmed' },
       409,
     ],
+    [
+      'a called-off brunch whose guests have not been told yet',
+      { kind: 'notice_pending' as const },
+      409,
+    ],
     ['a database failure', { kind: 'db_error' as const, cause: new Error('x') }, 500],
   ])('answers correctly for %s', async (_label, error, status) => {
     mockAuth.mockResolvedValue(SESSION);

@@ -44,6 +44,11 @@ export async function DELETE(
           { error: 'Call this brunch off before deleting it' },
           { status: 409 },
         );
+      case 'notice_pending':
+        return NextResponse.json(
+          { error: 'People are still being told it was called off. Give it a few minutes' },
+          { status: 409 },
+        );
       default:
         console.error('deleteBrunch failed', result.error);
         return NextResponse.json({ error: 'Failed to delete the brunch' }, { status: 500 });

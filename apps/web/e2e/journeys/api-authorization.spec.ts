@@ -8,6 +8,7 @@ import { getDb } from '../support/db';
 import { baseUrl } from '../support/env';
 import { createBrunch, uniqueSuffix } from '../support/factories';
 import { expect, test } from '../support/fixtures';
+import { afterTheHold, callOffBrunch } from '../support/lifecycle';
 import { fixturePlaces } from '../support/places';
 import { alignToWindow, untilRefused } from '../support/rateLimits';
 import { daysFromNow } from '../support/time';
@@ -423,9 +424,27 @@ test.describe('API authorization', () => {
     expect((await send(hostApi, 'POST', `${b}/reinstate`)).status).toBe(409);
     expect((await send(attendeeApi, 'POST', `${b}/rsvp`, { response: 'maybe' })).status).toBe(200);
 
-    // Call it off again and delete it: from then on it is a 404 for the host, the attendee and
-    // the outsider alike, and each answer matches the one for an id that never existed.
+    // Call it off again. Its guests have not been told yet (the notice waits out a hold in the
+    // queue), and a brunch deleted before that would vanish without anyone knowing it was off, so
+    // it cannot be deleted yet.
     expect((await send(hostApi, 'POST', `${b}/cancel`)).status).toBe(200);
+    expect((await send(hostApi, 'DELETE', b)).status).toBe(409);
+    expect((await db.brunch.findFirst({ where: { id: brunchId } }))?.deletedAt).toBeNull();
+
+    // The hold cannot be waited out here, so bring it back and call it off as of a moment the hold
+    // has already passed (support/lifecycle.ts). The real queue function then tells the guests and
+    // records it, which is what unlocks Delete.
+    expect((await send(hostApi, 'POST', `${b}/reinstate`)).status).toBe(200);
+    await callOffBrunch({ brunchId, host: host.user, at: afterTheHold() });
+    await expect
+      .poll(
+        async () =>
+          (await db.brunch.findFirst({ where: { id: brunchId } }))?.cancelNoticeSentAt ?? null,
+      )
+      .not.toBeNull();
+
+    // Delete it: from then on it is a 404 for the host, the attendee and the outsider alike, and
+    // each answer matches the one for an id that never existed.
     expect((await send(hostApi, 'DELETE', b)).status).toBe(204);
     const gone = await db.brunch.findUnique({ where: { id: brunchId } });
     expect(gone?.deletedAt).not.toBeNull();

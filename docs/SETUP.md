@@ -172,6 +172,8 @@ Emails are sent by queued handlers (ADR 0009, spec 0008). Which implementation r
 | E2E                            | Inngest dev server on port 8298    | files in `$TMPDIR/brunchsters-e2e-mail`       |
 | Production deployment          | Inngest Cloud                      | Resend                                        |
 
+**The called-off email waits.** When a host calls a brunch off, the `send-brunch-cancelled-emails` function sleeps until five minutes after the cancellation (`CANCEL_NOTICE_HOLD_SECONDS`, `packages/shared/src/brunchLifecycle.ts`), reads the brunch again, and sends only if that cancellation still stands, so locally the email appears in the outbox after the hold, and "Bring it back" inside it sends nothing. The e2e suite cannot wait five minutes and the app has no way to skip it: its journeys call the brunch off _as of_ an earlier moment through the real core service (`e2e/support/lifecycle.ts`), so the hold has already passed. The "back on" email (`send-brunch-back-on-emails`) goes only to people who were told it was off.
+
 **See an invite email locally**
 
 1. In `apps/web/.env.local` set `INNGEST_DEV=1`, and leave `RESEND_API_KEY`, `INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY` **blank**.

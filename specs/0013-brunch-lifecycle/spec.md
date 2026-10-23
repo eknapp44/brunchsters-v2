@@ -75,7 +75,7 @@ Plus the **status flow** written down as a table the code checks, **one guard** 
 3. **Host brings it back after the notice went out.** Same, and the people who were emailed get a "back on" email.
 4. **An attendee opens a called-off brunch** (from the email, the dashboard or a link): the page is read-only with a banner; RSVP, vote and suggest controls are gone; **Hide** is there.
 5. **A link holder opens an old invite link to a called-off brunch**: signed out or in, they see "{host} called this one off" and are **not** joined; nothing is changed by opening the page.
-6. **Host deletes a draft or a called-off brunch**: a dialog says it cannot be undone from the app; afterwards the brunch is a 404 for everyone, its links gone cold, and it is off every dashboard.
+6. **Host deletes a draft or a called-off brunch**: a dialog says it cannot be undone from the app; afterwards the brunch is a 404 for everyone, its links gone cold, and it is off every dashboard. A brunch called off a moment ago cannot be deleted until its guests have been told (a few minutes; the button says so), so nobody is left never knowing it was off.
 7. **Anyone hides a brunch** from the brunch page, or from its dashboard row on a tablet or desktop; it leaves their dashboard, "next up" and the waiting count. A "Hidden (n)" link (also shown when everything is hidden) lists them with **Unhide**.
 8. **The dashboard stays short**: Past shows the five newest; "Show all" (a link, `?past=all`) shows the rest.
 9. **A host calls off too often**: the per-host daily cancel budget is spent; **Call it off** waits with the usual line ("try again in …") and nothing changes.
@@ -96,7 +96,7 @@ Plus the **status flow** written down as a table the code checks, **one guard** 
 - [ ] `assertBrunchOpen` (rejects `cancelled`, `completed`, `archived`); applied to every service that changes a brunch's data (RSVP, token join, invites send/resend/revoke, invite and option suggestions and reviews, ballots, option add/remove, voting deadline and close, confirm); exemptions are named with reasons; a static test fails when a mutating service in `brunch/` or `invite/` neither calls it nor is exempt
 - [ ] `cancelBrunch`: `assertHostOf` first, then open (not already cancelled), status in {active, confirmed}, not over; spends the per-host cancel budget; one transaction sets status, `cancelledAt/By`, `statusBeforeCancelId`, clears `cancelNoticeSentAt`; emits `brunch/cancelled` after commit (a failed emit never fails the cancel)
 - [ ] `reinstateBrunch`: host, status `cancelled`, not deleted; restores `statusBeforeCancelId`; emits `brunch/reinstated` (only the handler decides whether anyone is told)
-- [ ] `deleteBrunch`: host; only `draft` or `cancelled`; sets `deletedAt/By`; a second delete is a 404
+- [x] `deleteBrunch`: host; only `draft` or `cancelled`; a called-off brunch only once its notice has gone out (`notice_pending` until then, or an hour after the hold if the queue never delivered it); sets `deletedAt/By`; a second delete is a 404
 - [ ] `setBrunchHidden`: any current member (host included), any status; sets or clears the caller's own `hiddenAt`; an outsider gets `brunch_not_found`
 - [ ] `getBrunchesForUser` returns `isHidden` (the viewer's own; a called-off brunch is `statusCode === 'cancelled'`, so there is no separate flag); `groupDashboard` returns `hidden`, drops hidden brunches from next-up/upcoming/past; `limitPast` caps Past at five unless asked (the page slices with it); `summaryLine` counts only visible brunches
 - [x] `getInviteByToken` exposes `isCalledOff` (M2); `getBrunchById` exposes the viewer's `isHidden`; `respondToInvite` refuses a called-off brunch (`brunch_called_off`) before creating anything (M2)
@@ -111,6 +111,7 @@ Plus the **status flow** written down as a table the code checks, **one guard** 
 
 ### UI
 
+- [ ] While a called-off brunch's notice is pending (`isCancelNoticePending`, the rule `deleteBrunch` uses), the Delete button is `aria-disabled` with a line saying people are still being told; it comes back by itself
 - [ ] Manage page: an "End of the road" section whose buttons depend on the state (Call it off; Bring it back and Delete; Delete this draft); a called-off brunch shows the banner and only these actions; confirm dialogs (focus trapped, Escape closes, safe default)
 - [ ] Brunch page: called-off banner, read-only; **Hide** / **Unhide** control for every member
 - [ ] Invite page: "called this one off" for a called-off brunch, signed in or out, no join, no sign-in button for the dead end
