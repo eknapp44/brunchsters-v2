@@ -1,6 +1,6 @@
 # Spec 0012 — Security Hardening
 
-**Status:** Complete (M1 to M6 done 2026-10-23; owner reviewed M3 and the sign-in check; pre-merge review next; see "Outcome")  
+**Status:** Complete and released as v1.10.0 (M1 to M8 done and merged 2026-10-23, PR #18; see "Outcome")  
 **Branch:** `feat/0012-security-hardening`  
 **PLANNING.md ref:** §16 roadmap step 5, §17 "Security and session follow-ups"  
 **ADRs:** [0013 — Rate limits in Postgres](../../docs/adrs/0013-rate-limits-in-postgres.md), [0014 — CSP with a per-request nonce](../../docs/adrs/0014-content-security-policy-with-nonce.md)  
@@ -139,7 +139,7 @@ Journeys that change: `front-door.spec.ts` (S1), `api-authorization.spec.ts` (L5
 
 ## Outcome
 
-Shipped on `feat/0012-security-hardening` in six milestones, each committed green: the dependency patch and audit gate (M1), the Postgres limiter (M2), the invite and resend limits (M3), place search, writes and invite tokens (M4), the report-only CSP (M5), and enforcing it (M6).
+Shipped in PR #18 (released as **v1.10.0** on 2026-10-23) in eight milestones, each committed green: the dependency patch and audit gate (M1), the Postgres limiter (M2), the invite and resend limits (M3), place search, writes and invite tokens (M4), the report-only CSP (M5), enforcing it (M6), the limiter's read-only `peek` and `getInviteWaits` (M7), and the page asking the server what a host is waiting on (M8). The owner checked sign-in and a hosted brunch by hand on the final code with the policy enforcing; CI (seven checks) passed before the merge.
 
 **What shipped.** `next` 15.5.28 and `next-auth` 5.0.0-beta.32 with five transitive overrides (32 advisories, 6 critical, down to none) and `pnpm audit --prod --audit-level=high` in CI. A `RateLimiter` interface with a Postgres fixed-window implementation (`RateLimitBucket`, one atomic upsert), a daily prune job, and these budgets: 100 invite emails per host per day and 50 per brunch per day (spent by sending, re-sending and approving a suggestion, after the host check), a resend every 10 minutes per invite, 30 place searches and 20 place lookups per person per minute, 60 writes per person per minute on every mutating route, and 30 requests per address per minute on the public invite-token routes. A refusal is a 429 with `Retry-After` and the policy; the invite panel and the place search say so in the Brand Voice, the send and Resend buttons wait (`aria-disabled`) and remember the wait across a refresh. A nonce-based Content-Security-Policy on every response, enforcing. Journeys S1 (extended), S2, S3, L1 to L6, with a scanning test that fails when a mutating route skips its limit, and two more static guards for what is not a route: one fails when an email event has no recorded budget decision, a budgeted event is emitted without spending its budget, or mail is sent outside the two handlers; the other fails when the paid Places API is reached from anywhere but its two budgeted routes.
 
@@ -150,7 +150,8 @@ Shipped on `feat/0012-security-hardening` in six milestones, each committed gree
 - **No allowlist** in the write-limit scanning test: the invite response route takes the address budget before its session check and the write budget after.
 - **The 429 body carries `policy`**, so a control can word its message; the limited line is `role="status"`; the wait is the server's (read with `peek`), not stored in the browser (M7, M8).
 - **The root `CLAUDE.md` rule and the `spec-grill` prompt landed in M4**, with the pattern, not at the end.
-- **After a review pass, the three gaps first deferred were closed**: a refused approval makes the Approve buttons and the send button wait together (one budget, one key), a wait is shared between tabs and components, and the creation wizard hands a refused invite batch to the brunch page. (The wizard's gap had become reachable by ordinary use, not only abuse.)
+- **After a review pass, the three gaps first deferred were closed**: a refused approval makes the Approve buttons and the send button wait together, a wait is shared between tabs and components, and the creation wizard hands a refused invite batch to the brunch page. (The wizard's gap had become reachable by ordinary use, not only abuse.)
+- **Then the browser-stored wait was replaced by server truth (M7, M8).** The first answer to those gaps kept an absolute time in `localStorage`, shared by `storage` events, a wizard handoff key and a sweep. The owner asked for something solid: the limiter gained a read-only `peek`, core gained `getInviteWaits`, and the brunch page asks as it loads, so the wait is the same in every tab and on every device and nothing is stored. The handoff, the keys and the sweep were deleted. The second pre-merge review then found that nothing guarded the `router.refresh()` after a refused send or Resend; journey L1e now does.
 - **One shared test helper for the limit journeys** (`untilRefused`, `alignToWindow`), after the first versions timed out under load and depended on the minute they ran in.
 
 **What was found.**
