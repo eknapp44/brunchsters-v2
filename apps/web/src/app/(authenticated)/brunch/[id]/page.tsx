@@ -8,7 +8,7 @@ import {
   getPendingSuggestionsForBrunch,
   leadingOptionId,
 } from '@brunchsters/core';
-import type { BrunchId, InviteId, UserId } from '@brunchsters/shared';
+import type { BrunchId, UserId } from '@brunchsters/shared';
 import { notFound } from 'next/navigation';
 import type { ReactElement, ReactNode } from 'react';
 import { z } from 'zod';
@@ -151,25 +151,20 @@ export default async function BrunchDetailPage({
   // the same counters that refuse, so every tab and device shows the same thing (ADR 0013 addendum).
   // Only the host gets this: the invite list above was host-only. If the counters cannot be read the
   // page still renders, with nothing held; the server still refuses when a button is pressed.
-  const inviteWaitsResult = invites?.isOk()
-    ? await getInviteWaits(
-        {
-          brunchId,
-          hostId: viewerId,
-          inviteIds: invites.value.map((invite) => invite.id as InviteId),
-        },
-        { rateLimiter: getRateLimiter() },
-      )
-    : undefined;
+  const [voting, roster, inviteWaitsResult] = await Promise.all([
+    getBrunchVoting({ brunchId, viewerId }, { db }),
+    getBrunchRoster({ brunchId, viewerId }, { db }),
+    invites?.isOk()
+      ? getInviteWaits(
+          { brunchId, hostId: viewerId, inviteIds: invites.value.map((invite) => invite.id) },
+          { rateLimiter: getRateLimiter() },
+        )
+      : undefined,
+  ]);
   if (inviteWaitsResult?.isErr()) {
     console.error('getInviteWaits failed: showing no waits', inviteWaitsResult.error);
   }
   const inviteWaits = inviteWaitsResult?.isOk() ? inviteWaitsResult.value : undefined;
-
-  const [voting, roster] = await Promise.all([
-    getBrunchVoting({ brunchId, viewerId }, { db }),
-    getBrunchRoster({ brunchId, viewerId }, { db }),
-  ]);
   if (voting === undefined) {
     // Same access rule as getBrunchById, which already succeeded above —
     // fail loudly rather than silently omitting voting with no trace.

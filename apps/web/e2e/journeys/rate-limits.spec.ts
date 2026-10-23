@@ -354,6 +354,98 @@ test.describe('L1b — approving a suggestion spends the same invite budget', ()
   });
 });
 
+test.describe('L1e — a refusal in one panel reaches the other', () => {
+  test('a refused send makes Approve wait too, and a Resend refused by the day makes the other invites wait', async ({
+    makeActor,
+  }) => {
+    test.slow();
+    const host = await makeActor('host');
+    const attendee = await makeActor('attendee');
+    const brunchId = await createBrunch({ host: host.user });
+    const second = newEmail('second');
+    await inviteToBrunch({
+      brunchId,
+      host: host.user,
+      invitees: [attendee.user, { email: second }],
+    });
+    await respondToInvite({ brunchId, user: attendee.user, response: 'yes' });
+    const suggested = newEmail('suggested');
+    await attendee.page.goto(`/brunch/${brunchId}`);
+    await attendee.page.getByLabel('Suggest someone').fill(suggested);
+    await attendee.page.getByRole('button', { name: 'Suggest this person' }).click();
+    await expect(attendee.page.getByLabel('Suggest someone')).toHaveValue('');
+
+    // The host opens the page while everything has room.
+    await host.page.goto(`/brunch/${brunchId}`);
+    const approve = host.page
+      .getByRole('listitem')
+      .filter({ hasText: 'suggested by' })
+      .filter({ hasText: suggested })
+      .getByRole('button', { name: 'Approve' });
+    const resend = (email: string) =>
+      inviteRow(host.page, email).getByRole('button', { name: 'Resend' });
+    await expect(approve).not.toHaveAttribute('aria-disabled', 'true');
+    await expect(resend(second)).not.toHaveAttribute('aria-disabled', 'true');
+
+    // The host's whole day goes elsewhere (100 for the day; two are spent above), seeded through
+    // the factory, which spends the real budget and queues no mail.
+    for (const label of ['one', 'two']) {
+      const other = await createBrunch({ host: host.user, title: `Earlier ${label}` });
+      const batch = Array.from({ length: 49 }, (_, index) => ({
+        email: newEmail(`l1e-${label}-${index}`),
+      }));
+      await inviteToBrunch({ brunchId: other, host: host.user, invitees: batch });
+    }
+
+    // Pressing the send button is refused; Approve, in the other panel, learns it from the server.
+    await host.page.getByLabel('Invite more people').fill(newEmail('late'));
+    await host.page.getByRole('button', { name: 'Round up the crew' }).click();
+    await expect(host.page.getByRole('button', { name: 'Round up the crew' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    await expect(approve).toHaveAttribute('aria-disabled', 'true');
+    // The invite rows learn it too, though nobody pressed their Resend.
+    await expect(resend(second)).toHaveAttribute('aria-disabled', 'true');
+  });
+
+  test('a Resend refused by the day makes the send button and the other invites wait', async ({
+    makeActor,
+  }) => {
+    test.slow();
+    const host = await makeActor('host');
+    const first = newEmail('first');
+    const second = newEmail('second');
+    const brunchId = await createBrunch({ host: host.user });
+    await inviteToBrunch({
+      brunchId,
+      host: host.user,
+      invitees: [{ email: first }, { email: second }],
+    });
+    await host.page.goto(`/brunch/${brunchId}`);
+    const resend = (email: string) =>
+      inviteRow(host.page, email).getByRole('button', { name: 'Resend' });
+    await expect(resend(second)).not.toHaveAttribute('aria-disabled', 'true');
+
+    for (const label of ['one', 'two']) {
+      const other = await createBrunch({ host: host.user, title: `Earlier ${label}` });
+      const batch = Array.from({ length: 49 }, (_, index) => ({
+        email: newEmail(`l1e2-${label}-${index}`),
+      }));
+      await inviteToBrunch({ brunchId: other, host: host.user, invitees: batch });
+    }
+
+    await resend(first).click();
+    await expect(inviteRow(host.page, first).getByText(INVITES_LIMITED)).toBeVisible();
+    // The other invite never had its Resend pressed; the server's answer after the refusal holds it.
+    await expect(resend(second)).toHaveAttribute('aria-disabled', 'true');
+    await expect(host.page.getByRole('button', { name: 'Round up the crew' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+  });
+});
+
 test.describe('L7 — the creation wizard and a refused invite batch', () => {
   test("a host who used the day's invites creates a brunch, and its page opens with the send button waiting", async ({
     makeActor,
