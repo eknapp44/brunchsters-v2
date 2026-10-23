@@ -32,7 +32,7 @@ test.describe('API authorization', () => {
   test('host-only endpoints refuse everyone but the host, and an outsider cannot tell the brunch is real', async ({
     makeActor,
   }) => {
-    // 13 endpoints x 3 callers; in dev mode each route is compiled on first use.
+    // 16 endpoints x 3 callers; in dev mode each route is compiled on first use.
     test.slow();
     const host = await makeActor('host');
     const attendee = await makeActor('attendee');
@@ -90,6 +90,10 @@ test.describe('API authorization', () => {
         `${b}/confirm`,
         { locationId: options.locations[0]?.id, timeId: options.times[0]?.id },
       ],
+      // Spec 0013: the lifecycle routes are host-only too.
+      ['call it off', 'POST', `${b}/cancel`, undefined],
+      ['bring it back', 'POST', `${b}/reinstate`, undefined],
+      ['delete the brunch', 'DELETE', b, undefined],
       ['resend an invite', 'POST', `/api/v1/invites/${invite.id}/resend`, undefined],
       ['revoke an invite', 'DELETE', `/api/v1/invites/${invite.id}`, undefined],
       [
@@ -202,6 +206,8 @@ test.describe('API authorization', () => {
       ['vote on times', 'PUT', `${b}/votes/times`, { optionIds: [options.times[0]?.id] }],
       ['change an RSVP', 'POST', `${b}/rsvp`, { response: 'yes' }],
       ['suggest an invitee', 'POST', `${b}/suggestions`, { email: 'someone@example.com' }],
+      // Spec 0013: any member may hide a brunch from their own dashboard; no one else can touch it.
+      ['hide from my dashboard', 'PUT', `${b}/hidden`, { hidden: true }],
       ['suggest a place', 'POST', `${b}/location-suggestions`, location],
       [
         'suggest a time',
@@ -232,6 +238,7 @@ test.describe('API authorization', () => {
 
     // Nothing an outsider tries may leave a trace.
     const db = getDb();
+    expect(await db.brunchAttendee.count({ where: { brunchId, hiddenAt: { not: null } } })).toBe(0);
     expect(await db.brunchLocationVote.count({ where: { brunchLocation: { brunchId } } })).toBe(0);
     expect(await db.brunchInviteSuggestion.count({ where: { brunchId } })).toBe(0);
     expect(await db.brunchLocationSuggestion.count({ where: { brunchId } })).toBe(0);
@@ -276,6 +283,187 @@ test.describe('API authorization', () => {
       'draft brunch',
     );
     await anonymous.dispose();
+  });
+
+  // Journeys E9 and E10 (spec 0013): the lifecycle routes through the real server, as the people
+  // involved meet them.
+  test('calling a brunch off, bringing it back and deleting it: every member write is a 409 while it is off, and a deleted brunch is a 404 for everyone', async ({
+    makeActor,
+  }) => {
+    // About fifty requests in a row, each route compiled on first use in dev mode.
+    test.slow();
+    const host = await makeActor('host');
+    const attendee = await makeActor('attendee');
+    const stranger = await makeActor('stranger');
+    const brunchId = await createBrunch({
+      host: host.user,
+      locations: [fixturePlaces.sunnySide, fixturePlaces.harborBistro],
+      times: [daysFromNow(10), daysFromNow(11)],
+    });
+    await addAttendee({ brunchId, host: host.user, user: attendee.user, response: 'yes' });
+    const options = await listOptions(brunchId);
+    const db = getDb();
+    const attendeeInvite = await db.brunchInvite.findFirst({
+      where: { brunchId, invitedUserId: attendee.user.id },
+    });
+    if (!attendeeInvite) throw new Error('Setup did not create the attendee invite');
+    const b = `/api/v1/brunches/${brunchId}`;
+
+    const send = async (
+      who: APIRequestContext,
+      method: string,
+      path: string,
+      data?: unknown,
+    ): Promise<{ readonly status: number; readonly body: unknown }> => {
+      const response = await who.fetch(path, {
+        method,
+        maxRedirects: 0,
+        ...(data !== undefined ? { data } : {}),
+      });
+      return { status: response.status(), body: await response.json().catch(() => undefined) };
+    };
+    const state = async () => {
+      const brunch = await db.brunch.findFirst({
+        where: { id: brunchId },
+        include: { status: true, statusBeforeCancel: true },
+      });
+      return { code: brunch?.status.code, before: brunch?.statusBeforeCancel?.code };
+    };
+    const hostApi = host.context.request;
+    const attendeeApi = attendee.context.request;
+    const strangerApi = stranger.context.request;
+
+    // A live brunch cannot be deleted: it is called off first, so people are told.
+    expect((await send(hostApi, 'DELETE', b)).status).toBe(409);
+    expect(await state()).toEqual({ code: 'active', before: undefined });
+
+    // Only the host can call it off: a member is refused, an outsider gets the made-up-id answer.
+    expect((await send(attendeeApi, 'POST', `${b}/cancel`)).status).toBe(403);
+    expect((await send(strangerApi, 'POST', `${b}/cancel`)).status).toBe(404);
+
+    const cancelled = await send(hostApi, 'POST', `${b}/cancel`);
+    expect(cancelled.status).toBe(200);
+    expect(await state()).toEqual({ code: 'cancelled', before: 'active' });
+    // Already off: a clean 409, and nothing more is spent or sent.
+    expect((await send(hostApi, 'POST', `${b}/cancel`)).status).toBe(409);
+
+    // Journey E10: while it is off, every member write is a 409, never a 500 and never a success.
+    const votesBefore = await db.brunchLocationVote.count({
+      where: { brunchLocation: { brunchId } },
+    });
+    const invitesBefore = await db.brunchInvite.count({ where: { brunchId } });
+    const refused: readonly (readonly [string, APIRequestContext, string, string, unknown])[] = [
+      ['change an RSVP', attendeeApi, 'POST', `${b}/rsvp`, { response: 'no' }],
+      [
+        'vote',
+        attendeeApi,
+        'PUT',
+        `${b}/votes/locations`,
+        { optionIds: [options.locations[0]?.id] },
+      ],
+      [
+        'suggest an invitee',
+        attendeeApi,
+        'POST',
+        `${b}/suggestions`,
+        { email: 'late@example.com' },
+      ],
+      ['suggest a place', attendeeApi, 'POST', `${b}/location-suggestions`, location],
+      ['invite people', hostApi, 'POST', `${b}/invites`, { emails: ['late-guest@example.com'] }],
+      [
+        'resend an invite',
+        hostApi,
+        'POST',
+        `/api/v1/invites/${attendeeInvite.id}/resend`,
+        undefined,
+      ],
+      ['add a place', hostApi, 'POST', `${b}/locations`, location],
+      ['set the deadline', hostApi, 'PATCH', `${b}/voting/deadline`, { votingDeadline: null }],
+      [
+        'confirm',
+        hostApi,
+        'POST',
+        `${b}/confirm`,
+        { locationId: options.locations[0]?.id, timeId: options.times[0]?.id },
+      ],
+    ];
+    for (const [what, who, method, path, data] of refused) {
+      expect((await send(who, method, path, data)).status, `${what} while called off`).toBe(409);
+    }
+    expect(await db.brunchLocationVote.count({ where: { brunchLocation: { brunchId } } })).toBe(
+      votesBefore,
+    );
+    expect(await db.brunchInvite.count({ where: { brunchId } })).toBe(invitesBefore);
+    expect(await state()).toEqual({ code: 'cancelled', before: 'active' });
+    // Reading still works: a member can open the page of a brunch that was called off.
+    expect((await attendeeApi.get(`/brunch/${brunchId}`, { maxRedirects: 0 })).status()).toBe(200);
+
+    // Hiding is one person's: the attendee hides it, the host's own view is untouched, and an
+    // outsider gets the made-up-id answer.
+    const hidden = await send(attendeeApi, 'PUT', `${b}/hidden`, { hidden: true });
+    expect(hidden).toEqual({ status: 200, body: { hidden: true } });
+    expect((await send(attendeeApi, 'PUT', `${b}/hidden`, { hidden: 'yes' })).status).toBe(422);
+    const outsiderHide = await send(strangerApi, 'PUT', `${b}/hidden`, { hidden: true });
+    const nothingHide = await send(strangerApi, 'PUT', `/api/v1/brunches/${randomUUID()}/hidden`, {
+      hidden: true,
+    });
+    expect(outsiderHide.status).toBe(404);
+    expect(outsiderHide).toEqual(nothingHide);
+    expect(
+      await db.brunchAttendee.findMany({
+        where: { brunchId, hiddenAt: { not: null } },
+        select: { userId: true },
+      }),
+    ).toEqual([{ userId: attendee.user.id }]);
+
+    // Bring it back: a member cannot, the host can, and the writes work again.
+    expect((await send(attendeeApi, 'POST', `${b}/reinstate`)).status).toBe(403);
+    expect((await send(hostApi, 'POST', `${b}/reinstate`)).status).toBe(200);
+    expect(await state()).toMatchObject({ code: 'active' });
+    expect((await send(hostApi, 'POST', `${b}/reinstate`)).status).toBe(409);
+    expect((await send(attendeeApi, 'POST', `${b}/rsvp`, { response: 'maybe' })).status).toBe(200);
+
+    // Call it off again and delete it: from then on it is a 404 for the host, the attendee and
+    // the outsider alike, and each answer matches the one for an id that never existed.
+    expect((await send(hostApi, 'POST', `${b}/cancel`)).status).toBe(200);
+    expect((await send(hostApi, 'DELETE', b)).status).toBe(204);
+    const gone = await db.brunch.findUnique({ where: { id: brunchId } });
+    expect(gone?.deletedAt).not.toBeNull();
+
+    const aimedAtNothing = (path: string): string => path.replace(UUID, () => randomUUID());
+    const afterwards: readonly (readonly [string, string, unknown])[] = [
+      ['POST', `${b}/rsvp`, { response: 'yes' }],
+      ['POST', `${b}/cancel`, undefined],
+      ['POST', `${b}/reinstate`, undefined],
+      ['DELETE', b, undefined],
+      ['PUT', `${b}/hidden`, { hidden: false }],
+    ];
+    for (const [who, label] of [
+      [hostApi, 'host'],
+      [attendeeApi, 'attendee'],
+      [strangerApi, 'outsider'],
+    ] as const) {
+      for (const [method, path, data] of afterwards) {
+        const real = await send(who, method, path, data);
+        const nothing = await send(who, method, aimedAtNothing(path), data);
+        expect(real.status, `${method} ${path} (${label}, deleted)`).toBe(404);
+        expect(real, `${method} ${path} (${label}): deleted vs made-up`).toEqual(nothing);
+      }
+      expect(
+        (await who.get(`/brunch/${brunchId}`, { maxRedirects: 0 })).status(),
+        `the page (${label}, deleted)`,
+      ).toBe(404);
+    }
+
+    // A draft nobody was told about can be deleted straight away.
+    const draftId = await createBrunch({
+      host: host.user,
+      locations: [fixturePlaces.sunnySide],
+      times: [daysFromNow(10)],
+    });
+    expect((await send(hostApi, 'POST', `/api/v1/brunches/${draftId}/cancel`)).status).toBe(409);
+    expect((await send(hostApi, 'DELETE', `/api/v1/brunches/${draftId}`)).status).toBe(204);
+    expect((await send(hostApi, 'DELETE', `/api/v1/brunches/${draftId}`)).status).toBe(404);
   });
 
   // Journey L5 (spec 0012): a limit must not become a way to tell a real brunch from a made-up id.
