@@ -20,6 +20,16 @@ Scoped to the web app. The repo-wide rules are in the root `CLAUDE.md`; why the 
 - **A control that must wait is `aria-disabled`, not `disabled`** (spec 0012: a limit holds it back): it looks disabled (`Button` styles `[aria-disabled='true']` like `:disabled`), the component ignores the click, and it stays in the tab order so its reason can be read (`aria-describedby` points at the line beside it). `useLimitedUntil` (`src/lib`) keeps the wait across a refresh (an absolute time in `localStorage` per person and control); `limitedMessage` has the wording and `readRateLimit` reads a 429. Playwright treats an `aria-disabled` button as not clickable and waits forever, so a journey that proves pressing it does nothing uses `click({ force: true })`, and one that switches the color scheme must do it before loading the page (a live switch measures buttons halfway through their color transition).
 - **Global element styles are zero-specificity (`:where()`)**, so a component's class always wins. A `<main>` that is not a `Container` or `Hero` still gets a width from the global rule; opt out explicitly.
 
+## Limits and the Content-Security-Policy
+
+Why and what: [ADR 0013](../../docs/adrs/0013-rate-limits-in-postgres.md), [ADR 0014](../../docs/adrs/0014-content-security-policy-with-nonce.md), `specs/0012-security-hardening/`.
+
+- **A control that can be told to slow down reads a 429 with `readRateLimit` and words it with `limitedMessage`** (`src/lib`). Only the invite panel, the suggestion approval and the place search do so today; every other control shows its generic error until the feedback-surfaces spec, which is also when the wizard stops ignoring a refused invite batch. How a waiting control behaves (`aria-disabled`, `useLimitedUntil`) is in "Writing components".
+- **A new API route that changes something calls `enforceWriteLimit` right after its session check** (root `CLAUDE.md` has the rule and the order; the scanning test fails otherwise). Never key a limit by an id the caller merely named.
+- **No inline `<script>` and no inline event handler** (`onclick=`, `onerror=`): the policy refuses both, by design. Scripts come from Next's own bundles.
+- **A `style=""` attribute is for computed values only** (a width from data, like the vote and step bars). It is allowed (`style-src-attr`), but anything that does not depend on data belongs in a CSS Module class.
+- **A new outside origin (analytics, a map, photos from Google) is a policy change**, made in `src/lib/contentSecurityPolicy.ts` with its test, and journey S3 is rerun on a production build (`docs/SETUP.md`, "Rate limits and the Content-Security-Policy"). That deliberate step is the feature: it is how a photo opt-in (the Settings spec) will have to arrive.
+
 ## State
 
 Why and what: [ADR 0011](../../docs/adrs/0011-redux-toolkit-for-client-ui-state.md), `specs/0010-redux-ui-state/`. Today the wizard (`wizardSlice`) and the vote ballots (`ballotsSlice`, `useBallot`) are on the store; every other control still uses `useState`, on purpose (see "Moving another control onto the store").

@@ -88,11 +88,11 @@ test.describe('S1 — security headers', () => {
     expect(invite.headers()['x-content-type-options']).toBe('nosniff');
   });
 
-  // Spec 0012, ADR 0014: the Content-Security-Policy, report-only until M6 enforces it.
+  // Spec 0012, ADR 0014: the Content-Security-Policy, enforcing.
   test('every answer carries a Content-Security-Policy with a new nonce, and the page uses that nonce', async ({
     request,
   }) => {
-    const header = 'content-security-policy-report-only';
+    const header = 'content-security-policy';
     const nonceOf = (policy: string | undefined): string => {
       const match = /script-src [^;]*'nonce-([A-Za-z0-9+/=]+)'/.exec(policy ?? '');
       if (match?.[1] === undefined) throw new Error(`No script nonce in: ${policy}`);

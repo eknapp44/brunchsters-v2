@@ -91,7 +91,7 @@ describe('generateNonce', () => {
 });
 
 describe('CSP_HEADER_NAME', () => {
-  it('is the report-only header in M5 (M6 enforces it)', () => {
-    expect(CSP_HEADER_NAME).toBe('Content-Security-Policy-Report-Only');
+  it('is the enforcing header (M5 shipped the report-only one first)', () => {
+    expect(CSP_HEADER_NAME).toBe('Content-Security-Policy');
   });
 });

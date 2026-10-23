@@ -1,6 +1,6 @@
 # Spec 0012 — Security Hardening
 
-**Status:** In progress (grilled 2026-10-22; M1 to M5 done: dependencies, the limiter, invite and resend limits, place search, writes, invite tokens, and the report-only CSP; M6 (enforce the CSP, close-out) to do)  
+**Status:** Complete (M1 to M6 done 2026-10-23; owner reviewed M3 and the sign-in check; pre-merge review next; see "Outcome")  
 **Branch:** `feat/0012-security-hardening`  
 **PLANNING.md ref:** §16 roadmap step 5, §17 "Security and session follow-ups"  
 **ADRs:** [0013 — Rate limits in Postgres](../../docs/adrs/0013-rate-limits-in-postgres.md), [0014 — CSP with a per-request nonce](../../docs/adrs/0014-content-security-policy-with-nonce.md)  
@@ -66,7 +66,7 @@ No new screen. Two existing controls gain one inline line of copy for a limited 
 - [x] `resendInvite` consumes the per-invite cooldown and one host invite-email unit after the host check, with the same error
 - [x] Approving an invite suggestion spends the same two budgets, one email each (`reviewInviteSuggestion`, which `suggestInvitee` also calls itself when the brunch does not ask the host to approve): after the host and pending checks, only for an approval, never for a decline. A refused approval leaves the suggestion pending and nothing is sent; a refused auto-approval leaves it pending too. **Corrects this spec's first draft, which said `suggestInvitee` sends no email: with approval not required it does, and without this the host's daily cap could be walked round one approval at a time.**
 - [x] `pruneRateLimitBuckets` deletes buckets older than two days; an Inngest cron function calls it (registered in `functions.ts`)
-- [ ] Limiter database errors fail closed (503 from the route)
+- [x] Limiter database errors fail closed (503 from the route)
 
 ### API routes
 
@@ -89,21 +89,21 @@ No new screen. Two existing controls gain one inline line of copy for a limited 
 
 - [x] Middleware sets a nonce-based `Content-Security-Policy-Report-Only` on every response (pages, API JSON, redirects), and Next stamps its scripts with the nonce
 - [x] A journey (S3) fails on any `securitypolicyviolation` along the main paths
-- [ ] The header is flipped to enforcing after a manual real sign-in and a clean full run; S1 asserts the header name and the key directives
+- [x] The header is flipped to enforcing after a manual real sign-in and a clean full run; S1 asserts the header name and the key directives
 - [x] The policy is built by a pure function with unit tests (nonce present, no `unsafe-eval` outside development, `frame-ancestors 'none'`, `form-action` allows Google)
 
 ### UI
 
 - [x] `InvitePanel` disables the send button, and the one invite's Resend button, after a 429 (`aria-disabled`, focusable, label unchanged) with the limited line beside it (`InlineAlert`, `role="status"`: it is news about a wait, not an error); approving a suggestion that hits the same cap shows the same line in the suggestions panel's existing alert (no disabling there). `PlaceSearchInput` shows its line and stays usable (M4). One hook, `useLimitedUntil`, keeps the end time as an absolute timestamp in `localStorage` (key: control + user id + the invite or brunch, e.g. `brunchsters:limit:resend:<userId>:<inviteId>`), so a refresh or a sign-out and sign-in as the same person keeps the wait; every storage access is in `try/catch` and falls back to in-memory. The wording comes from one function in `src/lib` with a unit test (hours, minutes, seconds, never "0 minutes")
-- [ ] No new Redux state; the message is the control's own `useState` (ADR 0011)
+- [x] No new Redux state; the message is the control's own `useState` (ADR 0011)
 
 ### Docs
 
-- [ ] `PLANNING.md` §16 (step 5 now links this spec and names what is in it), §17 "Security and session follow-ups" updated item by item (rate limits and CSP done; HSTS, expired session, invite GET, account deletion still open with their owners)
-- [ ] `docs/SETUP.md`: the audit command, how to run the limit journeys, the `x-forwarded-for` note for local runs
-- [ ] The deployment spec's pre-launch checklist in `PLANNING.md` §17 gains: HSTS, "confirm Vercel overwrites a client-supplied `x-forwarded-for`", "load every screen and read the console for CSP violations", "decide where limit-hit logs go, and confirm the daily `prune-rate-limits` job is registered and runs in Inngest Cloud"
-- [ ] `apps/web/CLAUDE.md`: a short "Limited state" note (where the wording lives, 429 handling) and the rule for new endpoints; root `CLAUDE.md` gets one line under Architectural Rules (every mutating route limits writes; limits are keyed by caller)
-- [ ] `.claude/skills/spec-grill` prompts: ask "what limit does a new endpoint need"
+- [x] `PLANNING.md` §16 (step 5 now links this spec and names what is in it), §17 "Security and session follow-ups" updated item by item (rate limits and CSP done; HSTS, expired session, invite GET, account deletion still open with their owners)
+- [x] `docs/SETUP.md`: the audit command, how to run the limit journeys, the `x-forwarded-for` note for local runs
+- [x] The deployment spec's pre-launch checklist in `PLANNING.md` §17 gains: HSTS, "confirm Vercel overwrites a client-supplied `x-forwarded-for`", "load every screen and read the console for CSP violations", "decide where limit-hit logs go, and confirm the daily `prune-rate-limits` job is registered and runs in Inngest Cloud"
+- [x] `apps/web/CLAUDE.md`: a short "Limited state" note (where the wording lives, 429 handling) and the rule for new endpoints; root `CLAUDE.md` gets one line under Architectural Rules (every mutating route limits writes; limits are keyed by caller)
+- [x] `.claude/skills/spec-grill` prompts: ask "what limit does a new endpoint need"
 
 ---
 
@@ -130,6 +130,35 @@ Journeys that change: `front-door.spec.ts` (S1), `api-authorization.spec.ts` (L5
 
 ---
 
+## Outcome
+
+Shipped on `feat/0012-security-hardening` in six milestones, each committed green: the dependency patch and audit gate (M1), the Postgres limiter (M2), the invite and resend limits (M3), place search, writes and invite tokens (M4), the report-only CSP (M5), and enforcing it (M6).
+
+**What shipped.** `next` 15.5.28 and `next-auth` 5.0.0-beta.32 with five transitive overrides (32 advisories, 6 critical, down to none) and `pnpm audit --prod --audit-level=high` in CI. A `RateLimiter` interface with a Postgres fixed-window implementation (`RateLimitBucket`, one atomic upsert), a daily prune job, and these budgets: 100 invite emails per host per day and 50 per brunch per day (spent by sending, re-sending and approving a suggestion, after the host check), a resend every 10 minutes per invite, 30 place searches and 20 place lookups per person per minute, 60 writes per person per minute on every mutating route, and 30 requests per address per minute on the public invite-token routes. A refusal is a 429 with `Retry-After` and the policy; the invite panel and the place search say so in the Brand Voice, the send and Resend buttons wait (`aria-disabled`) and remember the wait across a refresh. A nonce-based Content-Security-Policy on every response, enforcing. Journeys S1 (extended), S2, S3, L1 to L6, with a scanning test that fails when a mutating route skips its limit.
+
+**What changed from the plan.**
+
+- **Approving a suggestion is an email path**, which the spec's first draft missed (it said `suggestInvitee` sends no email; with approval not required it does). Approvals now spend the same budgets.
+- **The token limit counts every request, not only the invalid ones**, and the policy is `invite-token`: refusing a valid token from a limited address needed a read of the counter that the limiter does not have, and nothing in the app's own screens calls those routes.
+- **No allowlist** in the write-limit scanning test: the invite response route takes the address budget before its session check and the write budget after.
+- **The 429 body carries `policy`**, so a control can word its message; the limited line is `role="status"`; the wait is stored in `localStorage` as an absolute time.
+- **The root `CLAUDE.md` rule and the `spec-grill` prompt landed in M4**, with the pattern, not at the end.
+- **One shared test helper for the limit journeys** (`untilRefused`, `alignToWindow`), after the first versions timed out under load and depended on the minute they ran in.
+
+**What was found.**
+
+- **`next-auth` 5.0.0 does not exist**; the advisories name it, and beta.32 is what clears them. S2 (every broken credential gets a 401) was written first, against the old versions, because one advisory was "auth checks fail open".
+- **Two new tests broke unrelated ones, both fixed in the test**: a race test that opened 50 connections exhausted the local Postgres's 100 and failed two other files; limit journeys that queued about 100 real invite emails delayed the emails other journeys wait for.
+- **Playwright waits forever on a click of an `aria-disabled` button**, and axe measured the Revoke button mid-transition after a live color-scheme switch; both are in `apps/web/CLAUDE.md`.
+- **A fixed window makes "still refused afterwards" depend on the minute**: three journey assertions passed or failed by the clock until each segment was aligned to a window.
+- **`'strict-dynamic'` trusts a script the page's own scripts create**, so the first enforcement journey (which created one) found the injected script running; the policy stops injected markup (an inline `onerror=` handler), and the journey now tests that and was proved to fail against a report-only header.
+- **Next reads the nonce from the response header too**, so setting it on the request as well is belt and braces no test can distinguish.
+- **Unexplained, single occurrences under heavy load, not reproduced in about 250 further runs:** one 500 from an RSVP in a batch of parallel writes (probably a saturated connection pool in the dev server), and one failure of the host-only authorization journey in a full dev run; plus several mass timeouts that fit the owner's computer sleeping. The journeys now send smaller batches.
+
+**Deferred (also in "What This Spec Does Not Cover" and `PLANNING.md` §17).** A sign-in limiter, an address limit on signed-in traffic, showing the remaining budget; waiting Approve buttons and sharing a wait between tabs; the creation wizard's ignored invite response (now reachable by ordinary use); wording for a 429 on every control but three; HSTS, `upgrade-insecure-requests`, the `x-forwarded-for` check and the prune job's first run on the real deployment (the pre-launch checklist); Dependabot (a repository setting).
+
+---
+
 ## What This Spec Does Not Cover
 
 Each is recorded in ADR 0013 or 0014 and in PLANNING §17.
@@ -153,5 +182,5 @@ Each is recorded in ADR 0013 or 0014 and in PLANNING §17.
 
 1. **Are the starting numbers right?** 100 invite emails per host per day, 50 per brunch per day, resend every 10 minutes, 30 and 20 place calls a minute, 60 writes a minute, 30 bad tokens a minute. Chosen as roomy for a real host and tight for a script; no data yet.
 2. **Does `next-auth@5.0.0-beta.32` clear the advisories** that name a `5.0.0` that does not exist? **Answered in M1: yes**, every Auth.js advisory is cleared (and `next` 15.5.28 and five transitive overrides clear the rest); nothing is on the ignore list. Recheck when Auth.js v5 goes stable.
-3. **Does Chromium apply `form-action` to the redirect after the sign-in form post?** The policy allows Google's origin for that case; M6's manual sign-in confirms the minimal list. **Owner defers to the recommendation:** keep Google's origin only if the manual sign-in shows it is needed.
+3. **Does Chromium apply `form-action` to the redirect after the sign-in form post?** **Answered in M6, partly:** a real Google sign-in and sign-out with the policy in place (dev server, console open) raised nothing, so the policy as written works. Whether the redirect would be blocked _without_ Google's origin in `form-action` was not tried, so the origin stays (one origin, forms only); the owner can delete it and repeat the sign-in to find out.
 4. **Does Vercel overwrite a client-supplied `x-forwarded-for`?** Checked on the real deployment (deployment spec), not here.

@@ -19,10 +19,10 @@ import { addAttendee, ballot, manageOptions } from '../support/voting';
 import { BrunchWizard } from '../support/wizard';
 
 // S3 — the Content-Security-Policy raises no complaint anywhere a person goes (spec 0012 M5,
-// ADR 0014). The policy is report-only here: the browser says what it would have blocked and
-// blocks nothing, so this journey is what proves the policy is right before it is enforced (M6).
-// A violation shows up twice, as a `securitypolicyviolation` event and as a console message, and
-// both are collected. It runs in the dev server and on the production build; the policy differs
+// ADR 0014). The policy is enforcing, so a violation is a thing the browser refused to do: a
+// screen that breaks. It shows up twice, as a `securitypolicyviolation` event and as a console
+// message, and both are collected. (M5 ran the same journey against a report-only policy first,
+// to prove every screen clean before anything was blocked.) It runs in the dev server and on the production build; the policy differs
 // (development allows what the dev server needs), so CI's run is the strict one.
 
 type Watcher = { readonly check: (where: string) => Promise<void> };
@@ -152,4 +152,52 @@ test.describe('S3 — the Content-Security-Policy and the screens', () => {
       await hostWatch.check('signing out');
     });
   }
+});
+
+test.describe('S3 — the policy is enforced', () => {
+  test('script smuggled into the page as HTML (an event handler) does not run, and the browser reports it', async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      const recorded: string[] = [];
+      (window as unknown as { __blocked: string[] }).__blocked = recorded;
+      document.addEventListener('securitypolicyviolation', (event) => {
+        recorded.push(event.violatedDirective);
+      });
+    });
+    await page.goto('/');
+    await expectLandingPage(page);
+
+    // The classic injection: markup an attacker got into the page, carrying an inline handler.
+    // (A script the page's own scripts create is trusted by 'strict-dynamic' by design, because
+    // whoever can run script already has the page; the policy stops injected *markup*.)
+    await page.evaluate(() => {
+      document.body.insertAdjacentHTML(
+        'beforeend',
+        '<img src="/no-such-image.png" onerror="window.__injectedHandlerRan = true">',
+      );
+      // Added after the inline handler, so it runs after it: once this has fired, the handler has
+      // either run or been refused. (The violation report comes *before* the handler would run, so
+      // waiting for the report alone would check too early.)
+      document.body.lastElementChild?.addEventListener('error', () => {
+        (window as unknown as { __imageFailed: boolean }).__imageFailed = true;
+      });
+    });
+    await expect
+      .poll(() =>
+        page.evaluate(() => (window as unknown as { __imageFailed?: boolean }).__imageFailed),
+      )
+      .toBe(true);
+
+    expect(
+      await page.evaluate(
+        () => (window as unknown as { __injectedHandlerRan?: boolean }).__injectedHandlerRan,
+      ),
+      'the injected event handler ran',
+    ).toBeUndefined();
+    const blocked = await page.evaluate(
+      () => (window as unknown as { __blocked: string[] }).__blocked,
+    );
+    expect(blocked.some((directive) => directive.startsWith('script-src'))).toBe(true);
+  });
 });

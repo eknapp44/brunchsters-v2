@@ -5,12 +5,15 @@
 // 'strict-dynamic') run, so an injected inline script does nothing. Everything else is limited to
 // this site, with the one outside address a form may send a person to: Google's sign-in.
 
-// Report-only while the policy is proved on every screen (spec 0012 M5): the browser reports what
-// it would have blocked and blocks nothing. M6 changes this one constant to the enforcing header.
-export const CSP_HEADER_NAME = 'Content-Security-Policy-Report-Only';
+// Enforcing since spec 0012 M6: the browser blocks what the policy does not allow. M5 shipped it as
+// `Content-Security-Policy-Report-Only` (report and block nothing) while journey S3 proved every
+// screen clean; going back to that for a while is this one constant, if a real deployment finds a
+// screen the suite could not.
+export const CSP_HEADER_NAME = 'Content-Security-Policy';
 
 // Where the sign-in form sends a person (a form post that redirects is checked against
-// `form-action`). Kept only if the real sign-in shows it is needed (spec 0012 open question 3).
+// `form-action`). A real sign-in with the policy in place raised nothing (spec 0012 M6); whether
+// Chromium would block that redirect without it was not tried, so it stays: one origin, forms only.
 const GOOGLE_SIGN_IN = 'https://accounts.google.com';
 
 // A fresh, unguessable value for every request. A nonce that repeats can be copied into an

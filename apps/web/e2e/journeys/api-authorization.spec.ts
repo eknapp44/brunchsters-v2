@@ -9,7 +9,7 @@ import { baseUrl } from '../support/env';
 import { createBrunch, uniqueSuffix } from '../support/factories';
 import { expect, test } from '../support/fixtures';
 import { fixturePlaces } from '../support/places';
-import { untilRefused } from '../support/rateLimits';
+import { alignToWindow, untilRefused } from '../support/rateLimits';
 import { daysFromNow } from '../support/time';
 import { addAttendee, listOptions } from '../support/voting';
 
@@ -282,7 +282,8 @@ test.describe('API authorization', () => {
   test('over budget, an outsider still cannot tell a real brunch from a made-up id, and a member is told to slow down, not that they may not', async ({
     makeActor,
   }) => {
-    test.slow();
+    // Two loops of 60+ requests, each possibly preceded by a wait for the next server window.
+    test.setTimeout(240_000);
     const host = await makeActor('host');
     const member = await makeActor('member');
     const stranger = await makeActor('stranger');
@@ -298,6 +299,10 @@ test.describe('API authorization', () => {
     const real = `/api/v1/brunches/${brunchId}/rsvp`;
     const aimedAtNothing = (): string => `/api/v1/brunches/${randomUUID()}/rsvp`;
     const outsider = stranger.context.request;
+
+    // Each segment below (exhaust a budget, then check what follows) must sit inside one server
+    // window, or the budget could reset between the loop and the check.
+    await alignToWindow({ windowSeconds: 60, needSeconds: 25 });
 
     // Under budget they are the same 404 (the other journeys check every endpoint; one pair here
     // for contrast with what follows).
@@ -326,6 +331,7 @@ test.describe('API authorization', () => {
     expect(await bodyOf(forReal)).toEqual(await bodyOf(forNothing));
 
     // A member over budget is told to slow down, not told they may not do a host-only thing.
+    await alignToWindow({ windowSeconds: 60, needSeconds: 25 });
     await untilRefused({
       limit: 60,
       attempt: () => post(member.context.request, real),

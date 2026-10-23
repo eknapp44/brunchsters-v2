@@ -19,7 +19,7 @@ export async function untilRefused(params: {
   // Requests the same caller already made in this window before the loop (a contrast check, say).
   readonly alreadySpent?: number;
 }): Promise<{ readonly refused: APIResponse; readonly answered: number }> {
-  const batchSize = params.batchSize ?? 10;
+  const batchSize = params.batchSize ?? 5;
   const most = params.limit * 2 + batchSize;
   let sent = 0;
   let answered = 0;
@@ -47,4 +47,21 @@ export async function untilRefused(params: {
   ).toBeGreaterThanOrEqual(params.limit);
   if (refused === undefined) throw new Error('unreachable: asserted above');
   return { refused, answered };
+}
+
+// The server's windows are fixed on the clock (epoch-aligned, so a one-minute window ends at the
+// start of a wall-clock minute). A journey that exhausts a budget and then checks that the person
+// is *still* refused would fail if the minute rolled over in between. Call this first: it waits
+// for the next window when too little of the current one is left, so the whole segment (the loop
+// and what follows it) runs inside one window. It waits on a clock boundary, not on a condition,
+// which is the one place a fixed wait is the right tool. On average it costs a few seconds.
+export async function alignToWindow(params: {
+  readonly windowSeconds: number;
+  readonly needSeconds: number;
+}): Promise<void> {
+  const windowMs = params.windowSeconds * 1000;
+  const leftMs = windowMs - (Date.now() % windowMs);
+  if (leftMs < params.needSeconds * 1000) {
+    await new Promise((resolve) => setTimeout(resolve, leftMs + 250));
+  }
 }

@@ -14,7 +14,7 @@ import { expect, test } from '../support/fixtures';
 import { inviteRow } from '../support/invites';
 import { emailsTo, waitForEmails } from '../support/mailbox';
 import { fixturePlaces } from '../support/places';
-import { untilRefused } from '../support/rateLimits';
+import { alignToWindow, untilRefused } from '../support/rateLimits';
 import { addAttendee } from '../support/voting';
 import { BrunchWizard } from '../support/wizard';
 
@@ -273,6 +273,8 @@ test.describe('L4 — writes', () => {
     const rsvp = (who: typeof fast) =>
       who.context.request.post(`/api/v1/brunches/${brunchId}/rsvp`, { data: { response: 'yes' } });
 
+    // The whole segment (the loop and the checks after it) inside one server window.
+    await alignToWindow({ windowSeconds: 60, needSeconds: 25 });
     const { refused } = await untilRefused({
       limit: 60,
       attempt: () => rsvp(fast),
@@ -309,6 +311,8 @@ test.describe('L6 — invite tokens', () => {
     const busy = await from(`l6-busy-${uniqueSuffix()}`);
     const other = await from(`l6-other-${uniqueSuffix()}`);
 
+    // The whole segment (the loop and the checks after it) inside one server window.
+    await alignToWindow({ windowSeconds: 60, needSeconds: 25 });
     const { refused } = await untilRefused({
       limit: 30,
       attempt: (index) => busy.get(`/api/v1/invites/token/not-a-token-${index}`),
