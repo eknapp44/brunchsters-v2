@@ -8,16 +8,24 @@ The order proves the risky parts early: the guard that stops a called-off brunch
 
 ## M1 — Schema and docs
 
-- [ ] Commit this spec folder, ADR 0015 (with the README index row) and the `PLANNING.md` edits as one docs-only commit, before any code
-- [ ] Schema: `Brunch.cancelledAt`, `cancelledBy`, `statusBeforeCancelId`, `cancelNoticeSentAt`; `BrunchAttendee.hiddenAt`; migration generated and committed with the schema; apply on the dev and e2e databases
-- [ ] Verify there are no rows with `archivedAt` set or a `cancelled`/`archived` status (so no data migration); record the result
-- [ ] Prisma comments: `archivedAt`/`archivedBy`/`cancellationJobId` unused (ADR 0015); `PLANNING.md` §8 notes the new columns
-- [ ] `packages/shared/src/brunchLifecycle.ts` constants (`CANCEL_NOTICE_HOLD_SECONDS`, `PAST_BRUNCHES_SHOWN`)
-- [ ] Commit: `feat: add the brunch lifecycle columns (M1)`
+- [x] Commit this spec folder, ADR 0015 (with the README index row) and the `PLANNING.md` edits as one docs-only commit, before any code
+- [x] Schema: `Brunch.cancelledAt`, `cancelledBy`, `statusBeforeCancelId`, `cancelNoticeSentAt`; `BrunchAttendee.hiddenAt`; migration generated and committed with the schema; apply on the dev and e2e databases
+- [x] Verify there are no rows with `archivedAt` set or a `cancelled`/`archived` status (so no data migration); record the result
+- [x] Prisma comments: `archivedAt`/`archivedBy`/`cancellationJobId` unused (ADR 0015); `PLANNING.md` §8 notes the new columns
+- [x] `packages/shared/src/brunchLifecycle.ts` constants (`CANCEL_NOTICE_HOLD_SECONDS`, `PAST_BRUNCHES_SHOWN`)
+- [x] Commit: `feat: add the brunch lifecycle columns (M1)`
 
 **Journeys that change:** none. **Deployable:** yes (nullable columns).
 
-**Testing notes:** _(fill on completion)_
+**Testing notes:**
+
+- **What was tested:** the new columns exist and start empty: a new brunch has no `cancelledAt`, `cancelledBy`, `statusBeforeCancelId` or `cancelNoticeSentAt`; a new attendee (the host's own row) has no `hiddenAt`. `statusBeforeCancel` is a real relation to a seeded status (a brunch set to `cancelled` with `draft` as the status before reads back both codes, `cancelledAt` and `cancelledBy` round-trip), and hiding is stored on the attendee alone (the brunch's `deletedAt` and `archivedAt` stay null). The two shared constants are whole, positive numbers.
+- **How:** one integration test file on real local Postgres (`brunchLifecycleColumns.integration.test.ts`, 3 tests) and one shared unit file (`brunchLifecycle.test.ts`, 2 tests). Nothing mocked. Totals this turn: `pnpm typecheck` and `pnpm lint` clean; `pnpm test` shared 47, core 543, web 520, database 1 (the `failed {` lines in the web output are logged errors from tests that expect them); `pnpm --filter @brunchsters/core test:integration` 21 files, 138 tests. The migration applied to the dev database (`prisma migrate deploy`) and, through `pnpm e2e:db:reset`, to the empty-then-seeded e2e database; the five new columns exist there. **Mutation checks:** (1) gave `BrunchAttendee.hiddenAt` and `Brunch.cancelledAt` a database default of `now()` → the "starts with no cancellation" and "starts every attendee visible" tests failed (2 of 3), defaults dropped again and 3 of 3 pass, `information_schema` confirmed no defaults remain; (2) set `PAST_BRUNCHES_SHOWN` to 0 → "shows at least one past brunch" failed, restored (`git diff` of the file clean). **Not mutation-checked:** the `statusBeforeCancel` round-trip test (a missing relation or foreign key would already fail typecheck and the test's `include`, so a separate mutation adds little).
+- **E2E journeys:** none needed. The milestone adds nullable columns and two constants; no screen, route, rule or control changes, so no accessible name moves. The e2e, stress and CI-mode runs were skipped for that reason and run from M6, the first milestone that mounts anything (the e2e database was reset and re-migrated, which the next e2e run does anyway).
+- **Data check (no data migration):** against the dev database before migrating: 12 brunches, 0 with `archivedAt`, 0 with `cancellationJobId`, 0 with a `cancelled`, `archived`, `completed`, `brunching` or `paying` status. The e2e database is rebuilt on every run, so it cannot hold any.
+- **Correction to this milestone's original task list:** the spec folder and ADR were committed earlier (`23ddbc5`, then `33836be` and `c39b7eb` for the settled open questions and the wrap-up note), and the `PLANNING.md` §8 edits landed in the first of those, so only the schema, the migration, the constants and the tests are in this commit. `Brunch.archivedAt`/`archivedBy` and `cancellationJobId` got "UNUSED" comments in the Prisma schema.
+- **What's deferred:** nothing here is read or written yet; the services (M2, M3), routes (M4), emails (M5), screens (M6) and journeys (M7) use these columns. Existing rows need no backfill (all columns are nullable and start null). `hiddenAt` has no index: the dashboard already filters by `userId`, and the per-user attendee list is small.
+- **How to run it:** `pnpm --filter @brunchsters/core test:integration brunchLifecycleColumns`; `pnpm --filter @brunchsters/shared exec vitest run brunchLifecycle`; schema: `pnpm db:validate`, apply with `pnpm --filter @brunchsters/database exec prisma migrate deploy`.
 
 ---
 
