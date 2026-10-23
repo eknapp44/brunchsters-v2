@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   clearLimit,
+  handoffStorageKey,
   limitStorageKey,
   readLimit,
   secondsLeft,
+  sweepExpiredLimits,
   writeLimit,
   type LimitStorage,
 } from './limitedUntil';
@@ -14,6 +16,10 @@ function fakeStorage(initial: Record<string, string> = {}): LimitStorage & {
   const data = new Map(Object.entries(initial));
   return {
     data,
+    get length() {
+      return data.size;
+    },
+    key: (index) => [...data.keys()][index] ?? null,
     getItem: (key) => data.get(key) ?? null,
     setItem: (key, value) => {
       data.set(key, value);
@@ -25,6 +31,10 @@ function fakeStorage(initial: Record<string, string> = {}): LimitStorage & {
 }
 
 const throwingStorage: LimitStorage = {
+  length: 1,
+  key: () => {
+    throw new Error('blocked');
+  },
   getItem: () => {
     throw new Error('blocked');
   },
@@ -142,5 +152,60 @@ describe('secondsLeft', () => {
     expect(secondsLeft({ until: NOW + 1_001, now: NOW })).toBe(2);
     expect(secondsLeft({ until: NOW + 1, now: NOW })).toBe(1);
     expect(secondsLeft({ until: NOW - 5, now: NOW })).toBe(1);
+  });
+});
+
+describe('sweepExpiredLimits', () => {
+  const running = JSON.stringify({ until: NOW + 60_000, policy: 'p' });
+  const expired = JSON.stringify({ until: NOW - 1, policy: 'p' });
+
+  it('removes waits that ran out or cannot be read, and keeps the ones still running', () => {
+    const storage = fakeStorage({
+      [limitStorageKey({ control: 'resend', viewerId: 'u1', id: 'i1' })]: expired,
+      [limitStorageKey({ control: 'resend', viewerId: 'u1', id: 'i2' })]: running,
+      [limitStorageKey({ control: 'invites-send', viewerId: 'u2', id: 'b1' })]: 'not json',
+      [handoffStorageKey('b2')]: expired,
+      [handoffStorageKey('b3')]: running,
+    });
+
+    sweepExpiredLimits({ storage, now: NOW });
+
+    expect([...storage.data.keys()].sort()).toEqual(
+      [
+        limitStorageKey({ control: 'resend', viewerId: 'u1', id: 'i2' }),
+        handoffStorageKey('b3'),
+      ].sort(),
+    );
+  });
+
+  it("never touches an entry that is not this app's, even a broken one", () => {
+    const storage = fakeStorage({
+      theme: 'dark',
+      'other:limit:x': 'not json',
+      [limitStorageKey({ control: 'resend', viewerId: 'u1', id: 'i1' })]: expired,
+    });
+
+    sweepExpiredLimits({ storage, now: NOW });
+
+    expect([...storage.data.keys()].sort()).toEqual(['other:limit:x', 'theme']);
+  });
+
+  it('removes every expired entry, however many there are (no skipping while it walks)', () => {
+    const entries = Object.fromEntries(
+      Array.from({ length: 20 }, (_, index) => [
+        limitStorageKey({ control: 'resend', viewerId: 'u1', id: `i${index}` }),
+        expired,
+      ]),
+    );
+    const storage = fakeStorage(entries);
+
+    sweepExpiredLimits({ storage, now: NOW });
+
+    expect(storage.data.size).toBe(0);
+  });
+
+  it('does nothing, without throwing, when storage is missing or blocked', () => {
+    expect(() => sweepExpiredLimits({ storage: undefined, now: NOW })).not.toThrow();
+    expect(() => sweepExpiredLimits({ storage: throwingStorage, now: NOW })).not.toThrow();
   });
 });

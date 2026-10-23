@@ -13,7 +13,9 @@ export type StoredLimit = {
   readonly policy: string;
 };
 
-export type LimitStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
+export type LimitStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem' | 'key' | 'length'>;
+
+const KEY_PREFIXES = ['brunchsters:limit:', 'brunchsters:limit-handoff:'];
 
 // One key per person and per control (and per thing it acts on: the Resend button adds its invite),
 // so two people in one browser never see each other's wait.
@@ -117,6 +119,30 @@ export function clearLimit(params: {
     params.storage?.removeItem(params.key);
   } catch {
     // Nothing to do: an expired entry is ignored when it is next read.
+  }
+}
+
+// Deletes every wait this app has left in the browser that has run out or cannot be read. A wait
+// is normally removed when its own control next reads it after it expired, but a control that is
+// never shown again would leave its entry (which has a person's id and a brunch's id in its key)
+// for good, so the hook sweeps on mount. Entries that are still running, and anything that is not
+// ours, are left alone.
+export function sweepExpiredLimits(params: {
+  readonly storage: LimitStorage | undefined;
+  readonly now: number;
+}): void {
+  const { storage, now } = params;
+  if (storage === undefined) return;
+  try {
+    const ours: string[] = [];
+    for (let index = 0; index < storage.length; index += 1) {
+      const key = storage.key(index);
+      if (key !== null && KEY_PREFIXES.some((prefix) => key.startsWith(prefix))) ours.push(key);
+    }
+    // Collected first: removing while walking by index would skip entries.
+    for (const key of ours) readLimit({ storage, key, now });
+  } catch {
+    // Storage threw: nothing to sweep.
   }
 }
 

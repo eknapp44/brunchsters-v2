@@ -9,6 +9,7 @@ import {
   LIMIT_CHANGED_EVENT,
   readLimit,
   secondsLeft,
+  sweepExpiredLimits,
   writeLimit,
   type StoredLimit,
 } from './limitedUntil';
@@ -53,6 +54,8 @@ export function useLimitedUntil(
 
   useEffect(() => {
     const storage = browserStorage();
+    // Waits that ran out (or cannot be read) are cleared out of the browser as the page opens.
+    sweepExpiredLimits({ storage, now: Date.now() });
 
     function reread(): void {
       const now = Date.now();
