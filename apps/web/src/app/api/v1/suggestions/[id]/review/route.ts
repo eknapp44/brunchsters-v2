@@ -3,8 +3,9 @@ import type { InviteSuggestionId, UserId } from '@brunchsters/shared';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/auth';
+import { enforceWriteLimit } from '@/lib/rateLimit';
 import { db } from '@/lib/db';
-import { rateLimitedResponse, rateLimiterUnavailableResponse } from '@/lib/rateLimit';
+import { rateLimitedResponse, rateLimiterUnavailableResponse } from '@/lib/rateLimitHttp';
 import { eventBus, getRateLimiter } from '@/lib/services';
 
 const suggestionIdSchema = z.uuid();
@@ -17,6 +18,9 @@ export async function POST(
   if (session === null) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const limited = await enforceWriteLimit(session.user.id);
+  if (limited !== undefined) return limited;
 
   const { id } = await params;
   const parsedSuggestionId = suggestionIdSchema.safeParse(id);

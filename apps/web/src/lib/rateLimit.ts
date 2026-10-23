@@ -1,30 +1,44 @@
-import { NextResponse } from 'next/server';
+import { RATE_LIMIT_POLICIES, type RateLimitPolicy } from '@brunchsters/shared';
+import type { NextResponse } from 'next/server';
+import { rateLimitedResponse, rateLimiterUnavailableResponse } from './rateLimitHttp';
+import { getRateLimiter } from './services';
 
-// What every limited route answers (ADR 0013): 429 with Retry-After, and the same facts in the
-// body so a control can word its message and keep the wait. `policy` is the name of the policy
-// that refused; it says nothing about any brunch or invite.
-export type RateLimitedAnswer = {
-  readonly policy: string;
-  readonly retryAfterSeconds: number;
-};
-
-export function rateLimitedResponse(limited: RateLimitedAnswer): NextResponse {
-  return NextResponse.json(
-    {
-      error: 'Too many requests',
-      policy: limited.policy,
-      retryAfterSeconds: limited.retryAfterSeconds,
-    },
-    { status: 429, headers: { 'Retry-After': String(limited.retryAfterSeconds) } },
-  );
+// Spends one unit of a policy for a subject, and answers for the route when it cannot: the 429
+// when the budget is spent, the 503 when the counter cannot be read (fail closed, ADR 0013).
+// Returns undefined when the request may go on, so a handler reads:
+//
+//   const limited = await enforceLimit({ ... });
+//   if (limited !== undefined) return limited;
+//
+// The subject is always the caller (a user id or an address), never anything that names a brunch:
+// a made-up id and a real one must spend the same budget and get the same answer.
+export async function enforceLimit(params: {
+  readonly policy: RateLimitPolicy;
+  readonly subject: string;
+  readonly route: string;
+}): Promise<NextResponse | undefined> {
+  const result = await getRateLimiter().consume({
+    policy: params.policy,
+    subject: params.subject,
+  });
+  if (result.isErr()) {
+    return rateLimiterUnavailableResponse({ route: params.route, cause: result.error.cause });
+  }
+  if (!result.value.allowed) {
+    return rateLimitedResponse({
+      policy: params.policy.name,
+      retryAfterSeconds: result.value.retryAfterSeconds,
+    });
+  }
+  return undefined;
 }
 
-// The counter could not be read: the request is refused rather than let through (fail closed,
-// ADR 0013). Logged with its cause; the caller gets nothing it could use to probe.
-export function rateLimiterUnavailableResponse(params: {
-  readonly route: string;
-  readonly cause: unknown;
-}): NextResponse {
-  console.error(`${params.route}: the rate limiter is unavailable`, params.cause);
-  return NextResponse.json({ error: 'Temporarily unavailable' }, { status: 503 });
+// Every mutating route calls this right after its session check (the order is: session, limit,
+// parse, service), keyed by the signed-in person. A test fails when a mutating route does not.
+export function enforceWriteLimit(userId: string): Promise<NextResponse | undefined> {
+  return enforceLimit({
+    policy: RATE_LIMIT_POLICIES.writesPerUser,
+    subject: userId,
+    route: 'write',
+  });
 }

@@ -1,10 +1,15 @@
 import { randomUUID } from 'node:crypto';
-import { request as playwrightRequest, type APIRequestContext } from '@playwright/test';
+import {
+  request as playwrightRequest,
+  type APIRequestContext,
+  type APIResponse,
+} from '@playwright/test';
 import { getDb } from '../support/db';
 import { baseUrl } from '../support/env';
 import { createBrunch, uniqueSuffix } from '../support/factories';
 import { expect, test } from '../support/fixtures';
 import { fixturePlaces } from '../support/places';
+import { untilRefused } from '../support/rateLimits';
 import { daysFromNow } from '../support/time';
 import { addAttendee, listOptions } from '../support/voting';
 
@@ -271,5 +276,63 @@ test.describe('API authorization', () => {
       'draft brunch',
     );
     await anonymous.dispose();
+  });
+
+  // Journey L5 (spec 0012): a limit must not become a way to tell a real brunch from a made-up id.
+  test('over budget, an outsider still cannot tell a real brunch from a made-up id, and a member is told to slow down, not that they may not', async ({
+    makeActor,
+  }) => {
+    test.slow();
+    const host = await makeActor('host');
+    const member = await makeActor('member');
+    const stranger = await makeActor('stranger');
+    const brunchId = await createBrunch({
+      host: host.user,
+      locations: [fixturePlaces.sunnySide, fixturePlaces.harborBistro],
+      times: [daysFromNow(10), daysFromNow(11)],
+    });
+    await addAttendee({ brunchId, host: host.user, user: member.user, response: 'yes' });
+
+    const post = (who: APIRequestContext, path: string, data: unknown = { response: 'yes' }) =>
+      who.fetch(path, { method: 'POST', data, maxRedirects: 0 });
+    const real = `/api/v1/brunches/${brunchId}/rsvp`;
+    const aimedAtNothing = (): string => `/api/v1/brunches/${randomUUID()}/rsvp`;
+    const outsider = stranger.context.request;
+
+    // Under budget they are the same 404 (the other journeys check every endpoint; one pair here
+    // for contrast with what follows).
+    expect((await post(outsider, real)).status()).toBe(404);
+    expect((await post(outsider, aimedAtNothing())).status()).toBe(404);
+
+    // Spend the outsider's writes on made-up ids until the server says slow down.
+    await untilRefused({
+      limit: 60,
+      attempt: () => post(outsider, aimedAtNothing()),
+      expectedUntilThen: (response) => expect(response.status()).toBe(404),
+      // The two requests of the contrast check above already used part of this window.
+      alreadySpent: 2,
+    });
+
+    // Over budget the real brunch and a made-up id are still one and the same answer.
+    const forReal = await post(outsider, real);
+    const forNothing = await post(outsider, aimedAtNothing());
+    expect(forReal.status()).toBe(429);
+    expect(forNothing.status()).toBe(429);
+    // The wait differs by a second at most between two calls; everything else must be identical.
+    const bodyOf = async (response: APIResponse): Promise<unknown> => ({
+      ...((await response.json()) as Record<string, unknown>),
+      retryAfterSeconds: undefined,
+    });
+    expect(await bodyOf(forReal)).toEqual(await bodyOf(forNothing));
+
+    // A member over budget is told to slow down, not told they may not do a host-only thing.
+    await untilRefused({
+      limit: 60,
+      attempt: () => post(member.context.request, real),
+      expectedUntilThen: (response) => expect(response.status()).toBe(200),
+    });
+    const hostOnly = await post(member.context.request, `/api/v1/brunches/${brunchId}/confirm`, {});
+    expect(hostOnly.status()).toBe(429);
+    expect(await hostOnly.json()).toMatchObject({ policy: 'writes' });
   });
 });

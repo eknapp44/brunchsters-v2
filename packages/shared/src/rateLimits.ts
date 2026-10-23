@@ -22,8 +22,9 @@ export const RATE_LIMIT_POLICIES = {
   placeDetailsPerUser: { name: 'place-details', limit: 20, windowSeconds: MINUTE },
   // Every other authenticated write; counts requests the service then rejects too.
   writesPerUser: { name: 'writes', limit: 60, windowSeconds: MINUTE },
-  // Only answers of "no such invite" count, keyed by the caller's address.
-  invalidTokenPerIp: { name: 'invalid-token', limit: 30, windowSeconds: MINUTE },
+  // Every request to the public invite-token routes, keyed by the caller's address: the only
+  // routes a signed-out visitor can call, and nothing in the app's own screens calls them.
+  inviteTokenPerIp: { name: 'invite-token', limit: 30, windowSeconds: MINUTE },
 } as const satisfies Record<string, RateLimitPolicy>;
 
 export type RateLimitPolicyName = keyof typeof RATE_LIMIT_POLICIES;

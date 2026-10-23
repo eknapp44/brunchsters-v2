@@ -1,16 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('@/auth', () => ({ auth: vi.fn() }));
 vi.mock('@/adapters/GooglePlacesProvider', () => ({
   GooglePlacesProvider: vi.fn(),
 }));
 
+import { RATE_LIMIT_POLICIES } from '@brunchsters/shared';
 import { GooglePlacesProvider } from '@/adapters/GooglePlacesProvider';
+import { auth } from '@/auth';
+import { enforceLimit } from '@/lib/rateLimit';
+import { rateLimitedResponse } from '@/lib/rateLimitHttp';
 import { GET } from './route';
+
+const mockAuth = vi.mocked(auth as unknown as () => Promise<unknown>);
+const mockEnforceLimit = vi.mocked(enforceLimit);
 
 const mockGetDetails = vi.fn();
 
 beforeEach(() => {
   vi.resetAllMocks();
+  mockAuth.mockResolvedValue({ user: { id: 'person-1' } });
   vi.stubEnv('GOOGLE_PLACES_API_KEY', 'test-key');
   vi.mocked(GooglePlacesProvider).mockImplementation(
     () => ({ search: vi.fn(), getDetails: mockGetDetails }) as unknown as GooglePlacesProvider,
@@ -79,5 +88,43 @@ describe('GET /api/v1/places/[placeId]', () => {
 
     expect(response.status).toBe(502);
     expect(await response.json()).toEqual({ error: 'Place search unavailable' });
+  });
+});
+
+describe('GET /api/v1/places/[placeId] — who may call it and how often', () => {
+  it('returns 401 for a signed-out caller, and spends nothing and calls nobody', async () => {
+    mockAuth.mockResolvedValue(null);
+    const { request, params } = detailsRequest('place-1');
+
+    const response = await GET(request, { params });
+
+    expect(response.status).toBe(401);
+    expect(mockEnforceLimit).not.toHaveBeenCalled();
+    expect(mockGetDetails).not.toHaveBeenCalled();
+  });
+
+  it('spends the signed-in person place-details budget before Google is called', async () => {
+    mockGetDetails.mockResolvedValue(undefined);
+    const { request, params } = detailsRequest('place-1');
+
+    await GET(request, { params });
+
+    expect(mockEnforceLimit).toHaveBeenCalledWith({
+      policy: RATE_LIMIT_POLICIES.placeDetailsPerUser,
+      subject: 'person-1',
+      route: 'place details',
+    });
+  });
+
+  it('answers the refusal as it is, without calling Google', async () => {
+    mockEnforceLimit.mockResolvedValue(
+      rateLimitedResponse({ policy: 'place-details', retryAfterSeconds: 20 }),
+    );
+    const { request, params } = detailsRequest('place-1');
+
+    const response = await GET(request, { params });
+
+    expect(response.status).toBe(429);
+    expect(mockGetDetails).not.toHaveBeenCalled();
   });
 });

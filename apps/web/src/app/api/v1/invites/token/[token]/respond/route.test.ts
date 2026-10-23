@@ -13,11 +13,16 @@ vi.mock('@brunchsters/core', async (importOriginal) => {
 });
 
 import { respondToInvite } from '@brunchsters/core';
+import { RATE_LIMIT_POLICIES } from '@brunchsters/shared';
 import { auth } from '@/auth';
+import { enforceLimit, enforceWriteLimit } from '@/lib/rateLimit';
+import { rateLimitedResponse } from '@/lib/rateLimitHttp';
 import { POST } from './route';
 
 const mockAuth = vi.mocked(auth as unknown as () => Promise<unknown>);
 const mockRespondToInvite = vi.mocked(respondToInvite);
+const mockEnforceLimit = vi.mocked(enforceLimit);
+const mockEnforceWriteLimit = vi.mocked(enforceWriteLimit);
 
 const SESSION = { user: { id: 'viewer-user-uuid' } };
 
@@ -91,5 +96,54 @@ describe('POST /api/v1/invites/token/[token]/respond', () => {
     const response = await POST(postRequest({ response: 'yes' }), { params: params('some-token') });
 
     expect(response.status).toBe(500);
+  });
+});
+
+describe('POST /api/v1/invites/token/[token]/respond — the budgets', () => {
+  it('spends the address budget even for a signed-out caller, before the session check', async () => {
+    mockAuth.mockResolvedValue(null);
+
+    const response = await POST(
+      new Request('http://localhost/x', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-forwarded-for': '203.0.113.9' },
+        body: JSON.stringify({ response: 'yes' }),
+      }),
+      { params: params('some-token') },
+    );
+
+    expect(response.status).toBe(401);
+    expect(mockEnforceLimit).toHaveBeenCalledWith({
+      policy: RATE_LIMIT_POLICIES.inviteTokenPerIp,
+      subject: '203.0.113.9',
+      route: 'invite response',
+    });
+    // No person yet, so no write budget either.
+    expect(mockEnforceWriteLimit).not.toHaveBeenCalled();
+  });
+
+  it('refuses a limited address with 429 before it even asks who is calling', async () => {
+    mockEnforceLimit.mockResolvedValue(
+      rateLimitedResponse({ policy: 'invite-token', retryAfterSeconds: 30 }),
+    );
+
+    const response = await POST(postRequest({ response: 'yes' }), { params: params('some-token') });
+
+    expect(response.status).toBe(429);
+    expect(mockAuth).not.toHaveBeenCalled();
+    expect(mockRespondToInvite).not.toHaveBeenCalled();
+  });
+
+  it('spends the signed-in person write budget, and a refusal stops the response', async () => {
+    mockAuth.mockResolvedValue(SESSION);
+    mockEnforceWriteLimit.mockResolvedValue(
+      rateLimitedResponse({ policy: 'writes', retryAfterSeconds: 12 }),
+    );
+
+    const response = await POST(postRequest({ response: 'yes' }), { params: params('some-token') });
+
+    expect(mockEnforceWriteLimit).toHaveBeenCalledWith('viewer-user-uuid');
+    expect(response.status).toBe(429);
+    expect(mockRespondToInvite).not.toHaveBeenCalled();
   });
 });

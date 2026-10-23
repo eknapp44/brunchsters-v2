@@ -3,6 +3,9 @@
 import type { PlaceDetails, PlaceResult } from '@brunchsters/core';
 import { useEffect, useState } from 'react';
 import { Icon } from '@/components/icons/Icon';
+import { InlineAlert } from '@/components/ui/InlineAlert';
+import { limitedMessage, type RateLimitFacts } from '@/lib/limitedCopy';
+import { readRateLimit } from '@/lib/readRateLimit';
 import styles from './PlaceSearchInput.module.css';
 
 export function PlaceSearchInput({
@@ -23,6 +26,15 @@ export function PlaceSearchInput({
   const [query, setQuery] = useState('');
   const [sessionToken, setSessionToken] = useState<string | undefined>(undefined);
   const [predictions, setPredictions] = useState<readonly PlaceResult[]>([]);
+  // Set when the server says to slow down (spec 0012). The input stays usable, because the wait is
+  // seconds and typing is continuous; what is already listed stays, and the line goes by itself.
+  const [limit, setLimit] = useState<RateLimitFacts | undefined>(undefined);
+
+  useEffect(() => {
+    if (limit === undefined) return undefined;
+    const timer = setTimeout(() => setLimit(undefined), limit.retryAfterSeconds * 1000);
+    return () => clearTimeout(timer);
+  }, [limit]);
 
   useEffect(() => {
     if (query.length < 3) {
@@ -36,12 +48,18 @@ export function PlaceSearchInput({
         ...(sessionToken !== undefined ? { sessionToken } : {}),
       });
       void fetch(`/api/v1/places/search?${params.toString()}`)
-        .then((response) =>
-          response.ok
-            ? (response.json() as Promise<{ places: readonly PlaceResult[] }>)
-            : undefined,
-        )
-        .then((data) => setPredictions(data?.places ?? []))
+        .then(async (response) => {
+          const facts = await readRateLimit(response);
+          if (facts !== undefined) {
+            setLimit(facts);
+            return;
+          }
+          const data = response.ok
+            ? ((await response.json()) as { places: readonly PlaceResult[] })
+            : undefined;
+          setLimit(undefined);
+          setPredictions(data?.places ?? []);
+        })
         .catch(() => setPredictions([]));
     }, 300);
 
@@ -63,6 +81,8 @@ export function PlaceSearchInput({
 
     const response = await fetch(`/api/v1/places/${placeId}?${params.toString()}`);
     if (!response.ok) {
+      const facts = await readRateLimit(response);
+      if (facts !== undefined) setLimit(facts);
       onError?.();
       return;
     }
@@ -85,6 +105,13 @@ export function PlaceSearchInput({
           placeholder="Search for a place"
         />
       </div>
+      {limit !== undefined && (
+        <div className={styles.note}>
+          <InlineAlert tone="info" role="status">
+            <p>{limitedMessage(limit)}</p>
+          </InlineAlert>
+        </div>
+      )}
       {predictions.length > 0 && (
         <ul className={styles.results} role="list">
           {predictions.map((prediction) => (

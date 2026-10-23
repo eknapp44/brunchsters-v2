@@ -68,6 +68,26 @@ test('the creation wizard, every step', async ({ makeActor }, testInfo) => {
   await wizard.addPlace(fixturePlaces.sunnySide);
   await wizard.addPlace(fixturePlaces.harborBistro);
   await captureReviewShots(host.page, 'wizard/2-where', testInfo);
+
+  // The place search when the server says to slow down (spec 0012): the line shows, the input stays
+  // usable and what was already listed stays.
+  await wizard.searchBox().fill('sunny');
+  await expect(
+    host.page.getByRole('button', {
+      name: `${fixturePlaces.sunnySide.name} — ${fixturePlaces.sunnySide.address}`,
+    }),
+  ).toBeVisible();
+  await host.page.route(/\/api\/v1\/places\/search/, async (route) => {
+    await route.fulfill({
+      status: 429,
+      headers: { 'Retry-After': '120' },
+      json: { error: 'Too many requests', policy: 'place-search', retryAfterSeconds: 120 },
+    });
+  });
+  await wizard.searchBox().fill('sunny s');
+  await expect(host.page.getByText('Slow down a sec, then try again.')).toBeVisible();
+  await captureReviewShots(host.page, 'wizard/2-where-slow-down', testInfo);
+  await wizard.searchBox().fill('');
   await wizard.next();
 
   await wizard.addTime(10);
