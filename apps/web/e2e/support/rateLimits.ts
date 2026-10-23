@@ -26,10 +26,15 @@ export async function untilRefused(params: {
   let refused: APIResponse | undefined;
 
   while (sent < most && refused === undefined) {
+    // The very first request goes alone. In dev mode a route is compiled on its first use, and
+    // the dev server can answer a burst that arrives while it is still compiling with a transient
+    // 500 (it reads a manifest file it is rewriting: ENOENT next-font-manifest.json). A production
+    // build cannot do that; this keeps the dev run honest.
+    const size = sent === 0 ? 1 : batchSize;
     const batch = await Promise.all(
-      Array.from({ length: batchSize }, (_, offset) => params.attempt(sent + offset)),
+      Array.from({ length: size }, (_, offset) => params.attempt(sent + offset)),
     );
-    sent += batchSize;
+    sent += size;
     for (const response of batch) {
       if (response.status() === 429) {
         refused ??= response;

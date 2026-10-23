@@ -1,6 +1,8 @@
 import type { PlaceDetails } from '@brunchsters/core';
 import { MAX_INVITES_PER_REQUEST } from '@brunchsters/shared';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import type { RateLimitFacts } from '@/lib/limitedCopy';
+import { readRateLimit } from '@/lib/readRateLimit';
 import { createAppAsyncThunk } from './hooks';
 import type { RootState } from './makeStore';
 
@@ -54,8 +56,16 @@ async function extractErrorMessage(response: Response): Promise<string> {
   return CREATE_FAILED_MESSAGE;
 }
 
+// What creating a brunch hands back. `invitesRefused` is set when the server told the host to slow
+// down on the invites (spec 0012): the brunch exists, nobody was invited, and the brunch page is
+// where that is explained and waited out.
+export type CreatedBrunch = {
+  readonly id: string;
+  readonly invitesRefused?: RateLimitFacts;
+};
+
 // Creates the brunch, then sends the invites. Router navigation stays in the component.
-export const createBrunch = createAppAsyncThunk<{ readonly id: string }, undefined>(
+export const createBrunch = createAppAsyncThunk<CreatedBrunch, undefined>(
   'wizard/createBrunch',
   async (_arg, { getState, extra, rejectWithValue }) => {
     const wizard = getState().wizard;
@@ -89,11 +99,15 @@ export const createBrunch = createAppAsyncThunk<{ readonly id: string }, undefin
         // send here can be retried from the detail page's invite panel, so it
         // shouldn't block the redirect the way a failed brunch creation does.
         try {
-          await extra.fetch(`/api/v1/brunches/${created.id}/invites`, {
+          const invited = await extra.fetch(`/api/v1/brunches/${created.id}/invites`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ emails: wizard.emails }),
           });
+          // A refusal is the one failure here a person is told about (the other failures are the
+          // feedback-surfaces spec's): the brunch page explains it and makes them wait.
+          const refused = await readRateLimit(invited);
+          if (refused !== undefined) return { id: created.id, invitesRefused: refused };
         } catch {
           // Ignored — see comment above.
         }

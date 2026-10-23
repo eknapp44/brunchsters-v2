@@ -284,6 +284,7 @@ export default async function BrunchDetailPage({
 
           <SuggestionsPanel
             brunchId={brunchId}
+            viewerId={viewerId}
             canSuggest={!brunch.isHost && brunch.allowInviteSuggestions}
             pendingSuggestions={pendingSuggestions?.isOk() ? pendingSuggestions.value : undefined}
           />

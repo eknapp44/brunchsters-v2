@@ -12,8 +12,9 @@
 export const CSP_HEADER_NAME = 'Content-Security-Policy';
 
 // Where the sign-in form sends a person (a form post that redirects is checked against
-// `form-action`). A real sign-in with the policy in place raised nothing (spec 0012 M6); whether
-// Chromium would block that redirect without it was not tried, so it stays: one origin, forms only.
+// `form-action`). Needed: an experiment with two local origins (spec 0012) showed Chromium blocks
+// a form post's redirect to an origin that is not listed here, and reports `form-action`. One
+// origin, forms only.
 const GOOGLE_SIGN_IN = 'https://accounts.google.com';
 
 // A fresh, unguessable value for every request. A nonce that repeats can be copied into an

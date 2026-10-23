@@ -26,6 +26,28 @@ export function limitStorageKey(params: {
   return `brunchsters:limit:${params.control}:${params.viewerId}${tail}`;
 }
 
+// Where the creation wizard leaves the wait when the server refused its invite batch (spec 0012):
+// the wizard does not know who is signed in, and the brunch page does. The invite panel adopts it
+// into its own per-person key and deletes this one. Keyed by the new brunch, which only its host
+// has been sent to, and it expires like any other wait.
+export function handoffStorageKey(brunchId: string): string {
+  return `brunchsters:limit-handoff:invites-send:${brunchId}`;
+}
+
+// Another tab hears a change to storage by itself (the browser's `storage` event); a control on the
+// same page does not, so a change is also announced on the window.
+export const LIMIT_CHANGED_EVENT = 'brunchsters:limit-changed';
+
+export function announceLimitChange(key: string): void {
+  try {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent(LIMIT_CHANGED_EVENT, { detail: key }));
+    }
+  } catch {
+    // Nothing else on the page learns of it until it is next read; the server still decides.
+  }
+}
+
 // Storage can be missing or throw (a private window, blocked site data, a quota error), so every
 // access is guarded and the page works without it.
 export function browserStorage(): LimitStorage | undefined {

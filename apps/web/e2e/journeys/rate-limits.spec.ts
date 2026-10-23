@@ -167,6 +167,46 @@ test.describe('L2 — resending too soon', () => {
   });
 });
 
+test.describe('L2b — a resend refused by the day budget holds the send button too', () => {
+  test('when the host has used the whole day of invites, Resend and the send button wait together', async ({
+    makeActor,
+  }) => {
+    test.slow();
+    const host = await makeActor('host');
+    const { page } = host;
+    const guest = newEmail('resend-budget');
+    const brunchId = await createBrunch({ host: host.user });
+    await inviteToBrunch({ brunchId, host: host.user, invitees: [{ email: guest }] });
+    // The rest of the host's 100 for the day (one is spent above), on two other brunches.
+    for (const [label, count] of [
+      ['one', 50],
+      ['two', 49],
+    ] as const) {
+      const other = await createBrunch({ host: host.user, title: `Earlier ${label}` });
+      const batch = Array.from({ length: count }, (_, index) => ({
+        email: newEmail(`l2b-${label}-${index}`),
+      }));
+      await inviteToBrunch({ brunchId: other, host: host.user, invitees: batch });
+    }
+
+    await page.goto(`/brunch/${brunchId}`);
+    await inviteRow(page, guest).getByRole('button', { name: 'Resend' }).click();
+
+    // Refused by the day's budget (not the ten-minute cooldown, which this was the first use of):
+    // the line is the invites one, this invite's Resend waits, and so does the send button, because
+    // no invite email can go out until the day's window ends.
+    await expect(inviteRow(page, guest).getByText(INVITES_LIMITED)).toBeVisible();
+    await expect(inviteRow(page, guest).getByRole('button', { name: 'Resend' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    await expect(page.getByRole('button', { name: 'Round up the crew' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+  });
+});
+
 test.describe('L1b — approving a suggestion spends the same invite budget', () => {
   test('a host who has used the brunch’s invites for the day cannot approve one more address', async ({
     makeActor,
@@ -189,22 +229,133 @@ test.describe('L1b — approving a suggestion spends the same invite budget', ()
     await inviteToBrunch({ brunchId, host: host.user, invitees: rest });
 
     await host.page.goto(`/brunch/${brunchId}`);
+    let reviewRequests = 0;
+    host.page.on('request', (request) => {
+      if (
+        request.method() === 'POST' &&
+        /\/api\/v1\/suggestions\/[^/]+\/review$/.test(request.url())
+      ) {
+        reviewRequests += 1;
+      }
+    });
     const row = host.page
       .getByRole('listitem')
       .filter({ hasText: 'suggested by' })
       .filter({ hasText: suggested });
-    await row.getByRole('button', { name: 'Approve' }).click();
+    const approve = row.getByRole('button', { name: 'Approve' });
+    const send = host.page.getByRole('button', { name: 'Round up the crew' });
+    await approve.click();
 
-    // The host is told, the suggestion is still waiting for them, and nothing was emailed or created.
-    await expect(host.page.getByText(INVITES_LIMITED)).toBeVisible();
+    // The host is told, in the suggestions panel and in the invite panel (one line each, because
+    // each has a button that is now waiting), the suggestion is still waiting for them, and nothing
+    // was emailed or created.
+    await expect(host.page.getByText(INVITES_LIMITED)).toHaveCount(2);
     await expect(row).toBeVisible();
     expect(await getDb().brunchInvite.count({ where: { brunchId, invitedEmail: suggested } })).toBe(
       0,
     );
 
-    // Declining sends nothing, so it is still allowed.
+    // One budget, so both buttons wait together: refusing the approval held the send button too.
+    await expect(approve).toHaveAttribute('aria-disabled', 'true');
+    await expect(send).toHaveAttribute('aria-disabled', 'true');
+    // Pressing a waiting Approve asks the server nothing.
+    expect(reviewRequests).toBe(1);
+    await approve.click({ force: true });
+    await expect(approve).toHaveAttribute('aria-disabled', 'true');
+    expect(reviewRequests).toBe(1);
+
+    // The wait survives a reload, for both.
+    await host.page.reload();
+    await expect(row.getByRole('button', { name: 'Approve' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    await expect(host.page.getByRole('button', { name: 'Round up the crew' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+
+    // Declining sends no email, so it is never held.
+    await expect(row.getByRole('button', { name: 'Decline' })).not.toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
     await row.getByRole('button', { name: 'Decline' }).click();
     await expect(row).toHaveCount(0);
+  });
+});
+
+test.describe('L1c — a wait is shared between tabs', () => {
+  test('a refusal in one tab makes the send button wait in another tab already open', async ({
+    makeActor,
+  }) => {
+    const host = await makeActor('host');
+    const brunchId = await createBrunch({ host: host.user });
+    const batch = Array.from({ length: 50 }, (_, index) => ({ email: newEmail(`l1c-${index}`) }));
+    await inviteToBrunch({ brunchId, host: host.user, invitees: batch });
+
+    // Two tabs of the same browser (one context, so one localStorage), both already loaded.
+    const first = host.page;
+    const second = await host.context.newPage();
+    await first.goto(`/brunch/${brunchId}`);
+    await second.goto(`/brunch/${brunchId}`);
+    const waiting = (page: typeof first) => page.getByRole('button', { name: 'Round up the crew' });
+    await expect(waiting(second)).not.toHaveAttribute('aria-disabled', 'true');
+
+    await first.getByLabel('Invite more people').fill(newEmail('too-late'));
+    await waiting(first).click();
+    await expect(first.getByText(INVITES_LIMITED)).toBeVisible();
+
+    // The other tab never clicked anything and was not reloaded: it heard about it.
+    await expect(waiting(second)).toHaveAttribute('aria-disabled', 'true');
+    await expect(second.getByText(INVITES_LIMITED)).toBeVisible();
+  });
+});
+
+test.describe('L7 — the creation wizard and a refused invite batch', () => {
+  test("a host who used the day's invites creates a brunch, and its page opens with the send button waiting", async ({
+    makeActor,
+  }) => {
+    test.slow();
+    const host = await makeActor('host');
+    // The host's whole daily budget (100) on two other brunches, seeded through the factory.
+    for (const label of ['one', 'two']) {
+      const other = await createBrunch({ host: host.user, title: `Earlier ${label}` });
+      const batch = Array.from({ length: 50 }, (_, index) => ({
+        email: newEmail(`l7-${label}-${index}`),
+      }));
+      await inviteToBrunch({ brunchId: other, host: host.user, invitees: batch });
+    }
+
+    // Now a new brunch through the wizard, with one person to invite.
+    const wizard = new BrunchWizard(host.page);
+    await wizard.open();
+    await wizard.fillWhat({ title: `Wizard refused ${uniqueSuffix()}` });
+    await wizard.addPlace(fixturePlaces.sunnySide);
+    await wizard.next();
+    await wizard.addTime(10);
+    await wizard.next();
+    const invitee = newEmail('wizard-invitee');
+    await wizard.addEmail(invitee);
+    await wizard.create();
+
+    // The brunch exists and its page says why nobody was invited, with the send button waiting.
+    await expect(host.page).toHaveURL(/\/brunch\/[0-9a-f-]{36}$/);
+    await expect(host.page.getByText(INVITES_LIMITED)).toBeVisible();
+    await expect(host.page.getByRole('button', { name: 'Round up the crew' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    const brunchId = host.page.url().split('/').pop() ?? '';
+    expect(await getDb().brunchInvite.count({ where: { brunchId, invitedEmail: invitee } })).toBe(
+      0,
+    );
+
+    // The handoff was taken over, not left behind.
+    const leftover = await host.page.evaluate((id) => {
+      return window.localStorage.getItem(`brunchsters:limit-handoff:invites-send:${id}`);
+    }, brunchId);
+    expect(leftover).toBeNull();
   });
 });
 

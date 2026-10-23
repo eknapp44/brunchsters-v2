@@ -7,8 +7,9 @@ import { Icon } from '@/components/icons/Icon';
 import { Button } from '@/components/ui/Button';
 import { Field } from '@/components/ui/Field';
 import { InlineAlert } from '@/components/ui/InlineAlert';
+import { RATE_LIMIT_POLICIES } from '@brunchsters/shared';
 import { limitedMessage, type RateLimitFacts } from '@/lib/limitedCopy';
-import { limitStorageKey } from '@/lib/limitedUntil';
+import { handoffStorageKey, limitStorageKey } from '@/lib/limitedUntil';
 import { readRateLimit } from '@/lib/readRateLimit';
 import { useLimitedUntil } from '@/lib/useLimitedUntil';
 import styles from './detail.module.css';
@@ -32,6 +33,12 @@ function badgeToneFor(status: InviteStatus): 'neutral' | 'accent' | 'mint' {
   if (status === 'maybe') return 'accent';
   return 'neutral';
 }
+
+// The policies that hold back every invite email of a brunch or host, not one invite's cooldown.
+const INVITE_BUDGET_POLICIES: ReadonlySet<string> = new Set([
+  RATE_LIMIT_POLICIES.inviteEmailsPerBrunch.name,
+  RATE_LIMIT_POLICIES.inviteEmailsPerHost.name,
+]);
 
 function CopyLinkButton({ token }: { readonly token: string }) {
   const [copied, setCopied] = useState(false);
@@ -58,12 +65,15 @@ function InviteRow({
   viewerId,
   busy,
   onResend,
+  onBudgetRefused,
   onRevoke,
 }: {
   readonly invite: InviteListItem;
   readonly viewerId: string;
   readonly busy: boolean;
   readonly onResend: (inviteId: string) => Promise<RateLimitFacts | undefined>;
+  // The day's invite budget (not just this invite's cooldown) is spent: the panel's send button waits too.
+  readonly onBudgetRefused: (facts: RateLimitFacts) => void;
   readonly onRevoke: (inviteId: string) => Promise<void>;
 }) {
   const { limit, start } = useLimitedUntil(
@@ -75,7 +85,9 @@ function InviteRow({
   async function resend(): Promise<void> {
     if (limited) return;
     const facts = await onResend(invite.id);
-    if (facts !== undefined) start(facts);
+    if (facts === undefined) return;
+    start(facts);
+    if (INVITE_BUDGET_POLICIES.has(facts.policy)) onBudgetRefused(facts);
   }
 
   return (
@@ -133,6 +145,8 @@ export function InvitePanel({
   const [pendingInviteId, setPendingInviteId] = useState<string | undefined>(undefined);
   const sendLimit = useLimitedUntil(
     limitStorageKey({ control: 'invites-send', viewerId, id: brunchId }),
+    // The creation wizard leaves the wait here when it was refused sending the first invites.
+    { adoptFrom: handoffStorageKey(brunchId) },
   );
   const sendLimited = sendLimit.limit !== undefined;
 
@@ -225,6 +239,7 @@ export function InvitePanel({
               viewerId={viewerId}
               busy={pendingInviteId === invite.id}
               onResend={resend}
+              onBudgetRefused={sendLimit.start}
               onRevoke={revoke}
             />
           ))}

@@ -6,7 +6,9 @@ import { Button } from '@/components/ui/Button';
 import { Field } from '@/components/ui/Field';
 import { InlineAlert } from '@/components/ui/InlineAlert';
 import { limitedMessage } from '@/lib/limitedCopy';
+import { limitStorageKey } from '@/lib/limitedUntil';
 import { readRateLimit } from '@/lib/readRateLimit';
+import { useLimitedUntil } from '@/lib/useLimitedUntil';
 import styles from './detail.module.css';
 
 type SuggestionListItem = {
@@ -17,10 +19,12 @@ type SuggestionListItem = {
 
 export function SuggestionsPanel({
   brunchId,
+  viewerId,
   canSuggest,
   pendingSuggestions,
 }: {
   readonly brunchId: string;
+  readonly viewerId: string;
   readonly canSuggest: boolean;
   readonly pendingSuggestions: readonly SuggestionListItem[] | undefined;
 }) {
@@ -29,6 +33,12 @@ export function SuggestionsPanel({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
   const [pendingSuggestionId, setPendingSuggestionId] = useState<string | undefined>(undefined);
+  // Approving a suggestion emails the address, so it spends the same invite budget as the invite
+  // panel's send button: the two share one key, and a refusal on either makes both wait (spec 0012).
+  const inviteBudget = useLimitedUntil(
+    limitStorageKey({ control: 'invites-send', viewerId, id: brunchId }),
+  );
+  const approvalsWaiting = inviteBudget.limit !== undefined;
 
   async function suggest(): Promise<void> {
     const trimmed = email.trim();
@@ -57,6 +67,8 @@ export function SuggestionsPanel({
 
   async function review(suggestionId: string, decision: 'approve' | 'decline'): Promise<void> {
     if (pendingSuggestionId !== undefined) return;
+    // A waiting Approve asks the server nothing; declining sends no email, so it is never held.
+    if (decision === 'approve' && approvalsWaiting) return;
 
     setPendingSuggestionId(suggestionId);
     setError(undefined);
@@ -69,7 +81,11 @@ export function SuggestionsPanel({
       if (!response.ok) {
         // Approving emails the address, so the host's daily invite budget applies (spec 0012).
         const facts = await readRateLimit(response);
-        setError(facts === undefined ? 'Failed to review suggestion' : limitedMessage(facts));
+        if (facts !== undefined) {
+          inviteBudget.start(facts);
+          return;
+        }
+        setError('Failed to review suggestion');
         return;
       }
       router.refresh();
@@ -103,6 +119,8 @@ export function SuggestionsPanel({
                   size="sm"
                   onClick={() => void review(suggestion.id, 'approve')}
                   disabled={pendingSuggestionId === suggestion.id}
+                  aria-disabled={approvalsWaiting ? true : undefined}
+                  aria-describedby={approvalsWaiting ? 'approvals-limit' : undefined}
                 >
                   Approve
                 </Button>
@@ -135,6 +153,16 @@ export function SuggestionsPanel({
           </Button>
         </div>
       )}
+      {approvalsWaiting &&
+        inviteBudget.limit !== undefined &&
+        pendingSuggestions !== undefined &&
+        pendingSuggestions.length > 0 && (
+          <div id="approvals-limit" className={styles.limitNote}>
+            <InlineAlert tone="info" role="status">
+              <p>{limitedMessage(inviteBudget.limit)}</p>
+            </InlineAlert>
+          </div>
+        )}
       {error !== undefined && (
         <InlineAlert tone="error" role="alert">
           <p>{error}</p>

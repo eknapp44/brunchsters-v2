@@ -207,6 +207,63 @@ describe('createBrunch', () => {
     expect(store.getState().wizard.submitError).toBeUndefined();
   });
 
+  it('hands back the wait when the server refuses the invite batch, and still creates the brunch', async () => {
+    const fakeFetch = vi.fn<ThunkExtra['fetch']>(async (url) =>
+      String(url).endsWith('/invites')
+        ? jsonResponse(429, {
+            error: 'Too many requests',
+            policy: 'invite-emails-host',
+            retryAfterSeconds: 7200,
+          })
+        : jsonResponse(201, { id: 'brunch-1' }),
+    );
+    const store = storeWith(fakeFetch);
+    store.dispatch(emailAdded('a@example.com'));
+
+    const result = await store.dispatch(createBrunch());
+
+    expect(result.type).toBe(createBrunch.fulfilled.type);
+    expect(result.payload).toEqual({
+      id: 'brunch-1',
+      invitesRefused: { policy: 'invite-emails-host', retryAfterSeconds: 7200 },
+    });
+    // The create itself did not fail, so there is no error to show on the wizard.
+    expect(store.getState().wizard.submitError).toBeUndefined();
+  });
+
+  it('falls back to the Retry-After header when a refused invite batch has no usable body', async () => {
+    const fakeFetch = vi.fn<ThunkExtra['fetch']>(async (url) =>
+      String(url).endsWith('/invites')
+        ? new Response('slow down', { status: 429, headers: { 'Retry-After': '30' } })
+        : jsonResponse(201, { id: 'brunch-1' }),
+    );
+    const store = storeWith(fakeFetch);
+    store.dispatch(emailAdded('a@example.com'));
+
+    const result = await store.dispatch(createBrunch());
+
+    expect(result.payload).toEqual({
+      id: 'brunch-1',
+      invitesRefused: { policy: 'unknown', retryAfterSeconds: 30 },
+    });
+  });
+
+  it('reports no refusal when the invite batch succeeds or fails some other way', async () => {
+    for (const inviteStatus of [200, 500, 403]) {
+      const fakeFetch = vi.fn<ThunkExtra['fetch']>(async (url) =>
+        String(url).endsWith('/invites')
+          ? jsonResponse(inviteStatus, {})
+          : jsonResponse(201, { id: 'brunch-1' }),
+      );
+      const store = storeWith(fakeFetch);
+      store.dispatch(emailAdded('a@example.com'));
+
+      const result = await store.dispatch(createBrunch());
+
+      expect(result.payload).toEqual({ id: 'brunch-1' });
+    }
+  });
+
   it("keeps every entry and shows the server's message when the create fails", async () => {
     const fakeFetch = vi.fn<ThunkExtra['fetch']>(async () =>
       jsonResponse(500, { error: 'The database is unavailable' }),
