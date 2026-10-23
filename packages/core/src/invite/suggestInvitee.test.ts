@@ -18,6 +18,7 @@ const OPEN_BRUNCH = {
   hostId: HOST_ID,
   allowInviteSuggestions: true,
   requireHostApprovalToInvite: true,
+  status: { code: 'active' },
   host: { email: normalizeEmail('host@example.com') },
 };
 
@@ -328,5 +329,39 @@ describe('suggestInviteeRequestSchema', () => {
 
   it('rejects an invalid email', () => {
     expect(suggestInviteeRequestSchema.safeParse({ email: 'not-an-email' }).success).toBe(false);
+  });
+});
+
+describe('suggestInvitee — a brunch that is not open', () => {
+  it('refuses a suggestion on a called-off brunch and records nothing', async () => {
+    const suggestionCreate = vi.fn();
+    const db = makeMockDb({
+      brunchFindFirst: vi.fn().mockResolvedValue({ ...OPEN_BRUNCH, status: { code: 'cancelled' } }),
+      suggestionCreate,
+    });
+
+    const result = await suggestInvitee(BASE_INPUT, {
+      db,
+      eventBus: { emit: vi.fn() },
+      rateLimiter: new InMemoryRateLimiter(),
+    });
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_called_off' });
+    expect(suggestionCreate).not.toHaveBeenCalled();
+  });
+
+  it('tells an outsider the brunch does not exist, not that it is called off', async () => {
+    const db = makeMockDb({
+      brunchFindFirst: vi.fn().mockResolvedValue({ ...OPEN_BRUNCH, status: { code: 'cancelled' } }),
+      attendeeFindFirst: vi.fn().mockResolvedValue(null),
+    });
+
+    const result = await suggestInvitee(BASE_INPUT, {
+      db,
+      eventBus: { emit: vi.fn() },
+      rateLimiter: new InMemoryRateLimiter(),
+    });
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_found' });
   });
 });

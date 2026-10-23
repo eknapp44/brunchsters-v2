@@ -8,6 +8,7 @@ import {
 import { err, ok, type Result } from 'neverthrow';
 import { z } from 'zod';
 import type { EventBus } from '../events/EventBus';
+import { assertBrunchOpen, type AssertBrunchOpenError } from '../brunch/guards/assertBrunchOpen';
 import { reviewInviteSuggestion } from './reviewInviteSuggestion';
 import type { RateLimiter } from '../rateLimit/RateLimiter';
 
@@ -30,6 +31,7 @@ export type SuggestInviteeResult = {
 
 export type SuggestInviteeError =
   | { readonly kind: 'brunch_not_found' }
+  | AssertBrunchOpenError
   | { readonly kind: 'suggestions_disabled' }
   | { readonly kind: 'cannot_suggest_host' }
   | { readonly kind: 'already_suggested' }
@@ -52,7 +54,7 @@ export async function suggestInvitee(
 
   const brunch = await db.brunch.findFirst({
     where: { id: input.brunchId },
-    include: { host: true },
+    include: { host: true, status: true },
   });
   if (brunch === null) return err({ kind: 'brunch_not_found' });
 
@@ -65,6 +67,9 @@ export async function suggestInvitee(
     });
     if (attendee === null) return err({ kind: 'brunch_not_found' });
   }
+
+  const openResult = assertBrunchOpen(brunch);
+  if (openResult.isErr()) return err(openResult.error);
 
   if (!brunch.allowInviteSuggestions) return err({ kind: 'suggestions_disabled' });
   if (input.email.toLowerCase() === brunch.host.email.toLowerCase()) {

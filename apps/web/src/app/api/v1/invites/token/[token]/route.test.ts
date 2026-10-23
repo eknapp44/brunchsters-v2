@@ -27,6 +27,7 @@ describe('GET /api/v1/invites/token/[token]', () => {
       hostName: 'Alice Host',
       description: 'Pancakes and mimosas',
       brunchStatusLabel: 'Active',
+      isCalledOff: false,
     });
 
     const response = await GET(new Request('http://localhost'), { params: params('valid-token') });
@@ -37,6 +38,7 @@ describe('GET /api/v1/invites/token/[token]', () => {
       hostName: 'Alice Host',
       description: 'Pancakes and mimosas',
       brunchStatusLabel: 'Active',
+      isCalledOff: false,
     });
   });
 
@@ -74,6 +76,7 @@ describe('GET /api/v1/invites/token/[token] — the address budget', () => {
       hostName: 'Alice Host',
       description: undefined,
       brunchStatusLabel: 'Active',
+      isCalledOff: false,
     });
 
     const response = await GET(new Request('http://localhost'), { params: params('real-token') });

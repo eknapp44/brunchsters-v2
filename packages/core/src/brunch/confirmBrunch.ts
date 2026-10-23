@@ -3,8 +3,10 @@ import type { BrunchId, BrunchLocationId, BrunchTimeId, UserId } from '@brunchst
 import { err, ok, type Result } from 'neverthrow';
 import type { EventBus } from '../events/EventBus';
 import { LookupNotFoundError } from '../errors/LookupNotFoundError';
+import { StaleStatusError } from '../errors/StaleStatusError';
 import { assertBrunchActive, type AssertBrunchActiveError } from './guards/assertBrunchActive';
 import { assertHostOf, type AssertHostOfError } from './guards/assertHostOf';
+import { assertCanTransition, type InvalidTransitionError } from './guards/brunchTransitions';
 
 const INVITE_EXPIRY_AFTER_CONFIRM_DAYS = 7;
 
@@ -18,6 +20,7 @@ export type ConfirmBrunchInput = {
 export type ConfirmBrunchError =
   | AssertHostOfError
   | AssertBrunchActiveError
+  | InvalidTransitionError
   | { readonly kind: 'no_locations' }
   | { readonly kind: 'no_times' }
   | { readonly kind: 'unknown_option' }
@@ -44,6 +47,9 @@ export async function confirmBrunch(
 
   const activeResult = assertBrunchActive(brunch);
   if (activeResult.isErr()) return err(activeResult.error);
+
+  const transitionResult = assertCanTransition({ from: brunch.status.code, to: 'confirmed' });
+  if (transitionResult.isErr()) return err(transitionResult.error);
 
   // findMany is soft-delete-filtered automatically (ADR 0006) — these
   // already exclude removed options.
@@ -104,13 +110,16 @@ export async function confirmBrunch(
         where: { id: input.timeId },
         data: { isConfirmed: true, confirmedAt: now },
       });
-      await tx.brunch.update({
-        where: { id: input.brunchId },
+      // Conditional on the status read above: if a cancel (or anything else) changed it since,
+      // no row matches and the whole transaction, the confirmed flags included, rolls back.
+      const moved = await tx.brunch.updateMany({
+        where: { id: input.brunchId, statusId: brunch.statusId },
         data: {
           statusId: confirmedStatus.id,
           votingClosedAt: brunch.votingClosedAt ?? now,
         },
       });
+      if (moved.count === 0) throw new StaleStatusError();
 
       // Spec 0004's deferred hook: tokens were born at a flat 30-day expiry
       // because nothing had confirmed a time yet. The host's own synthetic
@@ -128,6 +137,9 @@ export async function confirmBrunch(
   } catch (cause) {
     if (cause instanceof LookupNotFoundError) {
       return err({ kind: 'lookup_not_found', code: cause.code });
+    }
+    if (cause instanceof StaleStatusError) {
+      return err({ kind: 'invalid_transition', from: brunch.status.code, to: 'confirmed' });
     }
     // Two concurrent confirms on the same brunch: the partial unique index
     // (one confirmed, non-deleted location/time per brunch) is what

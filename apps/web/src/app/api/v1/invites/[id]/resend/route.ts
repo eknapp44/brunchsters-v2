@@ -43,6 +43,8 @@ export async function POST(
         return rateLimitedResponse(result.error);
       case 'rate_limiter_unavailable':
         return rateLimiterUnavailableResponse({ route: 'resendInvite', cause: result.error.cause });
+      case 'brunch_called_off':
+        return NextResponse.json({ error: 'This brunch was called off' }, { status: 409 });
       default:
         console.error('resendInvite failed', result.error);
         return NextResponse.json({ error: 'Failed to resend invite' }, { status: 500 });

@@ -37,6 +37,8 @@ export async function DELETE(
         return NextResponse.json({ error: 'Invite not found' }, { status: 404 });
       case 'not_host':
         return NextResponse.json({ error: 'Only the host can revoke invites' }, { status: 403 });
+      case 'brunch_called_off':
+        return NextResponse.json({ error: 'This brunch was called off' }, { status: 409 });
       default:
         console.error('revokeInvite failed', result.error);
         return NextResponse.json({ error: 'Failed to revoke invite' }, { status: 500 });

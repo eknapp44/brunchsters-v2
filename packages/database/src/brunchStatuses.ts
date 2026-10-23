@@ -8,7 +8,7 @@ export type BrunchStatusSeed = {
   readonly sortOrder: number;
 };
 
-export const BRUNCH_STATUSES: readonly BrunchStatusSeed[] = [
+export const BRUNCH_STATUSES = [
   {
     code: 'draft',
     label: 'Draft',
@@ -65,4 +65,8 @@ export const BRUNCH_STATUSES: readonly BrunchStatusSeed[] = [
     isActive: true,
     sortOrder: 8,
   },
-];
+] as const satisfies readonly BrunchStatusSeed[];
+
+// The seeded codes as a union, so a table keyed by status (spec 0013's transitions) is a type
+// error until a newly seeded status has a row.
+export type BrunchStatusCode = (typeof BRUNCH_STATUSES)[number]['code'];

@@ -4,6 +4,7 @@ import { err, ok, type Result } from 'neverthrow';
 import { z } from 'zod';
 import { LookupNotFoundError } from '../errors/LookupNotFoundError';
 import type { EventBus } from '../events/EventBus';
+import { assertBrunchOpen, type AssertBrunchOpenError } from '../brunch/guards/assertBrunchOpen';
 
 export const respondToInviteRequestSchema = z.object({
   response: z.enum(['yes', 'no', 'maybe']),
@@ -18,6 +19,7 @@ export type RespondToInviteInput = RespondToInviteRequest & {
 
 export type RespondToInviteError =
   | { readonly kind: 'invalid_token' }
+  | AssertBrunchOpenError
   | { readonly kind: 'lookup_not_found'; readonly code: string }
   | { readonly kind: 'db_error'; readonly cause: unknown };
 
@@ -37,8 +39,15 @@ export async function respondToInvite(
   const invite = await db.brunchInvite.findFirst({
     // A deleted brunch is not reachable by its old links (the extension filters only this model).
     where: { token: input.token, tokenExpiresAt: { gt: new Date() }, brunch: { deletedAt: null } },
+    include: { brunch: { include: { status: true } } },
   });
   if (invite === null) return err({ kind: 'invalid_token' });
+
+  // A link to a called-off brunch joins nobody and changes nothing, signed in or not, whether or
+  // not the person is already a member (the invite page says so; spec 0013). Holding the token is
+  // what lets them learn this, as it already lets them see the title.
+  const openResult = assertBrunchOpen(invite.brunch);
+  if (openResult.isErr()) return err(openResult.error);
 
   type ResponseOutcome = 'created' | 'updated' | 'already_member';
 

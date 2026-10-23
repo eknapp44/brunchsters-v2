@@ -9,7 +9,7 @@ const VALID_INVITE = {
     title: 'Weekend Brunch',
     description: 'Pancakes and mimosas',
     host: { name: 'Alice Host' },
-    status: { label: 'Active' },
+    status: { label: 'Active', code: 'active' },
   },
 };
 
@@ -29,6 +29,7 @@ describe('getInviteByToken', () => {
       hostName: 'Alice Host',
       description: 'Pancakes and mimosas',
       brunchStatusLabel: 'Active',
+      isCalledOff: false,
     });
   });
 
@@ -69,5 +70,36 @@ describe('getInviteByToken', () => {
     const result = await getInviteByToken('bad-token' as InviteToken, { db });
 
     expect(result).toBeUndefined();
+  });
+});
+
+describe('getInviteByToken — a called-off brunch', () => {
+  it.each(['cancelled', 'completed', 'archived'])(
+    'flags a %s brunch as called off',
+    async (code) => {
+      const findFirst = vi.fn().mockResolvedValue({
+        ...VALID_INVITE,
+        brunch: { ...VALID_INVITE.brunch, status: { label: 'Cancelled', code } },
+      });
+
+      const result = await getInviteByToken('valid-token' as InviteToken, {
+        db: makeMockDb(findFirst),
+      });
+
+      expect(result?.isCalledOff).toBe(true);
+    },
+  );
+
+  it('still returns the preview, so the page can say who called it off', async () => {
+    const findFirst = vi.fn().mockResolvedValue({
+      ...VALID_INVITE,
+      brunch: { ...VALID_INVITE.brunch, status: { label: 'Cancelled', code: 'cancelled' } },
+    });
+
+    const result = await getInviteByToken('valid-token' as InviteToken, {
+      db: makeMockDb(findFirst),
+    });
+
+    expect(result).toMatchObject({ brunchTitle: 'Weekend Brunch', hostName: 'Alice Host' });
   });
 });

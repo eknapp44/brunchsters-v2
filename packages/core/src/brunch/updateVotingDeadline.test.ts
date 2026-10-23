@@ -194,3 +194,21 @@ describe('updateVotingDeadlineRequestSchema', () => {
     expect(result.success).toBe(false);
   });
 });
+
+describe('updateVotingDeadline — a brunch that is not open', () => {
+  it('refuses a called-off brunch and changes nothing', async () => {
+    const update = vi.fn().mockResolvedValue({});
+    const db = makeMockDb({
+      update,
+      findFirstBrunch: vi.fn().mockResolvedValue({ ...OPEN_BRUNCH, status: { code: 'cancelled' } }),
+    });
+
+    const result = await updateVotingDeadline(
+      { brunchId: BRUNCH_ID, requestedById: HOST_ID, votingDeadline: FUTURE_ISO },
+      { db },
+    );
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_called_off' });
+    expect(update).not.toHaveBeenCalled();
+  });
+});

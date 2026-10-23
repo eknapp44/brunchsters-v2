@@ -149,6 +149,7 @@ describe('sendInvites integration', () => {
       hostName: 'Integration Invite Host',
       description: undefined,
       brunchStatusLabel: 'Active',
+      isCalledOff: false,
     });
   });
 

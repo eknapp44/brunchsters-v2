@@ -13,7 +13,7 @@ describe('dashboard status wording', () => {
   });
 
   it('has no entry for a status that is not seeded (a stale decision)', () => {
-    const seeded = new Set(BRUNCH_STATUSES.map((status) => status.code));
+    const seeded = new Set<string>(BRUNCH_STATUSES.map((status) => status.code));
     const stale = Object.keys(DASHBOARD_STATUS_WORDING).filter((code) => !seeded.has(code));
     expect(stale).toEqual([]);
   });

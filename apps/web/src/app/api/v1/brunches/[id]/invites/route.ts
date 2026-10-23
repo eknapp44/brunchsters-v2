@@ -60,6 +60,10 @@ export async function POST(
         return rateLimitedResponse(result.error);
       case 'rate_limiter_unavailable':
         return rateLimiterUnavailableResponse({ route: 'sendInvites', cause: result.error.cause });
+      case 'brunch_called_off':
+        return NextResponse.json({ error: 'This brunch was called off' }, { status: 409 });
+      case 'invalid_transition':
+        return NextResponse.json({ error: 'The brunch changed. Try again.' }, { status: 409 });
       default:
         console.error('sendInvites failed', result.error);
         return NextResponse.json({ error: 'Failed to send invites' }, { status: 500 });

@@ -62,6 +62,8 @@ export async function POST(
         return NextResponse.json({ error: 'Cannot suggest the host' }, { status: 422 });
       case 'already_suggested':
         return NextResponse.json({ error: 'This email was already suggested' }, { status: 409 });
+      case 'brunch_called_off':
+        return NextResponse.json({ error: 'This brunch was called off' }, { status: 409 });
       default:
         console.error('suggestInvitee failed', result.error);
         return NextResponse.json({ error: 'Failed to suggest invitee' }, { status: 500 });

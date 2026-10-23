@@ -4,6 +4,7 @@ import { err, ok, type Result } from 'neverthrow';
 import { z } from 'zod';
 import { LookupNotFoundError } from '../errors/LookupNotFoundError';
 import type { EventBus } from '../events/EventBus';
+import { assertBrunchOpen, type AssertBrunchOpenError } from '../brunch/guards/assertBrunchOpen';
 
 export const updateRsvpRequestSchema = z.object({
   response: z.enum(['yes', 'no', 'maybe']),
@@ -18,6 +19,7 @@ export type UpdateRsvpInput = UpdateRsvpRequest & {
 
 export type UpdateRsvpError =
   | { readonly kind: 'brunch_not_found' }
+  | AssertBrunchOpenError
   | { readonly kind: 'lookup_not_found'; readonly code: string }
   | { readonly kind: 'db_error'; readonly cause: unknown };
 
@@ -40,9 +42,14 @@ export async function updateRsvp(
 
   const attendee = await db.brunchAttendee.findFirst({
     where: { brunchId: input.brunchId, userId: input.viewerId },
+    include: { brunch: { include: { status: true } } },
   });
   // Not a member: indistinguishable from a brunch that does not exist.
   if (attendee === null) return err({ kind: 'brunch_not_found' });
+
+  // After membership, so only a member is told the brunch is called off.
+  const openResult = assertBrunchOpen(attendee.brunch);
+  if (openResult.isErr()) return err(openResult.error);
 
   try {
     const rsvpStatus = await db.rsvpStatus.findFirst({ where: { code: input.response } });

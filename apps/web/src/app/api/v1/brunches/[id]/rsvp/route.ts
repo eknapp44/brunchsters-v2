@@ -53,6 +53,8 @@ export async function POST(
     switch (result.error.kind) {
       case 'brunch_not_found':
         return NextResponse.json({ error: 'Brunch not found' }, { status: 404 });
+      case 'brunch_called_off':
+        return NextResponse.json({ error: 'This brunch was called off' }, { status: 409 });
       default:
         console.error('updateRsvp failed', result.error);
         return NextResponse.json({ error: 'Failed to update RSVP' }, { status: 500 });

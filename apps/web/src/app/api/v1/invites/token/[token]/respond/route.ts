@@ -56,6 +56,8 @@ export async function POST(
     switch (result.error.kind) {
       case 'invalid_token':
         return NextResponse.json({ error: 'Invite not found or expired' }, { status: 404 });
+      case 'brunch_called_off':
+        return NextResponse.json({ error: 'This brunch was called off' }, { status: 409 });
       default:
         console.error('respondToInvite failed', result.error);
         return NextResponse.json({ error: 'Failed to respond to invite' }, { status: 500 });

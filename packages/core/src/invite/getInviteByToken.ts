@@ -1,5 +1,6 @@
 import type { DbClient } from '@brunchsters/database';
 import type { InviteToken } from '@brunchsters/shared';
+import { assertBrunchOpen } from '../brunch/guards/assertBrunchOpen';
 
 export type InvitePreview = {
   readonly brunchTitle: string;
@@ -7,6 +8,10 @@ export type InvitePreview = {
   // Already in the invite email, so a link-holder learns nothing new from it.
   readonly description: string | undefined;
   readonly brunchStatusLabel: string;
+  // The host called the brunch off (spec 0013). The page says so instead of offering to join; the
+  // holder already knows the title and host from the same preview, so this tells them nothing an
+  // outsider could use (someone with no token still gets nothing).
+  readonly isCalledOff: boolean;
 };
 
 // Deliberately minimal: no attendee list, no other invitees' emails (Constitution
@@ -29,5 +34,6 @@ export async function getInviteByToken(
     hostName: invite.brunch.host.name,
     description: invite.brunch.description ?? undefined,
     brunchStatusLabel: invite.brunch.status.label,
+    isCalledOff: assertBrunchOpen(invite.brunch).isErr(),
   };
 }
