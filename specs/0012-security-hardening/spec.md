@@ -1,0 +1,195 @@
+# Spec 0012 — Security Hardening
+
+**Status:** Complete (M1 to M6 done 2026-10-23; owner reviewed M3 and the sign-in check; pre-merge review next; see "Outcome")  
+**Branch:** `feat/0012-security-hardening`  
+**PLANNING.md ref:** §16 roadmap step 5, §17 "Security and session follow-ups"  
+**ADRs:** [0013 — Rate limits in Postgres](../../docs/adrs/0013-rate-limits-in-postgres.md), [0014 — CSP with a per-request nonce](../../docs/adrs/0014-content-security-policy-with-nonce.md)  
+**Builds on:** [spec 0008](../0008-email-notifications/spec.md) (the invite email path and its 50-per-request guard), [spec 0011](../0011-design-fidelity/spec.md) (the basic headers, `safeCallbackPath`, `forbidden()`)
+
+> **Numbering note.** Older docs call the notifications spec "0012". Directories are numbered in the order they are written, so security hardening is 0012 and the notifications spec takes the next free number when it is written. The docs commit that adds this spec rewrites those references to say "the notifications spec".
+
+---
+
+## What
+
+Put limits and a few defenses in place **before the beta opens** (PLANNING §16: step 5, ahead of deployment). Three pieces, in this order of risk:
+
+1. **Rate limits** (the main goal): invite email, resend, Google Places, every other write, and requests to the public invite-token routes.
+2. **Known-vulnerable dependencies** patched, and a CI gate so they cannot creep back.
+3. **A Content-Security-Policy** with a per-request nonce, report-only first, then enforced.
+
+No new screen. Two existing controls gain one inline line of copy for a limited state.
+
+### Grounded in the current code (verified 2026-10-22)
+
+- **Nothing limits anything.** The only guard is `MAX_INVITES_PER_REQUEST = 50` (`packages/shared/src/invites.ts`), per request. `POST /api/v1/brunches/[id]/invites` (`sendInvites`) and `POST /api/v1/invites/[id]/resend` (`resendInvite`, which re-tokens and emits `invite/resent` every call) can be looped. The invite email job is capped at 5 concurrent runs (`inngest/functions.ts`), which bounds load, not volume.
+- **The Places routes do not check the session themselves.** `places/search/route.ts` and `places/[placeId]/route.ts` have no `auth()`; only `middleware.ts` answers a signed-out caller with 401. To limit by person the handlers must read the session, which also hardens them if the middleware matcher ever changes. Their unit tests call `GET` with a bare `Request`, so they gain a session mock.
+- **`middleware.ts` runs on the edge**, where Prisma does not, so the write limit is a helper called in each route handler, not middleware. There are 26 `route.ts` files under `app/api` (24 under `v1`); the mutating ones (POST, PUT, PATCH, DELETE) are the catch-all's target.
+- **Sign-in is Google only** (ADR 0003): no password, so there is nothing to brute-force. The public token routes (`/api/v1/invites/token/[token]`, `.../respond`) are the only unauthenticated API surface; no e2e journey calls them (the invite page reads the token through core, not the API), so their limit cannot be tripped by the suite.
+- **The e2e suite runs every worker from one IP** against one server, and CLAUDE.md forbids a test-only bypass. Limits keyed by the person are safe (each journey makes its own users); the address limit applies only to the two public invite-token routes, which nothing in the suite called before spec 0012, and its journey sends its own `x-forwarded-for`.
+- **`apps/web/src/app/(authenticated)/brunch/[id]/InvitePanel.tsx`** shows `Failed to send invite` / `Failed to resend invite` / `Failed to revoke invite` in an `InlineAlert` (`role="alert"`); `PlaceSearchInput.tsx` debounces with a `setTimeout` and a `sessionToken` for Google's per-session billing. Both keep local `useState` (ADR 0011: a single control's state), so no Redux change.
+- **Dependencies are behind.** Installed `next` is 15.5.19; `pnpm audit --prod` (2026-10-22) reports 32 advisories (6 critical, 15 high) on 250 production dependencies: `next` (fixed in 15.5.28, which exists), `next-auth` 5.0.0-beta.31 and its `@auth/core` (fixed in `@auth/core` 0.41.3, which `next-auth@5.0.0-beta.32` depends on), plus `postcss`, `sharp`, `nanoid`, `deepmerge-ts`, `source-map-js` (mostly transitive). **The advisories name `next-auth` ≥ 5.0.0 as the fix, but 5.0.0 is not published** (npm `beta` is 5.0.0-beta.32; `latest` is the v4 line). M1 finds out whether beta.32 clears them. One of the advisories is "configuration errors can cause existence-based auth checks to fail open", and every handler here gates on `session === null` and the middleware on `req.auth`, so M1 also proves a bad session still gets a 401 (journey S2 below).
+- **CSP inputs:** `next.config.ts` carries the basic headers and says why CSP is missing; `next/font` is self-hosted; two components set a computed inline `style` width; sign-in is a server action that redirects to Google; images are initials plus a `data:` image in fixtures.
+
+### Principles
+
+- **A limit never confirms a brunch.** It reads only the caller's own counter, and anything that names a brunch or invite is consumed after the host check.
+- **No configuration, no bypass.** Limits are named constants; tests spend the real budget.
+- **Business rules in core** (`RateLimiter`, the policy table, the decision), the route only maps "limited" to 429 (CLAUDE.md).
+
+---
+
+## User flows
+
+1. **A host sends too many invites.** They paste addresses; the cap has been reached; the send button disables (`aria-disabled`, still focusable) with "Easy there, that's a lot of invites for one day. Try again in about N hours." beside it, and the list stays as it was. A refresh, or signing out and back in as the same person, keeps it disabled until the same moment; it re-enables when the wait is over.
+2. **A host hits Resend twice.** The second click inside 10 minutes is refused; that invite's Resend disables with "That one just went out. Give it N minutes." and re-enables when the wait is over (other invites' buttons are unaffected). No second email.
+3. **A person types in a place search very fast, or a script loops on it.** After 30 calls in a minute the input shows "Slow down a sec, then try again." with the existing results kept. The input stays usable (the wait is seconds) and the line clears when the wait passes; nothing is billed by Google for the refused calls.
+4. **A person (or a script) hammers any write.** After 60 in a minute the route answers 429 with `Retry-After`; the control shows its existing generic error (feedback-surfaces owns real wording). A second signed-in person is unaffected.
+5. **An outsider probes brunch ids.** Real and made-up ids behave identically at every budget level: 404 under budget, 429 over it.
+6. **Someone guesses invite tokens.** After 30 requests in a minute from one address, the invite-token routes answer 429, a real token included, before anything is looked up. (Every request counts, not only the ones for a token that does not exist: nothing in the app's own screens calls these routes, and refusing a limited address outright is what stops it probing.)
+7. **A page loads with a CSP.** Nothing visible changes; an injected inline script would not run.
+
+---
+
+## Acceptance Criteria
+
+### Schema
+
+- [x] `RateLimitBucket` model (`key`, `windowStart`, `count`, primary key `[key, windowStart]`, index on `windowStart`) and its migration, committed with the schema; not in the soft-delete set (comment says why)
+- [x] Migration applies on an empty database and over the existing e2e and dev databases
+
+### Services (`packages/core`)
+
+- [x] `RateLimiter` interface, `PostgresRateLimiter` (atomic upsert, denied requests do not increment, cost greater than the limit is denied outright), and an in-memory implementation for unit tests
+- [x] Policies and their limits as named constants in `packages/shared`; the time-until-reset math is pure and unit-tested
+- [x] `sendInvites` consumes the per-brunch and per-host budgets after the host check, for the de-duplicated, self-filtered count, and returns a `rate_limited` error with `retryAfterSeconds`; a denied send creates nothing and emits nothing
+- [x] `resendInvite` consumes the per-invite cooldown and one host invite-email unit after the host check, with the same error
+- [x] Approving an invite suggestion spends the same two budgets, one email each (`reviewInviteSuggestion`, which `suggestInvitee` also calls itself when the brunch does not ask the host to approve): after the host and pending checks, only for an approval, never for a decline. A refused approval leaves the suggestion pending and nothing is sent; a refused auto-approval leaves it pending too. **Corrects this spec's first draft, which said `suggestInvitee` sends no email: with approval not required it does, and without this the host's daily cap could be walked round one approval at a time.**
+- [x] `pruneRateLimitBuckets` deletes buckets older than two days; an Inngest cron function calls it (registered in `functions.ts`)
+- [x] Limiter database errors fail closed (503 from the route)
+
+### API routes
+
+- [x] One helper (`apps/web/src/lib/rateLimit.ts`) builds the 429 (status, `Retry-After`, body `{ error, policy, retryAfterSeconds }`: the policy name lets a control word its message) and the fail-closed 503
+- [x] `clientIp(headers)` (first `x-forwarded-for` entry, then `x-real-ip`, then one shared "unknown" bucket: stricter, never looser)
+- [x] Both Places handlers call `auth()` (401 when signed out, as middleware already answers) and consume 30 and 20 per person per minute **before** calling Google
+- [x] Every POST, PUT, PATCH and DELETE under `app/api/v1` calls the write limiter right after `auth()`, with **no exceptions and no allowlist**: the invite response route (reachable signed out) spends the address budget first and its person's write budget after the session check, like the rest. The two invite routes take it as well as their own budgets in core.
+- [x] A scanning test (`routeLimits.test.ts`) fails when a mutating handler does not make the call, makes it before the session or after it reads the request, or when a Places or token route loses its budget, and when any budget is keyed by something other than the person or the address
+- [x] The token GET and the respond POST spend the caller's address budget (30 per minute) on every request, before anything is looked up, and the respond route does so before its session check
+- [x] Handler tests per route family: 429 shape, header, order (401 → 429 → parse → service), and that no service runs when limited
+- [x] `api-authorization` e2e gains the cases below
+
+### Dependencies
+
+- [x] `next` at 15.5.28 or newer within 15.x; `next-auth` and `@auth/core` at the newest versions that clear the advisories (or, if none does, each remaining one recorded in `package.json`'s audit config with a reason and a date); the lockfile regenerated
+- [x] CI runs `pnpm audit --prod --audit-level=high` as a step of an existing job (or its own job) and fails on a new high or critical; every ignore has a reason and a date in one place
+- [x] The whole suite, `pnpm build` and a real Google sign-in on the dev server pass after the bump; the CHANGELOG-visible commit is `fix(deps):`
+
+### CSP
+
+- [x] Middleware sets a nonce-based `Content-Security-Policy` (report-only in M5, enforcing since M6) on every response (pages, API JSON, redirects), and Next stamps its scripts with the nonce
+- [x] A journey (S3) fails on any `securitypolicyviolation` along the main paths
+- [x] The header is flipped to enforcing after a manual real sign-in and a clean full run; S1 asserts the header name and the key directives
+- [x] The policy is built by a pure function with unit tests (nonce present, no `unsafe-eval` outside development, `frame-ancestors 'none'`, `form-action` allows Google)
+
+### UI
+
+- [x] `InvitePanel` disables the send button, and the one invite's Resend button, while the server says they wait (`aria-disabled`, focusable, label unchanged) with the limited line beside it (`InlineAlert`, `role="status"`: it is news about a wait, not an error); approving a suggestion that hits the same cap shows the same line in the suggestions panel and holds Approve. `PlaceSearchInput` shows its line and stays usable (M4). The brunch page asks the counters as it loads (`getInviteWaits`, M7) and a 429 is shown at once and followed by `router.refresh()` (`useWait`, M8). Nothing is stored in the browser.
+- [x] **One budget, one wait:** the send button and the suggestion Approve buttons get one answer from the server (declining is never held), and a Resend held by the brunch or host budget shows it too; another tab or device sees the same thing because the page asks the server
+- [x] **A refused invite batch in the creation wizard needs no handoff:** the wizard still creates the brunch, and the new brunch's page asks the server and opens with the send button waiting and the reason shown
+- [x] No new Redux state; the message is the control's own `useState` (ADR 0011)
+
+### Docs
+
+- [x] `PLANNING.md` §16 (step 5 now links this spec and names what is in it), §17 "Security and session follow-ups" updated item by item (rate limits and CSP done; HSTS, expired session, invite GET, account deletion still open with their owners)
+- [x] `docs/SETUP.md`: the audit command, how to run the limit journeys, the `x-forwarded-for` note for local runs
+- [x] The deployment spec's pre-launch checklist in `PLANNING.md` §17 gains: HSTS, "confirm Vercel overwrites a client-supplied `x-forwarded-for`", "load every screen and read the console for CSP violations", "decide where limit-hit logs go, and confirm the daily `prune-rate-limits` job is registered and runs in Inngest Cloud"
+- [x] `apps/web/CLAUDE.md`: a short "Limited state" note (where the wording lives, 429 handling) and the rule for new endpoints; root `CLAUDE.md` gets one line under Architectural Rules (every mutating route limits writes; limits are keyed by caller)
+- [x] `.claude/skills/spec-grill` prompts: ask "what limit does a new endpoint need"
+
+---
+
+## E2E Journeys
+
+| ID  | Who                                                             | Asserted                                                                                                                                                                                                                                                                                                                                                                                           | Milestone  |
+| --- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| L1  | host                                                            | the brunch's 50 invite addresses for the day are used up after the page opened; pressing send is refused with 429, the send button is `aria-disabled` with the limited line beside it, the typed address stays, no invite exists, and pressing it again asks the server nothing; after a reload it is still waiting (the server says so), and once the browser clock passes the wait it comes back | M3, M8     |
+| L1b | host and one attendee                                           | the attendee suggests an address; the host has used the brunch's 50 invites for the day; approving shows the limited line in both panels, **Approve and "Round up the crew" wait together** (one budget), a press on a waiting Approve makes no request, the wait survives a reload, no invite is created, and declining is never held                                                             | M3, pass 2 |
+| L1d | host                                                            | the page opens already waiting when the brunch's invites are used up, before anything is pressed                                                                                                                                                                                                                                                                                                   | M8         |
+| L1c | host, a second browser                                          | the wait is the server's: a browser that never saw the refusal opens the brunch and finds the send button already waiting                                                                                                                                                                                                                                                                          | M8         |
+| L1e | host and one attendee                                           | a refused send makes Approve and the other invites' Resend wait too; a Resend refused by the day makes the other invites and the send button wait (the refresh after a 429 carries the server's answer to every control)                                                                                                                                                                           | review 2   |
+| L2  | host                                                            | resending: the first sends and that invite waits (the cooldown line); pressing it again asks the server nothing and leaves the link alone; a different invite still resends; the waits survive a reload and end once the browser clock passes them                                                                                                                                                 | M3, M8     |
+| L2b | host                                                            | a Resend refused by the day's budget (not the cooldown) holds that invite's Resend **and** the send button, with the invites line                                                                                                                                                                                                                                                                  | pass 2     |
+| L7  | host                                                            | with the day's invites used up, creating a brunch with an invitee in the wizard still creates it, and its page opens with the send button waiting and the reason shown; no invite exists; the handoff is taken over, not left behind                                                                                                                                                               | pass 2     |
+| L3  | one signed-in person                                            | 31 place searches in a minute through the real route (the e2e server's Places key is blank, so under budget the answer is the existing 502): 30 are answered, the 31st is 429 with `Retry-After`; and the real input, with the browser intercept answering 429, shows the limited line and keeps the earlier results                                                                               | M4         |
+| L4  | two members of one brunch                                       | one member makes 61 RSVP writes in a minute: the 61st is 429 with `Retry-After`; the other member's RSVP still works (keyed per person). Window reset is proved in the limiter's integration test with an injected clock, because e2e cannot move the server's clock                                                                                                                               | M4         |
+| L5  | outsider, member, made-up id                                    | under budget the outsider gets the identical 404 for a real brunch and a made-up id; over budget both get the identical 429; a member over budget gets 429, not 403 (edits `api-authorization`)                                                                                                                                                                                                    | M4         |
+| L6  | signed-out visitor                                              | a run of requests from one address ends in a 429 (not before the 30th); a real token and the invite response are then refused from that address too; another address is untouched and its real token still previews. ("Works again afterwards" is the limiter's own window test: e2e cannot move the server's clock.)                                                                              | M4         |
+| S2  | signed-in person with a corrupt, then an expired session cookie | every API route answers 401 (never 200, never a 500) and a page redirects to sign-in; guards against the "auth fails open" advisory after the bump                                                                                                                                                                                                                                                 | M1         |
+| S3  | host and invitee                                                | the main paths (dashboard, wizard, brunch page, manage, invite landing, sign-in page) raise no `securitypolicyviolation` and no CSP console error, light and dark                                                                                                                                                                                                                                  | M5         |
+| S1  | (existing, edited)                                              | also asserts the CSP header name and its key directives                                                                                                                                                                                                                                                                                                                                            | M5, M6     |
+
+Journeys that change: `front-door.spec.ts` (S1), `api-authorization.spec.ts` (L5 cases added), `invitations-host.spec.ts` or the file that owns Resend (checked by grep at M3; L2 is added beside it). **Accessible names that change: none.** The limited lines are new text inside the existing `role="alert"` regions, found by their text.
+
+**Phone:** nothing is left out; the limited line is the same inline alert at phone width. No phone board needed: the alert is an existing primitive in an existing place (the `D3` layout check already covers both screens).
+
+**Voice:** the three new strings (invites, resend, place search) are the only copy this spec adds. They follow Brand Voice ("friend, not service"; no "successfully", no "rate limit", no promise to retry automatically). They are the one deliberate exception to "error wording belongs to the feedback-surfaces spec" in `apps/web/CLAUDE.md`, because a person told only "Failed to send invite" will keep clicking.
+
+---
+
+## Outcome
+
+Shipped on `feat/0012-security-hardening` in six milestones, each committed green: the dependency patch and audit gate (M1), the Postgres limiter (M2), the invite and resend limits (M3), place search, writes and invite tokens (M4), the report-only CSP (M5), and enforcing it (M6).
+
+**What shipped.** `next` 15.5.28 and `next-auth` 5.0.0-beta.32 with five transitive overrides (32 advisories, 6 critical, down to none) and `pnpm audit --prod --audit-level=high` in CI. A `RateLimiter` interface with a Postgres fixed-window implementation (`RateLimitBucket`, one atomic upsert), a daily prune job, and these budgets: 100 invite emails per host per day and 50 per brunch per day (spent by sending, re-sending and approving a suggestion, after the host check), a resend every 10 minutes per invite, 30 place searches and 20 place lookups per person per minute, 60 writes per person per minute on every mutating route, and 30 requests per address per minute on the public invite-token routes. A refusal is a 429 with `Retry-After` and the policy; the invite panel and the place search say so in the Brand Voice, the send and Resend buttons wait (`aria-disabled`) and remember the wait across a refresh. A nonce-based Content-Security-Policy on every response, enforcing. Journeys S1 (extended), S2, S3, L1 to L6, with a scanning test that fails when a mutating route skips its limit, and two more static guards for what is not a route: one fails when an email event has no recorded budget decision, a budgeted event is emitted without spending its budget, or mail is sent outside the two handlers; the other fails when the paid Places API is reached from anywhere but its two budgeted routes.
+
+**What changed from the plan.**
+
+- **Approving a suggestion is an email path**, which the spec's first draft missed (it said `suggestInvitee` sends no email; with approval not required it does). Approvals now spend the same budgets.
+- **The token limit counts every request, not only the invalid ones**, and the policy is `invite-token`: refusing a valid token from a limited address needed a read of the counter that the limiter does not have, and nothing in the app's own screens calls those routes.
+- **No allowlist** in the write-limit scanning test: the invite response route takes the address budget before its session check and the write budget after.
+- **The 429 body carries `policy`**, so a control can word its message; the limited line is `role="status"`; the wait is the server's (read with `peek`), not stored in the browser (M7, M8).
+- **The root `CLAUDE.md` rule and the `spec-grill` prompt landed in M4**, with the pattern, not at the end.
+- **After a review pass, the three gaps first deferred were closed**: a refused approval makes the Approve buttons and the send button wait together (one budget, one key), a wait is shared between tabs and components, and the creation wizard hands a refused invite batch to the brunch page. (The wizard's gap had become reachable by ordinary use, not only abuse.)
+- **One shared test helper for the limit journeys** (`untilRefused`, `alignToWindow`), after the first versions timed out under load and depended on the minute they ran in.
+
+**What was found.**
+
+- **Chromium applies `form-action` to the redirect after a form post** (an experiment with two local origins), so Google's origin in the policy is required for the sign-in; and **Vercel documents that it overwrites `X-Forwarded-For`**, with the caveat that a proxy in front of it (Cloudflare) would make every visitor share an address.
+- **`next-auth` 5.0.0 does not exist**; the advisories name it, and beta.32 is what clears them. S2 (every broken credential gets a 401) was written first, against the old versions, because one advisory was "auth checks fail open".
+- **Two new tests broke unrelated ones, both fixed in the test**: a race test that opened 50 connections exhausted the local Postgres's 100 and failed two other files; limit journeys that queued about 100 real invite emails delayed the emails other journeys wait for.
+- **Playwright waits forever on a click of an `aria-disabled` button**, and axe measured the Revoke button mid-transition after a live color-scheme switch; both are in `apps/web/CLAUDE.md`.
+- **A fixed window makes "still refused afterwards" depend on the minute**: three journey assertions passed or failed by the clock until each segment was aligned to a window.
+- **`'strict-dynamic'` trusts a script the page's own scripts create**, so the first enforcement journey (which created one) found the injected script running; the policy stops injected markup (an inline `onerror=` handler), and the journey now tests that and was proved to fail against a report-only header.
+- **Next reads the nonce from the response header too**, so setting it on the request as well is belt and braces no test can distinguish.
+- **The single failures under heavy load were the Next dev server, not our code.** A burst of parallel RSVPs reproduced one 500 in 2,400 requests, and the server log named it: `ENOENT … .next/server/next-font-manifest.json`, the dev server reading a manifest file it is rewriting while a route compiles. A production build cannot do that (CI never saw it). The one failure of the host-only authorization journey in a loaded run is the same class. The limit journeys now send the first request of each loop alone, so the route is compiled before the burst, and in smaller batches. Several mass timeouts fit the owner's computer sleeping.
+- **The pre-merge review found six small things, all fixed with tests**: `data:` was allowed in `img-src` and nothing needed it; a finished wait's browser entry could linger (the hook now sweeps this app's expired entries); a wait read from a 429 was unbounded and `setTimeout` would drop a huge one at once (clamped to a day, with a shared test); the "whole day's budget" rule lived in a component (now `holdsAllInvites`, with a unit test); an unused header; and an adopted wizard handoff that did not announce itself. It also verified that no screen calls the public token routes and that the 404/403 order is unchanged on every route. One thing is recorded rather than changed: if a setting ever lets attendees invite without the host's approval, an attendee could use up the host's daily invite budget (nothing in the app can set it today).
+
+**Deferred (also in "What This Spec Does Not Cover" and `PLANNING.md` §17).** A sign-in limiter, an address limit on signed-in traffic, showing the remaining budget; the creation wizard's other invite failures; wording for a 429 on every control but the invite panel, the suggestion approvals and the place search; the place search showing stale results when responses arrive out of order (pre-existing, recorded in §17); HSTS, `upgrade-insecure-requests`, the proxy check and the prune job's first run on the real deployment (the pre-launch checklist); Dependabot (a repository setting).
+
+---
+
+## What This Spec Does Not Cover
+
+Each is recorded in ADR 0013 or 0014 and in PLANNING §17.
+
+- **A sign-in limiter.** Google is the only provider and throttles it; no password exists to guess.
+- **A per-IP limit on signed-in traffic** (shared networks).
+- **Showing remaining budget, or disabling a control before its first refusal.** A control disables only after a 429; a different device or browser (or cleared site data) learns on its first click, which gets the 429 and disables from then on. Making that accurate needs a read-only budget check on every page load.
+- **The creation wizard's other invite failures** (spec 0004): a refused batch is explained (the brunch page opens with the send button waiting and the reason), but a failed one (a 500, offline) is still ignored. Owned by the feedback-surfaces spec ("Silent failures to surface").
+- **Real error wording for every other control** that receives a 429 from the write catch-all (feedback-surfaces).
+- **A limit on the server-rendered `/invite/[token]` page** (a token is a random UUID; the page already answers bad tokens uniformly).
+- **Alerting or a dashboard for limit hits** (they are logged; the deployment spec decides where logs go).
+- **HSTS and `upgrade-insecure-requests`** (they break `http://localhost`; the deployment spec sets them with the domain).
+- **Dependabot** (a repository setting; proposed in `docs/SETUP.md`, never written by the agent).
+- **A CSP violation-report endpoint.**
+- **The invite-link GET that RSVPs "yes"**, **expired or invalid session wording**, and **account deletion**: unchanged in PLANNING §17, with the feedback-surfaces and Settings specs.
+- **The brunch size cap** (separate product decision, §17).
+- **Tuning the numbers.** They are starting points; the beta decides.
+
+## Open Questions
+
+1. **Are the starting numbers right?** 100 invite emails per host per day, 50 per brunch per day, resend every 10 minutes, 30 and 20 place calls a minute, 60 writes a minute, 30 bad tokens a minute. Chosen as roomy for a real host and tight for a script; no data yet.
+2. **Does `next-auth@5.0.0-beta.32` clear the advisories** that name a `5.0.0` that does not exist? **Answered in M1: yes**, every Auth.js advisory is cleared (and `next` 15.5.28 and five transitive overrides clear the rest); nothing is on the ignore list. Recheck when Auth.js v5 goes stable.
+3. **Does Chromium apply `form-action` to the redirect after the sign-in form post?** **Answered: yes.** An experiment with two local origins showed Chromium blocks (and reports) a form post whose redirect leads to an origin not listed in `form-action`, and lets it through when listed. The sign-in is exactly that, so Google's origin is required. A real sign-in with the policy in place also raised nothing. (Other browsers differ, which is a further reason to list it.)
+4. **Does Vercel overwrite a client-supplied `x-forwarded-for`?** **Answered from Vercel's documentation: yes**, to prevent spoofing, so reading its first entry is right on Vercel. Still to check on the real deployment, and recorded in the pre-launch checklist: that nothing proxies in front of Vercel (a Cloudflare-proxied domain would make every visitor arrive with Cloudflare's address).

@@ -5,7 +5,7 @@
 **PLANNING.md ref:** §3 (Tech Stack: State Management), §16 Build Order, §17 (new "Redux follow-ups" entry)  
 **ADRs:** [0011 — Redux Toolkit for client UI state](../../docs/adrs/0011-redux-toolkit-for-client-ui-state.md)
 
-> **Numbering note.** `PLANNING.md` and spec 0008 reserved "spec 0010" for the notifications follow-up. The owner chose the order **Redux (0010) → design fidelity (0011) → notifications (0012)**. The docs commit that adds this spec renumbers those references.
+> **Numbering note.** `PLANNING.md` and spec 0008 reserved "spec 0010" for the notifications follow-up. The owner chose the order **Redux (0010) → design fidelity (0011) → notifications (named, not numbered: security hardening took 0012; see spec 0012's numbering note)**. The docs commit that adds this spec renumbers those references.
 
 ---
 
@@ -76,7 +76,7 @@ No flow changes. For reference, the flows whose state moves into the store:
 - [x] README, root `CLAUDE.md` and `PLANNING.md` §3 say Redux Toolkit is in use (not "planned")
 - [x] `apps/web/CLAUDE.md` gains a short "State" section: the store rules (UI state only, per-request, serializable, typed hooks, when to add a slice vs keep `useState`)
 - [x] `specs/0003-create-brunch/plan.md` "local state" note points to ADR 0011
-- [x] `PLANNING.md` §17 "Redux follow-ups" lists everything deferred (below), and §16/§17 and spec 0008 use the new numbers (design fidelity 0011, notifications 0012)
+- [x] `PLANNING.md` §17 "Redux follow-ups" lists everything deferred (below), and §16/§17 and spec 0008 use the new numbers (design fidelity 0011, notifications later, unnumbered)
 - [x] `tasks.md` testing notes complete per milestone
 
 ---
@@ -103,7 +103,7 @@ Each of these is recorded in ADR 0011 and PLANNING §17.
 
 - **The other panels' state** (RSVP, invites, suggestions, option management, voting controls, confirmation, suggestion review): they keep local `submitting`/`error`/`pending`. A later spec migrates them to a shared mutation slice once there is a reason (toasts).
 - **Toasts, a visible error surface, and showing the server's real error text** (the "silent failures" input in PLANNING §17). Error strings stay exactly as they are.
-- **The unread-notifications count and realtime updates** (the notifications spec, now 0012).
+- **The unread-notifications count and realtime updates** (the notifications spec, numbered when it is written).
 - **Persisting the wizard draft** across reloads: a product decision about stale drafts.
 - **RTK Query.** Server Components plus `router.refresh()` remain the data path.
 - **Moving any business rule into the store.** Option validity, vote rules and close rules stay on the server and in `packages/core`.

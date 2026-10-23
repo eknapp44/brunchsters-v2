@@ -3,6 +3,8 @@ import { normalizeEmail, type Email, type BrunchId, type UserId } from '@brunchs
 import { describe, expect, it, vi } from 'vitest';
 import type { EventBus } from '../events/EventBus';
 import { sendInvites, sendInvitesRequestSchema, type SendInvitesInput } from './sendInvites';
+import { InMemoryRateLimiter } from '../rateLimit/InMemoryRateLimiter';
+import { RecordingRateLimiter } from '../rateLimit/RecordingRateLimiter';
 
 const BRUNCH_ID = 'brunch-uuid' as BrunchId;
 const HOST_ID = 'host-uuid' as UserId;
@@ -87,7 +89,11 @@ describe('sendInvites', () => {
     const tx = makeMockTx();
     const db = makeMockDb(tx);
 
-    const result = await sendInvites(BASE_INPUT, { db, eventBus: makeMockEventBus() });
+    const result = await sendInvites(BASE_INPUT, {
+      rateLimiter: new InMemoryRateLimiter(),
+      db,
+      eventBus: makeMockEventBus(),
+    });
 
     expect(result.isOk()).toBe(true);
     expect(result._unsafeUnwrap()).toEqual([
@@ -109,7 +115,11 @@ describe('sendInvites', () => {
     });
     const db = makeMockDb(tx);
 
-    const result = await sendInvites(BASE_INPUT, { db, eventBus: makeMockEventBus() });
+    const result = await sendInvites(BASE_INPUT, {
+      rateLimiter: new InMemoryRateLimiter(),
+      db,
+      eventBus: makeMockEventBus(),
+    });
 
     expect(result.isOk()).toBe(true);
     expect(tx.brunchInvite.create).toHaveBeenCalledWith(
@@ -134,7 +144,11 @@ describe('sendInvites', () => {
     });
     const db = makeMockDb(tx);
 
-    const result = await sendInvites(BASE_INPUT, { db, eventBus: makeMockEventBus() });
+    const result = await sendInvites(BASE_INPUT, {
+      rateLimiter: new InMemoryRateLimiter(),
+      db,
+      eventBus: makeMockEventBus(),
+    });
 
     expect(result.isOk()).toBe(true);
     expect(tx.brunchInvite.create).not.toHaveBeenCalled();
@@ -160,7 +174,11 @@ describe('sendInvites', () => {
     });
     const db = makeMockDb(tx);
 
-    const result = await sendInvites(BASE_INPUT, { db, eventBus: makeMockEventBus() });
+    const result = await sendInvites(BASE_INPUT, {
+      rateLimiter: new InMemoryRateLimiter(),
+      db,
+      eventBus: makeMockEventBus(),
+    });
 
     expect(result.isOk()).toBe(true);
     const [updateArgs] = tx.brunchInvite.update.mock.calls[0] as [{ data: { deletedAt: unknown } }];
@@ -189,7 +207,11 @@ describe('sendInvites', () => {
     });
     const db = makeMockDb(tx);
 
-    const result = await sendInvites(BASE_INPUT, { db, eventBus: makeMockEventBus() });
+    const result = await sendInvites(BASE_INPUT, {
+      rateLimiter: new InMemoryRateLimiter(),
+      db,
+      eventBus: makeMockEventBus(),
+    });
 
     expect(result.isOk()).toBe(true);
     expect(tx.brunchAttendee.findUnique).toHaveBeenCalledWith({
@@ -223,7 +245,11 @@ describe('sendInvites', () => {
     });
     const db = makeMockDb(tx);
 
-    const result = await sendInvites(BASE_INPUT, { db, eventBus: makeMockEventBus() });
+    const result = await sendInvites(BASE_INPUT, {
+      rateLimiter: new InMemoryRateLimiter(),
+      db,
+      eventBus: makeMockEventBus(),
+    });
 
     expect(result.isOk()).toBe(true);
     expect(tx.brunchAttendee.findUnique).toHaveBeenCalledWith({
@@ -249,7 +275,11 @@ describe('sendInvites', () => {
     });
     const db = makeMockDb(tx);
 
-    const result = await sendInvites(BASE_INPUT, { db, eventBus: makeMockEventBus() });
+    const result = await sendInvites(BASE_INPUT, {
+      rateLimiter: new InMemoryRateLimiter(),
+      db,
+      eventBus: makeMockEventBus(),
+    });
 
     expect(result.isOk()).toBe(true);
     expect(tx.brunchAttendee.update).not.toHaveBeenCalled();
@@ -259,7 +289,11 @@ describe('sendInvites', () => {
     const tx = makeMockTx();
     const db = makeMockDb(tx, DRAFT_BRUNCH);
 
-    await sendInvites(BASE_INPUT, { db, eventBus: makeMockEventBus() });
+    await sendInvites(BASE_INPUT, {
+      rateLimiter: new InMemoryRateLimiter(),
+      db,
+      eventBus: makeMockEventBus(),
+    });
 
     expect(tx.brunch.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: { statusId: 'status-active' } }),
@@ -270,7 +304,11 @@ describe('sendInvites', () => {
     const tx = makeMockTx();
     const db = makeMockDb(tx, ACTIVE_BRUNCH);
 
-    await sendInvites(BASE_INPUT, { db, eventBus: makeMockEventBus() });
+    await sendInvites(BASE_INPUT, {
+      rateLimiter: new InMemoryRateLimiter(),
+      db,
+      eventBus: makeMockEventBus(),
+    });
 
     expect(tx.brunch.update).not.toHaveBeenCalled();
   });
@@ -279,7 +317,11 @@ describe('sendInvites', () => {
     const tx = makeMockTx();
     const db = makeMockDb(tx, null);
 
-    const result = await sendInvites(BASE_INPUT, { db, eventBus: makeMockEventBus() });
+    const result = await sendInvites(BASE_INPUT, {
+      rateLimiter: new InMemoryRateLimiter(),
+      db,
+      eventBus: makeMockEventBus(),
+    });
 
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_found' });
@@ -296,7 +338,7 @@ describe('sendInvites', () => {
 
     const result = await sendInvites(
       { ...BASE_INPUT, invitedById: 'someone-else-uuid' as UserId },
-      { db, eventBus: makeMockEventBus() },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus: makeMockEventBus() },
     );
 
     expect(result.isErr()).toBe(true);
@@ -314,7 +356,7 @@ describe('sendInvites', () => {
 
     const result = await sendInvites(
       { ...BASE_INPUT, invitedById: 'someone-else-uuid' as UserId },
-      { db, eventBus: makeMockEventBus() },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus: makeMockEventBus() },
     );
 
     expect(result.isErr()).toBe(true);
@@ -330,7 +372,7 @@ describe('sendInvites', () => {
         ...BASE_INPUT,
         emails: [normalizeEmail('host@example.com'), normalizeEmail('alice@example.com')],
       },
-      { db, eventBus: makeMockEventBus() },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus: makeMockEventBus() },
     );
 
     expect(result.isOk()).toBe(true);
@@ -346,7 +388,7 @@ describe('sendInvites', () => {
 
     const result = await sendInvites(
       { ...BASE_INPUT, emails: ['Host@Example.com' as Email, normalizeEmail('alice@example.com')] },
-      { db, eventBus: makeMockEventBus() },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus: makeMockEventBus() },
     );
 
     expect(result.isOk()).toBe(true);
@@ -365,7 +407,7 @@ describe('sendInvites', () => {
         ...BASE_INPUT,
         emails: [normalizeEmail('alice@example.com'), normalizeEmail('alice@example.com')],
       },
-      { db, eventBus: makeMockEventBus() },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus: makeMockEventBus() },
     );
 
     expect(result.isOk()).toBe(true);
@@ -385,7 +427,7 @@ describe('sendInvites', () => {
         ...BASE_INPUT,
         emails: ['Alice@Example.com' as Email, normalizeEmail('alice@example.com')],
       },
-      { db, eventBus: makeMockEventBus() },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus: makeMockEventBus() },
     );
 
     expect(result.isOk()).toBe(true);
@@ -406,7 +448,7 @@ describe('sendInvites', () => {
 
     const result = await sendInvites(
       { ...BASE_INPUT, emails: [normalizeEmail('host@example.com')] },
-      { db, eventBus: makeMockEventBus() },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus: makeMockEventBus() },
     );
 
     expect(result.isOk()).toBe(true);
@@ -418,7 +460,11 @@ describe('sendInvites', () => {
     const tx = makeMockTx({ rsvpStatus: { findFirst: vi.fn().mockResolvedValue(null) } });
     const db = makeMockDb(tx);
 
-    const result = await sendInvites(BASE_INPUT, { db, eventBus: makeMockEventBus() });
+    const result = await sendInvites(BASE_INPUT, {
+      rateLimiter: new InMemoryRateLimiter(),
+      db,
+      eventBus: makeMockEventBus(),
+    });
 
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr()).toEqual({
@@ -434,7 +480,11 @@ describe('sendInvites', () => {
       .fn()
       .mockRejectedValue(new Error('boom')) as unknown as typeof db.$transaction;
 
-    const result = await sendInvites(BASE_INPUT, { db, eventBus: makeMockEventBus() });
+    const result = await sendInvites(BASE_INPUT, {
+      rateLimiter: new InMemoryRateLimiter(),
+      db,
+      eventBus: makeMockEventBus(),
+    });
 
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'db_error', cause: expect.any(Error) });
@@ -445,7 +495,11 @@ describe('sendInvites', () => {
     const db = makeMockDb(tx);
     const eventBus = makeMockEventBus(vi.fn().mockRejectedValue(new Error('emit failed')));
 
-    const result = await sendInvites(BASE_INPUT, { db, eventBus });
+    const result = await sendInvites(BASE_INPUT, {
+      rateLimiter: new InMemoryRateLimiter(),
+      db,
+      eventBus,
+    });
 
     expect(result.isOk()).toBe(true);
   });
@@ -455,7 +509,11 @@ describe('sendInvites', () => {
     const db = makeMockDb(tx);
     const emit = vi.fn().mockResolvedValue(undefined);
 
-    await sendInvites(BASE_INPUT, { db, eventBus: makeMockEventBus(emit) });
+    await sendInvites(BASE_INPUT, {
+      rateLimiter: new InMemoryRateLimiter(),
+      db,
+      eventBus: makeMockEventBus(emit),
+    });
 
     expect(emit).toHaveBeenCalledWith(
       'invite/sent',
@@ -484,7 +542,7 @@ describe('sendInvites', () => {
           normalizeEmail('carol@example.com'),
         ],
       },
-      { db, eventBus: makeMockEventBus(emit) },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus: makeMockEventBus(emit) },
     );
 
     expect(emit).toHaveBeenCalledTimes(3);
@@ -501,7 +559,7 @@ describe('sendInvites', () => {
         ...BASE_INPUT,
         emails: [normalizeEmail('alice@example.com'), normalizeEmail('bob@example.com')],
       },
-      { db, eventBus: makeMockEventBus(emit) },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus: makeMockEventBus(emit) },
     );
 
     expect(result.isOk()).toBe(true);
@@ -549,4 +607,117 @@ describe('sendInvitesRequestSchema', () => {
       sendInvitesRequestSchema.safeParse({ emails: ['a@example.com', 'b@example.com'] }).success,
     ).toBe(true);
   });
+});
+
+describe('sendInvites — rate limits', () => {
+  const HOST_CTX = (
+    rateLimiter: RecordingRateLimiter,
+    db: DbClient,
+    eventBus = makeMockEventBus(),
+  ) => ({
+    rateLimiter,
+    db,
+    eventBus,
+  });
+
+  it('spends the per-brunch budget, then the per-host one, for the addresses that will be emailed', async () => {
+    const rateLimiter = new RecordingRateLimiter();
+    const db = makeMockDb(makeMockTx());
+
+    const result = await sendInvites(
+      {
+        ...BASE_INPUT,
+        // The host's own address and a repeat are dropped before anything is emailed, so they are
+        // not charged for.
+        emails: [
+          normalizeEmail('alice@example.com'),
+          normalizeEmail('host@example.com'),
+          normalizeEmail('bob@example.com'),
+          normalizeEmail('Alice@Example.com'),
+        ],
+      },
+      HOST_CTX(rateLimiter, db),
+    );
+
+    expect(result.isOk()).toBe(true);
+    expect(rateLimiter.spends).toEqual([
+      { policy: 'invite-emails-brunch', subject: BRUNCH_ID, cost: 2 },
+      { policy: 'invite-emails-host', subject: HOST_ID, cost: 2 },
+    ]);
+  });
+
+  it("spends nothing when there is nothing to email (only the host's own address)", async () => {
+    const rateLimiter = new RecordingRateLimiter();
+    const db = makeMockDb(makeMockTx());
+
+    const result = await sendInvites(
+      { ...BASE_INPUT, emails: [normalizeEmail('host@example.com')] },
+      HOST_CTX(rateLimiter, db),
+    );
+
+    expect(result._unsafeUnwrap()).toEqual([]);
+    expect(rateLimiter.spends).toEqual([]);
+  });
+
+  it.each([
+    ['invite-emails-brunch', 1],
+    ['invite-emails-host', 2],
+  ])(
+    'refuses when the %s budget is spent: nothing is written and nothing is emailed',
+    async (policy, spendsMade) => {
+      const rateLimiter = new RecordingRateLimiter({ refusePolicy: policy });
+      const db = makeMockDb(makeMockTx());
+      const emit = vi.fn().mockResolvedValue(undefined);
+
+      const result = await sendInvites(
+        BASE_INPUT,
+        HOST_CTX(rateLimiter, db, makeMockEventBus(emit)),
+      );
+
+      expect(result._unsafeUnwrapErr()).toEqual({
+        kind: 'rate_limited',
+        policy,
+        retryAfterSeconds: 321,
+      });
+      expect(rateLimiter.spends).toHaveLength(spendsMade);
+      expect(db.$transaction).not.toHaveBeenCalled();
+      expect(emit).not.toHaveBeenCalled();
+    },
+  );
+
+  it('fails closed when the limiter cannot count: nothing is written and nothing is emailed', async () => {
+    const cause = new Error('database is down');
+    const rateLimiter = new RecordingRateLimiter({ failWith: cause });
+    const db = makeMockDb(makeMockTx());
+    const emit = vi.fn().mockResolvedValue(undefined);
+
+    const result = await sendInvites(BASE_INPUT, HOST_CTX(rateLimiter, db, makeMockEventBus(emit)));
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'rate_limiter_unavailable', cause });
+    expect(db.$transaction).not.toHaveBeenCalled();
+    expect(emit).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['a member who is not the host', { id: 'attendee-id' }, 'not_host'],
+    ['an outsider', null, 'brunch_not_found'],
+    ['a brunch that does not exist', undefined, 'brunch_not_found'],
+  ])(
+    'never reaches a budget that names the brunch for %s, and answers exactly as before',
+    async (_who, attendee, kind) => {
+      const rateLimiter = new RecordingRateLimiter();
+      const db = makeMockDb(makeMockTx(), attendee === undefined ? null : DRAFT_BRUNCH);
+      Object.assign(db, {
+        brunchAttendee: { findFirst: vi.fn().mockResolvedValue(attendee ?? null) },
+      });
+
+      const result = await sendInvites(
+        { ...BASE_INPUT, invitedById: 'someone-else-uuid' as UserId },
+        HOST_CTX(rateLimiter, db),
+      );
+
+      expect(result._unsafeUnwrapErr()).toEqual({ kind });
+      expect(rateLimiter.spends).toEqual([]);
+    },
+  );
 });

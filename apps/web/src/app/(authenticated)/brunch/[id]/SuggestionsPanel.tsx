@@ -5,6 +5,9 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Field } from '@/components/ui/Field';
 import { InlineAlert } from '@/components/ui/InlineAlert';
+import { limitedMessage } from '@/lib/limitedCopy';
+import { readRateLimit } from '@/lib/readRateLimit';
+import { useWait, type Wait } from '@/lib/useWait';
 import styles from './detail.module.css';
 
 type SuggestionListItem = {
@@ -17,8 +20,12 @@ export function SuggestionsPanel({
   brunchId,
   canSuggest,
   pendingSuggestions,
+  sendWait,
 }: {
   readonly brunchId: string;
+  // What the server says the host is waiting on for anything that emails an address, asked as the
+  // page loaded (getInviteWaits); the same answer the invite panel's send button gets.
+  readonly sendWait: Wait | undefined;
   readonly canSuggest: boolean;
   readonly pendingSuggestions: readonly SuggestionListItem[] | undefined;
 }) {
@@ -27,6 +34,10 @@ export function SuggestionsPanel({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
   const [pendingSuggestionId, setPendingSuggestionId] = useState<string | undefined>(undefined);
+  // Approving a suggestion emails the address, so it spends the same invite budget as the invite
+  // panel's send button, and the server gives both the same answer (spec 0012).
+  const inviteBudget = useWait(sendWait);
+  const approvalsWaiting = inviteBudget.wait !== undefined;
 
   async function suggest(): Promise<void> {
     const trimmed = email.trim();
@@ -55,6 +66,8 @@ export function SuggestionsPanel({
 
   async function review(suggestionId: string, decision: 'approve' | 'decline'): Promise<void> {
     if (pendingSuggestionId !== undefined) return;
+    // A waiting Approve asks the server nothing; declining sends no email, so it is never held.
+    if (decision === 'approve' && approvalsWaiting) return;
 
     setPendingSuggestionId(suggestionId);
     setError(undefined);
@@ -65,6 +78,15 @@ export function SuggestionsPanel({
         body: JSON.stringify({ decision }),
       });
       if (!response.ok) {
+        // Approving emails the address, so the host's daily invite budget applies (spec 0012).
+        const facts = await readRateLimit(response);
+        if (facts !== undefined) {
+          // Shown at once; the refresh brings the server's account of it, which the invite panel's
+          // send button then shares.
+          inviteBudget.start(facts);
+          router.refresh();
+          return;
+        }
         setError('Failed to review suggestion');
         return;
       }
@@ -99,6 +121,8 @@ export function SuggestionsPanel({
                   size="sm"
                   onClick={() => void review(suggestion.id, 'approve')}
                   disabled={pendingSuggestionId === suggestion.id}
+                  aria-disabled={approvalsWaiting ? true : undefined}
+                  aria-describedby={approvalsWaiting ? 'approvals-limit' : undefined}
                 >
                   Approve
                 </Button>
@@ -131,6 +155,16 @@ export function SuggestionsPanel({
           </Button>
         </div>
       )}
+      {approvalsWaiting &&
+        inviteBudget.wait !== undefined &&
+        pendingSuggestions !== undefined &&
+        pendingSuggestions.length > 0 && (
+          <div id="approvals-limit" className={styles.limitNote}>
+            <InlineAlert tone="info" role="status">
+              <p>{limitedMessage(inviteBudget.wait)}</p>
+            </InlineAlert>
+          </div>
+        )}
       {error !== undefined && (
         <InlineAlert tone="error" role="alert">
           <p>{error}</p>

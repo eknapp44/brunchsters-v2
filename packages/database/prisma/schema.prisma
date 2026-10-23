@@ -774,3 +774,18 @@ model UserIngredientPreference {
   @@unique([userId, ingredientId])
   @@index([userId])
 }
+
+// ─── Operational counters ─────────────────────────────────────────────────────
+
+// Rate-limit counters (spec 0012, ADR 0013). Not a domain entity: no soft delete (so it is not in
+// SOFT_DELETE_MODELS), no audit row, no foreign keys. `key` is "<policy>:<subject>" (a user, brunch,
+// invite or IP), one row per fixed window. Rows are hard-deleted by pruneRateLimitBuckets once they
+// are older than the retention in @brunchsters/shared (Constitution 11 and 30).
+model RateLimitBucket {
+  key         String
+  windowStart DateTime
+  count       Int
+
+  @@id([key, windowStart])
+  @@index([windowStart])
+}

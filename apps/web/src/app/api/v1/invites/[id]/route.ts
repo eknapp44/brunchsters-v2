@@ -3,6 +3,7 @@ import type { InviteId, UserId } from '@brunchsters/shared';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/auth';
+import { enforceWriteLimit } from '@/lib/rateLimit';
 import { db } from '@/lib/db';
 
 const inviteIdSchema = z.uuid();
@@ -15,6 +16,9 @@ export async function DELETE(
   if (session === null) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const limited = await enforceWriteLimit(session.user.id);
+  if (limited !== undefined) return limited;
 
   const { id } = await params;
   const parsedInviteId = inviteIdSchema.safeParse(id);

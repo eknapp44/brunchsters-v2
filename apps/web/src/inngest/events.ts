@@ -13,6 +13,9 @@ export const CONFIRMED_EMAIL_EVENTS = [
   'brunch/confirmed',
 ] as const satisfies readonly BrunchEventName[];
 
+// Not an event: a schedule (04:00 UTC daily) for the job that deletes expired rate-limit counters.
+export const PRUNE_RATE_LIMITS_CRON = '0 4 * * *';
+
 export const QUEUED_EVENTS: ReadonlySet<BrunchEventName> = new Set<BrunchEventName>([
   ...INVITE_EMAIL_EVENTS,
   ...CONFIRMED_EMAIL_EVENTS,

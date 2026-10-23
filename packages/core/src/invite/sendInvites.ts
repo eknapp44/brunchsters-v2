@@ -2,6 +2,7 @@ import type { DbClient } from '@brunchsters/database';
 import {
   MAX_INVITES_PER_REQUEST,
   normalizeEmail,
+  RATE_LIMIT_POLICIES,
   type BrunchId,
   type Email,
   type InviteId,
@@ -12,6 +13,12 @@ import { z } from 'zod';
 import { LookupNotFoundError } from '../errors/LookupNotFoundError';
 import type { EventBus } from '../events/EventBus';
 import { isBrunchMember } from '../brunch/guards/isBrunchMember';
+import {
+  consumeBudgets,
+  type RateLimited,
+  type RateLimiterUnavailable,
+} from '../rateLimit/consumeBudgets';
+import type { RateLimiter } from '../rateLimit/RateLimiter';
 
 const INVITE_EXPIRY_DAYS = 30;
 
@@ -41,12 +48,15 @@ export type InviteSummary = {
 export type SendInvitesError =
   | { readonly kind: 'brunch_not_found' }
   | { readonly kind: 'not_host' }
+  | RateLimited
+  | RateLimiterUnavailable
   | { readonly kind: 'lookup_not_found'; readonly code: string }
   | { readonly kind: 'db_error'; readonly cause: unknown };
 
 type SendInvitesContext = {
   readonly db: DbClient;
   readonly eventBus: EventBus;
+  readonly rateLimiter: RateLimiter;
 };
 
 // The interactive-transaction client Prisma passes into db.$transaction's
@@ -212,6 +222,26 @@ export async function sendInvites(
     emails.push(email);
   }
   if (emails.length === 0) return ok([]);
+
+  // Every address left is an email that will go out (a new invite, a revived one or a re-send),
+  // so that is the cost. Spent only after the host check above, so an outsider never reaches a
+  // budget that names a brunch (ADR 0013); the per-brunch cap first, the broader per-host one last.
+  const spent = await consumeBudgets({
+    limiter: ctx.rateLimiter,
+    spends: [
+      {
+        policy: RATE_LIMIT_POLICIES.inviteEmailsPerBrunch,
+        subject: input.brunchId,
+        cost: emails.length,
+      },
+      {
+        policy: RATE_LIMIT_POLICIES.inviteEmailsPerHost,
+        subject: input.invitedById,
+        cost: emails.length,
+      },
+    ],
+  });
+  if (spent.isErr()) return err(spent.error);
 
   let summaries: readonly InviteSummary[];
   try {

@@ -10,3 +10,13 @@ allowBuilds:
   prisma: true
   protobufjs: false
   sharp: true
+
+# Audit fixes for transitive dependencies (spec 0012 M1): each pins the patched range of a package
+# that next, prisma or inngest pull in at an older version. Remove an entry when its parent no
+# longer needs it; docs/SETUP.md ("Dependency audit") says how.
+overrides:
+  'postcss@<8.5.23': '^8.5.23'
+  'nanoid@<3.3.18': '^3.3.18'
+  'source-map-js@<1.2.2': '^1.2.2'
+  'sharp@<0.35.5': '^0.35.5'
+  'deepmerge-ts@<8.0.0': '^8.0.0'

@@ -16,6 +16,7 @@ import { closeVoting } from './closeVoting';
 import { confirmBrunch } from './confirmBrunch';
 import { createBrunch } from './createBrunch';
 import { getBrunchVoting } from './getBrunchVoting';
+import { InMemoryRateLimiter } from '../rateLimit/InMemoryRateLimiter';
 
 // Requires: supabase start + seeded lookup tables (pnpm db:seed).
 //
@@ -98,7 +99,7 @@ describe('full voting lifecycle (integration — real Postgres)', () => {
 
     const invites = await sendInvites(
       { brunchId, invitedById: hostId, emails: [VOTER_1_EMAIL, VOTER_2_EMAIL] },
-      { db, eventBus },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
     );
     expect(invites.isOk()).toBe(true);
 

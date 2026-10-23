@@ -6,6 +6,8 @@ vi.mock('./sendInvites', () => ({ sendInvitesInTransaction: vi.fn() }));
 
 import { sendInvitesInTransaction } from './sendInvites';
 import { reviewInviteSuggestion } from './reviewInviteSuggestion';
+import { InMemoryRateLimiter } from '../rateLimit/InMemoryRateLimiter';
+import { RecordingRateLimiter } from '../rateLimit/RecordingRateLimiter';
 
 beforeEach(() => {
   vi.mocked(sendInvitesInTransaction).mockReset();
@@ -55,7 +57,7 @@ describe('reviewInviteSuggestion', () => {
 
     const result = await reviewInviteSuggestion(
       { suggestionId: SUGGESTION_ID, reviewedById: HOST_ID, decision: 'approve' },
-      { db, eventBus: { emit: vi.fn() } },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus: { emit: vi.fn() } },
     );
 
     expect(result.isOk()).toBe(true);
@@ -83,7 +85,7 @@ describe('reviewInviteSuggestion', () => {
 
     await reviewInviteSuggestion(
       { suggestionId: SUGGESTION_ID, reviewedById: HOST_ID, decision: 'approve' },
-      { db, eventBus: { emit } },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus: { emit } },
     );
 
     expect(emit).toHaveBeenCalledWith(
@@ -99,7 +101,7 @@ describe('reviewInviteSuggestion', () => {
 
     const result = await reviewInviteSuggestion(
       { suggestionId: SUGGESTION_ID, reviewedById: HOST_ID, decision: 'decline' },
-      { db, eventBus: { emit: vi.fn() } },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus: { emit: vi.fn() } },
     );
 
     expect(result.isOk()).toBe(true);
@@ -114,7 +116,7 @@ describe('reviewInviteSuggestion', () => {
 
     const result = await reviewInviteSuggestion(
       { suggestionId: SUGGESTION_ID, reviewedById: HOST_ID, decision: 'approve' },
-      { db, eventBus: { emit: vi.fn() } },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus: { emit: vi.fn() } },
     );
 
     expect(result.isErr()).toBe(true);
@@ -135,7 +137,7 @@ describe('reviewInviteSuggestion', () => {
         reviewedById: 'someone-else-uuid' as UserId,
         decision: 'approve',
       },
-      { db, eventBus: { emit: vi.fn() } },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus: { emit: vi.fn() } },
     );
 
     expect(result.isErr()).toBe(true);
@@ -156,7 +158,7 @@ describe('reviewInviteSuggestion', () => {
         reviewedById: 'someone-else-uuid' as UserId,
         decision: 'approve',
       },
-      { db, eventBus: { emit: vi.fn() } },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus: { emit: vi.fn() } },
     );
 
     expect(result.isErr()).toBe(true);
@@ -170,7 +172,7 @@ describe('reviewInviteSuggestion', () => {
 
     const result = await reviewInviteSuggestion(
       { suggestionId: SUGGESTION_ID, reviewedById: HOST_ID, decision: 'approve' },
-      { db, eventBus: { emit: vi.fn() } },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus: { emit: vi.fn() } },
     );
 
     expect(result.isErr()).toBe(true);
@@ -184,12 +186,111 @@ describe('reviewInviteSuggestion', () => {
 
     const result = await reviewInviteSuggestion(
       { suggestionId: SUGGESTION_ID, reviewedById: HOST_ID, decision: 'approve' },
-      { db, eventBus: { emit: vi.fn() } },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus: { emit: vi.fn() } },
     );
 
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'db_error', cause: expect.any(Error) });
     // Same transaction as the failed invite creation — must not have committed.
     expect(txUpdate).not.toHaveBeenCalled();
+  });
+});
+
+describe('reviewInviteSuggestion — rate limits', () => {
+  const APPROVE = {
+    suggestionId: SUGGESTION_ID,
+    reviewedById: HOST_ID,
+    decision: 'approve' as const,
+  };
+
+  it('approving spends the brunch and host invite budgets, one email each (no way round the cap)', async () => {
+    vi.mocked(sendInvitesInTransaction).mockResolvedValue([]);
+    const rateLimiter = new RecordingRateLimiter();
+
+    const result = await reviewInviteSuggestion(APPROVE, {
+      rateLimiter,
+      db: makeMockDb(),
+      eventBus: { emit: vi.fn() },
+    });
+
+    expect(result.isOk()).toBe(true);
+    expect(rateLimiter.spends).toEqual([
+      { policy: 'invite-emails-brunch', subject: 'brunch-uuid', cost: 1 },
+      { policy: 'invite-emails-host', subject: HOST_ID, cost: 1 },
+    ]);
+  });
+
+  it('declining sends nothing, so it spends nothing', async () => {
+    const rateLimiter = new RecordingRateLimiter();
+
+    const result = await reviewInviteSuggestion(
+      { ...APPROVE, decision: 'decline' },
+      { rateLimiter, db: makeMockDb(), eventBus: { emit: vi.fn() } },
+    );
+
+    expect(result.isOk()).toBe(true);
+    expect(rateLimiter.spends).toEqual([]);
+  });
+
+  it.each(['invite-emails-brunch', 'invite-emails-host'])(
+    'refuses an approval when the %s budget is spent: the suggestion stays pending and nothing is sent',
+    async (policy) => {
+      const txUpdate = vi.fn().mockResolvedValue({});
+      const emit = vi.fn();
+
+      const result = await reviewInviteSuggestion(APPROVE, {
+        rateLimiter: new RecordingRateLimiter({ refusePolicy: policy }),
+        db: makeMockDb({ txUpdate }),
+        eventBus: { emit },
+      });
+
+      expect(result._unsafeUnwrapErr()).toEqual({
+        kind: 'rate_limited',
+        policy,
+        retryAfterSeconds: 321,
+      });
+      expect(sendInvitesInTransaction).not.toHaveBeenCalled();
+      expect(txUpdate).not.toHaveBeenCalled();
+      expect(emit).not.toHaveBeenCalled();
+    },
+  );
+
+  it('fails closed when the limiter cannot count', async () => {
+    const cause = new Error('database is down');
+
+    const result = await reviewInviteSuggestion(APPROVE, {
+      rateLimiter: new RecordingRateLimiter({ failWith: cause }),
+      db: makeMockDb(),
+      eventBus: { emit: vi.fn() },
+    });
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'rate_limiter_unavailable', cause });
+    expect(sendInvitesInTransaction).not.toHaveBeenCalled();
+  });
+
+  it('spends nothing for someone who is not the host or for a suggestion already reviewed', async () => {
+    const rateLimiter = new RecordingRateLimiter();
+    const notHost = makeMockDb();
+    Object.assign(notHost, {
+      brunchAttendee: { findFirst: vi.fn().mockResolvedValue(null) },
+    });
+
+    const outsider = await reviewInviteSuggestion(
+      { ...APPROVE, reviewedById: 'someone-else-uuid' as UserId },
+      { rateLimiter, db: notHost, eventBus: { emit: vi.fn() } },
+    );
+    const reviewed = await reviewInviteSuggestion(APPROVE, {
+      rateLimiter,
+      db: makeMockDb({
+        findFirst: vi
+          .fn()
+          .mockResolvedValue({ ...PENDING_SUGGESTION, status: { code: 'approved' } }),
+      }),
+      eventBus: { emit: vi.fn() },
+    });
+
+    expect(outsider._unsafeUnwrapErr()).toEqual({ kind: 'suggestion_not_found' });
+    expect(reviewed._unsafeUnwrapErr()).toEqual({ kind: 'already_reviewed' });
+    expect(rateLimiter.spends).toEqual([]);
   });
 });

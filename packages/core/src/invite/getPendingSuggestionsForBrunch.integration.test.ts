@@ -7,6 +7,7 @@ import { getPendingSuggestionsForBrunch } from './getPendingSuggestionsForBrunch
 import { reviewInviteSuggestion } from './reviewInviteSuggestion';
 import { sendInvites } from './sendInvites';
 import { suggestInvitee } from './suggestInvitee';
+import { InMemoryRateLimiter } from '../rateLimit/InMemoryRateLimiter';
 
 // Requires: supabase start + seeded lookup tables (pnpm db:seed).
 const RUN_ID = Date.now();
@@ -51,7 +52,7 @@ beforeAll(async () => {
 
   const invites = await sendInvites(
     { brunchId, invitedById: hostId, emails: [ATTENDEE_EMAIL] },
-    { db, eventBus },
+    { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
   );
   expect(invites.isOk()).toBe(true);
 });
@@ -90,13 +91,13 @@ describe('getPendingSuggestionsForBrunch integration', () => {
   it('lists a pending suggestion with the suggester name, excluding declined ones', async () => {
     const pending = await suggestInvitee(
       { brunchId, suggestedById: attendeeId, email: PENDING_EMAIL },
-      { db, eventBus },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
     );
     expect(pending.isOk()).toBe(true);
 
     const declined = await suggestInvitee(
       { brunchId, suggestedById: attendeeId, email: DECLINED_EMAIL },
-      { db, eventBus },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
     );
     expect(declined.isOk()).toBe(true);
     const review = await reviewInviteSuggestion(
@@ -105,7 +106,7 @@ describe('getPendingSuggestionsForBrunch integration', () => {
         reviewedById: hostId,
         decision: 'decline',
       },
-      { db, eventBus },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
     );
     expect(review.isOk()).toBe(true);
 

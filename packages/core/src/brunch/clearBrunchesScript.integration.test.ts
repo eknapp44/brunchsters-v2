@@ -7,6 +7,7 @@ import { respondToInvite } from '../invite/respondToInvite';
 import { sendInvites } from '../invite/sendInvites';
 import { createBrunch } from './createBrunch';
 import { getBrunchesForUser } from './getBrunchesForUser';
+import { InMemoryRateLimiter } from '../rateLimit/InMemoryRateLimiter';
 
 // The developer script `pnpm db:clear-brunches` (packages/database/src/clearBrunches.ts), run for
 // real against the local database with throwaway users. Requires: supabase start + seeded lookups.
@@ -60,7 +61,7 @@ async function setUp(): Promise<{ mine: BrunchId[]; theirs: BrunchId }> {
   const theirs = await makeBrunch('Friend Test Brunch', friend);
   await sendInvites(
     { brunchId: theirs, invitedById: friend, emails: [ME_EMAIL] },
-    { db, eventBus },
+    { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
   );
   const invite = await db.brunchInvite.findFirst({
     where: { brunchId: theirs, invitedEmail: ME_EMAIL },

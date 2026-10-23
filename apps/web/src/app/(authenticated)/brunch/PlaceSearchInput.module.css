@@ -51,3 +51,12 @@
 .option:hover {
   background: var(--surface-2);
 }
+
+/* The line that appears when the server says to slow down. */
+.note {
+  margin-top: var(--space-2);
+}
+
+.note > * {
+  margin: 0;
+}

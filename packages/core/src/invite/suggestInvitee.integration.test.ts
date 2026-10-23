@@ -11,6 +11,7 @@ import { NoopEventBus } from '../events/NoopEventBus';
 import { reviewInviteSuggestion } from './reviewInviteSuggestion';
 import { sendInvites } from './sendInvites';
 import { suggestInvitee } from './suggestInvitee';
+import { InMemoryRateLimiter } from '../rateLimit/InMemoryRateLimiter';
 
 // Requires: supabase start + seeded lookup tables (pnpm db:seed).
 const RUN_ID = Date.now();
@@ -50,7 +51,7 @@ beforeAll(async () => {
 
   const invites = await sendInvites(
     { brunchId, invitedById: hostId, emails: [ATTENDEE_EMAIL] },
-    { db, eventBus },
+    { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
   );
   expect(invites.isOk()).toBe(true);
 });
@@ -73,7 +74,7 @@ describe('suggestInvitee + reviewInviteSuggestion integration', () => {
   it('an attendee suggests someone, host approves, and a real invite is created', async () => {
     const suggestion = await suggestInvitee(
       { brunchId, suggestedById: attendeeId, email: SUGGESTED_EMAIL_1 },
-      { db, eventBus },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
     );
     expect(suggestion.isOk()).toBe(true);
     expect(suggestion._unsafeUnwrap().status).toBe('pending');
@@ -84,7 +85,7 @@ describe('suggestInvitee + reviewInviteSuggestion integration', () => {
         reviewedById: hostId,
         decision: 'approve',
       },
-      { db, eventBus },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
     );
     expect(review.isOk()).toBe(true);
 
@@ -103,7 +104,7 @@ describe('suggestInvitee + reviewInviteSuggestion integration', () => {
   it('host declines a suggestion and no invite is created', async () => {
     const suggestion = await suggestInvitee(
       { brunchId, suggestedById: attendeeId, email: SUGGESTED_EMAIL_2 },
-      { db, eventBus },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
     );
     expect(suggestion.isOk()).toBe(true);
 
@@ -113,7 +114,7 @@ describe('suggestInvitee + reviewInviteSuggestion integration', () => {
         reviewedById: hostId,
         decision: 'decline',
       },
-      { db, eventBus },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
     );
     expect(review.isOk()).toBe(true);
 
@@ -137,7 +138,7 @@ describe('suggestInvitee + reviewInviteSuggestion integration', () => {
 
     const suggestion = await suggestInvitee(
       { brunchId, suggestedById: attendeeId, email: SUGGESTED_EMAIL_3 },
-      { db, eventBus },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
     );
 
     expect(suggestion.isOk()).toBe(true);
@@ -157,7 +158,7 @@ describe('suggestInvitee + reviewInviteSuggestion integration', () => {
   it('rejects a duplicate suggestion for the same email on the same brunch', async () => {
     const result = await suggestInvitee(
       { brunchId, suggestedById: attendeeId, email: SUGGESTED_EMAIL_1 },
-      { db, eventBus },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
     );
 
     expect(result.isErr()).toBe(true);
@@ -175,7 +176,7 @@ describe('suggestInvitee + reviewInviteSuggestion integration', () => {
         suggestedById: outsider.id as UserId,
         email: normalizeEmail(`random-${RUN_ID}@example.com`),
       },
-      { db, eventBus },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
     );
 
     expect(result.isErr()).toBe(true);
@@ -195,7 +196,7 @@ describe('suggestInvitee + reviewInviteSuggestion integration', () => {
         reviewedById: hostId,
         decision: 'decline',
       },
-      { db, eventBus },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
     );
 
     expect(result.isErr()).toBe(true);
@@ -205,7 +206,7 @@ describe('suggestInvitee + reviewInviteSuggestion integration', () => {
   it('suggesting an already-invited email is not rejected, and approval resends the existing invite rather than erroring', async () => {
     const sent = await sendInvites(
       { brunchId, invitedById: hostId, emails: [ALREADY_INVITED_EMAIL] },
-      { db, eventBus },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
     );
     expect(sent.isOk()).toBe(true);
     const inviteBefore = await db.brunchInvite.findFirstOrThrow({
@@ -214,7 +215,7 @@ describe('suggestInvitee + reviewInviteSuggestion integration', () => {
 
     const suggestion = await suggestInvitee(
       { brunchId, suggestedById: attendeeId, email: ALREADY_INVITED_EMAIL },
-      { db, eventBus },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
     );
     expect(suggestion.isOk()).toBe(true);
 
@@ -224,7 +225,7 @@ describe('suggestInvitee + reviewInviteSuggestion integration', () => {
         reviewedById: hostId,
         decision: 'approve',
       },
-      { db, eventBus },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
     );
     expect(review.isOk()).toBe(true);
 
@@ -240,7 +241,7 @@ describe('suggestInvitee + reviewInviteSuggestion integration', () => {
   it("rejects suggesting the host's own email", async () => {
     const result = await suggestInvitee(
       { brunchId, suggestedById: attendeeId, email: HOST_EMAIL },
-      { db, eventBus },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
     );
 
     expect(result.isErr()).toBe(true);

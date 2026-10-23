@@ -9,6 +9,7 @@ import { err, ok, type Result } from 'neverthrow';
 import { z } from 'zod';
 import type { EventBus } from '../events/EventBus';
 import { reviewInviteSuggestion } from './reviewInviteSuggestion';
+import type { RateLimiter } from '../rateLimit/RateLimiter';
 
 export const suggestInviteeRequestSchema = z.object({
   // Normalized here, at the boundary (ADR 0008): the output type is Email.
@@ -38,6 +39,9 @@ export type SuggestInviteeError =
 type SuggestInviteeContext = {
   readonly db: DbClient;
   readonly eventBus: EventBus;
+  // Used only when the brunch does not ask the host to approve: the suggestion is then approved at
+  // once, which emails the address, so it spends the host's invite budgets like any invite.
+  readonly rateLimiter: RateLimiter;
 };
 
 export async function suggestInvitee(
@@ -106,7 +110,9 @@ export async function suggestInvitee(
     if (reviewResult.isOk()) {
       return ok({ suggestionId, status: 'approved' });
     }
-    // Suggestion row still exists as 'pending' — host can approve it manually later.
+    // Suggestion row still exists as 'pending' — host can approve it manually later. That is also
+    // what a refusal by the invite budgets (rate_limited) leaves behind: the suggestion is kept and
+    // nothing is emailed.
   }
 
   return ok({ suggestionId, status: 'pending' });

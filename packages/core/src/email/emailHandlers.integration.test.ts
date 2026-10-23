@@ -21,6 +21,7 @@ import { MockEmailService } from './MockEmailService';
 import { resolveConfirmationRecipients } from './resolveConfirmationRecipients';
 import { sendConfirmationEmail } from './sendConfirmationEmail';
 import { sendInviteEmail } from './sendInviteEmail';
+import { InMemoryRateLimiter } from '../rateLimit/InMemoryRateLimiter';
 
 // Requires: supabase start + seeded lookup tables (pnpm db:seed).
 const RUN_ID = Date.now();
@@ -113,7 +114,10 @@ async function createBrunchWithInvites(
   const brunchId = created._unsafeUnwrap().id;
   createdBrunchIds.push(brunchId);
 
-  const sent = await sendInvites({ brunchId, invitedById: hostId, emails }, { db, eventBus });
+  const sent = await sendInvites(
+    { brunchId, invitedById: hostId, emails },
+    { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
+  );
   expect(sent.isOk()).toBe(true);
 
   const location = required(await db.brunchLocation.findFirst({ where: { brunchId } }));
@@ -149,7 +153,7 @@ describe('sendInviteEmail (integration — real Postgres)', () => {
 
     const resent = await resendInvite(
       { inviteId: first.id, requestedById: hostId },
-      { db, eventBus },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
     );
     expect(resent.isOk()).toBe(true);
     const second = await inviteFor(brunchId, SILENT_EMAIL);
@@ -281,7 +285,7 @@ describe('resolveConfirmationRecipients (integration — real Postgres)', () => 
     // listing and sending (which rotates the token) means the new link is the one emailed.
     const resent = await resendInvite(
       { inviteId: silent.id, requestedById: hostId },
-      { db, eventBus },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
     );
     expect(resent.isOk()).toBe(true);
     const rotated = await inviteFor(brunchId, SILENT_EMAIL);

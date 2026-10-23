@@ -1,7 +1,7 @@
 import type { NextConfig } from 'next';
 
-// Headers every response carries. Deliberately no Content-Security-Policy yet: Next's inline
-// scripts need a per-request nonce, which is its own piece of work (PLANNING §17, security).
+// Headers every response carries. The Content-Security-Policy is not here: it needs a fresh nonce
+// for every request, so `middleware.ts` sets it (spec 0012, ADR 0014).
 // No Strict-Transport-Security either: the host (Vercel, the domain) sets that for the real
 // domain, and sending it from http://localhost would be wrong.
 const SECURITY_HEADERS = [

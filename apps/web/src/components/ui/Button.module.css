@@ -22,15 +22,18 @@
     border-color var(--duration-base) var(--ease);
 }
 
-.button:hover:not(:disabled) {
+.button:hover:not(:disabled):not([aria-disabled='true']) {
   background: var(--surface-2);
 }
 
-.button:active:not(:disabled) {
+.button:active:not(:disabled):not([aria-disabled='true']) {
   transform: translateY(1px);
 }
 
-.button:disabled {
+/* `aria-disabled` is for a control that must stay in the tab order so its reason can be read (a
+   limit, spec 0012): it looks the same and the component ignores the click. */
+.button:disabled,
+.button[aria-disabled='true'] {
   opacity: 0.55;
   cursor: not-allowed;
 }
@@ -41,7 +44,7 @@
   border-color: transparent;
 }
 
-.primary:hover:not(:disabled) {
+.primary:hover:not(:disabled):not([aria-disabled='true']) {
   background: var(--accent-strong);
   filter: brightness(1.04);
 }
@@ -52,7 +55,7 @@
   border-color: transparent;
 }
 
-.ghost:hover:not(:disabled) {
+.ghost:hover:not(:disabled):not([aria-disabled='true']) {
   color: var(--fg);
   background: var(--surface-2);
 }
@@ -65,7 +68,7 @@
   border-color: var(--danger);
 }
 
-.danger:hover:not(:disabled) {
+.danger:hover:not(:disabled):not([aria-disabled='true']) {
   background: var(--danger-soft);
   filter: brightness(0.97);
 }

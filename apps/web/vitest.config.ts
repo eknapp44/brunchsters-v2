@@ -9,6 +9,8 @@ export default defineConfig({
   test: {
     environment: 'node',
     passWithNoTests: true,
+    // Stubs the rate-limit enforcement for route tests (see the file).
+    setupFiles: ['./vitest.setup.ts'],
     // Playwright specs are *.spec.ts; keep them out of vitest. e2e/support/*.test.ts still runs.
     exclude: [...configDefaults.exclude, 'e2e/journeys/**', 'e2e/screenshots/**'],
   },

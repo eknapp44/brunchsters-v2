@@ -1,7 +1,8 @@
 import { GONE_COLD, LANDING_HEADING, SIGN_IN_HEADING, NOT_FOUND } from '../support/pages';
 import { EMPTY_DASHBOARD_HEADLINE } from '../support/dashboard';
-import { createBrunch } from '../support/factories';
+import { createBrunch, inviteToBrunch, uniqueSuffix } from '../support/factories';
 import { expect, test } from '../support/fixtures';
+import { inviteRow } from '../support/invites';
 import { fixturePlaces } from '../support/places';
 import { captureReviewShots } from '../support/screenshots';
 import { createConfirmedBrunch, createVotingBrunch, inviteNewcomer } from '../support/showcase';
@@ -67,6 +68,26 @@ test('the creation wizard, every step', async ({ makeActor }, testInfo) => {
   await wizard.addPlace(fixturePlaces.sunnySide);
   await wizard.addPlace(fixturePlaces.harborBistro);
   await captureReviewShots(host.page, 'wizard/2-where', testInfo);
+
+  // The place search when the server says to slow down (spec 0012): the line shows, the input stays
+  // usable and what was already listed stays.
+  await wizard.searchBox().fill('sunny');
+  await expect(
+    host.page.getByRole('button', {
+      name: `${fixturePlaces.sunnySide.name} — ${fixturePlaces.sunnySide.address}`,
+    }),
+  ).toBeVisible();
+  await host.page.route(/\/api\/v1\/places\/search/, async (route) => {
+    await route.fulfill({
+      status: 429,
+      headers: { 'Retry-After': '120' },
+      json: { error: 'Too many requests', policy: 'place-search', retryAfterSeconds: 120 },
+    });
+  });
+  await wizard.searchBox().fill('sunny s');
+  await expect(host.page.getByText('Slow down a sec, then try again.')).toBeVisible();
+  await captureReviewShots(host.page, 'wizard/2-where-slow-down', testInfo);
+  await wizard.searchBox().fill('');
   await wizard.next();
 
   await wizard.addTime(10);
@@ -197,4 +218,38 @@ test('brunch detail and manage, as host and as invitee', async ({ makeActor }, t
   await host.page.goto(`/brunch/${longId}/manage`);
   await expect(host.page.getByText('The Mad Rooster Cafe and Bakery').first()).toBeVisible();
   await captureReviewShots(host.page, 'manage/long-address', testInfo);
+});
+
+// The invite panel while a limit holds (spec 0012): Resend waiting on one invite, and the send
+// button waiting after the day's invites are used up.
+test('the invite panel while a limit holds', async ({ makeActor }, testInfo) => {
+  const host = await makeActor('host');
+  const guest = `resent-${uniqueSuffix()}@example.com`;
+  const resendBrunch = await createBrunch({ host: host.user, title: 'Birthday Brunch' });
+  await inviteToBrunch({
+    brunchId: resendBrunch,
+    host: host.user,
+    invitees: [{ email: guest }, { email: `quiet-${uniqueSuffix()}@example.com` }],
+  });
+  await host.page.goto(`/brunch/${resendBrunch}`);
+  const resend = inviteRow(host.page, guest).getByRole('button', { name: 'Resend' });
+  const firstResend = host.page.waitForResponse(
+    (response) => response.url().includes('/resend') && response.request().method() === 'POST',
+  );
+  await resend.click();
+  await firstResend;
+  await resend.click();
+  await expect(inviteRow(host.page, guest).getByText(/That one just went out/)).toBeVisible();
+  await captureReviewShots(host.page, 'brunch/host-resend-waiting', testInfo);
+
+  const sendBrunch = await createBrunch({ host: host.user, title: 'Big Brunch' });
+  const crowd = Array.from({ length: 50 }, (_, index) => ({
+    email: `crowd-${index}-${uniqueSuffix()}@example.com`,
+  }));
+  await inviteToBrunch({ brunchId: sendBrunch, host: host.user, invitees: crowd });
+  await host.page.goto(`/brunch/${sendBrunch}`);
+  await host.page.getByLabel('Invite more people').fill(`one-more-${uniqueSuffix()}@example.com`);
+  await host.page.getByRole('button', { name: 'Round up the crew' }).click();
+  await expect(host.page.getByText(/that's a lot of invites for one day/)).toBeVisible();
+  await captureReviewShots(host.page, 'brunch/host-invites-waiting', testInfo);
 });

@@ -15,6 +15,7 @@ import { closeVoting } from './closeVoting';
 import { createBrunch } from './createBrunch';
 import { getBrunchVoting } from './getBrunchVoting';
 import { updateVotingDeadline } from './updateVotingDeadline';
+import { InMemoryRateLimiter } from '../rateLimit/InMemoryRateLimiter';
 
 // Requires: supabase start + seeded lookup tables (pnpm db:seed).
 const RUN_ID = Date.now();
@@ -99,7 +100,7 @@ async function createThreeEligibleBrunch(
 
   const invites = await sendInvites(
     { brunchId, invitedById: hostId, emails: [VOTER_1_EMAIL, VOTER_2_EMAIL] },
-    { db, eventBus },
+    { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
   );
   expect(invites.isOk()).toBe(true);
 

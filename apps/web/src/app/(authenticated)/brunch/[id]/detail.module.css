@@ -187,6 +187,20 @@
   gap: var(--space-2);
 }
 
+/* The reason a row's button is waiting, on its own line under the row's content. */
+.rowNote {
+  flex: 1 1 100%;
+}
+
+.rowNote > *,
+.limitNote > * {
+  margin: 0;
+}
+
+.limitNote {
+  margin-top: var(--space-2);
+}
+
 .addRow {
   display: flex;
   align-items: flex-end;

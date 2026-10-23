@@ -6,6 +6,7 @@ import { NoopEventBus } from '../events/NoopEventBus';
 import { getInviteByToken } from './getInviteByToken';
 import { respondToInvite } from './respondToInvite';
 import { sendInvites } from './sendInvites';
+import { InMemoryRateLimiter } from '../rateLimit/InMemoryRateLimiter';
 
 // Requires: supabase start + seeded lookup tables (pnpm db:seed).
 const RUN_ID = Date.now();
@@ -43,7 +44,7 @@ beforeAll(async () => {
 
   const invites = await sendInvites(
     { brunchId, invitedById: hostId, emails: [KNOWN_INVITEE_EMAIL, NEW_INVITEE_EMAIL] },
-    { db, eventBus },
+    { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
   );
   expect(invites.isOk()).toBe(true);
 });
@@ -144,7 +145,7 @@ describe('respondToInvite integration', () => {
     createdBrunchIds.push(deletedId);
     await sendInvites(
       { brunchId: deletedId, invitedById: hostId, emails: [KNOWN_INVITEE_EMAIL] },
-      { db, eventBus },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
     );
     const invite = await db.brunchInvite.findFirstOrThrow({
       where: { brunchId: deletedId, invitedEmail: KNOWN_INVITEE_EMAIL },
@@ -186,7 +187,7 @@ describe('respondToInvite integration', () => {
     const thirdPartyEmail = normalizeEmail(`integration-respond-third-${RUN_ID}@example.com`);
     const sent = await sendInvites(
       { brunchId, invitedById: hostId, emails: [thirdPartyEmail] },
-      { db, eventBus },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
     );
     expect(sent.isOk()).toBe(true);
     const invite = await db.brunchInvite.findFirstOrThrow({
@@ -221,7 +222,7 @@ describe('respondToInvite integration', () => {
     const fourthPartyEmail = normalizeEmail(`integration-respond-fourth-${RUN_ID}@example.com`);
     const sent = await sendInvites(
       { brunchId, invitedById: hostId, emails: [fourthPartyEmail] },
-      { db, eventBus },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus },
     );
     expect(sent.isOk()).toBe(true);
     const invite = await db.brunchInvite.findFirstOrThrow({

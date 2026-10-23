@@ -21,6 +21,10 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
+      # Production dependencies only; fails on a new high or critical advisory (spec 0012).
+      # Needs the network, so a newly published advisory can turn an unrelated PR red: see
+      # docs/SETUP.md "Dependency audit" for what to do.
+      - run: pnpm audit --prod --audit-level=high
 
   typecheck:
     name: Typecheck

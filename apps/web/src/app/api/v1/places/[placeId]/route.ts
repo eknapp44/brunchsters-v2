@@ -1,11 +1,26 @@
+import { RATE_LIMIT_POLICIES } from '@brunchsters/shared';
 import { NextResponse } from 'next/server';
+import { auth } from '@/auth';
 import { GooglePlacesProvider } from '@/adapters/GooglePlacesProvider';
 import { requireGooglePlacesApiKey } from '@/lib/googlePlacesApiKey';
+import { enforceLimit } from '@/lib/rateLimit';
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ placeId: string }> },
 ): Promise<NextResponse> {
+  const session = await auth();
+  if (session === null) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const limited = await enforceLimit({
+    policy: RATE_LIMIT_POLICIES.placeDetailsPerUser,
+    subject: session.user.id,
+    route: 'place details',
+  });
+  if (limited !== undefined) return limited;
+
   const { placeId } = await params;
   const { searchParams } = new URL(request.url);
   const sessionToken = searchParams.get('sessionToken');

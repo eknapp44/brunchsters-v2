@@ -1,8 +1,19 @@
 import type { DbClient } from '@brunchsters/database';
-import type { BrunchId, InviteId, UserId } from '@brunchsters/shared';
+import {
+  RATE_LIMIT_POLICIES,
+  type BrunchId,
+  type InviteId,
+  type UserId,
+} from '@brunchsters/shared';
 import { err, ok, type Result } from 'neverthrow';
 import type { EventBus } from '../events/EventBus';
 import { isBrunchMember } from '../brunch/guards/isBrunchMember';
+import {
+  consumeBudgets,
+  type RateLimited,
+  type RateLimiterUnavailable,
+} from '../rateLimit/consumeBudgets';
+import type { RateLimiter } from '../rateLimit/RateLimiter';
 
 const INVITE_EXPIRY_DAYS = 30;
 
@@ -14,11 +25,14 @@ export type ResendInviteInput = {
 export type ResendInviteError =
   | { readonly kind: 'invite_not_found' }
   | { readonly kind: 'not_host' }
+  | RateLimited
+  | RateLimiterUnavailable
   | { readonly kind: 'db_error'; readonly cause: unknown };
 
 type ResendInviteContext = {
   readonly db: DbClient;
   readonly eventBus: EventBus;
+  readonly rateLimiter: RateLimiter;
 };
 
 export async function resendInvite(
@@ -40,6 +54,17 @@ export async function resendInvite(
     );
     return err({ kind: member ? 'not_host' : 'invite_not_found' });
   }
+
+  // A resend is an email: once per invite per window, and it spends one of the host's daily invite
+  // emails. After the host check, so only a host reaches a budget that names an invite (ADR 0013).
+  const spent = await consumeBudgets({
+    limiter: ctx.rateLimiter,
+    spends: [
+      { policy: RATE_LIMIT_POLICIES.resendPerInvite, subject: input.inviteId },
+      { policy: RATE_LIMIT_POLICIES.inviteEmailsPerHost, subject: input.requestedById },
+    ],
+  });
+  if (spent.isErr()) return err(spent.error);
 
   let updatedId: InviteId;
   try {

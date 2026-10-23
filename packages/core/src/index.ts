@@ -25,6 +25,25 @@ export type {
 } from './email/confirmationTypes';
 export type { BrunchEventName, BrunchEventPayloads, EventBus } from './events/EventBus';
 export { NoopEventBus } from './events/NoopEventBus';
+export type {
+  ConsumeInput,
+  PeekInput,
+  RateLimitDecision,
+  RateLimiter,
+  RateLimitError,
+  RateLimitStatus,
+} from './rateLimit/RateLimiter';
+export { PostgresRateLimiter } from './rateLimit/PostgresRateLimiter';
+export { InMemoryRateLimiter } from './rateLimit/InMemoryRateLimiter';
+export { pruneRateLimitBuckets } from './rateLimit/pruneRateLimitBuckets';
+export { consumeBudgets } from './rateLimit/consumeBudgets';
+export { getInviteWaits } from './invite/getInviteWaits';
+export type { GetInviteWaitsInput, InviteWait, InviteWaits } from './invite/getInviteWaits';
+export type { RateLimited, RateLimiterUnavailable } from './rateLimit/consumeBudgets';
+export type {
+  PruneRateLimitBucketsError,
+  PruneRateLimitBucketsInput,
+} from './rateLimit/pruneRateLimitBuckets';
 export type { PlaceResult, PlaceDetails, PlaceProvider } from './places/PlaceProvider';
 export { signInWithProvider } from './auth/signInWithProvider';
 export {

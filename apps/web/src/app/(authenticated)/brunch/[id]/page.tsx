@@ -4,6 +4,7 @@ import {
   getBrunchRoster,
   getBrunchVoting,
   getInvitesForBrunch,
+  getInviteWaits,
   getPendingSuggestionsForBrunch,
   leadingOptionId,
 } from '@brunchsters/core';
@@ -18,6 +19,7 @@ import { Container } from '@/components/ui/Container';
 import { closesIn } from '@/lib/dashboardFormat';
 import { formatWhenLong } from '@/lib/brunchPageFormat';
 import { db } from '@/lib/db';
+import { getRateLimiter } from '@/lib/services';
 import { LocationBallotChecklist, TimeBallotChecklist } from './BallotChecklist';
 import { BrunchHeader } from './BrunchHeader';
 import { ConfirmedBanner } from './ConfirmedBanner';
@@ -145,10 +147,24 @@ export default async function BrunchDetailPage({
     );
   }
 
-  const [voting, roster] = await Promise.all([
+  // What the host is waiting on (an invite that was just sent, the day's invites used up), asked of
+  // the same counters that refuse, so every tab and device shows the same thing (ADR 0013 addendum).
+  // Only the host gets this: the invite list above was host-only. If the counters cannot be read the
+  // page still renders, with nothing held; the server still refuses when a button is pressed.
+  const [voting, roster, inviteWaitsResult] = await Promise.all([
     getBrunchVoting({ brunchId, viewerId }, { db }),
     getBrunchRoster({ brunchId, viewerId }, { db }),
+    invites?.isOk()
+      ? getInviteWaits(
+          { brunchId, hostId: viewerId, inviteIds: invites.value.map((invite) => invite.id) },
+          { rateLimiter: getRateLimiter() },
+        )
+      : undefined,
   ]);
+  if (inviteWaitsResult?.isErr()) {
+    console.error('getInviteWaits failed: showing no waits', inviteWaitsResult.error);
+  }
+  const inviteWaits = inviteWaitsResult?.isOk() ? inviteWaitsResult.value : undefined;
   if (voting === undefined) {
     // Same access rule as getBrunchById, which already succeeded above —
     // fail loudly rather than silently omitting voting with no trace.
@@ -284,11 +300,19 @@ export default async function BrunchDetailPage({
 
           <SuggestionsPanel
             brunchId={brunchId}
+            sendWait={inviteWaits?.send}
             canSuggest={!brunch.isHost && brunch.allowInviteSuggestions}
             pendingSuggestions={pendingSuggestions?.isOk() ? pendingSuggestions.value : undefined}
           />
 
-          {invites?.isOk() && <InvitePanel brunchId={brunchId} invites={invites.value} />}
+          {invites?.isOk() && (
+            <InvitePanel
+              brunchId={brunchId}
+              invites={invites.value}
+              sendWait={inviteWaits?.send}
+              resendWaits={inviteWaits?.resend ?? {}}
+            />
+          )}
         </div>
       </div>
     </Container>

@@ -3,6 +3,7 @@ import type { BrunchId, BrunchLocationId, BrunchTimeId, UserId } from '@brunchst
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/auth';
+import { enforceWriteLimit } from '@/lib/rateLimit';
 import { db } from '@/lib/db';
 import { eventBus } from '@/lib/services';
 
@@ -20,6 +21,9 @@ export async function POST(
   if (session === null) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const limited = await enforceWriteLimit(session.user.id);
+  if (limited !== undefined) return limited;
 
   const { id } = await params;
   const parsedBrunchId = brunchIdSchema.safeParse(id);

@@ -1,11 +1,22 @@
 import type { DbClient } from '@brunchsters/database';
-import type { BrunchId, InviteSuggestionId, UserId } from '@brunchsters/shared';
+import {
+  RATE_LIMIT_POLICIES,
+  type BrunchId,
+  type InviteSuggestionId,
+  type UserId,
+} from '@brunchsters/shared';
 import { err, ok, type Result } from 'neverthrow';
 import { z } from 'zod';
 import { LookupNotFoundError } from '../errors/LookupNotFoundError';
 import type { EventBus } from '../events/EventBus';
 import { sendInvitesInTransaction, type InviteSummary } from './sendInvites';
 import { isBrunchMember } from '../brunch/guards/isBrunchMember';
+import {
+  consumeBudgets,
+  type RateLimited,
+  type RateLimiterUnavailable,
+} from '../rateLimit/consumeBudgets';
+import type { RateLimiter } from '../rateLimit/RateLimiter';
 
 export const reviewInviteSuggestionRequestSchema = z.object({
   decision: z.enum(['approve', 'decline']),
@@ -22,12 +33,15 @@ export type ReviewInviteSuggestionError =
   | { readonly kind: 'suggestion_not_found' }
   | { readonly kind: 'not_host' }
   | { readonly kind: 'already_reviewed' }
+  | RateLimited
+  | RateLimiterUnavailable
   | { readonly kind: 'lookup_not_found'; readonly code: string }
   | { readonly kind: 'db_error'; readonly cause: unknown };
 
 type ReviewInviteSuggestionContext = {
   readonly db: DbClient;
   readonly eventBus: EventBus;
+  readonly rateLimiter: RateLimiter;
 };
 
 export async function reviewInviteSuggestion(
@@ -57,6 +71,29 @@ export async function reviewInviteSuggestion(
   });
   if (newStatus === null) {
     return err({ kind: 'lookup_not_found', code: `BrunchInviteSuggestionStatus:${newStatusCode}` });
+  }
+
+  // Approving emails the suggested address, so it spends the same budgets as inviting them directly
+  // (otherwise approvals would be a way round the host's daily cap). A decline sends nothing. Spent
+  // after the host and pending checks, before anything is written, so a refusal leaves the
+  // suggestion pending (ADR 0013).
+  if (input.decision === 'approve') {
+    const spent = await consumeBudgets({
+      limiter: ctx.rateLimiter,
+      spends: [
+        {
+          policy: RATE_LIMIT_POLICIES.inviteEmailsPerBrunch,
+          subject: suggestion.brunchId,
+          cost: 1,
+        },
+        {
+          policy: RATE_LIMIT_POLICIES.inviteEmailsPerHost,
+          subject: input.reviewedById,
+          cost: 1,
+        },
+      ],
+    });
+    if (spent.isErr()) return err(spent.error);
   }
 
   let createdInvites: readonly InviteSummary[] = [];
