@@ -41,7 +41,8 @@ export async function updateRsvp(
   const { db, eventBus } = ctx;
 
   const attendee = await db.brunchAttendee.findFirst({
-    where: { brunchId: input.brunchId, userId: input.viewerId },
+    // A deleted brunch is not reachable (the extension filters only this model).
+    where: { brunchId: input.brunchId, userId: input.viewerId, brunch: { deletedAt: null } },
     include: { brunch: { include: { status: true } } },
   });
   // Not a member: indistinguishable from a brunch that does not exist.

@@ -98,8 +98,8 @@ Plus the **status flow** written down as a table the code checks, **one guard** 
 - [ ] `reinstateBrunch`: host, status `cancelled`, not deleted; restores `statusBeforeCancelId`; emits `brunch/reinstated` (only the handler decides whether anyone is told)
 - [ ] `deleteBrunch`: host; only `draft` or `cancelled`; sets `deletedAt/By`; a second delete is a 404
 - [ ] `setBrunchHidden`: any current member (host included), any status; sets or clears the caller's own `hiddenAt`; an outsider gets `brunch_not_found`
-- [ ] `getBrunchesForUser` returns `isHidden` and `isCalledOff`; `groupDashboard` returns `hidden`, drops hidden brunches from next-up/upcoming/past, caps Past at five unless asked; `summaryLine` counts only visible brunches
-- [ ] `getBrunchById` and `getInviteByToken` expose `isCalledOff`; `respondToInvite` refuses a called-off brunch (`brunch_called_off`) before creating anything
+- [ ] `getBrunchesForUser` returns `isHidden` (the viewer's own; a called-off brunch is `statusCode === 'cancelled'`, so there is no separate flag); `groupDashboard` returns `hidden`, drops hidden brunches from next-up/upcoming/past; `limitPast` caps Past at five unless asked (the page slices with it); `summaryLine` counts only visible brunches
+- [x] `getInviteByToken` exposes `isCalledOff` (M2); `getBrunchById` exposes the viewer's `isHidden`; `respondToInvite` refuses a called-off brunch (`brunch_called_off`) before creating anything (M2)
 - [ ] Recipient resolution shared by the confirmation and cancel emails; `brunch/cancelled` handler (hold, re-read, send), `brunch/reinstated` handler (send only if the notice went out), templates, idempotency keys that include `cancelledAt`
 - [ ] Policy `cancelNoticesPerHost` in `packages/shared/src/rateLimits.ts`, keyed by the host (never a brunch id)
 

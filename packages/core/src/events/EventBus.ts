@@ -37,6 +37,12 @@ export type BrunchEventPayloads = {
     readonly locationWasVoteLeader: boolean;
     readonly timeWasVoteLeader: boolean;
   };
+  // The host called the brunch off (spec 0013). `cancelledAt` (ISO) identifies this cancellation:
+  // the notice waits out a hold, re-reads the brunch, and sends only if it is still the same one.
+  'brunch/cancelled': { readonly brunchId: BrunchId; readonly cancelledAt: string };
+  // The host brought a called-off brunch back. The handler decides whether anyone is told (only if
+  // the cancel notice already went out).
+  'brunch/reinstated': { readonly brunchId: BrunchId };
   'invite/sent': {
     readonly brunchId: BrunchId;
     readonly inviteId: InviteId;

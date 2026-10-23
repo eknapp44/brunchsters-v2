@@ -14,6 +14,8 @@ export type BrunchDetail = {
   readonly statusLabel: string;
   readonly isHost: boolean;
   readonly viewerRsvpStatus: ViewerRsvpStatus | undefined;
+  // The viewer hid this brunch from their own dashboard (spec 0013); drives Hide / Unhide.
+  readonly isHidden: boolean;
   readonly allowInviteSuggestions: boolean;
   readonly allowLocationSuggestions: boolean;
   readonly allowTimeSuggestions: boolean;
@@ -77,6 +79,7 @@ export async function getBrunchById(
     statusLabel: brunch.status.label,
     isHost: brunch.hostId === input.viewerId,
     viewerRsvpStatus: toViewerRsvpStatus(rsvpStatusCode),
+    isHidden: (brunch.attendees[0]?.hiddenAt ?? null) !== null,
     allowInviteSuggestions: brunch.allowInviteSuggestions,
     allowLocationSuggestions: brunch.allowLocationSuggestions,
     allowTimeSuggestions: brunch.allowTimeSuggestions,

@@ -1,23 +1,29 @@
 import { describe, expect, it } from 'vitest';
 import { groupDashboard } from './groupDashboard';
+import { limitPast } from './limitPast';
 import { isPastBrunch, type DashboardFacts } from './isPastBrunch';
 import { pickNextUp } from './pickNextUp';
 
 const NOW = new Date('2026-10-21T12:00:00.000Z');
 const hoursFromNow = (hours: number): Date => new Date(NOW.getTime() + hours * 3_600_000);
 
-type Row = DashboardFacts & { readonly id: string };
+type Row = DashboardFacts & { readonly id: string; readonly isHidden: boolean };
 
 function row(
   id: string,
   statusCode: string,
-  options: { readonly scheduledAt?: Date; readonly createdHoursAgo?: number } = {},
+  options: {
+    readonly scheduledAt?: Date;
+    readonly createdHoursAgo?: number;
+    readonly isHidden?: boolean;
+  } = {},
 ): Row {
   return {
     id,
     statusCode,
     scheduledAt: options.scheduledAt,
     createdAt: hoursFromNow(-(options.createdHoursAgo ?? 1)),
+    isHidden: options.isHidden ?? false,
   };
 }
 
@@ -135,6 +141,75 @@ describe('groupDashboard', () => {
   });
 
   it('handles no brunches', () => {
-    expect(groupDashboard([], NOW)).toEqual({ nextUp: undefined, upcoming: [], past: [] });
+    expect(groupDashboard([], NOW)).toEqual({
+      nextUp: undefined,
+      upcoming: [],
+      past: [],
+      hidden: [],
+    });
+  });
+
+  it('keeps a hidden brunch out of next-up, the list and Past, and returns it on its own', () => {
+    const groups = groupDashboard(
+      [
+        row('next', 'confirmed', { scheduledAt: hoursFromNow(24), isHidden: true }),
+        row('draft', 'draft', { isHidden: true }),
+        row('off', 'cancelled', { isHidden: true }),
+        row('live', 'active'),
+      ],
+      NOW,
+    );
+
+    expect(groups.hidden.map((r) => r.id)).toEqual(['next', 'draft', 'off']);
+    // A hidden confirmed brunch is not next up: the active one is.
+    expect(groups.nextUp?.id).toBe('live');
+    expect(groups.upcoming).toEqual([]);
+    expect(groups.past).toEqual([]);
+  });
+
+  it('shows nothing but the hidden list for a person who hid everything', () => {
+    const groups = groupDashboard(
+      [row('a', 'active', { isHidden: true }), row('b', 'draft', { isHidden: true })],
+      NOW,
+    );
+
+    expect(groups.nextUp).toBeUndefined();
+    expect(groups.upcoming).toEqual([]);
+    expect(groups.past).toEqual([]);
+    expect(groups.hidden.map((r) => r.id)).toEqual(['a', 'b']);
+  });
+});
+
+describe('limitPast', () => {
+  const ids = (count: number): readonly string[] =>
+    Array.from({ length: count }, (_, index) => `p${index + 1}`);
+
+  it('shows the first five in the order given, and counts the rest', () => {
+    const result = limitPast(ids(7), { showAll: false });
+
+    expect(result.shown).toEqual(['p1', 'p2', 'p3', 'p4', 'p5']);
+    expect(result.moreCount).toBe(2);
+  });
+
+  it('shows everything when asked to', () => {
+    const result = limitPast(ids(7), { showAll: true });
+
+    expect(result.shown).toEqual(ids(7));
+    expect(result.moreCount).toBe(0);
+  });
+
+  it('leaves exactly five alone, with nothing to show more of', () => {
+    const result = limitPast(ids(5), { showAll: false });
+
+    expect(result.shown).toEqual(ids(5));
+    expect(result.moreCount).toBe(0);
+  });
+
+  it('handles no past brunches', () => {
+    expect(limitPast([], { showAll: false })).toEqual({ shown: [], moreCount: 0 });
+  });
+
+  it('takes a different limit when given one', () => {
+    expect(limitPast(ids(4), { showAll: false, limit: 2 }).shown).toEqual(['p1', 'p2']);
   });
 });

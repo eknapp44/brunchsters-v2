@@ -20,7 +20,8 @@ export async function revokeInvite(
   ctx: { readonly db: DbClient },
 ): Promise<Result<{ id: InviteId }, RevokeInviteError>> {
   const invite = await ctx.db.brunchInvite.findFirst({
-    where: { id: input.inviteId },
+    // A deleted brunch's invites are gone with it (the extension filters only this model).
+    where: { id: input.inviteId, brunch: { deletedAt: null } },
     include: { brunch: { include: { status: true } } },
   });
   if (invite === null) return err({ kind: 'invite_not_found' });

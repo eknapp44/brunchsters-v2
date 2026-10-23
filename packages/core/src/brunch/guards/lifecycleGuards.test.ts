@@ -21,6 +21,10 @@ const SCANNED_DIRECTORIES = ['brunch', 'invite'];
 // A service that writes is not allowed to skip the guard unless it is named here, with a reason.
 const EXEMPT: Readonly<Record<string, string>> = {
   'brunch/createBrunch.ts': 'creates the brunch; there is nothing to be called off yet',
+  'brunch/reinstateBrunch.ts': 'the one write that is only allowed on a called-off brunch',
+  'brunch/deleteBrunch.ts':
+    'removing a called-off brunch is the point; it checks the status itself',
+  'brunch/setBrunchHidden.ts': 'tidying your own dashboard is allowed in every status',
 };
 
 const GUARD_CALL = /\b(assertBrunchOpen|assertBrunchActive)\(/;
