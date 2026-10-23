@@ -97,7 +97,23 @@ Reply briefly, then wait for the user's go-ahead (if they have said to run sever
 
 Do not begin the next milestone.
 
+## While building: run only what you need (the close-out runs everything once)
+
+The full close-out (typecheck, lint, unit, integration, dev e2e about 3 minutes, stress about 8, CI build and e2e) is for the end of a milestone, not for every edit. Between edits:
+
+- Typecheck and lint are cheap: run them always.
+- Unit: `pnpm --filter @brunchsters/core exec vitest run <path-or-name>` (or `@brunchsters/web`), and `... test:integration <name>` for one DB file.
+- E2E: `pnpm test:e2e <file-name-fragment>` runs only the matching spec files (it still resets the e2e database), and `-g "<title>"` runs one journey. Run the journeys the diff touches plus any that find the changed names (grep the accessible names under `apps/web/e2e/`).
+- Add `--repeat-each=3` to the touched journeys when the change is client-side timing, a wait, a debounce or a clock.
+- The full suite, the stress run and CI mode are run once per milestone, at step 1 above, and again after any review-driven change that touches production code. If a full run has a failure that passes alone and on a repeat, say so in the testing note as a flake with the evidence, do not hide it.
+
 ## Tooling traps on this machine (each cost time once)
+
+- Playwright waits forever on a click of an `aria-disabled` button; use `click({ force: true })` in a journey that proves it does nothing. A live color-scheme switch makes axe measure buttons mid-transition: set the scheme, then reload.
+- A fixed rate-limit window makes "still refused afterwards" depend on the minute: use `alignToWindow` and `untilRefused` (`e2e/support/rateLimits.ts`), and seed big batches through the factory so ~100 real emails are not queued.
+- The Next dev server can answer one transient 500 under a burst (a manifest file it is rewriting); a production build cannot. Send the first request of a loop alone.
+- A test that opens many database connections exhausts the local Postgres: cap the pool in that test.
+- A mutation check for a `router.refresh()` or any "tell the rest of the page" call is easy to forget: remove it and see a journey fail.
 
 - Shell heredocs and `node -e "…"` containing backticks or nested quotes fail unpredictably in Git Bash. For anything multi-line, use the Write/Edit tools or a script file, not shell quoting.
 - Bash's `/tmp` is not the same directory Node sees on Windows. Put scratch files in the session scratchpad directory.
