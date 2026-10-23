@@ -24,7 +24,7 @@
 
 - Routes: `api/v1/brunches/[id]/cancel/route.ts`, `reinstate/route.ts`, `hidden/route.ts`, and `DELETE` added to `api/v1/brunches/[id]/route.ts` (create it if only `[id]/...` children exist today; verified at M4).
 - Inngest: `inngest/events.ts` (`CANCELLED_EMAIL_EVENTS`, `REINSTATED_EMAIL_EVENTS` added to `QUEUED_EVENTS`), `inngest/functions.ts` (`sendBrunchCancelledEmailsFunction`, `sendBrunchBackOnEmailsFunction`), `emailBudgets.test.ts` (decisions, `SENDERS`).
-- UI: manage page `EndOfTheRoad.tsx` (+ `ConfirmDialog` primitive in `components/ui/` if none fits; verified at M6), brunch page banner and `HideControl.tsx`, invite page branch, dashboard (`Hidden` section, Past cap link), `lib/brunchCopy.ts` ("Called off" badge text), `lib/dashboardFormat.ts` if the summary line needs hidden-aware counts.
+- UI: manage page `EndOfTheRoad.tsx` (+ `ConfirmDialog` primitive in `components/ui/` if none fits; verified at M6), brunch page banner and `HideControl.tsx` (also used by the dashboard rows and the next-up card, hidden below `40rem`, and by the Hidden list as Unhide at every width), invite page branch, dashboard (`Hidden` section, Past cap link), `lib/brunchCopy.ts` ("Called off" badge text), `lib/dashboardFormat.ts` if the summary line needs hidden-aware counts.
 - E2E: `e2e/journeys/brunch-lifecycle.spec.ts`; additions to `api-authorization.spec.ts`; factories (`cancelBrunchAs`, `hideBrunchAs`, wrapping the real core services); updates to the dashboard journeys and the screenshot boards.
 
 ## Key design
@@ -83,7 +83,7 @@ The type of the keys is derived from `BRUNCH_STATUSES` (`packages/database/src/b
 | Banner (members)         | {host} called this one off.                                                                                                                    |
 | Banner (host)            | You called this one off. Bring it back and everything is just as you left it.                                                                  |
 | Delete dialog            | Delete "{title}"? / This can't be undone from here. / Keep it / Delete it                                                                      |
-| Hide control             | Hide from my dashboard / Unhide                                                                                                                |
+| Hide control             | Hide from my dashboard / Unhide (page); Hide {title} / Unhide {title} (rows)                                                                   |
 | Dashboard link           | Hidden ({n})                                                                                                                                   |
 | Past cap                 | Show all ({n})                                                                                                                                 |
 | Invite card              | {host} called this one off.                                                                                                                    |

@@ -76,7 +76,7 @@ Plus the **status flow** written down as a table the code checks, **one guard** 
 4. **An attendee opens a called-off brunch** (from the email, the dashboard or a link): the page is read-only with a banner; RSVP, vote and suggest controls are gone; **Hide** is there.
 5. **A link holder opens an old invite link to a called-off brunch**: signed out or in, they see "{host} called this one off" and are **not** joined; nothing is changed by opening the page.
 6. **Host deletes a draft or a called-off brunch**: a dialog says it cannot be undone from the app; afterwards the brunch is a 404 for everyone, its links gone cold, and it is off every dashboard.
-7. **Anyone hides a brunch** from the brunch page; it leaves their dashboard, "next up" and the waiting count. A "Hidden (n)" link (also shown when everything is hidden) lists them with **Unhide**.
+7. **Anyone hides a brunch** from the brunch page, or from its dashboard row on a tablet or desktop; it leaves their dashboard, "next up" and the waiting count. A "Hidden (n)" link (also shown when everything is hidden) lists them with **Unhide**.
 8. **The dashboard stays short**: Past shows the five newest; "Show all" (a link, `?past=all`) shows the rest.
 9. **A host calls off too often**: the per-host daily cancel budget is spent; **Call it off** waits with the usual line ("try again in …") and nothing changes.
 
@@ -114,7 +114,7 @@ Plus the **status flow** written down as a table the code checks, **one guard** 
 - [ ] Manage page: an "End of the road" section whose buttons depend on the state (Call it off; Bring it back and Delete; Delete this draft); a called-off brunch shows the banner and only these actions; confirm dialogs (focus trapped, Escape closes, safe default)
 - [ ] Brunch page: called-off banner, read-only; **Hide** / **Unhide** control for every member
 - [ ] Invite page: "called this one off" for a called-off brunch, signed in or out, no join, no sign-in button for the dead end
-- [ ] Dashboard: "Called off" badge on Past rows (copy table entry), Past capped at five with "Show all", "Hidden (n)" section/link (also in the empty state), hidden brunches excluded from next-up and the waiting count
+- [ ] Dashboard: "Called off" badge on Past rows (copy table entry), Past capped at five with "Show all", "Hidden (n)" section/link (also in the empty state), hidden brunches excluded from next-up and the waiting count; a **Hide** button on each row and on the next-up card at tablet width and up (the existing `min-width: 40rem` breakpoint), absent on a phone, where the brunch page's control is the way; an **Unhide** button on each row of the Hidden list at every width
 - [ ] Client state: the dialogs' open/pending/error are a single control's state (`useState`, ADR 0011); no Redux slice. Server-rendered links for "Show all" and "Hidden". The 429 wait uses the existing `useWait`/`limitedMessage` pattern
 - [ ] Phone: phone board for the manage page's end section, the dialog, the called-off banner and the dashboard with a Hidden link; the explanatory sub-lines drop on a phone and the buttons stack full width
 - [ ] Voice: strings added to the copy table in `plan.md` and checked against the Brand Voice; accessible names listed per milestone below
@@ -143,7 +143,7 @@ Plus the **status flow** written down as a table the code checks, **one guard** 
 
 **Journeys that change** (re-verified by grep at each milestone start; the grep wins over this list): the dashboard journeys that count or find Past rows (access-and-dashboard, design-fidelity, responsive-layout, the dashboard helpers in `e2e/support/dashboard.ts`), `api-authorization.spec.ts` (E9 added), the invitee journeys that open `/invite/<token>` (invitations-invitee), and the screenshot/review boards.
 
-**Accessible names added** (new, so no existing journey breaks on them): buttons **Call it off**, **Bring it back**, **Delete this brunch**, **Delete this draft**, **Hide from my dashboard**, **Unhide**; dialog buttons **Nope, keep it** and the confirm button named as its action; headings **End of the road** and **Hidden**; link **Hidden (n)**; link **Show all**. **Names that change:** the Past section's status text on cancelled rows ("Cancelled" becomes "Called off").
+**Accessible names added** (new, so no existing journey breaks on them): buttons **Call it off**, **Bring it back**, **Delete this brunch**, **Delete this draft**, **Hide from my dashboard** (brunch page), **Hide {title}** and **Unhide {title}** (dashboard rows; the title keeps them distinct), **Unhide**; dialog buttons **Nope, keep it** and the confirm button named as its action; headings **End of the road** and **Hidden**; link **Hidden (n)**; link **Show all**. **Names that change:** the Past section's status text on cancelled rows ("Cancelled" becomes "Called off").
 
 ---
 
@@ -154,7 +154,7 @@ Each of these is also in ADR 0015 (Consequences) and `PLANNING.md` §17.
 - A **reason note** on the cancellation (the prototype's textarea): it needs a column and copy, and the email would have to carry it.
 - The **in-app notification** for a cancellation, per-brunch mute, and the host-facing notices (RSVP, vote, suggestion, deadline): the notifications spec. The seeded `brunch.cancelled` type waits for it.
 - **Leaving a brunch** (the attendee's counterpart of Call it off) and **host transfer**.
-- A hidden brunch **resurfacing** when something important changes; and a **Hide control on dashboard rows** (page and Hidden list only until a phone review).
+- A hidden brunch **resurfacing** when something important changes. (The row-level Hide control is in; it is left off the phone on purpose.)
 - A **brunch-level archive**, **auto-archive**, and a scheduler that marks past brunches `completed`. A confirmed brunch whose time has passed **still accepts changes** (no "over" guard yet).
 - The **"Suggested" group inside the Locations and Times panels** (PLANNING §17 product candidate 2): floated for this spec's manage-page pass and left out on purpose, so lifecycle stays small; it needs its own spec, and its journeys that count list items are not touched here.
 - Toasts and real server error text (feedback-surfaces spec); the cancel dialog's result is inline.
@@ -163,7 +163,11 @@ Each of these is also in ADR 0015 (Consequences) and `PLANNING.md` §17.
 
 ## Open Questions
 
-1. **The cancel budget number.** Starting point: 6 cancellations per host per day, tuned with beta data (`/limited-surface` settles it in M3 with the other limits).
-2. **Email subject and body lines** for "called off" and "back on": drafted in M5 against the Brand Voice and checked with a real send (`/real-send-check`); this spec only fixes who receives them and when.
-3. **Does Hide belong on dashboard rows?** Default: no, until a phone review shows opening each brunch to hide it is too slow.
-4. **The notice's hold length** (five minutes) is a named constant; confirm it feels right on first use.
+All four first-round questions were settled by the owner on 2026-10-23:
+
+1. **The cancel budget number**: 6 per host per day is accepted as the starting point and tuned with beta data (`/limited-surface` still confirms it at M4).
+2. **Email subject and body lines** wait for M5, drafted against the Brand Voice and checked with `/real-send-check`.
+3. **Hide on dashboard rows**: yes on tablet and desktop, no on a phone (the page control stays the phone's way). Decided; see the UI criteria.
+4. **The hold length**: five minutes, a named constant that is easy to change.
+
+Still open: whether a stored `completed` status is wanted (asked 2026-10-23; see ADR 0015 if it is decided here).

@@ -94,7 +94,7 @@ Use `/ui-screen`: list the accessible names and journeys a change touches before
 - [ ] Manage page: "End of the road" section and confirm dialogs (primitive reused or added in `components/ui/`, keyboard and focus rules, safe default); called-off view of the manage page
 - [ ] Brunch page: called-off banner, read-only (RSVP, vote, suggest controls absent), Hide / Unhide
 - [ ] Invite page: called-off card for signed-in and signed-out visitors before `respondToInvite`
-- [ ] Dashboard: "Called off" badge, Past cap with "Show all", "Hidden (n)" section/link including in the empty state, summary and next-up ignore hidden brunches
+- [ ] Dashboard: "Called off" badge, Past cap with "Show all", "Hidden (n)" section/link including in the empty state, summary and next-up ignore hidden brunches; Hide on each row and the next-up card from `40rem` up (absent on a phone), Unhide on the Hidden list at every width
 - [ ] 429 wait on Call it off through `useWait`/`limitedMessage`; no browser storage
 - [ ] Phone board for the end section, the dialog, the banner and the dashboard with Hidden; axe on every new state (light and dark); copy table checked against the Brand Voice
 - [ ] Update every existing journey broken by the Past cap or the badge text (grep first); `brunchCopy.test.ts` updated
