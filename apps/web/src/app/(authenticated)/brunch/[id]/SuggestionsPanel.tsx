@@ -6,9 +6,8 @@ import { Button } from '@/components/ui/Button';
 import { Field } from '@/components/ui/Field';
 import { InlineAlert } from '@/components/ui/InlineAlert';
 import { limitedMessage } from '@/lib/limitedCopy';
-import { limitStorageKey } from '@/lib/limitedUntil';
 import { readRateLimit } from '@/lib/readRateLimit';
-import { useLimitedUntil } from '@/lib/useLimitedUntil';
+import { useWait, type Wait } from '@/lib/useWait';
 import styles from './detail.module.css';
 
 type SuggestionListItem = {
@@ -19,12 +18,14 @@ type SuggestionListItem = {
 
 export function SuggestionsPanel({
   brunchId,
-  viewerId,
   canSuggest,
   pendingSuggestions,
+  sendWait,
 }: {
   readonly brunchId: string;
-  readonly viewerId: string;
+  // What the server says the host is waiting on for anything that emails an address, asked as the
+  // page loaded (getInviteWaits); the same answer the invite panel's send button gets.
+  readonly sendWait: Wait | undefined;
   readonly canSuggest: boolean;
   readonly pendingSuggestions: readonly SuggestionListItem[] | undefined;
 }) {
@@ -34,11 +35,9 @@ export function SuggestionsPanel({
   const [error, setError] = useState<string | undefined>(undefined);
   const [pendingSuggestionId, setPendingSuggestionId] = useState<string | undefined>(undefined);
   // Approving a suggestion emails the address, so it spends the same invite budget as the invite
-  // panel's send button: the two share one key, and a refusal on either makes both wait (spec 0012).
-  const inviteBudget = useLimitedUntil(
-    limitStorageKey({ control: 'invites-send', viewerId, id: brunchId }),
-  );
-  const approvalsWaiting = inviteBudget.limit !== undefined;
+  // panel's send button, and the server gives both the same answer (spec 0012).
+  const inviteBudget = useWait(sendWait);
+  const approvalsWaiting = inviteBudget.wait !== undefined;
 
   async function suggest(): Promise<void> {
     const trimmed = email.trim();
@@ -82,7 +81,10 @@ export function SuggestionsPanel({
         // Approving emails the address, so the host's daily invite budget applies (spec 0012).
         const facts = await readRateLimit(response);
         if (facts !== undefined) {
+          // Shown at once; the refresh brings the server's account of it, which the invite panel's
+          // send button then shares.
           inviteBudget.start(facts);
+          router.refresh();
           return;
         }
         setError('Failed to review suggestion');
@@ -154,12 +156,12 @@ export function SuggestionsPanel({
         </div>
       )}
       {approvalsWaiting &&
-        inviteBudget.limit !== undefined &&
+        inviteBudget.wait !== undefined &&
         pendingSuggestions !== undefined &&
         pendingSuggestions.length > 0 && (
           <div id="approvals-limit" className={styles.limitNote}>
             <InlineAlert tone="info" role="status">
-              <p>{limitedMessage(inviteBudget.limit)}</p>
+              <p>{limitedMessage(inviteBudget.wait)}</p>
             </InlineAlert>
           </div>
         )}

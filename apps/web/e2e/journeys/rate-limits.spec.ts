@@ -14,6 +14,7 @@ import { expect, test } from '../support/fixtures';
 import { inviteRow } from '../support/invites';
 import { emailsTo, waitForEmails } from '../support/mailbox';
 import { fixturePlaces } from '../support/places';
+import { mintSessionCookie } from '../support/session';
 import { alignToWindow, untilRefused } from '../support/rateLimits';
 import { addAttendee } from '../support/voting';
 import { BrunchWizard } from '../support/wizard';
@@ -32,20 +33,14 @@ const RESEND_LIMITED = /That one just went out\. Give it (a minute|\d+ minutes)\
 // A day is longer than any window.
 const A_DAY_AND_A_BIT_MS = 25 * 60 * 60 * 1000;
 
-test.describe('L1 — too many invites in a day', () => {
-  test('the send button waits with a friendly line, keeps the wait over a reload, and comes back', async ({
+test.describe('L1 — a refusal the page did not expect', () => {
+  test('makes the send button wait; the wait is the server own, so it survives a reload and ends on the clock', async ({
     makeActor,
   }) => {
     const host = await makeActor('host');
     const { page } = host;
     const brunchId = await createBrunch({ host: host.user });
     const late = newEmail('too-late');
-
-    // The whole per-brunch budget (50 addresses). Seeded through the factory: it spends the real
-    // budget exactly as the route would, but queues no mail, so the shared email queue stays free
-    // for the journeys that wait on it.
-    const batch = Array.from({ length: 50 }, (_, index) => ({ email: newEmail(`l1-${index}`) }));
-    await inviteToBrunch({ brunchId, host: host.user, invitees: batch });
 
     // A browser clock that runs on its own but can be jumped, for the wait at the end.
     await page.clock.install();
@@ -55,10 +50,19 @@ test.describe('L1 — too many invites in a day', () => {
         sendRequests += 1;
       }
     });
+
+    // The page opens while the brunch still has room...
     await page.goto(`/brunch/${brunchId}`);
+    const send = page.getByRole('button', { name: 'Round up the crew' });
+    await expect(send).not.toHaveAttribute('aria-disabled', 'true');
+
+    // ...and the brunch whole budget (50 addresses) is used up before the host presses it. Seeded
+    // through the factory: it spends the real budget exactly as the route would, but queues no
+    // mail, so the shared email queue stays free for the journeys that wait on it.
+    const batch = Array.from({ length: 50 }, (_, index) => ({ email: newEmail(`l1-${index}`) }));
+    await inviteToBrunch({ brunchId, host: host.user, invitees: batch });
 
     await page.getByLabel('Invite more people').fill(late);
-    const send = page.getByRole('button', { name: 'Round up the crew' });
     await send.click();
 
     // The refusal: the friendly line, a button that waits, the address still typed, nothing created.
@@ -78,7 +82,7 @@ test.describe('L1 — too many invites in a day', () => {
     // switching live would measure buttons halfway through their color transition).
     await expectNoA11yViolations(page, 'the invite panel while the send is limited (light)');
 
-    // A refresh does not lose the wait.
+    // A reload does not lose the wait: the page asks the server, which is still counting.
     await page.reload();
     await expect(page.getByRole('button', { name: 'Round up the crew' })).toHaveAttribute(
       'aria-disabled',
@@ -86,7 +90,7 @@ test.describe('L1 — too many invites in a day', () => {
     );
     await expect(page.getByText(INVITES_LIMITED)).toBeVisible();
 
-    // The same in the dark palette: the wait is still there when the page loads that way.
+    // The same in the dark palette.
     await useColorScheme(page, 'dark');
     await page.reload();
     await expect(page.getByText(INVITES_LIMITED)).toBeVisible();
@@ -103,72 +107,132 @@ test.describe('L1 — too many invites in a day', () => {
   });
 });
 
+test.describe('L1d — the page opens already waiting', () => {
+  test('a host whose brunch has used its invites for the day sees the send button waiting before pressing anything', async ({
+    makeActor,
+  }) => {
+    const host = await makeActor('host');
+    const { page } = host;
+    const brunchId = await createBrunch({ host: host.user });
+    const batch = Array.from({ length: 50 }, (_, index) => ({ email: newEmail(`l1d-${index}`) }));
+    await inviteToBrunch({ brunchId, host: host.user, invitees: batch });
+    let sendRequests = 0;
+    page.on('request', (request) => {
+      if (request.method() === 'POST' && request.url().endsWith(`/brunches/${brunchId}/invites`)) {
+        sendRequests += 1;
+      }
+    });
+
+    await page.goto(`/brunch/${brunchId}`);
+
+    // Nothing was clicked: the server said so as the page loaded.
+    const send = page.getByRole('button', { name: 'Round up the crew' });
+    await expect(send).toHaveAttribute('aria-disabled', 'true');
+    await expect(page.getByText(INVITES_LIMITED)).toBeVisible();
+    await send.click({ force: true });
+    expect(sendRequests).toBe(0);
+  });
+});
+
+test.describe('L1c — the wait is the server own, so another browser sees it', () => {
+  test('a host who opens the brunch in a browser that never saw the refusal still finds the button waiting', async ({
+    makeActor,
+    browser,
+  }) => {
+    const host = await makeActor('host');
+    const brunchId = await createBrunch({ host: host.user });
+    const batch = Array.from({ length: 50 }, (_, index) => ({ email: newEmail(`l1c-${index}`) }));
+    await inviteToBrunch({ brunchId, host: host.user, invitees: batch });
+
+    // A second browser: its own context, so no cookies, no storage and no page in common with the
+    // first except the person. (Before the wait moved to the server it lived in the first browser.)
+    const elsewhere = await browser.newContext();
+    try {
+      await elsewhere.addCookies([await mintSessionCookie(host.user)]);
+      const page = await elsewhere.newPage();
+      await page.goto(`/brunch/${brunchId}`);
+
+      await expect(page.getByRole('button', { name: 'Round up the crew' })).toHaveAttribute(
+        'aria-disabled',
+        'true',
+      );
+      await expect(page.getByText(INVITES_LIMITED)).toBeVisible();
+    } finally {
+      await elsewhere.close();
+    }
+  });
+});
+
 test.describe('L2 — resending too soon', () => {
-  test('only that invite waits; a refused resend leaves its link alone; the wait survives a reload', async ({
+  test('a resend that just went out waits, and only that invite; the wait survives a reload and ends on the clock', async ({
     makeActor,
   }) => {
     const host = await makeActor('host');
     const { page } = host;
     const first = newEmail('first');
     const second = newEmail('second');
+    const untouched = newEmail('untouched');
     const brunchId = await createBrunch({ host: host.user });
     await inviteToBrunch({
       brunchId,
       host: host.user,
-      invitees: [{ email: first }, { email: second }],
+      invitees: [{ email: first }, { email: second }, { email: untouched }],
+    });
+    let resendRequests = 0;
+    page.on('request', (request) => {
+      if (request.method() === 'POST' && request.url().includes('/resend')) resendRequests += 1;
     });
 
     await page.clock.install();
     await page.goto(`/brunch/${brunchId}`);
-    const resendFirst = inviteRow(page, first).getByRole('button', { name: 'Resend' });
-    const resendSecond = inviteRow(page, second).getByRole('button', { name: 'Resend' });
+    const resend = (email: string) =>
+      inviteRow(page, email).getByRole('button', { name: 'Resend' });
+    await expect(resend(first)).not.toHaveAttribute('aria-disabled', 'true');
 
-    // The first resend goes out.
-    await resendFirst.click();
+    // The first resend goes out, and the invite says so at once: the server knows its cooldown has
+    // started, and the page asks as it refreshes.
+    await resend(first).click();
     await waitForEmails({ to: first, count: 1 });
-    const tokenAfterFirstResend = await getInviteToken({ brunchId, email: first });
-
-    // The second, straight after, is refused: this invite waits, with the reason beside it.
-    await resendFirst.click();
     await expect(inviteRow(page, first).getByText(RESEND_LIMITED)).toBeVisible();
-    await expect(resendFirst).toHaveAttribute('aria-disabled', 'true');
-    // Pressing it while it waits does nothing more (no second request, no change of link).
-    await resendFirst.click({ force: true });
-    // The refusal did not re-token the invite, so the link in the email that went out still works.
+    await expect(resend(first)).toHaveAttribute('aria-disabled', 'true');
+    const tokenAfterFirstResend = await getInviteToken({ brunchId, email: first });
+    expect(resendRequests).toBe(1);
+
+    // Pressing it while it waits asks the server nothing and leaves the link alone.
+    await resend(first).click({ force: true });
+    await expect(resend(first)).toHaveAttribute('aria-disabled', 'true');
+    expect(resendRequests).toBe(1);
     expect(await getInviteToken({ brunchId, email: first })).toBe(tokenAfterFirstResend);
 
-    // Another invite on the same brunch is unaffected.
-    await expect(resendSecond).not.toHaveAttribute('aria-disabled', 'true');
-    await expect(inviteRow(page, second).getByText(RESEND_LIMITED)).toHaveCount(0);
-    await resendSecond.click();
+    // Other invites are unaffected: one that was never resent is still enabled, and a second
+    // resend works and starts its own cooldown.
+    await expect(resend(untouched)).not.toHaveAttribute('aria-disabled', 'true');
+    await expect(inviteRow(page, untouched).getByText(RESEND_LIMITED)).toHaveCount(0);
+    await resend(second).click();
     await waitForEmails({ to: second, count: 1 });
+    await expect(inviteRow(page, second).getByText(RESEND_LIMITED)).toBeVisible();
 
-    // A refresh does not lose the wait, and only that invite still has it.
+    // A reload does not lose the waits, and the untouched invite is still free.
     await page.reload();
     await expect(inviteRow(page, first).getByText(RESEND_LIMITED)).toBeVisible();
-    await expect(inviteRow(page, first).getByRole('button', { name: 'Resend' })).toHaveAttribute(
-      'aria-disabled',
-      'true',
-    );
-    await expect(
-      inviteRow(page, second).getByRole('button', { name: 'Resend' }),
-    ).not.toHaveAttribute('aria-disabled', 'true');
+    await expect(resend(first)).toHaveAttribute('aria-disabled', 'true');
+    await expect(resend(second)).toHaveAttribute('aria-disabled', 'true');
+    await expect(resend(untouched)).not.toHaveAttribute('aria-disabled', 'true');
 
-    // Ten minutes later the button is back.
+    // Ten minutes later the buttons are back.
     await page.clock.fastForward(11 * 60 * 1000);
-    await expect(
-      inviteRow(page, first).getByRole('button', { name: 'Resend' }),
-    ).not.toHaveAttribute('aria-disabled', 'true');
+    await expect(resend(first)).not.toHaveAttribute('aria-disabled', 'true');
+    await expect(resend(second)).not.toHaveAttribute('aria-disabled', 'true');
     await expect(inviteRow(page, first).getByText(RESEND_LIMITED)).toHaveCount(0);
 
-    // One email each: nothing went out for the refused click.
+    // One email each: nothing went out for the click on a waiting button.
     expect(await emailsTo(first)).toHaveLength(1);
     expect(await emailsTo(second)).toHaveLength(1);
   });
 });
 
-test.describe('L2b — a resend refused by the day budget holds the send button too', () => {
-  test('when the host has used the whole day of invites, Resend and the send button wait together', async ({
+test.describe('L2b — a host who used the whole day of invites', () => {
+  test('finds Resend and the send button waiting together as the page opens', async ({
     makeActor,
   }) => {
     test.slow();
@@ -188,13 +252,14 @@ test.describe('L2b — a resend refused by the day budget holds the send button 
       }));
       await inviteToBrunch({ brunchId: other, host: host.user, invitees: batch });
     }
+    let resendRequests = 0;
+    page.on('request', (request) => {
+      if (request.method() === 'POST' && request.url().includes('/resend')) resendRequests += 1;
+    });
 
     await page.goto(`/brunch/${brunchId}`);
-    await inviteRow(page, guest).getByRole('button', { name: 'Resend' }).click();
 
-    // Refused by the day's budget (not the ten-minute cooldown, which this was the first use of):
-    // the line is the invites one, this invite's Resend waits, and so does the send button, because
-    // no invite email can go out until the day's window ends.
+    // The day's budget holds every control that emails, with the day's reason, before any click.
     await expect(inviteRow(page, guest).getByText(INVITES_LIMITED)).toBeVisible();
     await expect(inviteRow(page, guest).getByRole('button', { name: 'Resend' })).toHaveAttribute(
       'aria-disabled',
@@ -204,11 +269,13 @@ test.describe('L2b — a resend refused by the day budget holds the send button 
       'aria-disabled',
       'true',
     );
+    await inviteRow(page, guest).getByRole('button', { name: 'Resend' }).click({ force: true });
+    expect(resendRequests).toBe(0);
   });
 });
 
 test.describe('L1b — approving a suggestion spends the same invite budget', () => {
-  test('a host who has used the brunch’s invites for the day cannot approve one more address', async ({
+  test('a refused approval makes Approve and the send button wait together, and declining is never held', async ({
     makeActor,
   }) => {
     const host = await makeActor('host');
@@ -223,11 +290,7 @@ test.describe('L1b — approving a suggestion spends the same invite budget', ()
     await attendee.page.getByRole('button', { name: 'Suggest this person' }).click();
     await expect(attendee.page.getByLabel('Suggest someone')).toHaveValue('');
 
-    // The attendee's invite used one of the brunch's 50; the other 49 use up the rest (seeded
-    // through the factory, which spends the real budget and queues no mail).
-    const rest = Array.from({ length: 49 }, (_, index) => ({ email: newEmail(`l1b-${index}`) }));
-    await inviteToBrunch({ brunchId, host: host.user, invitees: rest });
-
+    // The host opens the page while the brunch still has room...
     await host.page.goto(`/brunch/${brunchId}`);
     let reviewRequests = 0;
     host.page.on('request', (request) => {
@@ -244,6 +307,12 @@ test.describe('L1b — approving a suggestion spends the same invite budget', ()
       .filter({ hasText: suggested });
     const approve = row.getByRole('button', { name: 'Approve' });
     const send = host.page.getByRole('button', { name: 'Round up the crew' });
+    await expect(approve).not.toHaveAttribute('aria-disabled', 'true');
+
+    // ...and the attendee's invite used one of the brunch's 50; the other 49 use up the rest
+    // (seeded through the factory, which spends the real budget and queues no mail).
+    const rest = Array.from({ length: 49 }, (_, index) => ({ email: newEmail(`l1b-${index}`) }));
+    await inviteToBrunch({ brunchId, host: host.user, invitees: rest });
     await approve.click();
 
     // The host is told, in the suggestions panel and in the invite panel (one line each, because
@@ -255,7 +324,7 @@ test.describe('L1b — approving a suggestion spends the same invite budget', ()
       0,
     );
 
-    // One budget, so both buttons wait together: refusing the approval held the send button too.
+    // One budget, so both buttons wait together: the server told the page, and the page told both.
     await expect(approve).toHaveAttribute('aria-disabled', 'true');
     await expect(send).toHaveAttribute('aria-disabled', 'true');
     // Pressing a waiting Approve asks the server nothing.
@@ -282,33 +351,6 @@ test.describe('L1b — approving a suggestion spends the same invite budget', ()
     );
     await row.getByRole('button', { name: 'Decline' }).click();
     await expect(row).toHaveCount(0);
-  });
-});
-
-test.describe('L1c — a wait is shared between tabs', () => {
-  test('a refusal in one tab makes the send button wait in another tab already open', async ({
-    makeActor,
-  }) => {
-    const host = await makeActor('host');
-    const brunchId = await createBrunch({ host: host.user });
-    const batch = Array.from({ length: 50 }, (_, index) => ({ email: newEmail(`l1c-${index}`) }));
-    await inviteToBrunch({ brunchId, host: host.user, invitees: batch });
-
-    // Two tabs of the same browser (one context, so one localStorage), both already loaded.
-    const first = host.page;
-    const second = await host.context.newPage();
-    await first.goto(`/brunch/${brunchId}`);
-    await second.goto(`/brunch/${brunchId}`);
-    const waiting = (page: typeof first) => page.getByRole('button', { name: 'Round up the crew' });
-    await expect(waiting(second)).not.toHaveAttribute('aria-disabled', 'true');
-
-    await first.getByLabel('Invite more people').fill(newEmail('too-late'));
-    await waiting(first).click();
-    await expect(first.getByText(INVITES_LIMITED)).toBeVisible();
-
-    // The other tab never clicked anything and was not reloaded: it heard about it.
-    await expect(waiting(second)).toHaveAttribute('aria-disabled', 'true');
-    await expect(second.getByText(INVITES_LIMITED)).toBeVisible();
   });
 });
 

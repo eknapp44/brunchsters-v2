@@ -12,7 +12,6 @@ import { Container } from '@/components/ui/Container';
 import { Eyebrow } from '@/components/ui/Eyebrow';
 import { Field } from '@/components/ui/Field';
 import { InlineAlert } from '@/components/ui/InlineAlert';
-import { browserStorage, handoffStorageKey, writeLimit } from '@/lib/limitedUntil';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   createBrunch,
@@ -354,21 +353,7 @@ export default function NewBrunchPage() {
   function handleSubmit(): void {
     void dispatch(createBrunch())
       .unwrap()
-      .then(({ id, invitesRefused }) => {
-        // The server told the host to slow down on the invites: leave the wait for the brunch page's
-        // invite panel to take over, so it opens with the send button waiting and the reason shown.
-        if (invitesRefused !== undefined) {
-          writeLimit({
-            storage: browserStorage(),
-            key: handoffStorageKey(id),
-            limit: {
-              until: Date.now() + invitesRefused.retryAfterSeconds * 1000,
-              policy: invitesRefused.policy,
-            },
-          });
-        }
-        router.push(`/brunch/${id}`);
-      })
+      .then(({ id }) => router.push(`/brunch/${id}`))
       // The thunk already put the message in the store.
       .catch(() => undefined);
   }

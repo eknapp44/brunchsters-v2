@@ -4,10 +4,11 @@ import {
   getBrunchRoster,
   getBrunchVoting,
   getInvitesForBrunch,
+  getInviteWaits,
   getPendingSuggestionsForBrunch,
   leadingOptionId,
 } from '@brunchsters/core';
-import type { BrunchId, UserId } from '@brunchsters/shared';
+import type { BrunchId, InviteId, UserId } from '@brunchsters/shared';
 import { notFound } from 'next/navigation';
 import type { ReactElement, ReactNode } from 'react';
 import { z } from 'zod';
@@ -18,6 +19,7 @@ import { Container } from '@/components/ui/Container';
 import { closesIn } from '@/lib/dashboardFormat';
 import { formatWhenLong } from '@/lib/brunchPageFormat';
 import { db } from '@/lib/db';
+import { getRateLimiter } from '@/lib/services';
 import { LocationBallotChecklist, TimeBallotChecklist } from './BallotChecklist';
 import { BrunchHeader } from './BrunchHeader';
 import { ConfirmedBanner } from './ConfirmedBanner';
@@ -144,6 +146,25 @@ export default async function BrunchDetailPage({
       pendingSuggestions.error,
     );
   }
+
+  // What the host is waiting on (an invite that was just sent, the day's invites used up), asked of
+  // the same counters that refuse, so every tab and device shows the same thing (ADR 0013 addendum).
+  // Only the host gets this: the invite list above was host-only. If the counters cannot be read the
+  // page still renders, with nothing held; the server still refuses when a button is pressed.
+  const inviteWaitsResult = invites?.isOk()
+    ? await getInviteWaits(
+        {
+          brunchId,
+          hostId: viewerId,
+          inviteIds: invites.value.map((invite) => invite.id as InviteId),
+        },
+        { rateLimiter: getRateLimiter() },
+      )
+    : undefined;
+  if (inviteWaitsResult?.isErr()) {
+    console.error('getInviteWaits failed: showing no waits', inviteWaitsResult.error);
+  }
+  const inviteWaits = inviteWaitsResult?.isOk() ? inviteWaitsResult.value : undefined;
 
   const [voting, roster] = await Promise.all([
     getBrunchVoting({ brunchId, viewerId }, { db }),
@@ -284,13 +305,18 @@ export default async function BrunchDetailPage({
 
           <SuggestionsPanel
             brunchId={brunchId}
-            viewerId={viewerId}
+            sendWait={inviteWaits?.send}
             canSuggest={!brunch.isHost && brunch.allowInviteSuggestions}
             pendingSuggestions={pendingSuggestions?.isOk() ? pendingSuggestions.value : undefined}
           />
 
           {invites?.isOk() && (
-            <InvitePanel brunchId={brunchId} viewerId={viewerId} invites={invites.value} />
+            <InvitePanel
+              brunchId={brunchId}
+              invites={invites.value}
+              sendWait={inviteWaits?.send}
+              resendWaits={inviteWaits?.resend ?? {}}
+            />
           )}
         </div>
       </div>
