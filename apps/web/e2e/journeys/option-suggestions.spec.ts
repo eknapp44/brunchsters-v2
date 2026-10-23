@@ -11,6 +11,9 @@ test.describe('V4 — suggesting a place', () => {
   test('stays pending and private, then becomes a votable option once the host approves', async ({
     makeActor,
   }) => {
+    // Three people and several screens in a row; each route is compiled on first use in dev mode,
+    // which on a cold start (right after a route changed) can pass the default 30 seconds.
+    test.slow();
     const host = await makeActor('host');
     const suggester = await makeActor('suggester');
     const voter = await makeActor('voter');

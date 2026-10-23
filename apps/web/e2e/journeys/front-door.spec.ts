@@ -87,6 +87,40 @@ test.describe('S1 — security headers', () => {
     expect(invite.headers()['referrer-policy']).toBe('no-referrer');
     expect(invite.headers()['x-content-type-options']).toBe('nosniff');
   });
+
+  // Spec 0012, ADR 0014: the Content-Security-Policy, report-only until M6 enforces it.
+  test('every answer carries a Content-Security-Policy with a new nonce, and the page uses that nonce', async ({
+    request,
+  }) => {
+    const header = 'content-security-policy-report-only';
+    const nonceOf = (policy: string | undefined): string => {
+      const match = /script-src [^;]*'nonce-([A-Za-z0-9+/=]+)'/.exec(policy ?? '');
+      if (match?.[1] === undefined) throw new Error(`No script nonce in: ${policy}`);
+      return match[1];
+    };
+
+    const first = await request.get('/');
+    const policy = first.headers()[header];
+    expect(policy).toContain("default-src 'self'");
+    expect(policy).toContain("frame-ancestors 'none'");
+    expect(policy).toContain("object-src 'none'");
+
+    // The scripts Next writes into the page carry this request's nonce: that is what lets them run.
+    const nonce = nonceOf(policy);
+    expect(await first.text()).toContain(`nonce="${nonce}"`);
+
+    // A new one every time: a nonce that repeats could be copied into an injected script.
+    const second = await request.get('/');
+    expect(nonceOf(second.headers()[header])).not.toBe(nonce);
+
+    // The early answers carry it too: the 401 an API client gets and the redirect to sign-in.
+    const unauthorized = await request.get('/api/v1/brunches', { maxRedirects: 0 });
+    expect(unauthorized.status()).toBe(401);
+    expect(unauthorized.headers()[header]).toContain("frame-ancestors 'none'");
+    const redirect = await request.get('/dashboard', { maxRedirects: 0 });
+    expect(redirect.status()).toBe(307);
+    expect(redirect.headers()[header]).toContain("frame-ancestors 'none'");
+  });
 });
 
 test.describe('P9 — sign-in only goes back to this site', () => {

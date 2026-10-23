@@ -1,6 +1,6 @@
 # Spec 0012 — Security Hardening
 
-**Status:** In progress (grilled 2026-10-22; M1 to M4 done: dependencies, the limiter, invite and resend limits, place search, writes and invite tokens; M3 reviewed by the owner; M5 and M6 (CSP, close-out) to do)  
+**Status:** In progress (grilled 2026-10-22; M1 to M5 done: dependencies, the limiter, invite and resend limits, place search, writes, invite tokens, and the report-only CSP; M6 (enforce the CSP, close-out) to do)  
 **Branch:** `feat/0012-security-hardening`  
 **PLANNING.md ref:** §16 roadmap step 5, §17 "Security and session follow-ups"  
 **ADRs:** [0013 — Rate limits in Postgres](../../docs/adrs/0013-rate-limits-in-postgres.md), [0014 — CSP with a per-request nonce](../../docs/adrs/0014-content-security-policy-with-nonce.md)  
@@ -87,10 +87,10 @@ No new screen. Two existing controls gain one inline line of copy for a limited 
 
 ### CSP
 
-- [ ] Middleware sets a nonce-based `Content-Security-Policy-Report-Only` on every response (pages, API JSON, redirects), and Next stamps its scripts with the nonce
-- [ ] A journey (S3) fails on any `securitypolicyviolation` along the main paths
+- [x] Middleware sets a nonce-based `Content-Security-Policy-Report-Only` on every response (pages, API JSON, redirects), and Next stamps its scripts with the nonce
+- [x] A journey (S3) fails on any `securitypolicyviolation` along the main paths
 - [ ] The header is flipped to enforcing after a manual real sign-in and a clean full run; S1 asserts the header name and the key directives
-- [ ] The policy is built by a pure function with unit tests (nonce present, no `unsafe-eval` outside development, `frame-ancestors 'none'`, `form-action` allows Google)
+- [x] The policy is built by a pure function with unit tests (nonce present, no `unsafe-eval` outside development, `frame-ancestors 'none'`, `form-action` allows Google)
 
 ### UI
 
