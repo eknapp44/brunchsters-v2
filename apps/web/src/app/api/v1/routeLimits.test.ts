@@ -122,3 +122,40 @@ describe('no budget is keyed by something that names a brunch, an invite or a su
     }
   });
 });
+
+// The Places API is billed per call, so a *new* way to reach it must come with a budget. The two
+// routes above each spend one before calling Google; this fails if any other file starts to use the
+// provider or the key, so a third route (or a server action, or a job) cannot quietly bypass them.
+describe('nothing else reaches the paid Places API', () => {
+  const SRC = path.join(ROOT, '..', '..', '..');
+  const ALLOWED = [
+    'adapters/GooglePlacesProvider.ts',
+    'app/api/v1/places/[placeId]/route.ts',
+    'app/api/v1/places/search/route.ts',
+    'lib/googlePlacesApiKey.ts',
+  ];
+
+  function sources(dir: string): string[] {
+    return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) return sources(full);
+      return /\.tsx?$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name) ? [full] : [];
+    });
+  }
+
+  it('is mentioned only by the adapter, the key helper and the two budgeted routes', () => {
+    const mentions = sources(SRC)
+      .filter((file) =>
+        /GooglePlacesProvider|requireGooglePlacesApiKey|GOOGLE_PLACES_API_KEY/.test(
+          readFileSync(file, 'utf-8'),
+        ),
+      )
+      .map((file) => path.relative(SRC, file).replaceAll(path.sep, '/'))
+      .sort();
+
+    expect(
+      mentions,
+      'new code reaches the paid Places API: spend a budget before it (see the two routes), then add it here on purpose',
+    ).toEqual([...ALLOWED].sort());
+  });
+});
