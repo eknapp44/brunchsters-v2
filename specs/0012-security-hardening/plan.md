@@ -2,33 +2,24 @@
 
 ## Files
 
+_As built (this section was rewritten at the pre-merge review; the first draft predicted names that moved.)_
+
 **New**
 
-- `packages/database/prisma/schema.prisma` (+ migration `…_rate_limit_bucket`): `RateLimitBucket`.
-- `packages/shared/src/rateLimits.ts`: the policy constants (`name`, `limit`, `windowSeconds`) and `RATE_LIMIT_POLICIES`; re-exported from the package index.
-- `packages/core/src/rateLimit/RateLimiter.ts`: the interface, `RateLimitDecision`, `RateLimitError`.
-- `packages/core/src/rateLimit/PostgresRateLimiter.ts` (+ `.test.ts`, `.integration.test.ts`): takes `db` and an optional `now: () => Date`.
-- `packages/core/src/rateLimit/InMemoryRateLimiter.ts`: for unit tests of services and handlers (named for what it is, like `MockEmailService`).
-- `packages/core/src/rateLimit/retryAfter.ts` (+ test): window math (`windowStart`, `retryAfterSeconds`), pure.
-- `packages/core/src/rateLimit/pruneRateLimitBuckets.ts` (+ integration test).
-- `apps/web/src/lib/rateLimit.ts` (+ test): `rateLimitedResponse(decision)`, `clientIp(headers)`, `enforceWriteLimit(session)`; builds the `PostgresRateLimiter` from `db`. (M3 ships `rateLimitedResponse` and the fail-closed 503; `clientIp` and `enforceWriteLimit` arrive in M4)
-- `apps/web/src/lib/limitedCopy.ts` (+ test): the three strings and the duration wording.
-- `packages/core/src/rateLimit/consumeBudgets.ts` (+ test): spends several budgets in order, names the one that refused, fails closed; `RecordingRateLimiter.ts`: test support that records spends.
-- `apps/web/src/lib/readRateLimit.ts` (+ test): reads a 429 (body, then `Retry-After`, then a minute); `limitedUntil.ts` (+ test): the pure storage half of the hook.
-- `apps/web/src/lib/useLimitedUntil.ts` (+ test of the pure parts: read, expiry, blocked storage): the persisted wait.
-- `apps/web/src/app/api/v1/routeLimits.test.ts`: the scanning test.
-- `apps/web/src/lib/contentSecurityPolicy.ts` (+ test): the pure policy builder.
-- `apps/web/e2e/journeys/rate-limits.spec.ts` (L1–L6), `apps/web/e2e/journeys/session-integrity.spec.ts` (S2, or added to `sessions.spec.ts` if it fits), CSP journey S3 in `front-door.spec.ts`.
+- `packages/database/prisma/schema.prisma` + migration `20261022204018_rate_limit_bucket`: `RateLimitBucket`.
+- `packages/shared/src/rateLimits.ts` (+ test): the policy constants (`RATE_LIMIT_POLICIES`), `RATE_LIMIT_RETENTION_DAYS`, and `MAX_RATE_LIMIT_WINDOW_SECONDS` (the longest window, which the client clamps a wait to).
+- `packages/core/src/rateLimit/`: `RateLimiter.ts` (the interface), `PostgresRateLimiter.ts` (takes `db` and an optional `now`), `InMemoryRateLimiter.ts` (+ test; for unit tests, can be told to fail), `RecordingRateLimiter.ts` (test support: records spends), `rateLimiterContract.ts` (the behavior both implementations must have, run against each), `retryAfter.ts` (+ test: window math), `consumeBudgets.ts` (+ test: spends several budgets in order, names the one that refused, fails closed), `pruneRateLimitBuckets.ts` (+ test), `rateLimit.integration.test.ts` (the contract and the races against Postgres).
+- `apps/web/src/lib/`: `rateLimitHttp.ts` (+ test: the 429, the 503, `clientIp`; pure), `rateLimit.ts` (+ test: `enforceLimit`, `enforceWriteLimit`; uses the counter), `limitedCopy.ts` (+ test: the strings, `formatWait`, `holdsAllInvites`), `readRateLimit.ts` (+ test: reads a 429), `limitedUntil.ts` (+ test: the pure storage half: keys, read, write, handoff, sweep), `useLimitedUntil.ts` (the persisted, shared wait), `contentSecurityPolicy.ts` (+ test: the pure policy builder).
+- `apps/web/vitest.setup.ts` (stubs `@/lib/rateLimit` for route tests) and `apps/web/src/app/api/v1/routeLimits.test.ts` (the scanning test).
+- `apps/web/e2e/journeys/`: `rate-limits.spec.ts` (L1, L1b, L1c, L2, L2b, L3, L4, L6, L7), `session-integrity.spec.ts` (S2), `content-security-policy.spec.ts` (S3); `apps/web/e2e/support/rateLimits.ts` (`untilRefused`, `alignToWindow`). L5 is in `api-authorization.spec.ts`; S1 in `front-door.spec.ts`.
 
 **Changed**
 
-- `packages/core/src/invite/sendInvites.ts`, `resendInvite.ts`: take `rateLimiter` in `ctx`; new `rate_limited` error variant (`retryAfterSeconds`).
-- Route handlers: `brunches/[id]/invites`, `invites/[id]/resend` (map `rate_limited` to 429); both Places routes (add `auth()` and the limit); every mutating route under `app/api/v1` (one line after `auth()`); the two token routes (count invalid attempts).
-- `apps/web/src/lib/services.ts`: `getRateLimiter()` next to `getEmailService()` (one construction point, as ADR 0009).
-- `apps/web/src/inngest/functions.ts`, `events.ts`: the prune cron function.
-- `apps/web/src/middleware.ts`: nonce + CSP (M5/M6).
-- `InvitePanel.tsx`, `PlaceSearchInput.tsx`: read 429 and show the limited line.
-- `package.json` files, lockfile, `.github/workflows/ci.yml` (audit step), `docs/*`, `CLAUDE.md` files, `apps/web/e2e/journeys/front-door.spec.ts`, `api-authorization.spec.ts`.
+- `packages/core/src/invite/`: `sendInvites`, `resendInvite`, `reviewInviteSuggestion` (and `suggestInvitee`, which calls it) take `rateLimiter` in `ctx` and return `rate_limited` / `rate_limiter_unavailable`; about a hundred test call sites gained a limiter.
+- Route handlers: every mutating route under `app/api/v1` (`enforceWriteLimit` after `auth()`); both Places routes (`auth()` and a per-person budget); both invite-token routes (the address budget); the invites, resend and suggestion-review routes (map the two new errors).
+- `apps/web/src/lib/services.ts` (`getRateLimiter()`), `apps/web/src/inngest/functions.ts` and `events.ts` (the prune job), `apps/web/src/middleware.ts` (the policy on every response), `next.config.ts` (comment).
+- UI: `InvitePanel.tsx`, `SuggestionsPanel.tsx`, `PlaceSearchInput.tsx`, the creation wizard (`new/page.tsx`, `wizardSlice.ts`), `Button.module.css` (`aria-disabled` looks disabled), `detail.module.css`.
+- `package.json` and `pnpm-workspace.yaml` (overrides), the lockfile, `.github/workflows/ci.yml` (the audit step), `docs/*`, the `CLAUDE.md` files and the `spec-grill` skill.
 
 ## Key design
 
@@ -80,12 +71,15 @@ Counting happens before the transaction. If the transaction then fails the units
 
 Each control keeps its own state in `useState` (ADR 0011: a single control's state); no slice. A new hook, `apps/web/src/lib/useLimitedUntil.ts`, holds "limited until" for a control:
 
-- `limitedUntil` is an **absolute timestamp** (`Date.now() + retryAfterSeconds * 1000`), written to `localStorage` under `limit:<control>:<userId>[:<id>]` (the Resend button adds its invite id). On mount it reads the key and, if the time is still ahead, starts disabled; a timer re-enables at that moment, and the key is removed.
+- `limitedUntil` is an **absolute timestamp** (`Date.now() + retryAfterSeconds * 1000`), written to `localStorage` under `brunchsters:limit:<control>:<userId>[:<id>]` (the Resend button adds its invite id, the send button its brunch id) and clamped to a day, the longest window. On mount it reads the key and, if the time is still ahead, starts disabled; a timer re-enables at that moment, and the key is removed.
 - A refresh, a closed tab, or a sign-out and sign-in as the same person keeps the wait. A different person in the same browser has a different key. The windows are fixed, so the saved time is the exact moment the counter resets: the next click after it succeeds.
 - Every `localStorage` call is in `try/catch`; when storage is blocked the hook keeps the time in memory and the server's 429 remains the real enforcement.
 - It does not cover another device or cleared site data: those learn on their first click (the server answers 429, the control disables). An accurate answer there needs a read-only budget check on page load, not built (spec "Does Not Cover").
 - Disabled means `aria-disabled="true"` plus ignoring the click, so the button stays in the tab order and the line beside it (an `InlineAlert`, `role="status"`: it is news about a wait, not an error) stays attached. The wait is static text, not a ticking countdown. The label does not change.
-- Invites and Resend use it. Place search shows its line and clears it when the wait passes, but the input stays usable (the wait is seconds).
+- **One budget, one wait:** every control that uses the same key, on the same page or in another tab, waits together (`storage` events for tabs, an event on the window for the page). The invite panel's send button and the suggestion panel's Approve buttons spend one budget and share one key; a Resend refused by the day's budget (`holdsAllInvites`) also holds the send button.
+- **The creation wizard** hands a refused invite batch to the brunch page: it leaves the wait under `brunchsters:limit-handoff:invites-send:<brunchId>` and the invite panel adopts it into its own per-person key and deletes it.
+- **Hygiene:** as a page opens the hook sweeps this app's expired or unreadable entries (a control that is never shown again would otherwise leave its entry, with a person's id in the key, for good).
+- Place search shows its line and clears it when the wait passes, but the input stays usable (the wait is seconds) and does not remember it.
 
 It does not trigger a "Redux follow-up" in §17 beyond the one it names (showing the server's real message), done only for 429.
 
@@ -107,21 +101,23 @@ Counters in Postgres behind `RateLimiter` · fixed window · fail closed · call
 
 ## Risks
 
-| Risk                                                                                          | Mitigation                                                                                                                                                           |
-| --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| e2e trips its own limits (one IP, parallel workers)                                           | person-keyed limits only; each journey owns its users; the IP limit counts only 404s and no existing journey calls the token API; L6 sends its own `x-forwarded-for` |
-| L1 needs 51 queued emails                                                                     | the outbox is files and the queue runs 5 at a time; if it is too slow the test asserts on the 429 and the unchanged list and does not wait for delivery              |
-| The write catch-all misses a future route                                                     | the scanning test (fails on an unlisted mutating handler)                                                                                                            |
-| A shared limit makes a real person trip it (two tabs, a busy vote)                            | 60 a minute is roomy for hand use; the counter is per person; tune with beta data                                                                                    |
-| CSP breaks a page in a way e2e cannot see (the real Google redirect, a font, a dev-only eval) | report-only first, S3 fails on any violation, manual real sign-in before enforcing, and the deployment checklist rechecks on the real host                           |
-| `next-auth@5.0.0-beta.32` is not enough                                                       | recorded per advisory, owner decides (Open Question 2); the audit gate still ships with a dated ignore list                                                          |
-| The Next patch bump changes behavior                                                          | its own commit in M1, full suite in dev and CI mode, no other change in that commit                                                                                  |
-| A fixed window double-bursts at the boundary                                                  | accepted (ADR 0013); the numbers are volume guards                                                                                                                   |
-| Limiter DB errors lock everyone out                                                           | the same database is already required by every route; a 503 with the cause logged                                                                                    |
+| Risk                                                                                          | Mitigation                                                                                                                                                                                      |
+| --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| e2e trips its own limits (one IP, parallel workers)                                           | person-keyed limits only; each journey owns its users; the address limit applies only to the two token routes, which no screen and no earlier journey calls; L6 sends its own `x-forwarded-for` |
+| L1 needs 50 invites seeded                                                                    | seeded through the factory (real budget, no queued mail): the first version queued about 100 real emails and starved other journeys of the queue                                                |
+| The write catch-all misses a future route                                                     | the scanning test (fails on an unlisted mutating handler)                                                                                                                                       |
+| A shared limit makes a real person trip it (two tabs, a busy vote)                            | 60 a minute is roomy for hand use; the counter is per person; tune with beta data                                                                                                               |
+| CSP breaks a page in a way e2e cannot see (the real Google redirect, a font, a dev-only eval) | report-only first, S3 fails on any violation, manual real sign-in before enforcing, and the deployment checklist rechecks on the real host                                                      |
+| `next-auth@5.0.0-beta.32` is not enough                                                       | recorded per advisory, owner decides (Open Question 2); the audit gate still ships with a dated ignore list                                                                                     |
+| The Next patch bump changes behavior                                                          | its own commit in M1, full suite in dev and CI mode, no other change in that commit                                                                                                             |
+| A journey that checks "still refused" straddles a window boundary                             | each segment starts only when enough of the server window is left (`alignToWindow`); found by the stress run failing three times in five seconds                                                |
+| The Next dev server answers a burst on a cold route with a transient 500                      | the first request of each loop goes alone (`untilRefused`); a production build cannot do this (the log named `ENOENT next-font-manifest.json`)                                                  |
+| A fixed window double-bursts at the boundary                                                  | accepted (ADR 0013); the numbers are volume guards                                                                                                                                              |
+| Limiter DB errors lock everyone out                                                           | the same database is already required by every route; a 503 with the cause logged                                                                                                               |
 
 ## Test strategy
 
 - **Unit (vitest):** policy math and window boundaries; `InMemoryRateLimiter`; the decision-to-429 mapping; `clientIp`; `formatWait`; the CSP builder; every service change (denied send creates nothing and emits nothing; budgets consumed after the host check and not before; the de-duplicated count is what is charged; outsider and made-up ids give identical results); handler order tests per route family; the scanning test.
 - **Integration (real local Postgres, `pnpm --filter @brunchsters/core test:integration`):** `PostgresRateLimiter` under concurrency (50 parallel `consume` calls at limit 10 allow exactly 10), denial does not increment, window rollover with the injected clock, cost greater than the limit, prune keeps today's buckets, and `sendInvites` against a real brunch with the real limiter.
-- **E2E:** L1–L6, S2, S3, and the edited S1 and `api-authorization`. Each new journey is proven to fail with its fix removed (the proof is listed in the milestone).
+- **E2E:** L1 to L7 (with L1b, L1c, L2b), S1 to S3, and `api-authorization` (L5). Each new journey is proven to fail with its fix removed (the proof is listed in the milestone).
 - **Manual:** real Google sign-in after the dependency bump (M1) and after enforcing CSP (M6).
