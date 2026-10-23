@@ -41,6 +41,20 @@ describe('readRateLimit', () => {
     });
   });
 
+  it('never keeps a wait longer than the longest window (a day), from the body or the header', async () => {
+    expect(
+      await readRateLimit(answer(429, { policy: 'writes', retryAfterSeconds: 9_999_999_999 })),
+    ).toEqual({ policy: 'writes', retryAfterSeconds: 86_400 });
+    expect(await readRateLimit(answer(429, {}, { 'Retry-After': '99999999' }))).toEqual({
+      policy: 'unknown',
+      retryAfterSeconds: 86_400,
+    });
+    // A wait inside the limit is left alone.
+    expect(
+      await readRateLimit(answer(429, { policy: 'writes', retryAfterSeconds: 86_400 })),
+    ).toEqual({ policy: 'writes', retryAfterSeconds: 86_400 });
+  });
+
   it('ignores a wait that is not a whole positive number', async () => {
     for (const bad of [-5, 1.5, '10', null]) {
       expect(

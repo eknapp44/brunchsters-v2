@@ -12,6 +12,11 @@ export type RateLimitPolicy = {
 const MINUTE = 60;
 const DAY = 24 * 60 * MINUTE;
 
+// No policy window is longer than this, and the client relies on it: a wait it keeps is clamped
+// to it, because `setTimeout` treats a delay above about 24.8 days as "now" and would drop a
+// huge wait at once. A longer window would need the client to re-arm its timer.
+export const MAX_RATE_LIMIT_WINDOW_SECONDS = DAY;
+
 export const RATE_LIMIT_POLICIES = {
   // Invite emails: one unit per address that will be emailed (created, revived or re-sent).
   inviteEmailsPerHost: { name: 'invite-emails-host', limit: 100, windowSeconds: DAY },

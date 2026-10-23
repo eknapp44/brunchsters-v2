@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { RATE_LIMIT_POLICIES, RATE_LIMIT_RETENTION_DAYS } from './rateLimits';
+import {
+  MAX_RATE_LIMIT_WINDOW_SECONDS,
+  RATE_LIMIT_POLICIES,
+  RATE_LIMIT_RETENTION_DAYS,
+} from './rateLimits';
 
 const policies = Object.values(RATE_LIMIT_POLICIES);
 
@@ -23,6 +27,12 @@ describe('RATE_LIMIT_POLICIES', () => {
     expect(RATE_LIMIT_POLICIES.inviteEmailsPerHost.limit).toBeGreaterThanOrEqual(
       RATE_LIMIT_POLICIES.inviteEmailsPerBrunch.limit,
     );
+  });
+
+  it('has no window longer than the client clamps a wait to', () => {
+    for (const policy of policies) {
+      expect(policy.windowSeconds).toBeLessThanOrEqual(MAX_RATE_LIMIT_WINDOW_SECONDS);
+    }
   });
 
   it('keeps counters for longer than the longest window, so a live window is never pruned', () => {

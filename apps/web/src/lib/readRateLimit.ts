@@ -1,3 +1,4 @@
+import { MAX_RATE_LIMIT_WINDOW_SECONDS } from '@brunchsters/shared';
 import type { RateLimitFacts } from './limitedCopy';
 
 const FALLBACK_WAIT_SECONDS = 60;
@@ -21,11 +22,14 @@ export async function readRateLimit(response: Response): Promise<RateLimitFacts 
   }
 
   const header = response.headers.get('Retry-After');
+  const seconds =
+    wholeSeconds(body.retryAfterSeconds) ??
+    wholeSeconds(header === null ? undefined : Number(header)) ??
+    FALLBACK_WAIT_SECONDS;
   return {
     policy: typeof body.policy === 'string' ? body.policy : 'unknown',
-    retryAfterSeconds:
-      wholeSeconds(body.retryAfterSeconds) ??
-      wholeSeconds(header === null ? undefined : Number(header)) ??
-      FALLBACK_WAIT_SECONDS,
+    // Never longer than the longest window there is: a wait is kept in the browser and run on a
+    // timer, and a huge one (a proxy's header, say) must not outlive anything real.
+    retryAfterSeconds: Math.min(seconds, MAX_RATE_LIMIT_WINDOW_SECONDS),
   };
 }
