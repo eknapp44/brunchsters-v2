@@ -1,5 +1,12 @@
 import { err, ok, type Result } from 'neverthrow';
-import type { ConsumeInput, RateLimitDecision, RateLimiter, RateLimitError } from './RateLimiter';
+import type {
+  ConsumeInput,
+  PeekInput,
+  RateLimitDecision,
+  RateLimiter,
+  RateLimitError,
+  RateLimitStatus,
+} from './RateLimiter';
 import { secondsUntilWindowEnd, windowStartFor } from './retryAfter';
 
 // For unit tests of services and handlers (like MockEmailService): the same decisions as the
@@ -38,5 +45,36 @@ export class InMemoryRateLimiter implements RateLimiter {
     }
     this.counts.set(key, used + cost);
     return ok({ allowed: true, remaining: policy.limit - used - cost });
+  }
+
+  // async for the same reason as consume: a bad cost is a rejected promise.
+  async peek(
+    inputs: readonly PeekInput[],
+  ): Promise<Result<readonly RateLimitStatus[], RateLimitError>> {
+    if (this.failure !== undefined) {
+      return err({ kind: 'db_error', cause: this.failure });
+    }
+    const now = this.now();
+    return ok(
+      inputs.map((input): RateLimitStatus => {
+        const cost = input.cost ?? 1;
+        if (!Number.isInteger(cost) || cost < 1) {
+          throw new Error(`Rate limit cost must be a positive whole number, got ${cost}`);
+        }
+        const { policy } = input;
+        const windowStart = windowStartFor({ now, windowSeconds: policy.windowSeconds });
+        const used =
+          this.counts.get(`${policy.name}:${input.subject}@${windowStart.getTime()}`) ?? 0;
+        return cost > policy.limit || used + cost > policy.limit
+          ? {
+              blocked: true,
+              retryAfterSeconds: secondsUntilWindowEnd({
+                now,
+                windowSeconds: policy.windowSeconds,
+              }),
+            }
+          : { blocked: false, remaining: policy.limit - used };
+      }),
+    );
   }
 }

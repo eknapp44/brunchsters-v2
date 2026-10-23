@@ -1,6 +1,13 @@
 import type { DbClient } from '@brunchsters/database';
 import { err, ok, type Result } from 'neverthrow';
-import type { ConsumeInput, RateLimitDecision, RateLimiter, RateLimitError } from './RateLimiter';
+import type {
+  ConsumeInput,
+  PeekInput,
+  RateLimitDecision,
+  RateLimiter,
+  RateLimitError,
+  RateLimitStatus,
+} from './RateLimiter';
 import { secondsUntilWindowEnd, windowStartFor } from './retryAfter';
 
 // The counter lives in RateLimitBucket (ADR 0013), one row per "<policy>:<subject>" and window.
@@ -44,6 +51,51 @@ export class PostgresRateLimiter implements RateLimiter {
       const [row] = rows;
       if (row === undefined) return ok({ allowed: false, retryAfterSeconds });
       return ok({ allowed: true, remaining: policy.limit - Number(row.count) });
+    } catch (cause) {
+      return err({ kind: 'db_error', cause });
+    }
+  }
+
+  // One read for all the questions. A bucket is one row per key and window, so a key can have a
+  // current row and an older one still waiting to be pruned: the current window is picked by its
+  // start. A key with no row for this window has spent nothing.
+  async peek(
+    inputs: readonly PeekInput[],
+  ): Promise<Result<readonly RateLimitStatus[], RateLimitError>> {
+    if (inputs.length === 0) return ok([]);
+    const now = this.now();
+    const questions = inputs.map((input) => ({
+      key: `${input.policy.name}:${input.subject}`,
+      windowStart: windowStartFor({ now, windowSeconds: input.policy.windowSeconds }).getTime(),
+      retryAfterSeconds: secondsUntilWindowEnd({ now, windowSeconds: input.policy.windowSeconds }),
+      limit: input.policy.limit,
+      cost: input.cost ?? 1,
+    }));
+    for (const question of questions) {
+      if (!Number.isInteger(question.cost) || question.cost < 1) {
+        throw new Error(`Rate limit cost must be a positive whole number, got ${question.cost}`);
+      }
+    }
+
+    try {
+      const keys = [...new Set(questions.map((question) => question.key))];
+      const rows = await this.db.$queryRaw<
+        ReadonlyArray<{ readonly key: string; readonly windowStart: Date; readonly count: number }>
+      >`SELECT "key", "windowStart", "count" FROM "RateLimitBucket" WHERE "key" = ANY(${keys}::text[])`;
+      const spent = new Map(
+        rows.map((row) => [`${row.key}@${row.windowStart.getTime()}`, Number(row.count)]),
+      );
+
+      return ok(
+        questions.map((question): RateLimitStatus => {
+          const used = spent.get(`${question.key}@${question.windowStart}`) ?? 0;
+          // The same rule consume applies, without spending: more than the whole limit never
+          // fits, otherwise it fits while used + cost stays within the limit.
+          return question.cost > question.limit || used + question.cost > question.limit
+            ? { blocked: true, retryAfterSeconds: question.retryAfterSeconds }
+            : { blocked: false, remaining: question.limit - used };
+        }),
+      );
     } catch (cause) {
       return err({ kind: 'db_error', cause });
     }

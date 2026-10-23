@@ -1,5 +1,12 @@
 import { err, ok, type Result } from 'neverthrow';
-import type { ConsumeInput, RateLimitDecision, RateLimiter, RateLimitError } from './RateLimiter';
+import type {
+  ConsumeInput,
+  PeekInput,
+  RateLimitDecision,
+  RateLimiter,
+  RateLimitError,
+  RateLimitStatus,
+} from './RateLimiter';
 
 export type RecordedSpend = {
   readonly policy: string;
@@ -33,5 +40,28 @@ export class RecordingRateLimiter implements RateLimiter {
       return Promise.resolve(ok({ allowed: false, retryAfterSeconds: 321 }));
     }
     return Promise.resolve(ok({ allowed: true, remaining: 1 }));
+  }
+
+  // Nothing is blocked unless refusePolicy says so (then that policy is blocked for 321 seconds,
+  // the same wait consume gives it), and the questions are recorded like the spends.
+  readonly peeks: RecordedSpend[] = [];
+
+  peek(inputs: readonly PeekInput[]): Promise<Result<readonly RateLimitStatus[], RateLimitError>> {
+    for (const input of inputs) {
+      this.peeks.push({ policy: input.policy.name, subject: input.subject, cost: input.cost ?? 1 });
+    }
+    if (this.failure !== undefined) {
+      return Promise.resolve(err({ kind: 'db_error', cause: this.failure }));
+    }
+    return Promise.resolve(
+      ok(
+        inputs.map(
+          (input): RateLimitStatus =>
+            input.policy.name === this.refusePolicy
+              ? { blocked: true, retryAfterSeconds: 321 }
+              : { blocked: false, remaining: 1 },
+        ),
+      ),
+    );
   }
 }
