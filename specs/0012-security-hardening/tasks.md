@@ -177,3 +177,5 @@ Added after the pre-merge review, at the owner's request ("do the full server-tr
 ### Second pre-merge review (after M7 and M8)
 
 Four lenses and the lifecycle pass over the redesign. _Fixed:_ (1) nothing guarded the `router.refresh()` after a refused send or a refused Resend (removing either failed no journey): journey L1e (two tests) added, proved to fail with each refresh removed; (2) the brunch page waited on `getInviteWaits` before starting the voting and roster reads, and cast an id that already had its type: both fixed; (3) the spec's journey table and PLANNING §17 still described the browser-stored wait: rewritten. _Checked, nothing found:_ the waits are asked only for the host, after the host-only invite list loaded (no new way to tell a real id from a made-up one); `peek` and `getInviteWaits` spend nothing; `useWait` resyncs on a new answer and cannot reach `fromServer` stale after a refusal. _Not checked:_ a wait started in another tab appears on the next load (accepted, ADR 0013 addendum).
+
+**Released:** merged as PR #18 and released as v1.10.0 on 2026-10-23; the release workflow succeeded.
