@@ -220,6 +220,20 @@ test.describe('E5 — deleting', () => {
     await remove.click({ force: true });
     await expect(host.page.getByRole('dialog')).toHaveCount(0);
 
+    // The page's countdown ending is not the server's say-so: the guests still have not been told
+    // (nothing queued them), so after the countdown the button is still waiting, because the page
+    // asked the server instead of letting go.
+    await host.page.clock.install();
+    await host.page.reload();
+    await expect(remove).toHaveAttribute('aria-disabled', 'true');
+    await host.page.clock.fastForward('10:00');
+    await expect(
+      host.page.getByText(
+        'People are still being told it was called off. Delete comes back in a few minutes.',
+      ),
+    ).toBeVisible();
+    await expect(remove).toHaveAttribute('aria-disabled', 'true');
+
     // Once the queue has told them (here: called off as of long ago, through the real queue),
     // Delete is available.
     await bringBackBrunch({ brunchId, host: host.user, announce: false });

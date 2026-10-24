@@ -49,7 +49,8 @@ export function EndOfTheRoad(props: {
   const [dialogError, setDialogError] = useState<string | undefined>(undefined);
   const [error, setError] = useState<string | undefined>(undefined);
   const callOffWait = useWait(props.callOffWait);
-  const deleteWait = useWait(props.deleteWait);
+  // Its end is a guess (the queue may run late), so it asks the server instead of letting go.
+  const deleteWait = useWait(props.deleteWait, { onExpire: () => router.refresh() });
 
   const isDraft = props.statusCode === 'draft';
   const isCalledOff = props.statusCode === 'cancelled';
