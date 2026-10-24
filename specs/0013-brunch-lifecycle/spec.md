@@ -1,6 +1,6 @@
 # Spec 0013 — Brunch Lifecycle
 
-**Status:** Drafted 2026-10-23 (grilled with the owner; no code yet)  
+**Status:** Complete 2026-10-24 (M1 to M7 built, tested and reviewed by the owner; not yet merged or released)  
 **Branch:** `feat/0013-brunch-lifecycle`  
 **PLANNING.md ref:** §16 roadmap step 2, §17 "Product candidates" (2), §8 (Brunch, BrunchAttendee)  
 **ADRs:** [0015 — Brunch lifecycle](../../docs/adrs/0015-brunch-lifecycle.md)  
@@ -86,43 +86,43 @@ Plus the **status flow** written down as a table the code checks, **one guard** 
 
 ### Schema
 
-- [ ] `Brunch`: `cancelledAt`, `cancelledBy`, `statusBeforeCancelId` (FK to `BrunchStatus`), `cancelNoticeSentAt` (all nullable); `BrunchAttendee`: `hiddenAt` (nullable); one migration, committed with the schema
-- [ ] No data migration: no row has `archivedAt` set or a `cancelled`/`archived` status today (verified against the dev and e2e databases in M1)
-- [ ] PLANNING §8 notes the new columns and that `archivedAt`/`archivedBy`/`cancellationJobId` are unused (ADR 0015)
+- [x] `Brunch`: `cancelledAt`, `cancelledBy`, `statusBeforeCancelId` (FK to `BrunchStatus`), `cancelNoticeSentAt` (all nullable); `BrunchAttendee`: `hiddenAt` (nullable); one migration, committed with the schema
+- [x] No data migration: no row has `archivedAt` set or a `cancelled`/`archived` status today (verified against the dev and e2e databases in M1)
+- [x] PLANNING §8 notes the new columns and that `archivedAt`/`archivedBy`/`cancellationJobId` are unused (ADR 0015)
 
 ### Services (`packages/core`)
 
-- [ ] `BRUNCH_TRANSITIONS` + `assertCanTransition`; a unit test requires an entry for every seeded status; `sendInvites` (draft→active) and `confirmBrunch` use it, re-checking the status inside the transaction
-- [ ] `assertBrunchOpen` (rejects `cancelled`, `completed`, `archived`); applied to every service that changes a brunch's data (RSVP, token join, invites send/resend/revoke, invite and option suggestions and reviews, ballots, option add/remove, voting deadline and close, confirm); exemptions are named with reasons; a static test fails when a mutating service in `brunch/` or `invite/` neither calls it nor is exempt
-- [ ] `cancelBrunch`: `assertHostOf` first, then open (not already cancelled), status in {active, confirmed}, not over; spends the per-host cancel budget; one transaction sets status, `cancelledAt/By`, `statusBeforeCancelId`, clears `cancelNoticeSentAt`; emits `brunch/cancelled` after commit (a failed emit never fails the cancel)
-- [ ] `reinstateBrunch`: host, status `cancelled`, not deleted; restores `statusBeforeCancelId`; emits `brunch/reinstated` (only the handler decides whether anyone is told)
+- [x] `BRUNCH_TRANSITIONS` + `assertCanTransition`; a unit test requires an entry for every seeded status; `sendInvites` (draft→active) and `confirmBrunch` use it, re-checking the status inside the transaction
+- [x] `assertBrunchOpen` (rejects `cancelled`, `completed`, `archived`); applied to every service that changes a brunch's data (RSVP, token join, invites send/resend/revoke, invite and option suggestions and reviews, ballots, option add/remove, voting deadline and close, confirm); exemptions are named with reasons; a static test fails when a mutating service in `brunch/` or `invite/` neither calls it nor is exempt
+- [x] `cancelBrunch`: `assertHostOf` first, then open (not already cancelled), status in {active, confirmed}, not over; spends the per-host cancel budget; one transaction sets status, `cancelledAt/By`, `statusBeforeCancelId`, clears `cancelNoticeSentAt`; emits `brunch/cancelled` after commit (a failed emit never fails the cancel)
+- [x] `reinstateBrunch`: host, status `cancelled`, not deleted; restores `statusBeforeCancelId`; emits `brunch/reinstated` (only the handler decides whether anyone is told)
 - [x] `deleteBrunch`: host; only `draft` or `cancelled`; a called-off brunch only once its notice has gone out (`notice_pending` until then, or an hour after the hold if the queue never delivered it); sets `deletedAt/By`; a second delete is a 404
-- [ ] `setBrunchHidden`: any current member (host included), any status; sets or clears the caller's own `hiddenAt`; an outsider gets `brunch_not_found`
-- [ ] `getBrunchesForUser` returns `isHidden` (the viewer's own; a called-off brunch is `statusCode === 'cancelled'`, so there is no separate flag); `groupDashboard` returns `hidden`, drops hidden brunches from next-up/upcoming/past; `limitPast` caps Past at five unless asked (the page slices with it); `summaryLine` counts only visible brunches
+- [x] `setBrunchHidden`: any current member (host included), any status; sets or clears the caller's own `hiddenAt`; an outsider gets `brunch_not_found`
+- [x] `getBrunchesForUser` returns `isHidden` (the viewer's own; a called-off brunch is `statusCode === 'cancelled'`, so there is no separate flag); `groupDashboard` returns `hidden`, drops hidden brunches from next-up/upcoming/past; `limitPast` caps Past at five unless asked (the page slices with it); `summaryLine` counts only visible brunches
 - [x] `getInviteByToken` exposes `isCalledOff` (M2); `getBrunchById` exposes the viewer's `isHidden`; `respondToInvite` refuses a called-off brunch (`brunch_called_off`) before creating anything (M2)
-- [ ] Recipient resolution shared by the confirmation and cancel emails; `brunch/cancelled` handler (hold, re-read, send), `brunch/reinstated` handler (send only if the notice went out), templates, idempotency keys that include `cancelledAt`
-- [ ] Policy `cancelNoticesPerHost` in `packages/shared/src/rateLimits.ts`, keyed by the host (never a brunch id)
+- [x] Recipient resolution shared by the confirmation and cancel emails; `brunch/cancelled` handler (hold, re-read, send), `brunch/reinstated` handler (send only if the notice went out), templates, idempotency keys that include `cancelledAt`
+- [x] Policy `cancelNoticesPerHost` in `packages/shared/src/rateLimits.ts`, keyed by the host (never a brunch id)
 
 ### API routes (`apps/web/src/app/api/v1/`)
 
-- [ ] `POST brunches/[id]/cancel`, `POST brunches/[id]/reinstate`, `DELETE brunches/[id]`, `PUT brunches/[id]/hidden` (`{ hidden: boolean }`), each: session → `enforceWriteLimit(session.user.id)` → id check → body → service; 401, 404 (outsider, made-up and deleted ids alike), 403 (member who is not the host, on the host routes), 409 (wrong state), 422, 429 (with `Retry-After`)
-- [ ] `routeLimits.test.ts` passes for each; `emailBudgets.test.ts` records `brunch/cancelled` as budgeted and `brunch/reinstated` as bounded (with the reason), and core spends the budget before emitting
-- [ ] Handler tests per route (state conflicts, the 404/403 order, limits)
+- [x] `POST brunches/[id]/cancel`, `POST brunches/[id]/reinstate`, `DELETE brunches/[id]`, `PUT brunches/[id]/hidden` (`{ hidden: boolean }`), each: session → `enforceWriteLimit(session.user.id)` → id check → body → service; 401, 404 (outsider, made-up and deleted ids alike), 403 (member who is not the host, on the host routes), 409 (wrong state), 422, 429 (with `Retry-After`)
+- [x] `routeLimits.test.ts` passes for each; `emailBudgets.test.ts` records `brunch/cancelled` as budgeted and `brunch/reinstated` as bounded (with the reason), and core spends the budget before emitting
+- [x] Handler tests per route (state conflicts, the 404/403 order, limits)
 
 ### UI
 
-- [ ] While a called-off brunch's notice is pending (`isCancelNoticePending`, the rule `deleteBrunch` uses), the Delete button is `aria-disabled` with a line saying people are still being told; it comes back by itself
-- [ ] Manage page: an "End of the road" section whose buttons depend on the state (Call it off; Bring it back and Delete; Delete this draft); a called-off brunch shows the banner and only these actions; confirm dialogs (focus trapped, Escape closes, safe default)
-- [ ] Brunch page: called-off banner, read-only; **Hide** / **Unhide** control for every member
-- [ ] Invite page: "called this one off" for a called-off brunch, signed in or out, no join, no sign-in button for the dead end
-- [ ] Dashboard: "Called off" badge on Past rows (copy table entry), Past capped at five with "Show all", "Hidden (n)" section/link (also in the empty state), hidden brunches excluded from next-up and the waiting count; a **Hide** control (an eye icon, named `Hide {title}`) on each row and on the next-up card at every width, phone included (first decided as tablet and up only; the icon fits a phone row, so it was extended after the owner's review); an **Unhide** button on each row of the Hidden list at every width
-- [ ] Client state: the dialogs' open/pending/error are a single control's state (`useState`, ADR 0011); no Redux slice. Server-rendered links for "Show all" and "Hidden". The 429 wait uses the existing `useWait`/`limitedMessage` pattern
-- [ ] Phone: phone board for the manage page's end section, the dialog, the called-off banner and the dashboard with a Hidden link; the explanatory sub-lines drop on a phone and the buttons stack full width
-- [ ] Voice: strings added to the copy table in `plan.md` and checked against the Brand Voice; accessible names listed per milestone below
+- [x] While a called-off brunch's notice is pending (`isCancelNoticePending`, the rule `deleteBrunch` uses), the Delete button is `aria-disabled` with a line saying people are still being told; it comes back by itself
+- [x] Manage page: an "End of the road" section whose buttons depend on the state (Call it off; Bring it back and Delete; Delete this draft); a called-off brunch shows the banner and only these actions; confirm dialogs (focus trapped, Escape closes, safe default)
+- [x] Brunch page: called-off banner, read-only; **Hide** / **Unhide** control for every member
+- [x] Invite page: "called this one off" for a called-off brunch, signed in or out, no join, no sign-in button for the dead end
+- [x] Dashboard: "Called off" badge on Past rows (copy table entry), Past capped at five with "Show all", "Hidden (n)" section/link (also in the empty state), hidden brunches excluded from next-up and the waiting count; a **Hide** control (an eye icon, named `Hide {title}`) on each row and on the next-up card at every width, phone included (first decided as tablet and up only; the icon fits a phone row, so it was extended after the owner's review); an **Unhide** button on each row of the Hidden list at every width
+- [x] Client state: the dialogs' open/pending/error are a single control's state (`useState`, ADR 0011); no Redux slice. Server-rendered links for "Show all" and "Hidden". The 429 wait uses the existing `useWait`/`limitedMessage` pattern
+- [x] Phone: phone board for the manage page's end section, the dialog, the called-off banner and the dashboard with a Hidden link. **As built (corrected at M7):** the dialog's choices stack on a phone, and the page's one-line helper sentences stay (they are short); buttons keep their natural width, and Hide is an eye on rows and the next-up card at every width, with the word and its explanation in the brunch page's header.
+- [x] Voice: strings added to the copy table in `plan.md` and checked against the Brand Voice; accessible names listed per milestone below
 
 ### Docs
 
-- [ ] `PLANNING.md`: §8 columns, §16/§17 roadmap and open items updated; `docs/SETUP.md` if any command changes; `apps/web/CLAUDE.md` (screens, accessible names); root `CLAUDE.md` (the status table and open-guard rules, in Architectural Rules); `/spec-grill` and `/ui-screen` skills if this spec teaches them something; each milestone's testing notes
+- [x] `PLANNING.md`: §8 columns, §16/§17 roadmap and open items updated; `docs/SETUP.md` if any command changes; `apps/web/CLAUDE.md` (screens, accessible names); root `CLAUDE.md` (the status table and open-guard rules, in Architectural Rules); `/spec-grill` and `/ui-screen` skills if this spec teaches them something; each milestone's testing notes
 
 ---
 

@@ -3,10 +3,11 @@ import { getDb } from '../support/db';
 import { createBrunch, uniqueSuffix } from '../support/factories';
 import { expect, test } from '../support/fixtures';
 import { afterTheHold, bringBackBrunch, callOffBrunch } from '../support/lifecycle';
-import { NOT_FOUND } from '../support/pages';
+import { GONE_COLD, NOT_FOUND } from '../support/pages';
+import { linkIn, waitForEmails } from '../support/mailbox';
 import { fixturePlaces } from '../support/places';
 import { alignToWindow } from '../support/rateLimits';
-import { inviteNewcomer } from '../support/showcase';
+import { createVotingBrunch, inviteNewcomer } from '../support/showcase';
 import { daysFromNow } from '../support/time';
 import { addAttendee, confirmBrunch, passConfirmedTime } from '../support/voting';
 import type { BrunchId } from '@brunchsters/shared';
@@ -148,6 +149,47 @@ test.describe('E2 — bringing it back puts everything as it was', () => {
   });
 });
 
+test.describe('E3 — bringing it back after the guests were told', () => {
+  test('the guest hears it is back on, and the brunch takes their answer again', async ({
+    makeActor,
+  }) => {
+    const host = await makeActor('host');
+    const guest = await makeActor('guest');
+    const title = `Back On ${uniqueSuffix()}`;
+    const brunchId = await createBrunch({ host: host.user, title });
+    await addAttendee({ brunchId, host: host.user, user: guest.user, response: 'yes' });
+
+    // Called off as of long ago through the real queue, so the guest was told.
+    await callOffBrunch({ brunchId, host: host.user, at: afterTheHold() });
+    await waitForEmails({ to: guest.user.email, count: 1 });
+    await expect
+      .poll(
+        async () =>
+          (await getDb().brunch.findFirst({ where: { id: brunchId } }))?.cancelNoticeSentAt ?? null,
+      )
+      .not.toBeNull();
+    await guest.page.goto(`/brunch/${brunchId}`);
+    await expect(guest.page.getByRole('heading', { name: 'Called off.' })).toBeVisible();
+    await expect(guest.page.getByRole('heading', { name: 'You in?' })).toHaveCount(0);
+
+    // The host brings it back from the page, and the guest is told it is on again.
+    await host.page.goto(`/brunch/${brunchId}/manage`);
+    await host.page.getByRole('button', { name: 'Bring it back' }).click();
+    await expect(host.page.getByRole('button', CALL_IT_OFF)).toBeVisible();
+    const [, backOn] = await waitForEmails({ to: guest.user.email, count: 2 });
+    expect(backOn?.subject).toBe(`${title} is back on 🥂`);
+    expect(new URL(linkIn(backOn as Parameters<typeof linkIn>[0])).pathname).toBe(
+      `/brunch/${brunchId}`,
+    );
+
+    // And the brunch takes an answer again.
+    await guest.page.reload();
+    await expect(guest.page.getByRole('heading', { name: 'Called off.' })).toHaveCount(0);
+    await guest.page.getByRole('button', { name: 'Maybe' }).click();
+    await expect(guest.page.getByText('Current: maybe')).toBeAttached();
+  });
+});
+
 test.describe('E4 — a link to a brunch that was called off', () => {
   test('says so, joins nobody and changes nothing, signed out or signed in', async ({
     makeActor,
@@ -208,12 +250,14 @@ test.describe('E5 — deleting', () => {
 
   test('a called-off brunch waits until its guests have been told, then goes for everyone', async ({
     makeActor,
+    page,
   }) => {
     const host = await makeActor('host');
     const guest = await makeActor('guest');
     const title = `Delete Off ${uniqueSuffix()}`;
     const brunchId = await createBrunch({ host: host.user, title });
     await addAttendee({ brunchId, host: host.user, user: guest.user, response: 'yes' });
+    const link = await inviteNewcomer({ host, brunchId });
 
     // Called off a moment ago and nobody has been told yet: Delete is there but waiting, with the
     // reason, and pressing it does nothing.
@@ -271,6 +315,12 @@ test.describe('E5 — deleting', () => {
       await expectDashboard(person.page);
       await expect(person.page.getByRole('link', { name: title })).toHaveCount(0);
     }
+
+    // The host's manage page and an old invite link say exactly what a made-up id says.
+    await host.page.goto(`/brunch/${brunchId}/manage`);
+    await expect(host.page.getByText(NOT_FOUND)).toBeVisible();
+    await page.goto(link);
+    await expect(page.getByText(GONE_COLD)).toBeVisible();
   });
 });
 
@@ -330,6 +380,31 @@ test.describe('E6 — hiding a brunch from your own dashboard', () => {
     await guest.page.getByRole('button', { name: `Hide ${title}` }).click();
     await expect(guest.page.getByRole('link', { name: `Open ${title}` })).toHaveCount(0);
     await expect(guest.page.getByRole('link', { name: 'Hidden (1)' })).toBeVisible();
+  });
+
+  test('a hidden brunch leaves the "vote waiting" count, and comes back with it', async ({
+    makeActor,
+  }) => {
+    const host = await makeActor('host');
+    const yes = await makeActor('yes');
+    const maybe = await makeActor('maybe');
+    const pending = await makeActor('pending');
+    const { title } = await createVotingBrunch({ host, guests: { yes, maybe, pending } });
+    const waiting = maybe.page.getByText('1 vote waiting');
+
+    await maybe.page.goto('/dashboard');
+    await expectDashboard(maybe.page);
+    await expect(waiting).toBeVisible();
+
+    await maybe.page.getByRole('button', { name: `Hide ${title}` }).click();
+    await expect(waiting).toHaveCount(0);
+    await maybe.page.getByRole('link', { name: 'Hidden (1)' }).click();
+    await maybe.page.getByRole('button', { name: `Unhide ${title}` }).click();
+    // Wait for it to land (the row leaves the Hidden list) before leaving, or the request is cut off.
+    await expect(maybe.page.getByRole('button', { name: `Unhide ${title}` })).toHaveCount(0);
+    await maybe.page.goto('/dashboard');
+    await expectDashboard(maybe.page);
+    await expect(waiting).toBeVisible();
   });
 
   test("a row's eye sits above the row's own link, so pressing it hides instead of opening", async ({

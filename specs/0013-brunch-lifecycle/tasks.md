@@ -158,13 +158,20 @@ Use `/ui-screen`: list the accessible names and journeys a change touches before
 
 ## M7 — The journeys
 
-- [ ] Factories wrapping the real core services (`cancelBrunchAs`, `hideBrunchAs`); no Prisma shortcut to a state the app cannot reach
-- [ ] **E1 to E8** in `brunch-lifecycle.spec.ts` (each user and brunch its own; multi-identity throughout); the mailbox asserts the notice, the no-notice inside the hold, and the back-on
-- [ ] Stress run: `--workers=4 --repeat-each=3`; dev mode and CI mode (`CI=true pnpm build && CI=true pnpm test:e2e`)
-- [ ] **Prove the tests can fail:** each journey's key assertion fails with the matching fix removed (list in the notes)
-- [ ] Spec status set to complete; `PLANNING.md` roadmap step 2 ticked with the release to come; `/pre-merge-review` before the PR
-- [ ] Commit: `test: add the brunch lifecycle journeys (M7)`
+- [x] Factories wrapping the real core services (`cancelBrunchAs`, `hideBrunchAs`); no Prisma shortcut to a state the app cannot reach
+- [x] **E1 to E8** in `brunch-lifecycle.spec.ts` (each user and brunch its own; multi-identity throughout); the mailbox asserts the notice, the no-notice inside the hold, and the back-on
+- [x] Stress run: `--workers=4 --repeat-each=3`; dev mode and CI mode (`CI=true pnpm build && CI=true pnpm test:e2e`)
+- [x] **Prove the tests can fail:** each journey's key assertion fails with the matching fix removed (list in the notes)
+- [x] Spec status set to complete; `PLANNING.md` roadmap step 2 ticked with the release to come; `/pre-merge-review` before the PR
+- [x] Commit: `test: add the brunch lifecycle journeys (M7)`
 
 **Journeys that change:** none beyond M6. **Deployable:** yes.
 
-**Testing notes:** _(fill on completion)_
+**Testing notes:**
+
+- **What was tested:** the lifecycle as people meet it, with the journey IDs from the spec. E1 call off through a dialog (safe answer focused, Escape and "Nope, keep it" change nothing, dialog centred in the window), the page read-only for everyone; E2 bring it back inside the hold; **E3** (new) bring it back after the guests were told: the guest is told it is back on, the link is the brunch, and the brunch takes an answer again; E4 old link signed out and in; E5 delete a draft, and a called-off brunch after its notice (now also **the host's manage page and an old invite link** behave as a made-up id); E6 Hide from the page, the card, a list row, a phone row and the Hidden list, only for the person, and **a hidden brunch leaves the "vote waiting" count** and returns with it (new); E7 Past capped at five; E8 the cancel budget against the real counters; E9/E10 API authorization and 409s (M4); N5 to N8 the emails and the real hold (M5); E11 the transition race is in the integration tests (M3).
+- **How:** Playwright against the real server, real Postgres counters, the real queue for the sent-notice cases, and the browser clock (`page.clock.fastForward`) for the Delete countdown; no production bypass. Final run with the owner's own dev stack stopped: typecheck, lint, unit (core 721, web 588, shared 48, database 1), integration 165, e2e dev mode 240 passed / 2 skipped (3.2 min, 4 workers), stress `--workers=4 --repeat-each=3` 720 passed / 6 skipped, production build 240 passed / 2 skipped (41 s). **Mutation checks for the new assertions** (file copied, one change, only the matching journey run, restored): the invite lookup ignoring `deletedAt` fails E5; `resolveBackOnNotice` never sending fails E3; the dashboard ignoring `isHidden` fails the waiting-count journey. Earlier in this milestone: the dialog's centring (`margin: 0 auto` fails E1), the row eye's layering and the phone `display: none`, the Delete countdown (E5) and `canCallOff` (E1).
+- **E2E journeys:** E3 added; E5, E6 extended; the rest were added in M4 to M6.
+- **Correction to this milestone's original task list:** (1) `hideBrunchAs` was not added: every Hide journey presses the real control, so a factory would be dead code, and no journey needs a hidden brunch as a starting state. `callOffBrunch` and `bringBackBrunch` (M5) are the factories that wrap the real core services. (2) The spec's phone criterion (sub-lines drop, buttons stack full width) was not what was built; it is corrected in the spec. (3) The E1 journey does not wait out the five-minute hold: the hold is proved at the queue level (N5, N8) and the page by "as of" seeding.
+- **What's deferred:** the items in PLANNING §17 "Lifecycle deferrals" (reason note, in-app notification, leaving a brunch, a confirmed brunch that is over still accepts changes, the "Suggested" group, Inngest Cloud registration at deployment). The unexplained dev-mode flakes seen during M6 were explained and fixed by capping local e2e at 4 workers (M6 note, `playwright.config.ts`).
+- **How to run it:** `pnpm test:e2e brunch-lifecycle email-notifications api-authorization`; the whole suite `pnpm test:e2e` (dev mode, stop your own `pnpm dev` first) or `CI=true pnpm build && CI=true pnpm test:e2e` (about a minute).
