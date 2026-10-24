@@ -17,6 +17,12 @@ export default defineConfig({
   testDir: './e2e/journeys',
   globalSetup: './e2e/global-setup.ts',
   fullyParallel: true,
+  // Locally the default is half the cores (12 on a 24-thread machine), all driving ONE `next dev`
+  // process that compiles each route on first use. That process is the limit: 4 and 6 workers finish
+  // the suite in the same time (198s, 238 passed), while 12 made ordinary journeys take 20 to 40
+  // seconds, tripped timeouts, and used enough memory to be stopped once. So local runs use 4 (the
+  // stress run already did). CI serves a production build and keeps Playwright's default.
+  ...(isCi ? {} : { workers: 4 }),
   forbidOnly: isCi,
   // One retry in CI only; a test that needs it to pass gets investigated, not muted.
   retries: isCi ? 1 : 0,
