@@ -42,6 +42,12 @@ describe('limitedMessage', () => {
     );
   });
 
+  it('tells a host who has called off a lot of brunches today, with the wait', () => {
+    expect(limitedMessage({ policy: 'cancel-notices-host', retryAfterSeconds: 7_200 })).toBe(
+      "That's a lot of called-off brunches for one day. Try again in about 2 hours.",
+    );
+  });
+
   it('asks for a breather for place search, writes and any policy it does not know', () => {
     for (const policy of ['place-search', 'place-details', 'writes', 'something-new']) {
       expect(limitedMessage({ policy, retryAfterSeconds: 30 })).toBe(
@@ -55,6 +61,7 @@ describe('limitedMessage', () => {
       limitedMessage({ policy: 'invite-emails-host', retryAfterSeconds: 3600 }),
       limitedMessage({ policy: 'resend-invite', retryAfterSeconds: 60 }),
       limitedMessage({ policy: 'writes', retryAfterSeconds: 5 }),
+      limitedMessage({ policy: 'cancel-notices-host', retryAfterSeconds: 3600 }),
     ].join(' ');
 
     expect(everything).not.toMatch(/rate.?limit|quota|throttl|successfully|we'll|we will/i);

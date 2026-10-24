@@ -1,0 +1,20 @@
+/* On a dashboard row the title's link stretches over the whole row to make it one target, so the
+   control has to sit above that link or it could never be clicked. */
+.row,
+.list {
+  position: relative;
+  z-index: 1;
+}
+
+/* A phone has the brunch page's control; a row there is only a row. From 40rem, where the row is
+   one line with room in it, it carries its own. `display: none` also takes it out of the reading
+   order, so a screen reader on a phone does not meet a button that is not on screen. */
+.row {
+  display: none;
+}
+
+@media (min-width: 40rem) {
+  .row {
+    display: block;
+  }
+}

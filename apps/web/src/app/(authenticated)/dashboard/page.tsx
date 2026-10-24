@@ -1,6 +1,6 @@
-import { getBrunchesForUser, getBrunchRoster, groupDashboard } from '@brunchsters/core';
+import { getBrunchesForUser, getBrunchRoster, groupDashboard, limitPast } from '@brunchsters/core';
 import type { BrunchSummary } from '@brunchsters/core';
-import { firstNameOf, type UserId } from '@brunchsters/shared';
+import { firstNameOf, PAST_BRUNCHES_SHOWN, type UserId } from '@brunchsters/shared';
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { BreakfastScene } from '@/components/art/BreakfastScene';
@@ -25,10 +25,20 @@ function PlanButton() {
   );
 }
 
+// The dashboard's own addresses: the full Past list and the Hidden list are server-rendered
+// (`?past=all`, `?hidden=1`), so nothing about them lives in the browser.
+function dashboardHref(params: { readonly pastAll: boolean; readonly hidden: boolean }): string {
+  const query = [params.pastAll ? 'past=all' : undefined, params.hidden ? 'hidden=1' : undefined]
+    .filter((part): part is string => part !== undefined)
+    .join('&');
+  return query === '' ? '/dashboard' : `/dashboard?${query}`;
+}
+
 function BrunchRows(props: {
   readonly brunches: readonly BrunchSummary[];
   readonly past: boolean;
   readonly now: Date;
+  readonly inHiddenList?: boolean;
 }) {
   return (
     <ul className={styles.list} role="list">
@@ -36,21 +46,29 @@ function BrunchRows(props: {
         <UpcomingRow
           key={brunch.id}
           brunch={brunch}
-          // Upcoming rows use the Copy Pass wording; Past rows keep the status lookup's label.
-          statusText={
-            props.past
-              ? brunch.statusLabel
-              : dashboardStatusLabel({ code: brunch.statusCode, lookupLabel: brunch.statusLabel })
-          }
+          // The Copy Pass wording for every row, Past included: a called-off brunch reads "Called
+          // off" here and on its own page. Statuses the Copy Pass leaves alone keep the lookup's.
+          statusText={dashboardStatusLabel({
+            code: brunch.statusCode,
+            lookupLabel: brunch.statusLabel,
+          })}
           past={props.past}
           now={props.now}
+          {...(props.inHiddenList === true ? { inHiddenList: true } : {})}
         />
       ))}
     </ul>
   );
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  readonly searchParams: Promise<{ readonly past?: string; readonly hidden?: string }>;
+}) {
+  const query = await searchParams;
+  const showAllPast = query.past === 'all';
+  const showHidden = query.hidden === '1';
   const session = await auth();
   if (session === null) {
     redirect('/sign-in');
@@ -59,7 +77,8 @@ export default async function DashboardPage() {
   const viewerId = session.user.id as UserId;
   const now = new Date();
   const brunches = await getBrunchesForUser({ userId: viewerId, now }, { db });
-  const { nextUp, upcoming, past } = groupDashboard(brunches, now);
+  const { nextUp, upcoming, past, hidden } = groupDashboard(brunches, now);
+  const pastShown = limitPast(past, { showAll: showAllPast });
   const firstName = firstNameOf(session.user.name ?? '');
 
   if (brunches.length === 0) {
@@ -156,7 +175,60 @@ export default async function DashboardPage() {
       {past.length > 0 && (
         <section className={styles.section}>
           <h2>Past</h2>
-          <BrunchRows brunches={past} past now={now} />
+          <BrunchRows brunches={pastShown.shown} past now={now} />
+          {pastShown.moreCount > 0 && (
+            <div className={styles.more}>
+              <ButtonLink
+                href={dashboardHref({ pastAll: true, hidden: showHidden })}
+                variant="ghost"
+                size="sm"
+              >
+                Show all ({past.length})
+              </ButtonLink>
+            </div>
+          )}
+          {showAllPast && past.length > PAST_BRUNCHES_SHOWN && (
+            <div className={styles.more}>
+              <ButtonLink
+                href={dashboardHref({ pastAll: false, hidden: showHidden })}
+                variant="ghost"
+                size="sm"
+              >
+                Show fewer
+              </ButtonLink>
+            </div>
+          )}
+        </section>
+      )}
+
+      {hidden.length > 0 && !showHidden && (
+        <div className={styles.more}>
+          <ButtonLink
+            href={`${dashboardHref({ pastAll: showAllPast, hidden: true })}#hidden`}
+            variant="ghost"
+            size="sm"
+          >
+            Hidden ({hidden.length})
+          </ButtonLink>
+        </div>
+      )}
+
+      {hidden.length > 0 && showHidden && (
+        <section id="hidden" className={styles.section}>
+          <h2>Hidden</h2>
+          <p className={styles.muted}>
+            Off your dashboard, and only yours. Unhide one to bring it back.
+          </p>
+          <BrunchRows brunches={hidden} past={false} now={now} inHiddenList />
+          <div className={styles.more}>
+            <ButtonLink
+              href={dashboardHref({ pastAll: showAllPast, hidden: false })}
+              variant="ghost"
+              size="sm"
+            >
+              Close
+            </ButtonLink>
+          </div>
         </section>
       )}
     </Container>

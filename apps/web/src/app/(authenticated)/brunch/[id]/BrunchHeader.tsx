@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/Badge';
 import { ButtonLink } from '@/components/ui/ButtonLink';
 import { InitialsAvatar } from '@/components/ui/InitialsAvatar';
 import { statusTone } from '@/components/ui/statusTone';
+import { pageStatusLabel } from '@/lib/brunchCopy';
 import { votesChip } from '@/lib/brunchPageFormat';
 import styles from './detail.module.css';
 
@@ -37,7 +38,8 @@ export function BrunchHeader(props: {
         )}
       </div>
 
-      {!brunch.isHost && (
+      {/* "wants you at brunch" would contradict the called-off banner below it. */}
+      {!brunch.isHost && brunch.statusCode !== 'cancelled' && (
         <div className={styles.inviter}>
           <InitialsAvatar
             name={brunch.hostName}
@@ -53,7 +55,9 @@ export function BrunchHeader(props: {
       <h1 className={styles.title}>{brunch.title}</h1>
 
       <div className={styles.chips}>
-        <Badge tone={statusTone(brunch.statusCode)}>{brunch.statusLabel}</Badge>
+        <Badge tone={statusTone(brunch.statusCode)}>
+          {pageStatusLabel({ code: brunch.statusCode, lookupLabel: brunch.statusLabel })}
+        </Badge>
         {props.votingOpen && (
           <Badge icon={<Icon name="clock" size={12} />}>
             {votesChip({ deadline: brunch.votingDeadline, now: props.now })}

@@ -22,3 +22,15 @@ export function isCancelNoticePending(params: {
     (CANCEL_NOTICE_HOLD_SECONDS + CANCEL_NOTICE_GRACE_SECONDS) * 1000;
   return params.now.getTime() < giveUpAt;
 }
+
+// How long the screen should hold the Delete button before it looks again: the rest of the hold,
+// plus a moment for the queue to run and record the notice. Never less than half a minute, so a
+// brunch past its hold (the function is just about to run) does not flicker. Pure.
+export function cancelNoticeWaitSeconds(params: {
+  readonly cancelledAt: Date;
+  readonly now: Date;
+}): number {
+  const holdEndsAt = params.cancelledAt.getTime() + CANCEL_NOTICE_HOLD_SECONDS * 1000;
+  const remaining = Math.ceil((holdEndsAt - params.now.getTime()) / 1000);
+  return Math.max(30, remaining + 20);
+}

@@ -76,9 +76,7 @@ export async function cancelBrunch(
   } catch (cause) {
     return err({ kind: 'db_error', cause });
   }
-  if (
-    isPastBrunch({ statusCode: brunch.status.code, scheduledAt, createdAt: brunch.createdAt }, now)
-  ) {
+  if (isPastBrunch({ statusCode: brunch.status.code, scheduledAt }, now)) {
     return err({ kind: 'brunch_over' });
   }
 

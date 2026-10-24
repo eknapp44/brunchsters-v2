@@ -72,7 +72,7 @@ test.describe('H3 — confirming the brunch', () => {
     ).toBeVisible();
     await expect(host.page.getByRole('button', { name: 'Lock it in' })).toHaveCount(0);
     await expect(host.page.getByRole('button', { name: 'Add Time' })).toHaveCount(0);
-    await expect(host.page.getByRole('button', { name: 'Call it' })).toHaveCount(0);
+    await expect(host.page.getByRole('button', { name: 'Call it', exact: true })).toHaveCount(0);
 
     // An attendee sees it everywhere: status, both choices marked, the ballot frozen...
     await ann.page.goto(`/brunch/${brunchId}`);

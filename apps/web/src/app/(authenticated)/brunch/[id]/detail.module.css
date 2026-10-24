@@ -453,6 +453,13 @@
   margin: var(--space-1) 0 0;
 }
 
+/* The calm version of the banner, for a brunch that was called off: no celebration color. */
+.bannerOff {
+  color: var(--fg);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+
 .bannerEmoji {
   font-size: 2rem;
   line-height: 1;

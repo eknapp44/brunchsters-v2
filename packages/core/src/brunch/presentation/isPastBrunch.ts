@@ -10,7 +10,10 @@ export type DashboardFacts = {
 // passed. Nothing marks a confirmed brunch completed yet (there is no scheduler), so the last
 // case is derived at read time, as voting deadlines are. A confirmed brunch with no time on
 // record has nothing to pass, so it stays where it is. `now` is a parameter, not a hidden clock.
-export function isPastBrunch(brunch: DashboardFacts, now: Date): boolean {
+export function isPastBrunch(
+  brunch: Pick<DashboardFacts, 'statusCode' | 'scheduledAt'>,
+  now: Date,
+): boolean {
   if (brunch.statusCode === 'completed' || brunch.statusCode === 'cancelled') return true;
   return (
     brunch.statusCode === 'confirmed' &&

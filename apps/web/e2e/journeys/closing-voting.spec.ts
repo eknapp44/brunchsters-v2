@@ -45,7 +45,7 @@ test.describe('H2 — the nudge to close voting', () => {
     });
     await host.page.reload();
     await expect(host.page.getByText(NUDGE)).toBeVisible();
-    await expect(host.page.getByRole('button', { name: 'Call it' })).toBeEnabled();
+    await expect(host.page.getByRole('button', { name: 'Call it', exact: true })).toBeEnabled();
   });
 
   test('never appears with fewer than three eligible, however many have voted', async ({
@@ -102,9 +102,9 @@ test.describe('H2 — setting a deadline and closing voting', () => {
     const annLocations = ballot(ann.page).locations;
     await expect(annLocations.getByRole('checkbox').first()).toBeEnabled();
 
-    await host.page.getByRole('button', { name: 'Call it' }).click();
+    await host.page.getByRole('button', { name: 'Call it', exact: true }).click();
     await expect(host.page.getByText('Voting is closed.')).toBeVisible();
-    await expect(host.page.getByRole('button', { name: 'Call it' })).toHaveCount(0);
+    await expect(host.page.getByRole('button', { name: 'Call it', exact: true })).toHaveCount(0);
     await expect(host.page.getByRole('button', { name: 'Save deadline' })).toHaveCount(0);
 
     // The attendee's ballot is now read-only...
@@ -150,7 +150,7 @@ test.describe('H7 — a deadline that passes closes voting by itself', () => {
 
     await host.page.goto(`/brunch/${brunchId}/manage`);
     await expect(host.page.getByText('Voting is closed.')).toBeVisible();
-    await expect(host.page.getByRole('button', { name: 'Call it' })).toHaveCount(0);
+    await expect(host.page.getByRole('button', { name: 'Call it', exact: true })).toHaveCount(0);
 
     // Derived, not stored: nobody acted, and the server refuses a late vote all the same.
     expect(

@@ -2,8 +2,10 @@ import { GONE_COLD, LANDING_HEADING, NOT_FOUND, SIGN_IN_HEADING } from '../suppo
 import { EMPTY_DASHBOARD_HEADLINE } from '../support/dashboard';
 import { COLOR_SCHEMES, expectNoA11yViolations, useColorScheme } from '../support/a11y';
 import { createBrunch } from '../support/factories';
+import { afterTheHold, callOffBrunch } from '../support/lifecycle';
 import { expect, test } from '../support/fixtures';
 import { fixturePlaces } from '../support/places';
+import { createLifecycleShowcase, hideForGuest } from '../support/lifecycleShowcase';
 import { createConfirmedBrunch, createVotingBrunch, inviteNewcomer } from '../support/showcase';
 import { daysFromNow, toDatetimeLocalValue } from '../support/time';
 import { addAttendee, closeVoting } from '../support/voting';
@@ -41,6 +43,22 @@ for (const scheme of COLOR_SCHEMES) {
       await page.goto('/invite/not-a-real-token');
       await expect(page.getByRole('heading', { name: GONE_COLD })).toBeVisible();
       await expectNoA11yViolations(page, `invalid invite (${scheme})`);
+    });
+
+    test('an invite page for a brunch the host called off (spec 0013)', async ({
+      page,
+      makeActor,
+    }) => {
+      const host = await makeActor('host');
+      const brunchId = await createBrunch({ host: host.user, title: 'Accessible Brunch' });
+      const link = await inviteNewcomer({ host, brunchId });
+      await callOffBrunch({ brunchId, host: host.user, at: afterTheHold(), announce: false });
+
+      await page.goto(link);
+      await expect(
+        page.getByRole('heading', { level: 1, name: `${host.user.name} called this one off.` }),
+      ).toBeVisible();
+      await expectNoA11yViolations(page, `called-off invite (${scheme})`);
     });
   });
 
@@ -186,6 +204,49 @@ for (const scheme of COLOR_SCHEMES) {
         host.page.getByRole('heading', { name: 'Confirmed', exact: true }),
       ).toBeVisible();
       await expectNoA11yViolations(host.page, `manage, confirmed (${scheme})`);
+    });
+
+    test('the lifecycle screens: end of the road, the dialog, a called-off brunch, hidden (spec 0013)', async ({
+      makeActor,
+    }) => {
+      const { host, guest, active, draft, calledOff } = await createLifecycleShowcase(makeActor);
+      await useColorScheme(host.page, scheme);
+      await useColorScheme(guest.page, scheme);
+
+      // The manage page of a brunch that is open, with the last section...
+      await host.page.goto(`/brunch/${active.id}/manage`);
+      await expect(host.page.getByRole('heading', { name: 'End of the road' })).toBeVisible();
+      await expectNoA11yViolations(host.page, `manage with end of the road (${scheme})`);
+
+      // ...and the dialog that asks before calling it off.
+      await host.page.getByRole('button', { name: 'Call it off', exact: true }).click();
+      await expect(host.page.getByRole('dialog', { name: /^Calling off / })).toBeVisible();
+      await expectNoA11yViolations(host.page, `call it off dialog (${scheme})`);
+      await host.page.keyboard.press('Escape');
+
+      // A draft, only deletable; a brunch called off, with Delete still waiting.
+      await host.page.goto(`/brunch/${draft.id}/manage`);
+      await expect(host.page.getByRole('button', { name: 'Delete this draft' })).toBeVisible();
+      await expectNoA11yViolations(host.page, `manage draft with delete (${scheme})`);
+
+      await host.page.goto(`/brunch/${calledOff.id}/manage`);
+      await expect(host.page.getByRole('heading', { name: 'Called off.' })).toBeVisible();
+      await expect(host.page.getByRole('button', { name: 'Delete this brunch' })).toHaveAttribute(
+        'aria-disabled',
+        'true',
+      );
+      await expectNoA11yViolations(host.page, `manage called off (${scheme})`);
+
+      // The guest's read-only page of the called-off brunch, and their dashboard once hidden.
+      await guest.page.goto(`/brunch/${calledOff.id}`);
+      await expect(guest.page.getByRole('heading', { name: 'Called off.' })).toBeVisible();
+      await expectNoA11yViolations(guest.page, `called-off brunch page (${scheme})`);
+
+      await hideForGuest({ guest, brunchId: active.id });
+      await guest.page.goto('/dashboard?hidden=1');
+      await expect(guest.page.getByRole('heading', { name: 'Hidden', exact: true })).toBeVisible();
+      await expect(guest.page.getByRole('heading', { name: 'Past', exact: true })).toBeVisible();
+      await expectNoA11yViolations(guest.page, `dashboard with the hidden list (${scheme})`);
     });
 
     test('the not-found page, which anyone who may not see a brunch gets', async ({

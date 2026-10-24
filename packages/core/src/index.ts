@@ -86,7 +86,14 @@ export { setBrunchHidden } from './brunch/setBrunchHidden';
 export type { SetBrunchHiddenError, SetBrunchHiddenInput } from './brunch/setBrunchHidden';
 export { limitPast } from './brunch/presentation/limitPast';
 export { assertBrunchOpen } from './brunch/guards/assertBrunchOpen';
-export { isCancelNoticePending } from './brunch/guards/isCancelNoticePending';
+export {
+  cancelNoticeWaitSeconds,
+  isCancelNoticePending,
+} from './brunch/guards/isCancelNoticePending';
+export { canCallOff } from './brunch/presentation/canCallOff';
+export { getCancelWait } from './brunch/getCancelWait';
+export type { CancelWait } from './brunch/getCancelWait';
+export { getCancelNoticeAudience } from './email/getCancelNoticeAudience';
 export type { AssertBrunchOpenError } from './brunch/guards/assertBrunchOpen';
 export { assertCanTransition, BRUNCH_TRANSITIONS } from './brunch/guards/brunchTransitions';
 export type { InvalidTransitionError } from './brunch/guards/brunchTransitions';

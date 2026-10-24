@@ -7,6 +7,10 @@ import { SkipLink } from '@/components/ui/SkipLink';
 import { fontClassNames } from '@/styles/fonts';
 import '@/styles/tokens.css';
 import '@/styles/global.css';
+// Loaded here, not only by the Hero component: a page-level notFound() is sent as an empty error
+// shell that the browser rebuilds, and the rebuild hung when the Hero stylesheet was still arriving
+// (aborted mid-request, so it never finished). With it in the shell, the 404 needs no extra request.
+import '@/components/ui/Hero.module.css';
 
 export const metadata: Metadata = {
   title: 'Brunchsters',
