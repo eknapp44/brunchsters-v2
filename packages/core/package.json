@@ -14,7 +14,7 @@
     "@brunchsters/database": "workspace:*",
     "@brunchsters/shared": "workspace:*",
     "neverthrow": "^6.0.0",
-    "zod": "^4.4.3"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/node": "^22.19.21",

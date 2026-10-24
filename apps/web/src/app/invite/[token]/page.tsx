@@ -8,6 +8,7 @@ import { Hero } from '@/components/ui/Hero';
 import { InitialsAvatar } from '@/components/ui/InitialsAvatar';
 import { InlineAlert } from '@/components/ui/InlineAlert';
 import { db } from '@/lib/db';
+import { calledOffInvite } from '@/lib/lifecycleCopy';
 import { eventBus } from '@/lib/services';
 import styles from './invite.module.css';
 
@@ -35,6 +36,26 @@ export default async function InviteLandingPage({
   }
 
   const session = await auth();
+
+  // A link to a brunch the host called off (spec 0013): the news, and nothing to join. This comes
+  // before anything is written, so opening the link changes nothing for anyone, signed in or not.
+  // The holder already has the title and the host from the same preview; an outsider with no link
+  // learns nothing here, because there is no link for them to open.
+  if (preview.isCalledOff) {
+    const news = calledOffInvite({ hostName: preview.hostName, title: preview.brunchTitle });
+    return (
+      <Hero>
+        <PopIcon name="calendar" size={48} />
+        <h1>{news.heading}</h1>
+        <p>{news.line}</p>
+        {session !== null && (
+          <ButtonLink href="/dashboard" variant="secondary">
+            Back to your dashboard
+          </ButtonLink>
+        )}
+      </Hero>
+    );
+  }
 
   if (session !== null) {
     const result = await respondToInvite(

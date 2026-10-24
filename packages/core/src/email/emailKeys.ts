@@ -24,6 +24,25 @@ export function confirmedEmailKey(params: {
   return `confirmed:${params.brunchId}:${params.recipientKey}`;
 }
 
+// The called-off and back-on emails (spec 0013) carry the moment of the cancellation: a host who
+// calls the brunch off, brings it back and calls it off again has made a second cancellation, and
+// people must be told about it, while a retry of the same send must not tell them twice.
+export function cancelledEmailKey(params: {
+  readonly brunchId: BrunchId;
+  readonly cancelledAt: Date;
+  readonly recipientKey: string;
+}): string {
+  return `cancelled:${params.brunchId}:${params.cancelledAt.getTime()}:${params.recipientKey}`;
+}
+
+export function backOnEmailKey(params: {
+  readonly brunchId: BrunchId;
+  readonly cancelledAt: Date;
+  readonly recipientKey: string;
+}): string {
+  return `backon:${params.brunchId}:${params.cancelledAt.getTime()}:${params.recipientKey}`;
+}
+
 // Where an email's links point. AUTH_URL may or may not end in a slash.
 export function joinUrl(params: { readonly base: string; readonly path: string }): string {
   return `${params.base.replace(/\/+$/, '')}${params.path}`;

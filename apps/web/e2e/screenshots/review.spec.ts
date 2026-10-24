@@ -1,6 +1,8 @@
 import { GONE_COLD, LANDING_HEADING, SIGN_IN_HEADING, NOT_FOUND } from '../support/pages';
 import { EMPTY_DASHBOARD_HEADLINE } from '../support/dashboard';
 import { createBrunch, inviteToBrunch, uniqueSuffix } from '../support/factories';
+import { createLifecycleShowcase, hideForGuest } from '../support/lifecycleShowcase';
+import { afterTheHold, callOffBrunch } from '../support/lifecycle';
 import { expect, test } from '../support/fixtures';
 import { inviteRow } from '../support/invites';
 import { fixturePlaces } from '../support/places';
@@ -247,9 +249,57 @@ test('the invite panel while a limit holds', async ({ makeActor }, testInfo) => 
     email: `crowd-${index}-${uniqueSuffix()}@example.com`,
   }));
   await inviteToBrunch({ brunchId: sendBrunch, host: host.user, invitees: crowd });
+  // The page opens already waiting (the server's account of the day's budget, journey L1d), so
+  // there is nothing to press: the button is `aria-disabled` and the reason is on screen.
   await host.page.goto(`/brunch/${sendBrunch}`);
-  await host.page.getByLabel('Invite more people').fill(`one-more-${uniqueSuffix()}@example.com`);
-  await host.page.getByRole('button', { name: 'Round up the crew' }).click();
   await expect(host.page.getByText(/that's a lot of invites for one day/)).toBeVisible();
   await captureReviewShots(host.page, 'brunch/host-invites-waiting', testInfo);
+});
+
+test('the lifecycle screens: end of the road, the dialog, called off, hidden', async ({
+  makeActor,
+  page,
+}, testInfo) => {
+  const { host, guest, active, draft, calledOff } = await createLifecycleShowcase(makeActor);
+
+  await host.page.goto(`/brunch/${active.id}/manage`);
+  await expect(host.page.getByRole('heading', { name: 'End of the road' })).toBeVisible();
+  await captureReviewShots(host.page, 'lifecycle/manage-end-of-the-road', testInfo);
+
+  await host.page.getByRole('button', { name: 'Call it off', exact: true }).click();
+  await expect(host.page.getByRole('dialog', { name: /^Calling off / })).toBeVisible();
+  await captureReviewShots(host.page, 'lifecycle/call-it-off-dialog', testInfo);
+  await host.page.keyboard.press('Escape');
+
+  await host.page.goto(`/brunch/${draft.id}/manage`);
+  await expect(host.page.getByRole('button', { name: 'Delete this draft' })).toBeVisible();
+  await host.page.getByRole('button', { name: 'Delete this draft' }).click();
+  await expect(host.page.getByRole('dialog', { name: /^Delete / })).toBeVisible();
+  await captureReviewShots(host.page, 'lifecycle/delete-dialog', testInfo);
+  await host.page.keyboard.press('Escape');
+
+  await host.page.goto(`/brunch/${calledOff.id}/manage`);
+  await expect(host.page.getByRole('heading', { name: 'Called off.' })).toBeVisible();
+  await captureReviewShots(host.page, 'lifecycle/manage-called-off', testInfo);
+
+  await guest.page.goto(`/brunch/${calledOff.id}`);
+  await expect(guest.page.getByRole('heading', { name: 'Called off.' })).toBeVisible();
+  await captureReviewShots(guest.page, 'lifecycle/brunch-called-off-member', testInfo);
+
+  await hideForGuest({ guest, brunchId: active.id });
+  await guest.page.goto('/dashboard');
+  await expect(guest.page.getByRole('link', { name: 'Hidden (1)' })).toBeVisible();
+  await captureReviewShots(guest.page, 'lifecycle/dashboard-hidden-link', testInfo);
+  await guest.page.goto('/dashboard?hidden=1');
+  await expect(guest.page.getByRole('heading', { name: 'Hidden', exact: true })).toBeVisible();
+  await captureReviewShots(guest.page, 'lifecycle/dashboard-hidden-list', testInfo);
+
+  const brunchId = await createBrunch({ host: host.user, title: 'Birthday Brunch' });
+  const link = await inviteNewcomer({ host, brunchId });
+  await callOffBrunch({ brunchId, host: host.user, at: afterTheHold(), announce: false });
+  await page.goto(link);
+  await expect(
+    page.getByRole('heading', { level: 1, name: `${host.user.name} called this one off.` }),
+  ).toBeVisible();
+  await captureReviewShots(page, 'lifecycle/invite-called-off', testInfo);
 });

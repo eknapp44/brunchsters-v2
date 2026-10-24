@@ -24,7 +24,7 @@ Run it from `apps/web`: `node --env-file=.env.local --import tsx _send-check.mts
 
 ## Full-flow check (the sending path itself changed)
 
-Use the recipe in `docs/SETUP.md` ("Email and the job queue") and the notes in memory (`email-notifications-setup`): run `next dev` and the Inngest dev server, drive the real core services with `InngestEventBus` from a throwaway script, check the run statuses in the dev server, and read the inboxes. Emailed links point at `AUTH_URL`, so they open only while the app runs locally. Stop the servers and delete the script afterwards.
+Use the recipe in `docs/SETUP.md` ("Email and the job queue") and the notes in memory (`email-notifications-setup`): run the app and the Inngest dev server (`pnpm dev` starts both since spec 0013; `pnpm dev:queue` is the queue alone), drive the real core services with `InngestEventBus` from a throwaway script, check the run statuses in the dev server, and read the inboxes. Emailed links point at `AUTH_URL`, so they open only while the app runs locally. Stop the servers and delete the script afterwards.
 
 ## Report
 

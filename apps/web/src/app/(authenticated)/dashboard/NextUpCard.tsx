@@ -4,6 +4,7 @@ import { Icon } from '@/components/icons/Icon';
 import { PopIcon } from '@/components/icons/PopIcon';
 import { Badge } from '@/components/ui/Badge';
 import { ButtonLink } from '@/components/ui/ButtonLink';
+import { HideControl } from '@/components/HideControl';
 import { Eyebrow } from '@/components/ui/Eyebrow';
 import { InitialsAvatar } from '@/components/ui/InitialsAvatar';
 import { statusTone } from '@/components/ui/statusTone';
@@ -133,7 +134,7 @@ export function NextUpCard(props: {
             <span>{goingLabel(brunch.goingCount)}</span>
           </div>
         </div>
-        <div>
+        <div className={styles.actions}>
           <ButtonLink
             href={`/brunch/${brunch.id}`}
             variant="primary"
@@ -142,6 +143,7 @@ export function NextUpCard(props: {
             Open
             <Icon name="arrowRight" size={16} />
           </ButtonLink>
+          <HideControl brunchId={brunch.id} title={brunch.title} hidden={false} placement="row" />
         </div>
       </div>
       {props.roster !== undefined && <Roster roster={props.roster} />}

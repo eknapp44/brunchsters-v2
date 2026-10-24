@@ -44,6 +44,7 @@ describe('getBrunchById', () => {
       statusLabel: 'Draft',
       isHost: false,
       viewerRsvpStatus: 'yes',
+      isHidden: false,
       allowInviteSuggestions: true,
       allowLocationSuggestions: true,
       allowTimeSuggestions: true,
@@ -145,5 +146,19 @@ describe('getBrunchById', () => {
     );
 
     expect(result?.votingDeadline).toBe(deadline);
+  });
+
+  it('reports isHidden when the viewer hid the brunch from their own dashboard', async () => {
+    const findFirst = vi.fn().mockResolvedValue({
+      ...DB_ROW,
+      attendees: [{ rsvpStatus: { code: 'yes' }, hiddenAt: new Date('2026-10-01T10:00:00.000Z') }],
+    });
+
+    const result = await getBrunchById(
+      { brunchId: BRUNCH_ID, viewerId: VIEWER_ID },
+      { db: makeMockDb(findFirst) },
+    );
+
+    expect(result?.isHidden).toBe(true);
   });
 });

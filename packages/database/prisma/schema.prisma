@@ -57,7 +57,8 @@ model BrunchStatus {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  brunches Brunch[]
+  brunches             Brunch[]
+  brunchesBeforeCancel Brunch[] @relation("BrunchStatusBeforeCancel")
 }
 
 // values: host_decides, group_vote
@@ -344,18 +345,29 @@ model Brunch {
   hostTransferredAt     DateTime?
   hostTransferredFromId String?   @db.Uuid
 
-  // Inngest job ID for the pending cancellation notification (5-second undo window)
+  // UNUSED since spec 0013 / ADR 0015: the cancel notice holds for a few minutes and re-reads the
+  // brunch instead of tracking a job id. Kept in the schema; do not build on it.
   cancellationJobId String?
+
+  // Brunch lifecycle (spec 0013, ADR 0015). Calling it off changes only the status; these record
+  // what happened so "Bring it back" can restore it and the cancel email can tell one
+  // cancellation from the next. All null until the host calls the brunch off.
+  cancelledAt          DateTime? // identity of this cancellation (the email holds, re-reads and keys on it)
+  cancelledBy          String?   @db.Uuid // audit field
+  statusBeforeCancelId String?   @db.Uuid // the status "Bring it back" restores
+  cancelNoticeSentAt   DateTime? // set when the cancel email went out; the back-on email needs it
 
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
   deletedAt  DateTime?
   deletedBy  String?   @db.Uuid // audit field
+  // UNUSED (ADR 0015): archiving is per person (BrunchAttendee.hiddenAt), not a brunch-level state.
   archivedAt DateTime?
   archivedBy String?   @db.Uuid // audit field
 
   host                User                   @relation("BrunchHost", fields: [hostId], references: [id])
   status              BrunchStatus           @relation(fields: [statusId], references: [id])
+  statusBeforeCancel  BrunchStatus?          @relation("BrunchStatusBeforeCancel", fields: [statusBeforeCancelId], references: [id])
   hostTransferredFrom User?                  @relation("BrunchHostTransferredFrom", fields: [hostTransferredFromId], references: [id])
   invites             BrunchInvite[]
   attendees           BrunchAttendee[]
@@ -406,6 +418,9 @@ model BrunchAttendee {
   inviteId     String    @unique @db.Uuid // 1:1 with BrunchInvite
   rsvpStatusId String    @db.Uuid
   respondedAt  DateTime?
+  // "Hide from my dashboard" (spec 0013): per person, any brunch status, reversible. Only the
+  // dashboard reads it; the brunch page and email ignore it.
+  hiddenAt     DateTime?
 
   // Rich RSVP state — fields are only relevant for their matching rsvpStatus
   arrivingLate   Boolean  @default(false) // yes RSVPs

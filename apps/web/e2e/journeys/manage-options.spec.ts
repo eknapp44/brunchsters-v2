@@ -185,7 +185,7 @@ test.describe('H8 — managing a draft brunch', () => {
     await expect(confirmButton).toBeDisabled();
     // Closing voting would start the brunch with voting already over, so that is off too; setting
     // a deadline is fine and stays available.
-    const closeButton = host.page.getByRole('button', { name: 'Call it' });
+    const closeButton = host.page.getByRole('button', { name: 'Close voting' });
     await expect(closeButton).toBeDisabled();
     await expect(host.page.getByRole('button', { name: 'Save deadline' })).toBeEnabled();
     // It is a rule, not just a disabled button: the server refuses too, and nothing changes.

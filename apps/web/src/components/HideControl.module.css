@@ -1,0 +1,16 @@
+/* On a dashboard row the title's link stretches over the whole row to make it one target, so the
+   control has to sit above that link or it could never be clicked. */
+.row,
+.list {
+  position: relative;
+  z-index: 1;
+}
+
+/* A square button holding only the eye: as wide as it is tall (the touch target), no side padding. */
+.iconOnly {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-target);
+  padding-inline: 0;
+}

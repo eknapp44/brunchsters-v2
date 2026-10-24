@@ -35,7 +35,8 @@ export async function reviewTimeSuggestion(
   const { db } = ctx;
 
   const suggestion = await db.brunchTimeSuggestion.findFirst({
-    where: { id: input.suggestionId },
+    // A deleted brunch's suggestions are gone with it (the extension filters only this model).
+    where: { id: input.suggestionId, brunch: { deletedAt: null } },
     include: { brunch: { include: { status: true } }, status: true },
   });
   if (suggestion === null) return err({ kind: 'suggestion_not_found' });

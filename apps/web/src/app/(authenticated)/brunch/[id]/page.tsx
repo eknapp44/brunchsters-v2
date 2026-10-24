@@ -22,6 +22,7 @@ import { db } from '@/lib/db';
 import { getRateLimiter } from '@/lib/services';
 import { LocationBallotChecklist, TimeBallotChecklist } from './BallotChecklist';
 import { BrunchHeader } from './BrunchHeader';
+import { CalledOffBanner } from './CalledOffBanner';
 import { ConfirmedBanner } from './ConfirmedBanner';
 import styles from './detail.module.css';
 import { InvitePanel } from './InvitePanel';
@@ -176,6 +177,9 @@ export default async function BrunchDetailPage({
 
   const now = new Date();
   const confirmed = brunch.statusCode === 'confirmed';
+  // Called off: the page is read-only. No RSVP, vote, suggestion or invite control is offered, and
+  // the server would refuse them anyway (spec 0013, ADR 0015).
+  const calledOff = brunch.statusCode === 'cancelled';
   const votingOpen =
     brunch.statusCode === 'active' && voting !== undefined && !voting.locations.closed;
 
@@ -210,8 +214,9 @@ export default async function BrunchDetailPage({
       <BrunchHeader brunch={brunch} brunchId={brunchId} votingOpen={votingOpen} now={now} />
 
       {confirmed && <ConfirmedBanner goingNames={goingNames} />}
+      {calledOff && <CalledOffBanner isHost={brunch.isHost} hostName={brunch.hostName} />}
 
-      <RsvpControl brunchId={brunchId} currentStatus={brunch.viewerRsvpStatus} />
+      {!calledOff && <RsvpControl brunchId={brunchId} currentStatus={brunch.viewerRsvpStatus} />}
 
       <div className={styles.columns}>
         <div className={styles.column}>
@@ -237,9 +242,11 @@ export default async function BrunchDetailPage({
                 <LocationBallotChecklist
                   brunchId={brunchId}
                   options={places.options}
-                  canVote={voting.canVote}
-                  closed={voting.locations.closed}
-                  suggestionsEnabled={!brunch.isHost && brunch.allowLocationSuggestions}
+                  canVote={voting.canVote && !calledOff}
+                  closed={voting.locations.closed || calledOff}
+                  suggestionsEnabled={
+                    !brunch.isHost && brunch.allowLocationSuggestions && !calledOff
+                  }
                   leadingId={placeLeader}
                   votable={voting.locations.mode === 'group_vote'}
                 />
@@ -267,9 +274,9 @@ export default async function BrunchDetailPage({
                 <TimeBallotChecklist
                   brunchId={brunchId}
                   options={times.options}
-                  canVote={voting.canVote}
-                  closed={voting.times.closed}
-                  suggestionsEnabled={!brunch.isHost && brunch.allowTimeSuggestions}
+                  canVote={voting.canVote && !calledOff}
+                  closed={voting.times.closed || calledOff}
+                  suggestionsEnabled={!brunch.isHost && brunch.allowTimeSuggestions && !calledOff}
                   locationTimezone={representativeLocation?.timezone}
                   locationName={representativeLocation?.placeName}
                   leadingId={timeLeader}
@@ -283,7 +290,7 @@ export default async function BrunchDetailPage({
         <div className={styles.column}>
           {roster !== undefined && <WhosComingPanel roster={roster} />}
 
-          {voting !== undefined && !brunch.isHost && (
+          {voting !== undefined && !brunch.isHost && !calledOff && (
             <>
               <LocationSuggestionControl
                 brunchId={brunchId}
@@ -298,14 +305,16 @@ export default async function BrunchDetailPage({
             </>
           )}
 
-          <SuggestionsPanel
-            brunchId={brunchId}
-            sendWait={inviteWaits?.send}
-            canSuggest={!brunch.isHost && brunch.allowInviteSuggestions}
-            pendingSuggestions={pendingSuggestions?.isOk() ? pendingSuggestions.value : undefined}
-          />
+          {!calledOff && (
+            <SuggestionsPanel
+              brunchId={brunchId}
+              sendWait={inviteWaits?.send}
+              canSuggest={!brunch.isHost && brunch.allowInviteSuggestions}
+              pendingSuggestions={pendingSuggestions?.isOk() ? pendingSuggestions.value : undefined}
+            />
+          )}
 
-          {invites?.isOk() && (
+          {invites?.isOk() && !calledOff && (
             <InvitePanel
               brunchId={brunchId}
               invites={invites.value}

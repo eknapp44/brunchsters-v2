@@ -1,6 +1,7 @@
 import type { BrunchSummary } from '@brunchsters/core';
 import Link from 'next/link';
 import type { ReactElement } from 'react';
+import { HideControl } from '@/components/HideControl';
 import { Icon } from '@/components/icons/Icon';
 import { PopIcon } from '@/components/icons/PopIcon';
 import { Badge } from '@/components/ui/Badge';
@@ -18,6 +19,9 @@ export function UpcomingRow(props: {
   readonly statusText: string;
   readonly past: boolean;
   readonly now: Date;
+  // On the Hidden list the row offers Unhide at every width; everywhere else it offers Hide from
+  // tablet width up (a phone has the brunch page's control).
+  readonly inHiddenList?: boolean;
 }): ReactElement {
   const { brunch } = props;
   return (
@@ -47,6 +51,12 @@ export function UpcomingRow(props: {
           <PopIcon name="users" size={20} />
           <span>{goingLabel(brunch.goingCount)}</span>
         </span>
+        <HideControl
+          brunchId={brunch.id}
+          title={brunch.title}
+          hidden={props.inHiddenList === true}
+          placement={props.inHiddenList === true ? 'hidden-list' : 'row'}
+        />
       </div>
       <span className={styles.arrow}>
         <Icon name="arrowRight" size={18} />

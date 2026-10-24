@@ -12,12 +12,14 @@ const HOST_ID = 'host-uuid' as UserId;
 const DRAFT_BRUNCH = {
   id: BRUNCH_ID,
   hostId: HOST_ID,
+  statusId: 'status-draft',
   status: { id: 'status-draft', code: 'draft' },
   host: { id: HOST_ID, email: 'host@example.com' },
 };
 
 const ACTIVE_BRUNCH = {
   ...DRAFT_BRUNCH,
+  statusId: 'status-active',
   status: { id: 'status-active', code: 'active' },
 };
 
@@ -35,7 +37,7 @@ type MockTx = {
     update: ReturnType<typeof vi.fn>;
   };
   brunchStatus: { findFirst: ReturnType<typeof vi.fn> };
-  brunch: { update: ReturnType<typeof vi.fn> };
+  brunch: { updateMany: ReturnType<typeof vi.fn> };
 };
 
 function makeMockTx(overrides: Partial<MockTx> = {}): MockTx {
@@ -62,7 +64,7 @@ function makeMockTx(overrides: Partial<MockTx> = {}): MockTx {
       update: vi.fn().mockResolvedValue({}),
     },
     brunchStatus: { findFirst: vi.fn().mockResolvedValue({ id: 'status-active' }) },
-    brunch: { update: vi.fn().mockResolvedValue({}) },
+    brunch: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
     ...overrides,
   };
 }
@@ -295,9 +297,10 @@ describe('sendInvites', () => {
       eventBus: makeMockEventBus(),
     });
 
-    expect(tx.brunch.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: { statusId: 'status-active' } }),
-    );
+    expect(tx.brunch.updateMany).toHaveBeenCalledWith({
+      where: { id: BRUNCH_ID, statusId: 'status-draft' },
+      data: { statusId: 'status-active' },
+    });
   });
 
   it('does not touch brunch status when it is already active', async () => {
@@ -310,7 +313,7 @@ describe('sendInvites', () => {
       eventBus: makeMockEventBus(),
     });
 
-    expect(tx.brunch.update).not.toHaveBeenCalled();
+    expect(tx.brunch.updateMany).not.toHaveBeenCalled();
   });
 
   it('returns brunch_not_found when the brunch does not exist', async () => {
@@ -720,4 +723,57 @@ describe('sendInvites — rate limits', () => {
       expect(rateLimiter.spends).toEqual([]);
     },
   );
+});
+
+describe('sendInvites — a brunch that is not open', () => {
+  it.each(['cancelled', 'completed', 'archived'])(
+    'refuses a %s brunch before spending a budget, writing or emailing',
+    async (code) => {
+      const tx = makeMockTx();
+      const db = makeMockDb(tx, { ...ACTIVE_BRUNCH, status: { id: `status-${code}`, code } });
+      const rateLimiter = new RecordingRateLimiter();
+      const emit = vi.fn().mockResolvedValue(undefined);
+
+      const result = await sendInvites(BASE_INPUT, { rateLimiter, db, eventBus: { emit } });
+
+      expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_called_off' });
+      expect(rateLimiter.spends).toEqual([]);
+      expect(db.$transaction).not.toHaveBeenCalled();
+      expect(emit).not.toHaveBeenCalled();
+    },
+  );
+
+  it('tells a member who is not the host not_host, not that the brunch is called off', async () => {
+    const db = makeMockDb(makeMockTx(), {
+      ...ACTIVE_BRUNCH,
+      status: { id: 'status-cancelled', code: 'cancelled' },
+    });
+    Object.assign(db, { brunchAttendee: { findFirst: vi.fn().mockResolvedValue({ id: 'a' }) } });
+
+    const result = await sendInvites(
+      { ...BASE_INPUT, invitedById: 'member-uuid' as UserId },
+      { rateLimiter: new InMemoryRateLimiter(), db, eventBus: makeMockEventBus() },
+    );
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'not_host' });
+  });
+
+  it('rolls back and reports invalid_transition when the draft changed status while sending', async () => {
+    const tx = makeMockTx({ brunch: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) } });
+    const db = makeMockDb(tx, DRAFT_BRUNCH);
+    const emit = vi.fn().mockResolvedValue(undefined);
+
+    const result = await sendInvites(BASE_INPUT, {
+      rateLimiter: new InMemoryRateLimiter(),
+      db,
+      eventBus: { emit },
+    });
+
+    expect(result._unsafeUnwrapErr()).toEqual({
+      kind: 'invalid_transition',
+      from: 'draft',
+      to: 'active',
+    });
+    expect(emit).not.toHaveBeenCalled();
+  });
 });

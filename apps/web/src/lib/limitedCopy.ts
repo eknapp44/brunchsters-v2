@@ -41,6 +41,9 @@ export function limitedMessage(facts: RateLimitFacts): string {
   if (holdsAllInvites(facts.policy)) {
     return `Easy there, that's a lot of invites for one day. Try again in ${formatWait(facts.retryAfterSeconds)}.`;
   }
+  if (facts.policy === RATE_LIMIT_POLICIES.cancelNoticesPerHost.name) {
+    return `That's a lot of called-off brunches for one day. Try again in ${formatWait(facts.retryAfterSeconds)}.`;
+  }
   // Place search, the write limit, and any policy a later spec adds.
   return 'Slow down a sec, then try again.';
 }

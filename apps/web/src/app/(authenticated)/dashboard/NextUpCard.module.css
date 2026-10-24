@@ -18,6 +18,14 @@
   padding: var(--space-5);
 }
 
+/* Open, and (from tablet width) Hide, side by side. */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
 .chips {
   display: flex;
   flex-wrap: wrap;

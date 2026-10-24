@@ -7,6 +7,7 @@ import {
 } from '@brunchsters/shared';
 import { err, ok, type Result } from 'neverthrow';
 import type { EventBus } from '../events/EventBus';
+import { assertBrunchOpen, type AssertBrunchOpenError } from '../brunch/guards/assertBrunchOpen';
 import { isBrunchMember } from '../brunch/guards/isBrunchMember';
 import {
   consumeBudgets,
@@ -25,6 +26,7 @@ export type ResendInviteInput = {
 export type ResendInviteError =
   | { readonly kind: 'invite_not_found' }
   | { readonly kind: 'not_host' }
+  | AssertBrunchOpenError
   | RateLimited
   | RateLimiterUnavailable
   | { readonly kind: 'db_error'; readonly cause: unknown };
@@ -42,8 +44,9 @@ export async function resendInvite(
   const { db, eventBus } = ctx;
 
   const invite = await db.brunchInvite.findFirst({
-    where: { id: input.inviteId },
-    include: { brunch: true },
+    // A deleted brunch's invites are gone with it (the extension filters only this model).
+    where: { id: input.inviteId, brunch: { deletedAt: null } },
+    include: { brunch: { include: { status: true } } },
   });
   if (invite === null) return err({ kind: 'invite_not_found' });
   if (invite.brunch.hostId !== input.requestedById) {
@@ -54,6 +57,10 @@ export async function resendInvite(
     );
     return err({ kind: member ? 'not_host' : 'invite_not_found' });
   }
+
+  // After the host check; before the budgets, so a refused resend costs nothing and sends nothing.
+  const openResult = assertBrunchOpen(invite.brunch);
+  if (openResult.isErr()) return err(openResult.error);
 
   // A resend is an email: once per invite per window, and it spends one of the host's daily invite
   // emails. After the host check, so only a host reaches a budget that names an invite (ADR 0013).

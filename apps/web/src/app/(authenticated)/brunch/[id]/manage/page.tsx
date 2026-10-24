@@ -1,4 +1,13 @@
-import { getBrunchById, getBrunchVoting, getInvitesForBrunch } from '@brunchsters/core';
+import {
+  cancelNoticeWaitSeconds,
+  canCallOff,
+  getBrunchById,
+  getBrunchVoting,
+  getCancelNoticeAudience,
+  getCancelWait,
+  getInvitesForBrunch,
+  isCancelNoticePending,
+} from '@brunchsters/core';
 import type { BrunchId, UserId } from '@brunchsters/shared';
 import { forbidden, notFound } from 'next/navigation';
 import { z } from 'zod';
@@ -8,8 +17,12 @@ import { PopIcon } from '@/components/icons/PopIcon';
 import { ButtonLink } from '@/components/ui/ButtonLink';
 import { Container } from '@/components/ui/Container';
 import { db } from '@/lib/db';
+import { DELETE_WAIT_POLICY } from '@/lib/lifecycleCopy';
+import { getRateLimiter } from '@/lib/services';
+import { CalledOffBanner } from '../CalledOffBanner';
 import detail from '../detail.module.css';
 import { ConfirmControl } from './ConfirmControl';
+import { EndOfTheRoad } from './EndOfTheRoad';
 import styles from './manage.module.css';
 import { OptionManager } from './OptionManager';
 import { OptionSuggestionReview } from './OptionSuggestionReview';
@@ -51,6 +64,72 @@ export default async function ManageBrunchPage({
     // Same access rule as getBrunchById, which already succeeded above —
     // fail loudly rather than silently omitting everything with no trace.
     console.error('getBrunchVoting returned undefined for a viewer flagged as host');
+  }
+
+  // The ways this brunch can end (spec 0013, ADR 0015). Which of them are offered is core's rule
+  // (`canCallOff`, `isCancelNoticePending`); the waits are the server's, asked of the same counters
+  // that refuse, so they are the same in every tab and on every device.
+  const now = new Date();
+  const confirmedAt = voting?.times.options.find((option) => option.isConfirmed)?.scheduledAt;
+  const callOffOffered = canCallOff({
+    statusCode: brunch.statusCode,
+    scheduledAt: confirmedAt,
+    now,
+  });
+  const callOffWaitResult = callOffOffered
+    ? await getCancelWait({ hostId: viewerId }, { rateLimiter: getRateLimiter() })
+    : undefined;
+  if (callOffWaitResult?.isErr()) {
+    // The page still renders, with nothing held; the server still refuses when the button is pressed.
+    console.error('getCancelWait failed: showing no wait', callOffWaitResult.error);
+  }
+  const audienceResult = callOffOffered
+    ? await getCancelNoticeAudience({ brunchId }, { db })
+    : undefined;
+  const noticePending =
+    brunch.cancelledAt !== undefined &&
+    isCancelNoticePending({
+      statusCode: brunch.statusCode,
+      cancelledAt: brunch.cancelledAt,
+      cancelNoticeSentAt: brunch.cancelNoticeSentAt,
+      now,
+    });
+  const endOfTheRoad = (
+    <EndOfTheRoad
+      brunchId={brunchId}
+      title={brunch.title}
+      statusCode={brunch.statusCode}
+      canCallOff={callOffOffered}
+      audience={audienceResult?.isOk() ? audienceResult.value : 0}
+      callOffWait={callOffWaitResult?.isOk() ? callOffWaitResult.value : undefined}
+      deleteWait={
+        noticePending && brunch.cancelledAt !== undefined
+          ? {
+              policy: DELETE_WAIT_POLICY,
+              retryAfterSeconds: cancelNoticeWaitSeconds({ cancelledAt: brunch.cancelledAt, now }),
+            }
+          : undefined
+      }
+    />
+  );
+
+  // Called off: nothing to manage but the way back and the way out.
+  if (brunch.statusCode === 'cancelled') {
+    return (
+      <Container as="main">
+        <div className={styles.back}>
+          <ButtonLink href={`/brunch/${brunchId}`} size="sm">
+            <Icon name="arrowLeft" size={16} />
+            Back to brunch
+          </ButtonLink>
+        </div>
+        <div className={styles.header}>
+          <h1>Manage: {brunch.title}</h1>
+        </div>
+        <CalledOffBanner isHost hostName={brunch.hostName} />
+        {endOfTheRoad}
+      </Container>
+    );
   }
 
   if (brunch.statusCode === 'confirmed') {
@@ -98,6 +177,8 @@ export default async function ManageBrunchPage({
             </p>
           )}
         </section>
+
+        {endOfTheRoad}
       </Container>
     );
   }
@@ -177,6 +258,8 @@ export default async function ManageBrunchPage({
           </div>
         </div>
       )}
+
+      {endOfTheRoad}
     </Container>
   );
 }

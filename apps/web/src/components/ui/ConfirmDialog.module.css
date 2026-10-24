@@ -1,0 +1,58 @@
+/* The browser centers a modal <dialog> and dims the page behind it (::backdrop); this gives it the
+   app's surface. Phone first: nearly the width of the screen with the choices stacked; from 40rem
+   it is a card with the choices side by side. */
+.dialog {
+  width: min(30rem, calc(100vw - 2 * var(--page-gutter)));
+  max-height: calc(100dvh - 2 * var(--page-gutter));
+  padding: var(--space-5);
+  overflow: auto;
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  box-shadow: var(--shadow-lg);
+}
+
+/* A modal <dialog> is centered by the browser's `margin: auto`. A parent's `> * + *` spacing rule
+   (the brunch page's panels) would give it a top margin and pin it to the top of the window, so
+   the margin is set here with enough weight that no such rule can win. */
+.dialog:modal {
+  margin: auto;
+}
+
+.dialog::backdrop {
+  background: var(--scrim);
+}
+
+.title {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-lg);
+}
+
+.body {
+  margin: 0 0 var(--space-4);
+  color: var(--fg-muted);
+}
+
+.dialog > * + .actions {
+  margin-top: var(--space-4);
+}
+
+.actions {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: var(--space-2);
+}
+
+@media (min-width: 40rem) {
+  .actions {
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+}
+
+@media (forced-colors: active) {
+  .dialog {
+    border-color: CanvasText;
+  }
+}

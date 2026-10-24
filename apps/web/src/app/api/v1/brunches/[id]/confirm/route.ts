@@ -68,6 +68,8 @@ export async function POST(
         return NextResponse.json({ error: 'No times to confirm' }, { status: 409 });
       case 'unknown_option':
         return NextResponse.json({ error: 'Unknown location or time' }, { status: 404 });
+      case 'invalid_transition':
+        return NextResponse.json({ error: 'The brunch changed. Try again.' }, { status: 409 });
       default:
         console.error('confirmBrunch failed', result.error);
         return NextResponse.json({ error: 'Failed to confirm brunch' }, { status: 500 });

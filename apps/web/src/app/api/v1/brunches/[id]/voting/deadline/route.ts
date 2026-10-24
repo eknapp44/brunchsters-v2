@@ -59,6 +59,8 @@ export async function PATCH(
         );
       case 'already_closed':
         return NextResponse.json({ error: 'Voting is already closed' }, { status: 409 });
+      case 'brunch_called_off':
+        return NextResponse.json({ error: 'This brunch was called off' }, { status: 409 });
       default:
         console.error('updateVotingDeadline failed', result.error);
         return NextResponse.json(

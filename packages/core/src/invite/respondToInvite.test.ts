@@ -12,6 +12,7 @@ const BASE_INVITE = {
   brunchId: 'brunch-uuid',
   invitedUserId: null as string | null,
   token: TOKEN,
+  brunch: { status: { code: 'active' } },
 };
 
 type MockTx = {
@@ -241,5 +242,31 @@ describe('respondToInviteRequestSchema', () => {
 
   it('rejects anything else', () => {
     expect(respondToInviteRequestSchema.safeParse({ response: 'sure' }).success).toBe(false);
+  });
+});
+
+describe('respondToInvite — a brunch that is not open', () => {
+  it.each([
+    ['a new person', null],
+    ['someone already in the brunch', { id: 'attendee-uuid' }],
+  ])('joins and changes nothing on a called-off brunch for %s', async (_label, existing) => {
+    const tx = makeMockTx({
+      brunchAttendee: {
+        findFirst: vi.fn().mockResolvedValue(existing),
+        update: vi.fn(),
+        create: vi.fn(),
+      },
+    });
+    const db = makeMockDb(tx, { ...BASE_INVITE, brunch: { status: { code: 'cancelled' } } });
+    const emit = vi.fn().mockResolvedValue(undefined);
+
+    const result = await respondToInvite(
+      { token: TOKEN, viewerId: VIEWER_ID, response: 'yes' },
+      { db, eventBus: { emit } },
+    );
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_called_off' });
+    expect(db.$transaction).not.toHaveBeenCalled();
+    expect(emit).not.toHaveBeenCalled();
   });
 });

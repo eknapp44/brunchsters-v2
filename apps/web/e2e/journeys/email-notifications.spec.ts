@@ -1,11 +1,24 @@
 import { GONE_COLD } from '../support/pages';
 import { normalizeEmail, type Email } from '@brunchsters/shared';
 import { createBrunch, inviteToBrunch, uniqueSuffix } from '../support/factories';
-import { expect, test } from '../support/fixtures';
+import { expect, test, type Actor } from '../support/fixtures';
 import { inviteRow } from '../support/invites';
-import { emailsTo, linkIn, waitForEmails, type SentEmail } from '../support/mailbox';
+import {
+  emailsTo,
+  expectNoEmails,
+  linkIn,
+  waitForEmails,
+  type SentEmail,
+} from '../support/mailbox';
 import { fixturePlaces } from '../support/places';
 import { daysFromNow } from '../support/time';
+import { getDb } from '../support/db';
+import {
+  afterTheHold,
+  announceCancellation,
+  bringBackBrunch,
+  callOffBrunch,
+} from '../support/lifecycle';
 import { addAttendee } from '../support/voting';
 
 // Journeys N1-N4 (spec 0008): the invite and brunch-confirmed emails, through the real Inngest
@@ -165,8 +178,163 @@ test.describe('N3 — confirming the brunch tells the right people', () => {
   });
 });
 
+// Journeys N5 to N7 (spec 0013): the called-off and back-on emails through the real queue and the
+// real functions. The real hold is five minutes, which a journey cannot wait out and the app must
+// not let it skip, so each journey calls the brunch off *as of* a moment the hold has already
+// passed (support/lifecycle.ts): the function measures the hold from that moment and finds nothing
+// left to wait for. The "nobody is told" journeys end with a second brunch that does produce an
+// email, so the quiet is observed after the queue has demonstrably got to it, never by sleeping.
+
+async function noticeFixture(makeActor: (name: string) => Promise<Actor>) {
+  const host = await makeActor('host');
+  const ann = await makeActor('ann');
+  const maybe = await makeActor('maybe');
+  const decliner = await makeActor('decliner');
+  const silent = newEmail('silent');
+  return { host, ann, maybe, decliner, silent };
+}
+
+test.describe('N5 — calling a brunch off tells the right people', () => {
+  test('the yes, the maybe and someone with no account hear it; the host and the person who declined do not', async ({
+    makeActor,
+  }) => {
+    const { host, ann, maybe, decliner, silent } = await noticeFixture(makeActor);
+    const title = `Called Off Brunch ${uniqueSuffix()}`;
+    const brunchId = await createBrunch({ host: host.user, title });
+    // The decliner is invited first, so an email wrongly sent to them would be written before the
+    // last legitimate one and be visible by the time that one arrives.
+    await addAttendee({ brunchId, host: host.user, user: decliner.user, response: 'no' });
+    await addAttendee({ brunchId, host: host.user, user: ann.user, response: 'yes' });
+    await addAttendee({ brunchId, host: host.user, user: maybe.user, response: 'maybe' });
+    await inviteToBrunch({ brunchId, host: host.user, invitees: [{ email: silent }] });
+
+    await callOffBrunch({ brunchId, host: host.user, at: afterTheHold() });
+
+    const annEmail = only(await waitForEmails({ to: ann.user.email, count: 1 }));
+    const maybeEmail = only(await waitForEmails({ to: maybe.user.email, count: 1 }));
+    const silentEmail = only(await waitForEmails({ to: silent, count: 1 }));
+    expect(await emailsTo(decliner.user.email)).toHaveLength(0);
+    expect(await emailsTo(host.user.email)).toHaveLength(0);
+
+    for (const email of [annEmail, maybeEmail, silentEmail]) {
+      expect(email.subject).toBe(`${host.user.name} called off ${title}`);
+      expect(email.html).toContain('Called off.');
+    }
+    // Members are sent to the brunch; the person with no account to their invite page.
+    expect(new URL(linkIn(annEmail)).pathname).toBe(`/brunch/${brunchId}`);
+    expect(new URL(linkIn(silentEmail)).pathname).toMatch(/^\/invite\//);
+
+    // The notice is recorded as sent, which is what lets a bring-back know people were told.
+    await expect
+      .poll(
+        async () =>
+          (await getDb().brunch.findFirst({ where: { id: brunchId } }))?.cancelNoticeSentAt ?? null,
+      )
+      .not.toBeNull();
+  });
+});
+
+test.describe('N6 — a brunch brought back inside the hold tells nobody anything', () => {
+  test('no called-off email, and no "back on" email either', async ({ makeActor }) => {
+    const { host, ann } = await noticeFixture(makeActor);
+    const quietTitle = `Changed My Mind ${uniqueSuffix()}`;
+    const quiet = await createBrunch({ host: host.user, title: quietTitle });
+    await addAttendee({ brunchId: quiet, host: host.user, user: ann.user, response: 'yes' });
+
+    // Called off, and brought back before the hold was over. The called-off event still arrives
+    // later (it is what the queue delivers when the run wakes), and finds the brunch open again.
+    const cancelledAt = await callOffBrunch({
+      brunchId: quiet,
+      host: host.user,
+      at: afterTheHold(),
+      announce: false,
+    });
+    await bringBackBrunch({ brunchId: quiet, host: host.user });
+    await announceCancellation({ brunchId: quiet, cancelledAt });
+
+    // A second brunch of the same people that really is called off: when its email has arrived the
+    // queue has got past the first brunch's events, and the first one produced nothing.
+    const realTitle = `Really Off ${uniqueSuffix()}`;
+    const real = await createBrunch({ host: host.user, title: realTitle });
+    await addAttendee({ brunchId: real, host: host.user, user: ann.user, response: 'yes' });
+    await callOffBrunch({ brunchId: real, host: host.user, at: afterTheHold() });
+
+    const emails = await waitForEmails({ to: ann.user.email, count: 1 });
+    expect(emails.map((email) => email.subject)).toEqual([
+      `${host.user.name} called off ${realTitle}`,
+    ]);
+    expect(emails.some((email) => email.html.includes(quietTitle))).toBe(false);
+    expect(await emailsTo(host.user.email)).toHaveLength(0);
+  });
+});
+
+test.describe('N7 — bringing a called-off brunch back corrects what people were told', () => {
+  test('the people who were told it was off hear it is back on, and a second cancellation tells them again', async ({
+    makeActor,
+  }) => {
+    const { host, ann, decliner } = await noticeFixture(makeActor);
+    const title = `Back On ${uniqueSuffix()}`;
+    const brunchId = await createBrunch({ host: host.user, title });
+    await addAttendee({ brunchId, host: host.user, user: decliner.user, response: 'no' });
+    await addAttendee({ brunchId, host: host.user, user: ann.user, response: 'yes' });
+
+    // Called off, and the notice goes out.
+    await callOffBrunch({ brunchId, host: host.user, at: afterTheHold() });
+    await waitForEmails({ to: ann.user.email, count: 1 });
+    await expect
+      .poll(
+        async () =>
+          (await getDb().brunch.findFirst({ where: { id: brunchId } }))?.cancelNoticeSentAt ?? null,
+      )
+      .not.toBeNull();
+
+    // Brought back: the same person is told, and the link is the brunch.
+    await bringBackBrunch({ brunchId, host: host.user });
+    const [calledOff, backOn] = await waitForEmails({ to: ann.user.email, count: 2 });
+    if (calledOff === undefined || backOn === undefined) throw new Error('Expected two emails');
+    expect(calledOff.subject).toBe(`${host.user.name} called off ${title}`);
+    expect(backOn.subject).toBe(`${title} is back on 🥂`);
+    expect(new URL(linkIn(backOn)).pathname).toBe(`/brunch/${brunchId}`);
+    expect(backOn.idempotencyKey).not.toBe(calledOff.idempotencyKey);
+
+    // Called off a second time: a different cancellation, so a different email, not a replay.
+    await callOffBrunch({ brunchId, host: host.user, at: afterTheHold(30) });
+    const third = (await waitForEmails({ to: ann.user.email, count: 3 }))[2];
+    expect(third?.subject).toBe(`${host.user.name} called off ${title}`);
+    expect(third?.idempotencyKey).not.toBe(calledOff.idempotencyKey);
+
+    // The host did it and the decliner opted out: neither heard anything, at any point.
+    expect(await emailsTo(host.user.email)).toHaveLength(0);
+    expect(await emailsTo(decliner.user.email)).toHaveLength(0);
+  });
+});
+
+test.describe('N8 — the hold on a called-off notice is real', () => {
+  test('called off just now, nothing is sent while the host can still change their mind', async ({
+    makeActor,
+  }) => {
+    const { host, ann } = await noticeFixture(makeActor);
+    const brunchId = await createBrunch({ host: host.user, title: `Hold ${uniqueSuffix()}` });
+    await addAttendee({ brunchId, host: host.user, user: ann.user, response: 'yes' });
+
+    // The same call as N5 but as of now: the five-minute hold has barely begun. N5's email arrives
+    // within a couple of seconds, so a function that did not wait would have sent by now.
+    await callOffBrunch({ brunchId, host: host.user });
+
+    await expectNoEmails({ to: ann.user.email, forMs: 6_000 });
+    expect(
+      (await getDb().brunch.findFirst({ where: { id: brunchId } }))?.cancelNoticeSentAt,
+    ).toBeNull();
+
+    // Changing their mind now costs nobody anything: the run is left sleeping and will find the
+    // brunch open again.
+    await bringBackBrunch({ brunchId, host: host.user });
+    expect(await emailsTo(ann.user.email)).toHaveLength(0);
+  });
+});
+
 test.describe('N4 — the queue endpoint', () => {
-  test('is reachable without a session and has its three functions registered', async ({
+  test('is reachable without a session and has its five functions registered', async ({
     request,
   }) => {
     const response = await request.get('/api/inngest');
@@ -175,8 +343,9 @@ test.describe('N4 — the queue endpoint', () => {
     // middleware to the Inngest SDK, which answers its introspection call.
     expect(response.status()).toBe(200);
     const body = (await response.json()) as { function_count?: number; mode?: string };
-    // The two email functions and the daily rate-limit prune (spec 0012).
-    expect(body.function_count).toBe(3);
+    // The invite, confirmed, called-off and back-on email functions and the daily rate-limit
+    // prune (specs 0012 and 0013).
+    expect(body.function_count).toBe(5);
     expect(body.mode).toBe('dev');
   });
 });

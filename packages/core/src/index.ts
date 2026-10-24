@@ -15,6 +15,17 @@ export type {
 } from './email/sendInviteEmail';
 export { resolveConfirmationRecipients } from './email/resolveConfirmationRecipients';
 export { sendConfirmationEmail } from './email/sendConfirmationEmail';
+export { sendCancelledEmail } from './email/sendCancelledEmail';
+export { sendBackOnEmail } from './email/sendBackOnEmail';
+export { resolveCancelNotice } from './email/resolveCancelNotice';
+export { resolveBackOnNotice } from './email/resolveBackOnNotice';
+export { markCancelNoticeSent } from './email/markCancelNoticeSent';
+export type {
+  NoticeBrunchSummary,
+  NoticeStopReason,
+  ResolvedNotice,
+  ResolveNoticeError,
+} from './email/noticeTypes';
 export type {
   ConfirmationDestination,
   ConfirmationRecipient,
@@ -65,6 +76,27 @@ export { assertHostOf } from './brunch/guards/assertHostOf';
 export type { AssertHostOfError, HostBrunch } from './brunch/guards/assertHostOf';
 export { assertBrunchActive } from './brunch/guards/assertBrunchActive';
 export type { AssertBrunchActiveError } from './brunch/guards/assertBrunchActive';
+export { cancelBrunch } from './brunch/cancelBrunch';
+export type { CancelBrunchError, CancelBrunchInput } from './brunch/cancelBrunch';
+export { reinstateBrunch } from './brunch/reinstateBrunch';
+export type { ReinstateBrunchError, ReinstateBrunchInput } from './brunch/reinstateBrunch';
+export { deleteBrunch } from './brunch/deleteBrunch';
+export type { DeleteBrunchError, DeleteBrunchInput } from './brunch/deleteBrunch';
+export { setBrunchHidden } from './brunch/setBrunchHidden';
+export type { SetBrunchHiddenError, SetBrunchHiddenInput } from './brunch/setBrunchHidden';
+export { limitPast } from './brunch/presentation/limitPast';
+export { assertBrunchOpen } from './brunch/guards/assertBrunchOpen';
+export {
+  cancelNoticeWaitSeconds,
+  isCancelNoticePending,
+} from './brunch/guards/isCancelNoticePending';
+export { canCallOff } from './brunch/presentation/canCallOff';
+export { getCancelWait } from './brunch/getCancelWait';
+export type { CancelWait } from './brunch/getCancelWait';
+export { getCancelNoticeAudience } from './email/getCancelNoticeAudience';
+export type { AssertBrunchOpenError } from './brunch/guards/assertBrunchOpen';
+export { assertCanTransition, BRUNCH_TRANSITIONS } from './brunch/guards/brunchTransitions';
+export type { InvalidTransitionError } from './brunch/guards/brunchTransitions';
 export { addLocation } from './brunch/addLocation';
 export type { AddLocationError, AddLocationInput } from './brunch/addLocation';
 export { addTime, addTimeRequestSchema } from './brunch/addTime';

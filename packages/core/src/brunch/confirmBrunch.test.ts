@@ -24,6 +24,7 @@ const SCHEDULED_AT = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
 const OPEN_BRUNCH = {
   id: BRUNCH_ID,
   hostId: HOST_ID,
+  statusId: 'status-active',
   status: { code: 'active' },
   votingDeadline: null,
   votingClosedAt: null,
@@ -34,7 +35,7 @@ type MockTx = {
   user: { findFirst: ReturnType<typeof vi.fn> };
   brunchLocation: { update: ReturnType<typeof vi.fn> };
   brunchTime: { update: ReturnType<typeof vi.fn> };
-  brunch: { update: ReturnType<typeof vi.fn> };
+  brunch: { updateMany: ReturnType<typeof vi.fn> };
   brunchInvite: { updateMany: ReturnType<typeof vi.fn> };
 };
 
@@ -51,7 +52,9 @@ function makeMockTx(overrides: Partial<MockTx> = {}): MockTx {
     },
     brunchLocation: { update: overrides.brunchLocation?.update ?? vi.fn().mockResolvedValue({}) },
     brunchTime: { update: overrides.brunchTime?.update ?? vi.fn().mockResolvedValue({}) },
-    brunch: { update: overrides.brunch?.update ?? vi.fn().mockResolvedValue({}) },
+    brunch: {
+      updateMany: overrides.brunch?.updateMany ?? vi.fn().mockResolvedValue({ count: 1 }),
+    },
     brunchInvite: {
       updateMany: overrides.brunchInvite?.updateMany ?? vi.fn().mockResolvedValue({ count: 0 }),
     },
@@ -119,8 +122,8 @@ describe('confirmBrunch', () => {
       where: { id: TIME_A },
       data: { isConfirmed: true, confirmedAt: expect.any(Date) },
     });
-    expect(db.tx.brunch.update).toHaveBeenCalledWith({
-      where: { id: BRUNCH_ID },
+    expect(db.tx.brunch.updateMany).toHaveBeenCalledWith({
+      where: { id: BRUNCH_ID, statusId: 'status-active' },
       data: { statusId: 'status-confirmed', votingClosedAt: expect.any(Date) },
     });
   });
@@ -133,8 +136,8 @@ describe('confirmBrunch', () => {
 
     await confirmBrunch(BASE_INPUT, { db, eventBus: makeMockEventBus() });
 
-    expect(db.tx.brunch.update).toHaveBeenCalledWith({
-      where: { id: BRUNCH_ID },
+    expect(db.tx.brunch.updateMany).toHaveBeenCalledWith({
+      where: { id: BRUNCH_ID, statusId: 'status-active' },
       data: { statusId: 'status-confirmed', votingClosedAt: earlierClose },
     });
   });
@@ -239,7 +242,7 @@ describe('confirmBrunch', () => {
     );
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'not_host' });
-    expect(db.tx.brunch.update).not.toHaveBeenCalled();
+    expect(db.tx.brunch.updateMany).not.toHaveBeenCalled();
   });
 
   it('treats an outsider as if it does not exist (no 403 that confirms it is real)', async () => {
@@ -256,7 +259,7 @@ describe('confirmBrunch', () => {
     );
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_found' });
-    expect(db.tx.brunch.update).not.toHaveBeenCalled();
+    expect(db.tx.brunch.updateMany).not.toHaveBeenCalled();
   });
 
   it('rejects when the brunch does not exist', async () => {
@@ -347,5 +350,33 @@ describe('confirmBrunch', () => {
     const result = await confirmBrunch(BASE_INPUT, { db, eventBus: makeMockEventBus(emit) });
 
     expect(result.isOk()).toBe(true);
+  });
+});
+
+describe('confirmBrunch — the status can change under it', () => {
+  it('reports invalid_transition and emits nothing when the status changed after it was read', async () => {
+    const tx = makeMockTx({ brunch: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) } });
+    const db = makeMockDb({ tx });
+    const emit = vi.fn().mockResolvedValue(undefined);
+
+    const result = await confirmBrunch(BASE_INPUT, { db, eventBus: { emit } });
+
+    expect(result._unsafeUnwrapErr()).toEqual({
+      kind: 'invalid_transition',
+      from: 'active',
+      to: 'confirmed',
+    });
+    expect(emit).not.toHaveBeenCalled();
+  });
+
+  it('refuses a cancelled brunch before touching anything', async () => {
+    const db = makeMockDb({
+      findFirstBrunch: vi.fn().mockResolvedValue({ ...OPEN_BRUNCH, status: { code: 'cancelled' } }),
+    });
+
+    const result = await confirmBrunch(BASE_INPUT, { db, eventBus: makeMockEventBus() });
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_active' });
+    expect(db.tx.brunch.updateMany).not.toHaveBeenCalled();
   });
 });

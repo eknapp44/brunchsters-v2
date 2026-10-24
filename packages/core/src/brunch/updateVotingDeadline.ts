@@ -2,6 +2,7 @@ import type { DbClient } from '@brunchsters/database';
 import type { BrunchId, UserId } from '@brunchsters/shared';
 import { err, ok, type Result } from 'neverthrow';
 import { z } from 'zod';
+import { assertBrunchOpen, type AssertBrunchOpenError } from './guards/assertBrunchOpen';
 import { assertHostOf, type AssertHostOfError } from './guards/assertHostOf';
 
 export const updateVotingDeadlineRequestSchema = z.object({
@@ -25,6 +26,7 @@ export type UpdateVotingDeadlineInput = {
 
 export type UpdateVotingDeadlineError =
   | AssertHostOfError
+  | AssertBrunchOpenError
   | { readonly kind: 'already_closed' }
   | { readonly kind: 'db_error'; readonly cause: unknown };
 
@@ -37,6 +39,9 @@ export async function updateVotingDeadline(
     ctx,
   );
   if (hostResult.isErr()) return err(hostResult.error);
+
+  const openResult = assertBrunchOpen(hostResult.value);
+  if (openResult.isErr()) return err(openResult.error);
 
   // Deliberately narrower than isVotingClosed: that also factors in the
   // current votingDeadline, which is exactly the field being changed here.

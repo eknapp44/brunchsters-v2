@@ -11,7 +11,13 @@ import {
 import { err, ok, type Result } from 'neverthrow';
 import { z } from 'zod';
 import { LookupNotFoundError } from '../errors/LookupNotFoundError';
+import { StaleStatusError } from '../errors/StaleStatusError';
 import type { EventBus } from '../events/EventBus';
+import { assertBrunchOpen, type AssertBrunchOpenError } from '../brunch/guards/assertBrunchOpen';
+import {
+  assertCanTransition,
+  type InvalidTransitionError,
+} from '../brunch/guards/brunchTransitions';
 import { isBrunchMember } from '../brunch/guards/isBrunchMember';
 import {
   consumeBudgets,
@@ -48,6 +54,8 @@ export type InviteSummary = {
 export type SendInvitesError =
   | { readonly kind: 'brunch_not_found' }
   | { readonly kind: 'not_host' }
+  | AssertBrunchOpenError
+  | InvalidTransitionError
   | RateLimited
   | RateLimiterUnavailable
   | { readonly kind: 'lookup_not_found'; readonly code: string }
@@ -69,6 +77,8 @@ export type SendInvitesTxInput = {
   readonly invitedById: UserId;
   readonly emails: readonly string[]; // already deduped/self-filtered by the caller
   readonly brunchStatusCode: string;
+  // The status row id the caller read, so the draft -> active move can be a conditional update.
+  readonly brunchStatusId: string;
 };
 
 function expiresIn30Days(): Date {
@@ -170,10 +180,13 @@ export async function sendInvitesInTransaction(
   if (input.brunchStatusCode === 'draft') {
     const activeStatus = await tx.brunchStatus.findFirst({ where: { code: 'active' } });
     if (activeStatus === null) throw new LookupNotFoundError('BrunchStatus:active');
-    await tx.brunch.update({
-      where: { id: input.brunchId },
+    // Conditional on the status the caller read: a request that changed it in between (a cancel)
+    // matches no row, and the whole transaction, invites included, rolls back.
+    const moved = await tx.brunch.updateMany({
+      where: { id: input.brunchId, statusId: input.brunchStatusId },
       data: { statusId: activeStatus.id },
     });
+    if (moved.count === 0) throw new StaleStatusError();
   }
 
   return results;
@@ -197,6 +210,15 @@ export async function sendInvites(
       ctx,
     );
     return err({ kind: member ? 'not_host' : 'brunch_not_found' });
+  }
+
+  // After the host check, so only the host is told the brunch is called off; before any budget is
+  // spent, so a refused send costs nothing.
+  const openResult = assertBrunchOpen(brunch);
+  if (openResult.isErr()) return err(openResult.error);
+  if (brunch.status.code === 'draft') {
+    const moveResult = assertCanTransition({ from: brunch.status.code, to: 'active' });
+    if (moveResult.isErr()) return err(moveResult.error);
   }
 
   // Inviting yourself is a no-op, not an error — the host already has the
@@ -251,11 +273,15 @@ export async function sendInvites(
         invitedById: input.invitedById,
         emails,
         brunchStatusCode: brunch.status.code,
+        brunchStatusId: brunch.statusId,
       }),
     );
   } catch (cause) {
     if (cause instanceof LookupNotFoundError) {
       return err({ kind: 'lookup_not_found', code: cause.code });
+    }
+    if (cause instanceof StaleStatusError) {
+      return err({ kind: 'invalid_transition', from: brunch.status.code, to: 'active' });
     }
     return err({ kind: 'db_error', cause });
   }

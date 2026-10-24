@@ -23,6 +23,10 @@ export const RATE_LIMIT_POLICIES = {
   inviteEmailsPerBrunch: { name: 'invite-emails-brunch', limit: 50, windowSeconds: DAY },
   // Resend is once per invite per window, and it also spends one host invite-email unit.
   resendPerInvite: { name: 'resend-invite', limit: 1, windowSeconds: 10 * MINUTE },
+  // Calling a brunch off emails the people in it (spec 0013, ADR 0015), so each cancellation is one
+  // unit of the host's day. Keyed by the host, never by the brunch: the budget must not tell a real
+  // brunch from a made-up id. Spent in core after the host check and the state checks.
+  cancelNoticesPerHost: { name: 'cancel-notices-host', limit: 6, windowSeconds: DAY },
   placeSearchPerUser: { name: 'place-search', limit: 30, windowSeconds: MINUTE },
   placeDetailsPerUser: { name: 'place-details', limit: 20, windowSeconds: MINUTE },
   // Every other authenticated write; counts requests the service then rejects too.

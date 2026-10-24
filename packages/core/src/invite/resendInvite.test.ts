@@ -12,7 +12,7 @@ const INVITE_ID = 'invite-uuid' as InviteId;
 const BASE_INVITE = {
   id: INVITE_ID,
   brunchId: 'brunch-uuid',
-  brunch: { id: 'brunch-uuid', hostId: HOST_ID },
+  brunch: { id: 'brunch-uuid', hostId: HOST_ID, status: { code: 'active' } },
 };
 
 function makeMockDb(
@@ -233,5 +233,30 @@ describe('resendInvite — rate limits', () => {
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'invite_not_found' });
     expect(rateLimiter.spends).toEqual([]);
+  });
+});
+
+describe('resendInvite — a brunch that is not open', () => {
+  it('refuses a called-off brunch: no budget spent, token unchanged, nothing emailed', async () => {
+    const update = vi.fn().mockResolvedValue({ id: INVITE_ID });
+    const db = makeMockDb({
+      update,
+      findFirst: vi.fn().mockResolvedValue({
+        ...BASE_INVITE,
+        brunch: { ...BASE_INVITE.brunch, status: { code: 'cancelled' } },
+      }),
+    });
+    const rateLimiter = new RecordingRateLimiter();
+    const emit = vi.fn().mockResolvedValue(undefined);
+
+    const result = await resendInvite(
+      { inviteId: INVITE_ID, requestedById: HOST_ID },
+      { rateLimiter, db, eventBus: { emit } },
+    );
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_called_off' });
+    expect(rateLimiter.spends).toEqual([]);
+    expect(update).not.toHaveBeenCalled();
+    expect(emit).not.toHaveBeenCalled();
   });
 });

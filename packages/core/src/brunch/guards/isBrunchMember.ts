@@ -12,7 +12,8 @@ export async function isBrunchMember(
   ctx: { readonly db: DbClient },
 ): Promise<boolean> {
   const attendee = await ctx.db.brunchAttendee.findFirst({
-    where: { brunchId: input.brunchId, userId: input.userId },
+    // The soft-delete extension filters only this model: a deleted brunch has no members.
+    where: { brunchId: input.brunchId, userId: input.userId, brunch: { deletedAt: null } },
     select: { id: true },
   });
   return attendee !== null;

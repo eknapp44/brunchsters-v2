@@ -8,8 +8,11 @@ import {
 import { err, ok, type Result } from 'neverthrow';
 import { z } from 'zod';
 import { LookupNotFoundError } from '../errors/LookupNotFoundError';
+import { StaleStatusError } from '../errors/StaleStatusError';
 import type { EventBus } from '../events/EventBus';
 import { sendInvitesInTransaction, type InviteSummary } from './sendInvites';
+import { assertBrunchOpen, type AssertBrunchOpenError } from '../brunch/guards/assertBrunchOpen';
+import type { InvalidTransitionError } from '../brunch/guards/brunchTransitions';
 import { isBrunchMember } from '../brunch/guards/isBrunchMember';
 import {
   consumeBudgets,
@@ -33,6 +36,8 @@ export type ReviewInviteSuggestionError =
   | { readonly kind: 'suggestion_not_found' }
   | { readonly kind: 'not_host' }
   | { readonly kind: 'already_reviewed' }
+  | AssertBrunchOpenError
+  | InvalidTransitionError
   | RateLimited
   | RateLimiterUnavailable
   | { readonly kind: 'lookup_not_found'; readonly code: string }
@@ -51,7 +56,8 @@ export async function reviewInviteSuggestion(
   const { db, eventBus } = ctx;
 
   const suggestion = await db.brunchInviteSuggestion.findFirst({
-    where: { id: input.suggestionId },
+    // A deleted brunch's suggestions are gone with it (the extension filters only this model).
+    where: { id: input.suggestionId, brunch: { deletedAt: null } },
     include: { brunch: { include: { status: true } }, status: true },
   });
   if (suggestion === null) return err({ kind: 'suggestion_not_found' });
@@ -63,6 +69,8 @@ export async function reviewInviteSuggestion(
     );
     return err({ kind: member ? 'not_host' : 'suggestion_not_found' });
   }
+  const openResult = assertBrunchOpen(suggestion.brunch);
+  if (openResult.isErr()) return err(openResult.error);
   if (suggestion.status.code !== 'pending') return err({ kind: 'already_reviewed' });
 
   const newStatusCode = input.decision === 'approve' ? 'approved' : 'declined';
@@ -109,6 +117,7 @@ export async function reviewInviteSuggestion(
           invitedById: suggestion.brunch.hostId as UserId,
           emails: [suggestion.suggestedEmail],
           brunchStatusCode: suggestion.brunch.status.code,
+          brunchStatusId: suggestion.brunch.statusId,
         });
       }
 
@@ -120,6 +129,13 @@ export async function reviewInviteSuggestion(
   } catch (cause) {
     if (cause instanceof LookupNotFoundError) {
       return err({ kind: 'lookup_not_found', code: cause.code });
+    }
+    if (cause instanceof StaleStatusError) {
+      return err({
+        kind: 'invalid_transition',
+        from: suggestion.brunch.status.code,
+        to: 'active',
+      });
     }
     return err({ kind: 'db_error', cause });
   }

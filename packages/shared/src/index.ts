@@ -15,6 +15,11 @@ export type {
 export { normalizeEmail } from './email';
 export { MAX_INVITES_PER_REQUEST } from './invites';
 export {
+  CANCEL_NOTICE_GRACE_SECONDS,
+  CANCEL_NOTICE_HOLD_SECONDS,
+  PAST_BRUNCHES_SHOWN,
+} from './brunchLifecycle';
+export {
   MAX_RATE_LIMIT_WINDOW_SECONDS,
   RATE_LIMIT_POLICIES,
   RATE_LIMIT_RETENTION_DAYS,

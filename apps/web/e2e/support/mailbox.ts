@@ -78,6 +78,20 @@ export async function waitForEmails(params: {
   return emailsTo(params.to);
 }
 
+// Proves a quiet period: no email reaches the address for `forMs`. A rule that something is NOT
+// sent can only be observed by waiting, so this is the one place a journey waits on a clock; the
+// window is chosen against how fast an email that is sent arrives (a couple of seconds).
+export async function expectNoEmails(params: {
+  readonly to: string;
+  readonly forMs: number;
+}): Promise<void> {
+  const until = Date.now() + params.forMs;
+  while (Date.now() < until) {
+    expect(await emailsTo(params.to), `no email to ${params.to}`).toHaveLength(0);
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+}
+
 // The address behind the email's button ("See the brunch" in both emails).
 export function linkIn(email: SentEmail): string {
   const match = /<a href="([^"]+)" style="background/.exec(email.html);

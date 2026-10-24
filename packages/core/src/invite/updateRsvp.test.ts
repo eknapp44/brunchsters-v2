@@ -16,7 +16,11 @@ function makeMockDb(
 ): DbClient {
   return {
     brunchAttendee: {
-      findFirst: overrides.attendeeFindFirst ?? vi.fn().mockResolvedValue({ id: 'attendee-uuid' }),
+      findFirst:
+        overrides.attendeeFindFirst ??
+        vi
+          .fn()
+          .mockResolvedValue({ id: 'attendee-uuid', brunch: { status: { code: 'confirmed' } } }),
       update: overrides.attendeeUpdate ?? vi.fn().mockResolvedValue({}),
     },
     rsvpStatus: {
@@ -122,5 +126,27 @@ describe('updateRsvpRequestSchema', () => {
 
   it('rejects anything else', () => {
     expect(updateRsvpRequestSchema.safeParse({ response: 'sure' }).success).toBe(false);
+  });
+});
+
+describe('updateRsvp — a brunch that is not open', () => {
+  it('refuses an RSVP change on a called-off brunch and changes nothing', async () => {
+    const attendeeUpdate = vi.fn().mockResolvedValue({});
+    const emit = vi.fn().mockResolvedValue(undefined);
+    const db = makeMockDb({
+      attendeeUpdate,
+      attendeeFindFirst: vi
+        .fn()
+        .mockResolvedValue({ id: 'attendee-uuid', brunch: { status: { code: 'cancelled' } } }),
+    });
+
+    const result = await updateRsvp(
+      { brunchId: 'brunch-uuid' as BrunchId, viewerId: VIEWER_ID, response: 'no' },
+      { db, eventBus: { emit } },
+    );
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_called_off' });
+    expect(attendeeUpdate).not.toHaveBeenCalled();
+    expect(emit).not.toHaveBeenCalled();
   });
 });

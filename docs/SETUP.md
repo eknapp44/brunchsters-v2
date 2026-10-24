@@ -116,14 +116,12 @@ pnpm db:generate
 # 7. Seed lookup tables (statuses, RSVP states, decision types, etc.)
 pnpm db:seed
 
-# 8. (Optional) Start the Inngest local dev server in a second terminal
-npx inngest-cli@1.46.0 dev --no-discovery -u http://localhost:3000/api/inngest
-#    -> needed to actually deliver emails locally (see 'Email and the job queue' below);
-#       set INNGEST_DEV=1 in apps/web/.env.local. Dev UI: http://localhost:8288
-
-# 9. Run the app
+# 8. Run the app and the job queue together
 pnpm dev
-#    -> http://localhost:3000
+#    -> the app on http://localhost:3000 and the Inngest local dev server (the queue) with its
+#       UI on http://localhost:8288. The queue delivers emails locally and, since spec 0013, is what
+#       lets a called-off brunch be deleted (see 'Email and the job queue' below); set
+#       INNGEST_DEV=1 in apps/web/.env.local. `pnpm dev:app` starts the app alone.
 ```
 
 When everything's up you should have: the Next.js app on `:3000`, local Supabase (Postgres + Realtime) on its CLI-reported ports, and optionally the Inngest dev server.
@@ -172,11 +170,13 @@ Emails are sent by queued handlers (ADR 0009, spec 0008). Which implementation r
 | E2E                            | Inngest dev server on port 8298    | files in `$TMPDIR/brunchsters-e2e-mail`       |
 | Production deployment          | Inngest Cloud                      | Resend                                        |
 
+**The called-off email waits.** When a host calls a brunch off, the `send-brunch-cancelled-emails` function sleeps until five minutes after the cancellation (`CANCEL_NOTICE_HOLD_SECONDS`, `packages/shared/src/brunchLifecycle.ts`), reads the brunch again, and sends only if that cancellation still stands, so locally the email appears in the outbox after the hold, and "Bring it back" inside it sends nothing. The e2e suite cannot wait five minutes and the app has no way to skip it: its journeys call the brunch off _as of_ an earlier moment through the real core service (`e2e/support/lifecycle.ts`), so the hold has already passed. The "back on" email (`send-brunch-back-on-emails`) goes only to people who were told it was off.
+
 **See an invite email locally**
 
 1. In `apps/web/.env.local` set `INNGEST_DEV=1`, and leave `RESEND_API_KEY`, `INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY` **blank**.
    A real Resend key would send real mail (to your own address only, until a domain is verified); a real event key would send events to Inngest Cloud, which cannot reach your laptop.
-2. Run `pnpm dev`, and in a second terminal `npx inngest-cli@1.46.0 dev --no-discovery -u http://localhost:3000/api/inngest`.
+2. Run `pnpm dev`: it starts the app and the Inngest dev server together (`pnpm dev:queue` is the queue alone, if you run the app yourself).
 3. Invite someone from the app. The newest file in `.mail-outbox/` is the email: open it and copy the `href` out of the `html` field (or read the `subject` and `to`). Runs and retries show in the Inngest dev UI at <http://localhost:8288>.
 
 **Production deployment.** A Vercel production deployment (`VERCEL_ENV=production`) refuses to start unless `AUTH_URL`, `RESEND_API_KEY`, `EMAIL_FROM`, `INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY` are set, and the error names whichever is missing. It also refuses to start if `INNGEST_DEV` is set there, because dev mode turns off signature checks on the public `/api/inngest` route. `EMAIL_FROM` is required there because without it Resend's sandbox sender would be used, which can only write to your own account address, so every real recipient would be rejected. Point Inngest Cloud at `https://<your-domain>/api/inngest` (the Vercel integration does this for you). `NODE_ENV=production` alone is deliberately not enough to trigger the check: CI and the e2e suite serve a production build that is not a deployment.
@@ -200,8 +200,7 @@ Until you do this, Resend only delivers to the email address of your own Resend 
 
 ```bash
 supabase start            # if not already running
-pnpm dev                  # app on :3000
-npx inngest-cli@1.46.0 dev --no-discovery -u http://localhost:3000/api/inngest   # second terminal; only if you want emails delivered locally
+pnpm dev                  # app on :3000 and the job queue on :8288 (`pnpm dev:app` for the app alone)
 
 # ... make changes on a feature branch ...
 
@@ -314,7 +313,7 @@ pnpm --filter @brunchsters/web exec playwright show-trace <trace.zip>   # open a
 
 - It uses its own database, `brunchsters_e2e`, on the same local Postgres as `supabase start`. `pnpm test:e2e` drops and recreates it every run, so it never touches your dev data. Override the connection with `E2E_DATABASE_URL`; the suite reads that variable and deliberately ignores `DATABASE_URL`.
 - A guard refuses to run unless the database host is local and its name is `e2e` or ends in `_e2e`.
-- Playwright starts its own Next server on **port 3100** (`next dev` locally, `next build` + `next start` in CI) with the e2e database set explicitly. It never attaches to a server it did not start. **Stop your own `pnpm dev` (and `inngest-cli dev`) before running the suite in dev mode:** with both running, dev-mode runs failed unrelated tests (404s where a 409 was expected, missing elements, timeouts) and passed 75/75 as soon as they were stopped. Two `next dev` processes in the same `apps/web` folder likely share one `.next` build directory, and the queue's dev server polls your app constantly; which of the two matters was not separated. CI mode (`CI=true pnpm build && CI=true pnpm test:e2e`) does not have this problem.
+- Playwright starts its own Next server on **port 3100** (`next dev` locally, `next build` + `next start` in CI) with the e2e database set explicitly. It never attaches to a server it did not start. **Stop your own `pnpm dev` (and `inngest-cli dev`) before running the suite in dev mode:** with both running, dev-mode runs failed unrelated tests (404s where a 409 was expected, missing elements, timeouts) and passed 75/75 as soon as they were stopped. Two `next dev` processes in the same `apps/web` folder likely share one `.next` build directory, and the queue's dev server polls your app constantly; which of the two matters was not separated. CI mode (`CI=true pnpm build && CI=true pnpm test:e2e`) does not have this problem. Local runs use 4 workers (`playwright.config.ts`): the single `next dev` process is the limit, so 4 and 6 workers take the same time (about 200 seconds) and 12 made journeys time out. A production build runs the whole suite in about 36 seconds, so it is also the quick check.
 - Sign-in is not driven through Google: tests mint a session cookie for fixture users (see `e2e/support/session.ts`). The real Google flow stays a manual check.
 - Google Places requests are answered inside the browser from fixtures, and the e2e server's Places key is empty, so nothing can reach Google.
 - **Email and the queue are real, up to the last hop.** Playwright also starts the Inngest dev server (the pinned `inngest-cli`, fetched with `npx` the first time, on ports 8298/8299/50152/50153 so your own `inngest-cli dev` on 8288 can keep running). The app's emails go through the real queue and handlers and land as files in `$TMPDIR/brunchsters-e2e-mail` instead of being sent; `e2e/support/mailbox.ts` (`waitForEmails`, `linkIn`) reads them. The Resend and Inngest Cloud keys in your `.env.local` are blanked for this server. Setup done with the e2e factories uses a no-op event bus, so only actions made through the UI queue emails.

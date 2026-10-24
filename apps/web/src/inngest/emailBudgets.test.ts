@@ -12,7 +12,8 @@ import { describe, expect, it } from 'vitest';
 //  1. every event that causes an email must have a recorded decision here (a new one fails until
 //     someone says whether it is budgeted or why it is bounded);
 //  2. every core file that emits a *budgeted* event spends the budget, and before it emits;
-//  3. nothing sends mail directly except the handlers those events trigger.
+//  3. nothing sends mail directly except the handlers those events trigger (the confirmation,
+//     called-off and back-on emails share one sender, so a fourth caller of it is flagged too).
 //
 // Static on purpose: no database, no server, and the failure names the file.
 
@@ -32,10 +33,24 @@ const DECISIONS: Readonly<Record<string, Decision>> = {
     reason:
       'host-only, once per brunch, to people who are already in it: the fan-out is the size of the brunch, which no one outside it can choose',
   },
+  // Spec 0013: each cancellation is one unit of the host's day (cancelNoticesPerHost), spent in
+  // core after the host and state checks and before the event is emitted.
+  'brunch/cancelled': { kind: 'budgeted' },
+  'brunch/reinstated': {
+    kind: 'bounded',
+    reason:
+      'only ever follows a cancel, whose notice already spent the host budget; it mails the same people the called-off notice reached, and nobody at all if that notice never went out',
+  },
 };
 
-// The only files that may call `emailService.send(`: the handlers an event triggers.
-const SENDERS = ['email/sendConfirmationEmail.ts', 'email/sendInviteEmail.ts'];
+// The only files that may call `emailService.send(`: the invite handler and the one sender the
+// three brunch emails share. Who may call that shared sender is checked separately below.
+const SENDERS = ['email/sendInviteEmail.ts', 'email/sendToRecipient.ts'];
+const SHARED_SENDER_CALLERS = [
+  'email/sendBackOnEmail.ts',
+  'email/sendCancelledEmail.ts',
+  'email/sendConfirmationEmail.ts',
+];
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -107,7 +122,7 @@ describe('every core file that emits a budgeted event spends the budget first', 
 });
 
 describe('nothing sends mail except the handlers an event triggers', () => {
-  it('calls emailService.send only from the two handlers', () => {
+  it('calls emailService.send only from the invite handler and the shared sender', () => {
     const senders = files
       .filter((file) => /\bemailService\.send\(/.test(file.text))
       .map((file) => file.name)
@@ -117,5 +132,18 @@ describe('nothing sends mail except the handlers an event triggers', () => {
       senders,
       'new code sends mail directly: send it from an event handler, give the event a decision above, or add the file here on purpose',
     ).toEqual([...SENDERS].sort());
+  });
+
+  it('reaches the shared sender only from the three email handlers', () => {
+    const callers = files
+      .filter((file) => /\bsendToRecipient\(/.test(file.text))
+      .map((file) => file.name)
+      .filter((name) => name !== 'email/sendToRecipient.ts')
+      .sort();
+
+    expect(
+      callers,
+      'new code calls sendToRecipient: a new email needs an event decision above and a line here',
+    ).toEqual([...SHARED_SENDER_CALLERS].sort());
   });
 });

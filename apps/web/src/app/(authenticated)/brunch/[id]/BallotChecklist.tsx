@@ -155,14 +155,18 @@ export function LocationBallotChecklist({
     <>
       {!closed && canVote && <p className={`${styles.helper} ${styles.phoneHidden}`}>{HELPER}</p>}
       {closed && (
-        <InlineAlert>
-          <p>Voting is closed.</p>
-        </InlineAlert>
+        <div className={styles.ballotNote}>
+          <InlineAlert>
+            <p>Voting is closed.</p>
+          </InlineAlert>
+        </div>
       )}
       {!closed && !canVote && (
-        <InlineAlert>
-          <p>Your RSVP does not allow voting.</p>
-        </InlineAlert>
+        <div className={styles.ballotNote}>
+          <InlineAlert>
+            <p>Your RSVP does not allow voting.</p>
+          </InlineAlert>
+        </div>
       )}
 
       <ul className={styles.options} role="list">
@@ -302,14 +306,18 @@ export function TimeBallotChecklist({
     <>
       {!closed && canVote && <p className={`${styles.helper} ${styles.phoneHidden}`}>{HELPER}</p>}
       {closed && (
-        <InlineAlert>
-          <p>Voting is closed.</p>
-        </InlineAlert>
+        <div className={styles.ballotNote}>
+          <InlineAlert>
+            <p>Voting is closed.</p>
+          </InlineAlert>
+        </div>
       )}
       {!closed && !canVote && (
-        <InlineAlert>
-          <p>Your RSVP does not allow voting.</p>
-        </InlineAlert>
+        <div className={styles.ballotNote}>
+          <InlineAlert>
+            <p>Your RSVP does not allow voting.</p>
+          </InlineAlert>
+        </div>
       )}
 
       <ul className={styles.options} role="list">

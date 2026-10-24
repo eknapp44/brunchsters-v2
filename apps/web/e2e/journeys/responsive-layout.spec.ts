@@ -2,6 +2,8 @@ import { GONE_COLD } from '../support/pages';
 import { EMPTY_DASHBOARD_HEADLINE } from '../support/dashboard';
 import type { Page } from '@playwright/test';
 import { createBrunch } from '../support/factories';
+import { createLifecycleShowcase, hideForGuest } from '../support/lifecycleShowcase';
+import { afterTheHold, callOffBrunch } from '../support/lifecycle';
 import { expect, test } from '../support/fixtures';
 import { fixturePlaces } from '../support/places';
 import { createConfirmedBrunch, createVotingBrunch, inviteNewcomer } from '../support/showcase';
@@ -121,6 +123,69 @@ test.describe('D3 — every screen fits and shows its one action', () => {
     await host.page.goto(`/brunch/${draftId}/manage`);
     await expect(host.page.getByRole('heading', { name: 'Send an invite first' })).toBeVisible();
     await expectNoSidewaysScroll(host.page, 'the manage page (draft)');
+  });
+});
+
+test.describe('D3 — the lifecycle screens fit (spec 0013)', () => {
+  test('end of the road, the dialog with both choices on screen, called off, hidden', async ({
+    makeActor,
+    page,
+  }) => {
+    const { host, guest, active, draft, calledOff } = await createLifecycleShowcase(makeActor);
+
+    await host.page.goto(`/brunch/${active.id}/manage`);
+    await expect(host.page.getByRole('heading', { name: 'End of the road' })).toBeVisible();
+    await expectNoSidewaysScroll(host.page, 'manage with end of the road');
+
+    // The dialog is small on a big screen and nearly the whole width of a phone: both answers
+    // must be on screen, whichever way the buttons are stacked.
+    await host.page.getByRole('button', { name: 'Call it off', exact: true }).click();
+    const dialog = host.page.getByRole('dialog', { name: /^Calling off / });
+    await expect(dialog.getByRole('button', { name: 'Nope, keep it' })).toBeInViewport();
+    await expect(dialog.getByRole('button', { name: 'Call it off', exact: true })).toBeInViewport();
+    await expectNoSidewaysScroll(host.page, 'the call it off dialog');
+    await host.page.keyboard.press('Escape');
+
+    await host.page.goto(`/brunch/${draft.id}/manage`);
+    await expect(host.page.getByRole('button', { name: 'Delete this draft' })).toBeVisible();
+    await expectNoSidewaysScroll(host.page, 'manage draft with delete');
+
+    await host.page.goto(`/brunch/${calledOff.id}/manage`);
+    await expect(host.page.getByRole('heading', { name: 'Called off.' })).toBeVisible();
+    await expect(host.page.getByRole('button', { name: 'Bring it back' })).toBeInViewport();
+    await expectNoSidewaysScroll(host.page, 'manage called off');
+
+    await guest.page.goto(`/brunch/${calledOff.id}`);
+    await expect(guest.page.getByRole('heading', { name: 'Called off.' })).toBeVisible();
+    await expect(guest.page.getByRole('button', { name: 'Hide from my dashboard' })).toBeVisible();
+    await expectNoSidewaysScroll(guest.page, 'the called-off brunch page');
+
+    await hideForGuest({ guest, brunchId: active.id });
+    await guest.page.goto('/dashboard?hidden=1');
+    await expect(guest.page.getByRole('heading', { name: 'Hidden', exact: true })).toBeVisible();
+    await expect(
+      guest.page.getByRole('button', { name: `Unhide ${active.title}` }),
+    ).toBeInViewport();
+    await expectNoSidewaysScroll(guest.page, 'the dashboard with the hidden list');
+
+    // A link to a brunch that was called off.
+    const stranger = await makeActor('stranger');
+    const brunchId = await createBrunch({
+      host: host.user,
+      title: 'A Brunch With A Rather Long Name To See It Wrap',
+    });
+    const link = await inviteNewcomer({ host, brunchId });
+    await callOffBrunch({ brunchId, host: host.user, at: afterTheHold(), announce: false });
+    await page.goto(link);
+    await expect(
+      page.getByRole('heading', { level: 1, name: `${host.user.name} called this one off.` }),
+    ).toBeVisible();
+    await expectNoSidewaysScroll(page, 'the called-off invite page');
+    await stranger.page.goto(link);
+    await expect(
+      stranger.page.getByRole('link', { name: 'Back to your dashboard' }),
+    ).toBeInViewport();
+    await expectNoSidewaysScroll(stranger.page, 'the called-off invite page (signed in)');
   });
 });
 

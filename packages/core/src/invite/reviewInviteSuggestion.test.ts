@@ -20,7 +20,12 @@ const PENDING_SUGGESTION = {
   id: SUGGESTION_ID,
   brunchId: 'brunch-uuid',
   suggestedEmail: 'carol@example.com',
-  brunch: { id: 'brunch-uuid', hostId: HOST_ID, status: { code: 'active' } },
+  brunch: {
+    id: 'brunch-uuid',
+    hostId: HOST_ID,
+    statusId: 'status-active',
+    status: { code: 'active' },
+  },
   status: { code: 'pending' },
 };
 
@@ -293,4 +298,29 @@ describe('reviewInviteSuggestion — rate limits', () => {
     expect(reviewed._unsafeUnwrapErr()).toEqual({ kind: 'already_reviewed' });
     expect(rateLimiter.spends).toEqual([]);
   });
+});
+
+describe('reviewInviteSuggestion — a brunch that is not open', () => {
+  it.each(['approve', 'decline'] as const)(
+    'refuses to %s on a called-off brunch: no budget spent, no invite, suggestion untouched',
+    async (decision) => {
+      const db = makeMockDb({
+        findFirst: vi.fn().mockResolvedValue({
+          ...PENDING_SUGGESTION,
+          brunch: { ...PENDING_SUGGESTION.brunch, status: { code: 'cancelled' } },
+        }),
+      });
+      const rateLimiter = new RecordingRateLimiter();
+
+      const result = await reviewInviteSuggestion(
+        { suggestionId: SUGGESTION_ID, reviewedById: HOST_ID, decision },
+        { rateLimiter, db, eventBus: { emit: vi.fn() } },
+      );
+
+      expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_called_off' });
+      expect(rateLimiter.spends).toEqual([]);
+      expect(db.$transaction).not.toHaveBeenCalled();
+      expect(sendInvitesInTransaction).not.toHaveBeenCalled();
+    },
+  );
 });

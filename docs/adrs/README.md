@@ -55,3 +55,4 @@ What else was evaluated and why was it not chosen?
 | [0012](./0012-design-fidelity-and-presentation-rules.md)    | Design fidelity: compositions, voice, and where presentation rules live | Accepted |
 | [0013](./0013-rate-limits-in-postgres.md)                   | Rate limits: Postgres counters behind a `RateLimiter` interface         | Accepted |
 | [0014](./0014-content-security-policy-with-nonce.md)        | Content-Security-Policy with a per-request nonce                        | Accepted |
+| [0015](./0015-brunch-lifecycle.md)                          | Brunch lifecycle: call it off, bring it back, delete, and hide          | Accepted |

@@ -12,6 +12,9 @@ export type BrunchSummary = {
   readonly isHost: boolean;
   readonly goingCount: number;
   readonly createdAt: Date;
+  // The viewer hid this brunch from their own dashboard (spec 0013). Theirs alone: the brunch and
+  // everyone else's view are unchanged.
+  readonly isHidden: boolean;
   // The confirmed time and place; all undefined until the host confirms.
   readonly scheduledAt: Date | undefined;
   readonly placeName: string | undefined;
@@ -104,6 +107,8 @@ export async function getBrunchesForUser(
       isHost: brunch.hostId === input.userId,
       goingCount: brunch._count.attendees,
       createdAt: brunch.createdAt,
+      // `?? null` so a row from a test double without the column reads as not hidden.
+      isHidden: (record.hiddenAt ?? null) !== null,
       scheduledAt: confirmedTime?.scheduledAt,
       placeName: confirmedLocation?.placeName,
       timezone: confirmedLocation?.timezone,

@@ -67,6 +67,7 @@ describe('getBrunchesForUser', () => {
         isHost: true,
         goingCount: 1,
         createdAt: new Date('2026-07-01T10:00:00.000Z'),
+        isHidden: false,
         scheduledAt: undefined,
         placeName: undefined,
         timezone: undefined,
@@ -247,5 +248,15 @@ describe('getBrunchesForUser', () => {
         orderBy: { brunch: { createdAt: 'desc' } },
       }),
     );
+  });
+
+  it('marks a brunch the viewer hid, and only that one', async () => {
+    const [hidden, shown] = await summaries([
+      makeDbRow({ id: 'hidden-brunch' }, { hiddenAt: new Date('2026-10-01T10:00:00.000Z') }),
+      makeDbRow({ id: 'shown-brunch' }, { hiddenAt: null }),
+    ]);
+
+    expect(hidden?.isHidden).toBe(true);
+    expect(shown?.isHidden).toBe(false);
   });
 });

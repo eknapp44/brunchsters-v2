@@ -1,5 +1,6 @@
 import type {
   ResolveConfirmationRecipientsError,
+  ResolveNoticeError,
   SendConfirmationEmailError,
   SendInviteEmailError,
 } from '@brunchsters/core';
@@ -9,6 +10,7 @@ import type { Result } from 'neverthrow';
 type FailureKind =
   | SendInviteEmailError['kind']
   | ResolveConfirmationRecipientsError['kind']
+  | ResolveNoticeError['kind']
   | SendConfirmationEmailError['kind'];
 
 // Failures that time cannot fix: retrying wastes attempts and hides the real problem. Typed

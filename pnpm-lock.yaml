@@ -67,7 +67,7 @@ importers:
         version: 2.13.0(react-redux@9.3.0(@types/react@19.2.17)(react@19.2.7)(redux@5.0.1))(react@19.2.7)
       inngest:
         specifier: 4.23.0
-        version: 4.23.0(@opentelemetry/core@2.12.0(@opentelemetry/api@1.9.1))(next@15.5.28(@opentelemetry/api@1.9.1)(@playwright/test@1.64.0)(@types/node@22.19.21)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)(typescript@5.9.3)(zod@4.4.3)
+        version: 4.23.0(@opentelemetry/core@2.12.0(@opentelemetry/api@1.9.1))(next@15.5.28(@opentelemetry/api@1.9.1)(@playwright/test@1.64.0)(@types/node@22.19.21)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)(typescript@5.9.3)(zod@4.6.7)
       next:
         specifier: ^15.5.28
         version: 15.5.28(@opentelemetry/api@1.9.1)(@playwright/test@1.64.0)(@types/node@22.19.21)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -87,8 +87,8 @@ importers:
         specifier: 6.32.1
         version: 6.32.1
       zod:
-        specifier: ^4.4.3
-        version: 4.4.3
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@axe-core/playwright':
         specifier: 4.14.0
@@ -130,8 +130,8 @@ importers:
         specifier: ^6.0.0
         version: 6.2.2
       zod:
-        specifier: ^4.4.3
-        version: 4.4.3
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@types/node':
         specifier: ^22.19.21
@@ -6330,10 +6330,10 @@ packages:
       }
     engines: { node: '>=18' }
 
-  zod@4.4.3:
+  zod@4.6.7:
     resolution:
       {
-        integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==,
+        integrity: sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg==,
       }
 
 snapshots:
@@ -8745,7 +8745,7 @@ snapshots:
 
   ini@1.3.8: {}
 
-  inngest@4.23.0(@opentelemetry/core@2.12.0(@opentelemetry/api@1.9.1))(next@15.5.28(@opentelemetry/api@1.9.1)(@playwright/test@1.64.0)(@types/node@22.19.21)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)(typescript@5.9.3)(zod@4.4.3):
+  inngest@4.23.0(@opentelemetry/core@2.12.0(@opentelemetry/api@1.9.1))(next@15.5.28(@opentelemetry/api@1.9.1)(@playwright/test@1.64.0)(@types/node@22.19.21)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)(typescript@5.9.3)(zod@4.6.7):
     dependencies:
       '@bufbuild/protobuf': 2.16.0
       '@inngest/ai': 0.1.8
@@ -8769,7 +8769,7 @@ snapshots:
       ms: 2.1.3
       temporal-polyfill: 0.2.5
       ulid: 2.4.0
-      zod: 4.4.3
+      zod: 4.6.7
     optionalDependencies:
       next: 15.5.28(@opentelemetry/api@1.9.1)(@playwright/test@1.64.0)(@types/node@22.19.21)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       react: 19.2.7
@@ -10003,4 +10003,4 @@ snapshots:
 
   yoctocolors@2.1.2: {}
 
-  zod@4.4.3: {}
+  zod@4.6.7: {}

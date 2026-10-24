@@ -43,6 +43,11 @@
   margin: 0;
 }
 
+/* The links under a list: "Show all (n)", "Hidden (n)", "Close". */
+.more {
+  margin-top: var(--space-3);
+}
+
 .muted {
   color: var(--fg-muted);
 }

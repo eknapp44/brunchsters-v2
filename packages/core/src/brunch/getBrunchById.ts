@@ -14,10 +14,17 @@ export type BrunchDetail = {
   readonly statusLabel: string;
   readonly isHost: boolean;
   readonly viewerRsvpStatus: ViewerRsvpStatus | undefined;
+  // The viewer hid this brunch from their own dashboard (spec 0013); drives Hide / Unhide.
+  readonly isHidden: boolean;
   readonly allowInviteSuggestions: boolean;
   readonly allowLocationSuggestions: boolean;
   readonly allowTimeSuggestions: boolean;
   readonly votingDeadline: Date | undefined;
+  // When the host called it off, and when the guests were told (spec 0013); both undefined unless
+  // it is (or was) called off. Facts for the host's Delete button, which waits while the guests
+  // have not been told yet (see isCancelNoticePending).
+  readonly cancelledAt: Date | undefined;
+  readonly cancelNoticeSentAt: Date | undefined;
 };
 
 function toViewerRsvpStatus(rsvpStatusCode: string | undefined): ViewerRsvpStatus | undefined {
@@ -77,9 +84,12 @@ export async function getBrunchById(
     statusLabel: brunch.status.label,
     isHost: brunch.hostId === input.viewerId,
     viewerRsvpStatus: toViewerRsvpStatus(rsvpStatusCode),
+    isHidden: (brunch.attendees[0]?.hiddenAt ?? null) !== null,
     allowInviteSuggestions: brunch.allowInviteSuggestions,
     allowLocationSuggestions: brunch.allowLocationSuggestions,
     allowTimeSuggestions: brunch.allowTimeSuggestions,
     votingDeadline: brunch.votingDeadline ?? undefined,
+    cancelledAt: brunch.cancelledAt ?? undefined,
+    cancelNoticeSentAt: brunch.cancelNoticeSentAt ?? undefined,
   };
 }

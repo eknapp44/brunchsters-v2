@@ -3,6 +3,7 @@ import type { BrunchId, BrunchLocationSuggestionId, UserId } from '@brunchsters/
 import { err, ok, type Result } from 'neverthrow';
 import type { LocationInput } from './createBrunch';
 import { reviewLocationSuggestion } from './reviewLocationSuggestion';
+import { assertBrunchActive } from './guards/assertBrunchActive';
 
 export type SuggestLocationInput = {
   readonly brunchId: BrunchId;
@@ -45,7 +46,8 @@ export async function suggestLocation(
   }
 
   if (!brunch.allowLocationSuggestions) return err({ kind: 'suggestions_disabled' });
-  if (brunch.status.code !== 'active') return err({ kind: 'brunch_not_active' });
+  const activeResult = assertBrunchActive(brunch);
+  if (activeResult.isErr()) return err(activeResult.error);
 
   // No soft-delete field on this model — findUnique/findFirst behave the same here.
   const existing = await db.brunchLocationSuggestion.findUnique({

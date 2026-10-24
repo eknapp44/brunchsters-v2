@@ -20,6 +20,10 @@
     "dev": {
       "persistent": true,
       "cache": false
+    },
+    "dev:queue": {
+      "persistent": true,
+      "cache": false
     }
   }
 }

@@ -1,6 +1,7 @@
 import type { DbClient } from '@brunchsters/database';
 import type { BrunchId, InviteId, UserId } from '@brunchsters/shared';
 import { err, ok, type Result } from 'neverthrow';
+import { assertBrunchOpen, type AssertBrunchOpenError } from '../brunch/guards/assertBrunchOpen';
 import { isBrunchMember } from '../brunch/guards/isBrunchMember';
 
 export type RevokeInviteInput = {
@@ -11,6 +12,7 @@ export type RevokeInviteInput = {
 export type RevokeInviteError =
   | { readonly kind: 'invite_not_found' }
   | { readonly kind: 'not_host' }
+  | AssertBrunchOpenError
   | { readonly kind: 'db_error'; readonly cause: unknown };
 
 export async function revokeInvite(
@@ -18,8 +20,9 @@ export async function revokeInvite(
   ctx: { readonly db: DbClient },
 ): Promise<Result<{ id: InviteId }, RevokeInviteError>> {
   const invite = await ctx.db.brunchInvite.findFirst({
-    where: { id: input.inviteId },
-    include: { brunch: true },
+    // A deleted brunch's invites are gone with it (the extension filters only this model).
+    where: { id: input.inviteId, brunch: { deletedAt: null } },
+    include: { brunch: { include: { status: true } } },
   });
   if (invite === null) return err({ kind: 'invite_not_found' });
   if (invite.brunch.hostId !== input.requestedById) {
@@ -30,6 +33,9 @@ export async function revokeInvite(
     );
     return err({ kind: member ? 'not_host' : 'invite_not_found' });
   }
+
+  const openResult = assertBrunchOpen(invite.brunch);
+  if (openResult.isErr()) return err(openResult.error);
 
   try {
     await ctx.db.$transaction(async (tx) => {

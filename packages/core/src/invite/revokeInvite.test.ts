@@ -9,7 +9,7 @@ const INVITE_ID = 'invite-uuid' as InviteId;
 const BASE_INVITE = {
   id: INVITE_ID,
   brunchId: 'brunch-uuid',
-  brunch: { id: 'brunch-uuid', hostId: HOST_ID },
+  brunch: { id: 'brunch-uuid', hostId: HOST_ID, status: { code: 'active' } },
 };
 
 type MockTx = {
@@ -120,5 +120,24 @@ describe('revokeInvite', () => {
 
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'db_error', cause: expect.any(Error) });
+  });
+});
+
+describe('revokeInvite — a brunch that is not open', () => {
+  it('refuses a called-off brunch and revokes nothing', async () => {
+    const tx = makeMockTx();
+    const db = makeMockDb({
+      tx,
+      findFirst: vi.fn().mockResolvedValue({
+        ...BASE_INVITE,
+        brunch: { ...BASE_INVITE.brunch, status: { code: 'cancelled' } },
+      }),
+    });
+
+    const result = await revokeInvite({ inviteId: INVITE_ID, requestedById: HOST_ID }, { db });
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_called_off' });
+    expect(tx.brunchInvite.update).not.toHaveBeenCalled();
+    expect(tx.brunchAttendee.updateMany).not.toHaveBeenCalled();
   });
 });
