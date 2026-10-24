@@ -47,6 +47,15 @@ test.describe('E1 — the host calls it off, and the page becomes read-only for 
     await expect(dialog).toContainText(
       "We'll let the 1 person who said yes, maybe, or hadn't said yet know, in a few minutes.",
     );
+    // It sits in the middle of the window, not pinned to the top: the brunch page's panel spacing
+    // once gave it a top margin that beat the browser's centering.
+    const box = await dialog.boundingBox();
+    const viewport = host.page.viewportSize();
+    expect(box).not.toBeNull();
+    expect(viewport).not.toBeNull();
+    expect(
+      Math.abs((box?.y ?? 0) + (box?.height ?? 0) / 2 - (viewport?.height ?? 0) / 2),
+    ).toBeLessThan(4);
     // A stray Enter keeps the brunch: the safe answer has the focus.
     await expect(dialog.getByRole('button', { name: 'Nope, keep it' })).toBeFocused();
 

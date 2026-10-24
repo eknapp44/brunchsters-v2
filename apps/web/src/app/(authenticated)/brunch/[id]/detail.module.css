@@ -529,3 +529,8 @@
     white-space: nowrap;
   }
 }
+
+/* The note above a ballot's options ("Voting is closed."): room before the first option. */
+.ballotNote {
+  margin-bottom: var(--space-3);
+}

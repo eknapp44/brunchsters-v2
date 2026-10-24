@@ -13,6 +13,13 @@
   box-shadow: var(--shadow-lg);
 }
 
+/* A modal <dialog> is centered by the browser's `margin: auto`. A parent's `> * + *` spacing rule
+   (the brunch page's panels) would give it a top margin and pin it to the top of the window, so
+   the margin is set here with enough weight that no such rule can win. */
+.dialog:modal {
+  margin: auto;
+}
+
 .dialog::backdrop {
   background: var(--scrim);
 }
