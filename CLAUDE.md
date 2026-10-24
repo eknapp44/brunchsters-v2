@@ -17,6 +17,7 @@ Always-loaded baseline is in this file. For deeper context, reference these on d
 - `@docs/adrs/` — historical decision rationale
 - `@apps/web/CLAUDE.md` — UI conventions: design tokens, primitives, the accessible-name contract with the e2e suite, layout (read before touching any screen)
 - `@docs/accessible-names.md` — the log of names changed on purpose (read before renaming a button, link, label or heading)
+- `@docs/voice-and-copy.md` — the voice rules, words, and patterns with shipped examples (read before writing or changing any user-facing string)
 - `@specs/NNNN-feature/` — per-feature spec, plan, and tasks
 
 When in doubt about _why_ something is done a certain way, check the ADRs before assuming.
