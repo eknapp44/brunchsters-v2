@@ -94,6 +94,44 @@ test.describe('E1 — the host calls it off, and the page becomes read-only for 
     await expect(host.page.getByRole('button', { name: 'Round up the crew' })).toHaveCount(0);
   });
 
+  test('while the request is in flight the dialog stays open and a second press starts nothing', async ({
+    makeActor,
+  }) => {
+    const host = await makeActor('host');
+    const guest = await makeActor('guest');
+    const brunchId = await createBrunch({ host: host.user, title: `Held ${uniqueSuffix()}` });
+    await addAttendee({ brunchId, host: host.user, user: guest.user, response: 'yes' });
+
+    // Hold the cancel request until the journey lets it go.
+    let calls = 0;
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await host.page.route('**/api/v1/brunches/*/cancel', async (route) => {
+      calls += 1;
+      await held;
+      await route.continue();
+    });
+
+    await host.page.goto(`/brunch/${brunchId}/manage`);
+    await host.page.getByRole('button', CALL_IT_OFF).click();
+    const dialog = host.page.getByRole('dialog', { name: /^Calling off / });
+    await dialog.getByRole('button', CALL_IT_OFF).click();
+
+    // In flight: both choices are off, and neither Escape nor a click on the dimmed page closes it.
+    await expect(dialog.getByRole('button', CALL_IT_OFF)).toBeDisabled();
+    await expect(dialog.getByRole('button', { name: 'Nope, keep it' })).toBeDisabled();
+    await host.page.keyboard.press('Escape');
+    await dialog.click({ position: { x: -10, y: -10 }, force: true });
+    await expect(dialog).toBeVisible();
+
+    release();
+    await expect(dialog).toHaveCount(0);
+    expect(calls).toBe(1);
+    expect(await statusOf(brunchId)).toBe('cancelled');
+  });
+
   test('a draft cannot be called off, only deleted; a confirmed brunch that already happened offers neither', async ({
     makeActor,
   }) => {
