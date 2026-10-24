@@ -29,6 +29,7 @@ The limit key is the signed-in user id or the address, never a brunch, invite or
 
 - The server answers, the browser does not remember: add the question to `getInviteWaits` (or a sibling in `packages/core`, using the limiter's read-only `peek`), pass the answer from the page as a prop, show it with `useWait`, and call `router.refresh()` after a 429 so every control on the page agrees. **No `localStorage`.**
 - Wording is `limitedMessage` (Brand Voice; ask which strings change and which journeys find them by name). The button is `aria-disabled`, not `disabled`.
+- **A countdown is a guess unless the server counts it to the second.** A rate-limit window can end on the page's timer (`useWait`). A wait that depends on something happening (the queue recording a notice, Delete after a called-off email) must ask the server when the timer ends: pass `useWait(wait, { onExpire: () => router.refresh() })`; it keeps holding and the server's answer decides. Prove it with `page.clock.fastForward` past the countdown while the server still says no (E5, spec 0013).
 
 ## 5. Journeys (they own their data)
 
