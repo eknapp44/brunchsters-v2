@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { ReactElement } from 'react';
 import { HIDE_LABEL, UNHIDE_LABEL } from '@/lib/lifecycleCopy';
+import { Icon } from './icons/Icon';
 import { Button } from './ui/Button';
 import { InlineAlert } from './ui/InlineAlert';
 import styles from './HideControl.module.css';
@@ -62,6 +63,9 @@ export function HideControl(props: {
       ? 'Unhide'
       : 'Hide';
   const label = onPage ? undefined : `${text} ${props.title}`;
+  // On a row or the Hidden list the control is a small eye, not a word: it repeats on every row, and
+  // its name ("Hide <title>") is on the button for a screen reader and, as a tooltip, for a mouse.
+  const isIcon = !onPage;
   const className =
     props.placement === 'row' ? styles.row : props.placement === 'hidden-list' ? styles.list : '';
 
@@ -72,13 +76,14 @@ export function HideControl(props: {
         size="sm"
         variant="secondary"
         disabled={submitting}
-        {...(label !== undefined ? { 'aria-label': label } : {})}
+        {...(isIcon ? { className: styles.iconOnly } : {})}
+        {...(label !== undefined ? { 'aria-label': label, title: label } : {})}
         {...(props.hint !== undefined
           ? { title: props.hint.text, 'aria-describedby': props.hint.id }
           : {})}
         onClick={() => void change()}
       >
-        {text}
+        {isIcon ? <Icon name={props.hidden ? 'eye' : 'eyeOff'} size={18} /> : text}
       </Button>
       {error !== undefined && (
         <InlineAlert tone="error" role="alert">

@@ -18,3 +18,12 @@
     display: block;
   }
 }
+
+/* A square button holding only the eye: as wide as it is tall (the touch target), no side padding. */
+.iconOnly {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-target);
+  padding-inline: 0;
+}
