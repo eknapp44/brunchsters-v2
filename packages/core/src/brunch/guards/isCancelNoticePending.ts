@@ -9,13 +9,13 @@ import { CANCEL_NOTICE_GRACE_SECONDS, CANCEL_NOTICE_HOLD_SECONDS } from '@brunch
 // disagree. Pure: `now` is a parameter.
 export function isCancelNoticePending(params: {
   readonly statusCode: string;
-  readonly cancelledAt: Date | null;
-  readonly cancelNoticeSentAt: Date | null;
+  readonly cancelledAt: Date | undefined;
+  readonly cancelNoticeSentAt: Date | undefined;
   readonly now: Date;
 }): boolean {
   if (params.statusCode !== 'cancelled') return false;
-  if (params.cancelNoticeSentAt !== null) return false;
-  if (params.cancelledAt === null) return false;
+  if (params.cancelNoticeSentAt !== undefined) return false;
+  if (params.cancelledAt === undefined) return false;
 
   const giveUpAt =
     params.cancelledAt.getTime() +

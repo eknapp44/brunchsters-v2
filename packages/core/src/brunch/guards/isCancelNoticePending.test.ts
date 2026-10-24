@@ -4,7 +4,11 @@ import { cancelNoticeWaitSeconds, isCancelNoticePending } from './isCancelNotice
 
 const CANCELLED_AT = new Date('2026-10-23T12:00:00.000Z');
 const after = (seconds: number): Date => new Date(CANCELLED_AT.getTime() + seconds * 1000);
-const calledOff = { statusCode: 'cancelled', cancelledAt: CANCELLED_AT, cancelNoticeSentAt: null };
+const calledOff = {
+  statusCode: 'cancelled',
+  cancelledAt: CANCELLED_AT,
+  cancelNoticeSentAt: undefined,
+};
 
 describe('isCancelNoticePending', () => {
   it('is pending from the moment it is called off, through the hold and until the function runs', () => {
@@ -31,7 +35,9 @@ describe('isCancelNoticePending', () => {
   });
 
   it('has nothing to wait for without a recorded cancellation moment', () => {
-    expect(isCancelNoticePending({ ...calledOff, cancelledAt: null, now: after(1) })).toBe(false);
+    expect(isCancelNoticePending({ ...calledOff, cancelledAt: undefined, now: after(1) })).toBe(
+      false,
+    );
   });
 
   it.each(['draft', 'active', 'confirmed'])('never applies to a %s brunch', (statusCode) => {

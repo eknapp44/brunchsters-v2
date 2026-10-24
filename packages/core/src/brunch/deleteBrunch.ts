@@ -50,8 +50,9 @@ export async function deleteBrunch(
   if (
     isCancelNoticePending({
       statusCode: brunch.status.code,
-      cancelledAt: brunch.cancelledAt,
-      cancelNoticeSentAt: brunch.cancelNoticeSentAt,
+      // the database's null becomes the domain's undefined here, at the boundary
+      cancelledAt: brunch.cancelledAt ?? undefined,
+      cancelNoticeSentAt: brunch.cancelNoticeSentAt ?? undefined,
       now,
     })
   ) {

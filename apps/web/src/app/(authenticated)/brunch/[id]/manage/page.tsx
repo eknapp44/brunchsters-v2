@@ -91,7 +91,7 @@ export default async function ManageBrunchPage({
     isCancelNoticePending({
       statusCode: brunch.statusCode,
       cancelledAt: brunch.cancelledAt,
-      cancelNoticeSentAt: brunch.cancelNoticeSentAt ?? null,
+      cancelNoticeSentAt: brunch.cancelNoticeSentAt,
       now,
     });
   const endOfTheRoad = (
