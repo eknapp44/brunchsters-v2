@@ -24,6 +24,9 @@ export function HideControl(props: {
   readonly title: string;
   readonly hidden: boolean;
   readonly placement: 'page' | 'row' | 'hidden-list';
+  // the page control explains itself: a tooltip for a mouse, and the line it points at for a screen
+  // reader (and, on a phone, for everyone)
+  readonly hint?: { readonly id: string; readonly text: string };
 }): ReactElement {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
@@ -66,10 +69,13 @@ export function HideControl(props: {
     <div className={className}>
       <Button
         type="button"
-        size={onPage ? 'md' : 'sm'}
+        size="sm"
         variant="secondary"
         disabled={submitting}
         {...(label !== undefined ? { 'aria-label': label } : {})}
+        {...(props.hint !== undefined
+          ? { title: props.hint.text, 'aria-describedby': props.hint.id }
+          : {})}
         onClick={() => void change()}
       >
         {text}

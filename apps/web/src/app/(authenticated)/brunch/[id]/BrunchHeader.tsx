@@ -2,12 +2,14 @@ import type { BrunchDetail } from '@brunchsters/core';
 import { avatarColorIndex } from '@brunchsters/shared';
 import type { ReactElement } from 'react';
 import { Icon } from '@/components/icons/Icon';
+import { HideControl } from '@/components/HideControl';
 import { Badge } from '@/components/ui/Badge';
 import { ButtonLink } from '@/components/ui/ButtonLink';
 import { InitialsAvatar } from '@/components/ui/InitialsAvatar';
 import { statusTone } from '@/components/ui/statusTone';
 import { pageStatusLabel } from '@/lib/brunchCopy';
 import { votesChip } from '@/lib/brunchPageFormat';
+import { HIDDEN_LINE, HIDE_LINE } from '@/lib/lifecycleCopy';
 import styles from './detail.module.css';
 
 // The top of the brunch page: the way back (and, for the host, on to managing it), who asked
@@ -23,6 +25,7 @@ export function BrunchHeader(props: {
   readonly now: Date;
 }): ReactElement {
   const { brunch } = props;
+  const hideHint = brunch.isHidden ? HIDDEN_LINE : HIDE_LINE;
   return (
     <div className={styles.top}>
       <div className={styles.topNav}>
@@ -30,13 +33,25 @@ export function BrunchHeader(props: {
           <Icon name="arrowLeft" size={16} />
           Back to Dashboard
         </ButtonLink>
-        {brunch.isHost && (
-          <ButtonLink href={`/brunch/${props.brunchId}/manage`} size="sm">
-            <Icon name="arrowRight" size={16} />
-            Manage brunch
-          </ButtonLink>
-        )}
+        <div className={styles.topActions}>
+          <HideControl
+            brunchId={props.brunchId}
+            title={brunch.title}
+            hidden={brunch.isHidden}
+            placement="page"
+            hint={{ id: 'hide-hint', text: hideHint }}
+          />
+          {brunch.isHost && (
+            <ButtonLink href={`/brunch/${props.brunchId}/manage`} size="sm">
+              <Icon name="arrowRight" size={16} />
+              Manage brunch
+            </ButtonLink>
+          )}
+        </div>
       </div>
+      <p id="hide-hint" className={styles.hideHint}>
+        {hideHint}
+      </p>
 
       {/* "wants you at brunch" would contradict the called-off banner below it. */}
       {!brunch.isHost && brunch.statusCode !== 'cancelled' && (

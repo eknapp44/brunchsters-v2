@@ -76,7 +76,6 @@ test.describe('E1 — the host calls it off, and the page becomes read-only for 
     await expect(guest.page.getByText('Called off', { exact: true })).toBeVisible();
     await expect(guest.page.getByRole('heading', { name: 'You in?' })).toHaveCount(0);
     await expect(guest.page.getByRole('button', { name: "I'm in" })).toHaveCount(0);
-    await expect(guest.page.getByRole('heading', { name: 'Tidy up' })).toBeVisible();
     await expect(guest.page.getByRole('button', { name: 'Hide from my dashboard' })).toBeVisible();
 
     // The host's own brunch page says it too, with no invite panel to send from.

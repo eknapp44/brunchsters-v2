@@ -15,10 +15,8 @@ import { z } from 'zod';
 import { auth } from '@/auth';
 import { Icon } from '@/components/icons/Icon';
 import { Badge } from '@/components/ui/Badge';
-import { HideControl } from '@/components/HideControl';
 import { Container } from '@/components/ui/Container';
 import { closesIn } from '@/lib/dashboardFormat';
-import { HIDDEN_LINE, HIDE_LINE } from '@/lib/lifecycleCopy';
 import { formatWhenLong } from '@/lib/brunchPageFormat';
 import { db } from '@/lib/db';
 import { getRateLimiter } from '@/lib/services';
@@ -326,19 +324,6 @@ export default async function BrunchDetailPage({
           )}
         </div>
       </div>
-
-      <section className={styles.panel}>
-        <h2>Tidy up</h2>
-        <p className={styles.muted}>{brunch.isHidden ? HIDDEN_LINE : HIDE_LINE}</p>
-        <div className={styles.choices}>
-          <HideControl
-            brunchId={brunchId}
-            title={brunch.title}
-            hidden={brunch.isHidden}
-            placement="page"
-          />
-        </div>
-      </section>
     </Container>
   );
 }

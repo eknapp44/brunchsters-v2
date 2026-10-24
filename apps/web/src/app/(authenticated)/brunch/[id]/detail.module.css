@@ -501,3 +501,31 @@
 .votes {
   white-space: nowrap;
 }
+
+/* Hide and Manage sit together on the right of the bar. */
+.topActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* What Hide does, in words. A phone has no hover, so there it is a small line under the bar; from
+   40rem the button's tooltip says it and the line stays for screen readers only. */
+.hideHint {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+}
+
+@media (min-width: 40rem) {
+  .hideHint {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
