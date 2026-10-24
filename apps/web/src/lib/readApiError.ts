@@ -4,7 +4,6 @@ import {
   isApiErrorCode,
   isStatusAllowedFor,
 } from '@brunchsters/shared';
-import { z } from 'zod';
 import type { RateLimitFacts } from './limitedCopy';
 import { readRateLimit } from './readRateLimit';
 
@@ -15,7 +14,16 @@ export type ReadApiError = {
   readonly rateLimit: RateLimitFacts | undefined;
 };
 
-const codedBody = z.object({ error: z.object({ code: z.string() }) });
+// The code in a body of the form { error: { code } }, or undefined for any other shape. Read by
+// hand, not with Zod: this runs in the browser, and Zod 4 probes for `eval` with `new Function`,
+// which the enforced Content-Security-Policy reports as a violation on every page that loads it
+// (found in spec 0014 M2 by journey S3).
+function codeInBody(body: unknown): unknown {
+  if (typeof body !== 'object' || body === null || !('error' in body)) return undefined;
+  const error = body.error;
+  if (typeof error !== 'object' || error === null || !('code' in error)) return undefined;
+  return error.code;
+}
 
 // A 404 never depends on the body, so it says the same thing for every id. The one exception is
 // a code a route sends to a member only (an option that went away under a voter).
@@ -36,10 +44,7 @@ export async function readApiError(response: Response): Promise<ReadApiError> {
     return { code: fallback, rateLimit: undefined };
   }
 
-  const parsed = codedBody.safeParse(body);
-  if (!parsed.success) return { code: fallback, rateLimit: undefined };
-
-  const code = parsed.data.error.code;
+  const code = codeInBody(body);
   if (!isApiErrorCode(code) || !isStatusAllowedFor({ code, status: response.status })) {
     return { code: fallback, rateLimit: undefined };
   }

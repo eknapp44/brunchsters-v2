@@ -4,6 +4,7 @@ import { expect, test } from '../support/fixtures';
 import { NOT_FOUND } from '../support/pages';
 import { fixturePlaces } from '../support/places';
 import { createConfirmedBrunch, createVotingBrunch, inviteNewcomer } from '../support/showcase';
+import { TOAST_WORDS, toast } from '../support/toasts';
 import { addAttendee, ballot, castVotes } from '../support/voting';
 
 // Spec 0011 (design fidelity), the brunch page (M3): who sees whom in "Who's coming" (P5), the
@@ -102,14 +103,12 @@ test.describe('P6 — the "You in?" card, the quiet bars and the leading tag', (
     await imIn.click();
     await expect(maybe.page.getByText('Current: yes')).toBeVisible();
 
-    // A failed save keeps the card, says so, and the answer is unchanged.
+    // A failed save keeps the card, says so in a toast (spec 0014), and the answer is unchanged.
     await maybe.page.route('**/api/v1/brunches/*/rsvp', (route) =>
       route.fulfill({ status: 500, body: '{}' }),
     );
     await mayBe.click();
-    await expect(
-      maybe.page.getByRole('alert').filter({ hasText: 'Failed to update RSVP' }),
-    ).toBeVisible();
+    await expect(toast(maybe.page, TOAST_WORDS.wentSideways)).toBeVisible();
     await expect(maybe.page.getByText('Current: yes')).toBeVisible();
     await expect(imIn).toBeVisible();
     await expect(cant).toBeVisible();

@@ -9,6 +9,7 @@ import { fixturePlaces } from '../support/places';
 import { captureReviewShots } from '../support/screenshots';
 import { createConfirmedBrunch, createVotingBrunch, inviteNewcomer } from '../support/showcase';
 import { daysFromNow, toDatetimeLocalValue } from '../support/time';
+import { TOAST_WORDS, toast } from '../support/toasts';
 import { addAttendee, castVotes, closeVoting } from '../support/voting';
 import { BrunchWizard } from '../support/wizard';
 
@@ -302,4 +303,32 @@ test('the lifecycle screens: end of the road, the dialog, called off, hidden', a
     page.getByRole('heading', { level: 1, name: `${host.user.name} called this one off.` }),
   ).toBeVisible();
   await captureReviewShots(page, 'lifecycle/invite-called-off', testInfo);
+});
+
+// Spec 0014: the toast region, an error and a success, held (focus) so it is up when photographed.
+test('toasts', async ({ makeActor }, testInfo) => {
+  const host = await makeActor('host');
+  const yes = await makeActor('yes');
+  const maybe = await makeActor('maybe');
+  const pending = await makeActor('pending');
+  const { brunchId } = await createVotingBrunch({ host, guests: { yes, maybe, pending } });
+  await maybe.page.goto(`/brunch/${brunchId}`);
+  await expect(maybe.page.getByRole('heading', { name: 'You in?', exact: true })).toBeVisible();
+
+  await maybe.page.route('**/api/v1/brunches/*/rsvp', (route) =>
+    route.fulfill({ status: 500, json: { error: { code: 'internal', message: 'x' } } }),
+  );
+  await maybe.page.getByRole('button', { name: "I'm in", exact: true }).click();
+  const failure = toast(maybe.page, TOAST_WORDS.wentSideways);
+  await expect(failure).toBeVisible();
+  await failure.getByRole('button', { name: 'Dismiss' }).focus();
+  await captureReviewShots(maybe.page, 'feedback/toast-error', testInfo);
+  await failure.getByRole('button', { name: 'Dismiss' }).click();
+
+  await maybe.page.unroute('**/api/v1/brunches/*/rsvp');
+  await maybe.page.getByRole('button', { name: "I'm in", exact: true }).click();
+  const success = toast(maybe.page, TOAST_WORDS.imIn);
+  await expect(success).toBeVisible();
+  await success.getByRole('button', { name: 'Dismiss' }).focus();
+  await captureReviewShots(maybe.page, 'feedback/toast-success', testInfo);
 });

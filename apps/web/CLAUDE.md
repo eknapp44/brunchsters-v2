@@ -33,7 +33,7 @@ Why and what: [ADR 0013](../../docs/adrs/0013-rate-limits-in-postgres.md), [ADR 
 
 ## State
 
-Why and what: [ADR 0011](../../docs/adrs/0011-redux-toolkit-for-client-ui-state.md), `specs/0010-redux-ui-state/`. Today the wizard (`wizardSlice`) and the vote ballots (`ballotsSlice`, `useBallot`) are on the store; every other control still uses `useState`, on purpose (see "Moving another control onto the store").
+Why and what: [ADR 0011](../../docs/adrs/0011-redux-toolkit-for-client-ui-state.md), `specs/0010-redux-ui-state/`. Today the wizard (`wizardSlice`), the vote ballots (`ballotsSlice`, `useBallot`) and RSVP (the shared `useMutation`, below) are on the store; every other control still uses `useState` until spec 0014 moves it (M3, M4; see "Moving another control onto the store").
 
 - **The store holds UI state only.** Business rules stay on the server and in `packages/core`. Brunch data stays in Server Components and is refreshed with `router.refresh()` (called from the component); do not copy it into the store.
 - **Per-request store, never a module-level one.** `makeStore` builds a fresh store; `StoreProvider` (`src/store/`) creates it once per mount. Server Components never touch Redux.
@@ -45,6 +45,14 @@ Why and what: [ADR 0011](../../docs/adrs/0011-redux-toolkit-for-client-ui-state.
 - **A provider that outlives a page means state can too.** Every slice says how it is reset or released (the wizard resets on unmount; ballot entries are released on unmount), ignores a late response that lands after that, and a journey proves it (R1, R2).
 - **Slice or `useState`?** State only one component reads (an input's text, a copied-to-clipboard flag) stays `useState`. A slice earns its place when several components read it, or when its rules (optimistic update, rollback, stale-id filtering) deserve unit tests.
 - Test reducers, selectors and thunks; do not test that React renders (root `CLAUDE.md`).
+
+### Shared mutations and toasts (spec 0014, ADR 0016)
+
+- **A control's request is `useMutation(key)`** (`src/store/useMutation.ts`): `run({ request, success?, failure })` dispatches the one `runMutation` thunk under a key of the control's own (`rsvp:<brunchId>`), reads `pending` and `failure`, and the control does `router.refresh()` when `run` resolves true. No `fetch`, no `submitting`/`error` pair, no failure string in a component. The second tap on a key in flight does nothing (the thunk's `condition`); a result from an earlier request is ignored.
+- **A pending control is `aria-disabled`, not `disabled`**, so keyboard focus stays on the button that was pressed (a disabled button drops it).
+- **Where a failure shows is the caller's choice:** `failure: 'toast'` for a one-tap result, `'inline'` for what the person has to fix or wait out (render `failure.text` in an `InlineAlert` where the old error line was). A 429 on a control with a wait surface is that control's own inline line (`useWait`), never a toast.
+- **Failure words are `errorCopy`'s, from the code the route sent** (`packages/shared/src/apiError.ts`); a route builds its errors with `apiError()` (`src/lib/apiErrorResponse.ts`). Success words are in a `lib/*Copy.ts` (`toastCopy.ts`), never inline.
+- **Never import Zod into code that runs in the browser:** Zod 4 probes with `new Function`, which the CSP reports (journey S3 fails). Read a response body by hand there.
 
 ### Moving another control onto the store
 

@@ -138,7 +138,7 @@ New series **T** (toasts and feedback); existing ones are edited where noted.
 
 **Edited, not new** (names stay; the strings they assert change): F1, F3 (`failure-paths`), the RSVP, suggestion, confirm and voting-deadline cases in `brunch-page`, `same-person`, `manage-options`, `redux-ui-state`. Each is proved to fail against the old generic string.
 
-Phone: T1, T2 and T9 run in the `mobile` project (toast above the bottom bar and the wizard footer, safe-area, touch targets, no sideways scroll).
+Phone: T1, T2 and T9 run in the `mobile` project (toast at the bottom of the window and clear of its edge, safe-area, touch targets, no sideways scroll).
 
 ## Accessible names changed
 
@@ -146,7 +146,7 @@ Phone: T1, T2 and T9 run in the `mobile` project (toast above the bottom bar and
 
 ## Phone
 
-A toast sits above the bottom bar and clear of the wizard footer, uses the safe-area inset, is at most the viewport width with wrapped text, and its dismiss button is at least 44px. Skeletons leave out nothing a person needs: they only hold the shape. Nothing is hidden on a phone that is not hidden today.
+A toast sits at the bottom of the window above the safe-area inset (nothing else in the app is fixed or sticky, so there is no bar or footer to clear), is at most the viewport width with wrapped text, and its dismiss button is at least 44px. Skeletons leave out nothing a person needs: they only hold the shape. Nothing is hidden on a phone that is not hidden today.
 
 ## Risks
 

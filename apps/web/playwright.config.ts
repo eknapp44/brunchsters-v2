@@ -59,6 +59,7 @@ export default defineConfig({
         '**/confirm.spec.ts',
         '**/design-fidelity.spec.ts',
         '**/brunch-page.spec.ts',
+        '**/feedback.spec.ts',
         '**/wizard-page.spec.ts',
         '**/front-door.spec.ts',
       ],

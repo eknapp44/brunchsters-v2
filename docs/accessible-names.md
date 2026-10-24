@@ -18,3 +18,9 @@ Later changes in the same spec: the manage page's close-voting button is **Close
 off**), and its nudge line says "close voting now if you're ready". The brunch page's Hide control is
 in the header beside Manage brunch; on dashboard rows, the next-up card and the Hidden list it is an
 eye icon whose `aria-label` and tooltip are `Hide <title>` / `Unhide <title>`.
+
+## Spec 0014, feedback surfaces
+
+No button, link, label or heading is renamed. What changes is the error and result text, and the role it sits in (a failure that was a `role="alert"` line under a control becomes a toast in one polite `status` region, or stays an inline `alert` where the person must fix or wait it out).
+
+- **M2, RSVP:** the "Failed to update RSVP" `alert` under the buttons is gone; a failure toasts "Something went sideways on our end." (or the line for the code the route sent, for example "This one's been called off, so it can't change."), and a success toasts "You're in. See you there." / "Maybe it is. You can change it any time." / "Got it, you can't make it." New: the toast region (`role="status"`, `aria-live="polite"`, always present, empty until a toast) and a **Dismiss** button on each toast. The RSVP buttons (**I'm in**, **Maybe**, **Can't**) keep their names; while a save is out they are `aria-disabled` instead of `disabled`, so keyboard focus stays on the button that was pressed. Journey edited: P6 in `brunch-page.spec.ts`; new: T1 and T2 in `feedback.spec.ts` (words in `e2e/support/toasts.ts`).

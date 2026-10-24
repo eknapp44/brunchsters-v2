@@ -1,5 +1,7 @@
 import { type Action, combineReducers, configureStore, type Reducer } from '@reduxjs/toolkit';
 import { ballotsReducer } from './ballotsSlice';
+import { mutationsReducer } from './mutationsSlice';
+import { toastsReducer } from './toastsSlice';
 import { wizardReducer } from './wizardSlice';
 
 // What every thunk receives as its third argument. `fetch` is injected so thunks run in node
@@ -9,7 +11,12 @@ export type ThunkExtra = {
 };
 
 // New slices are added here (ADR 0011; see the State section of apps/web/CLAUDE.md).
-const rootReducer = combineReducers({ wizard: wizardReducer, ballots: ballotsReducer });
+const rootReducer = combineReducers({
+  wizard: wizardReducer,
+  ballots: ballotsReducer,
+  mutations: mutationsReducer,
+  toasts: toastsReducer,
+});
 
 export type RootState = ReturnType<typeof rootReducer>;
 
