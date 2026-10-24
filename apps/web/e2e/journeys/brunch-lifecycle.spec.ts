@@ -278,6 +278,8 @@ test.describe('E6 — hiding a brunch from your own dashboard', () => {
   test('from the page, the card and the list; it is only yours, and a phone row has it too', async ({
     makeActor,
   }) => {
+    // Page, card, list, Hidden list and a phone in one journey: about 30 seconds in dev mode.
+    test.slow();
     const host = await makeActor('host');
     const guest = await makeActor('guest');
     const title = `Tidy ${uniqueSuffix()}`;
@@ -328,6 +330,35 @@ test.describe('E6 — hiding a brunch from your own dashboard', () => {
     await guest.page.getByRole('button', { name: `Hide ${title}` }).click();
     await expect(guest.page.getByRole('link', { name: `Open ${title}` })).toHaveCount(0);
     await expect(guest.page.getByRole('link', { name: 'Hidden (1)' })).toBeVisible();
+  });
+
+  test("a row's eye sits above the row's own link, so pressing it hides instead of opening", async ({
+    makeActor,
+  }) => {
+    const host = await makeActor('host');
+    const guest = await makeActor('guest');
+    const kept = `Kept ${uniqueSuffix()}`;
+    const tidied = `Tidied ${uniqueSuffix()}`;
+    for (const title of [kept, tidied]) {
+      const brunchId = await createBrunch({ host: host.user, title });
+      await addAttendee({ brunchId, host: host.user, user: guest.user, response: 'yes' });
+    }
+
+    // One of the two is the next-up card; the other is a list row, whose title link stretches over
+    // the whole row (the eye inside a list item is the row's).
+    await guest.page.goto('/dashboard');
+    await expectDashboard(guest.page);
+    const rowEye = guest.page.getByRole('listitem').getByRole('button', { name: /^Hide / });
+    await expect(rowEye).toHaveCount(1);
+    await rowEye.click();
+
+    // It hid that brunch; it did not follow the row's link into it.
+    await expect(rowEye).toHaveCount(0);
+    await expect(guest.page).toHaveURL(/\/dashboard$/);
+    await expect(guest.page.getByRole('link', { name: 'Hidden (1)' })).toBeVisible();
+    await expect(
+      guest.page.getByRole('link', { name: new RegExp(`^Open (${kept}|${tidied})$`) }),
+    ).toBeVisible();
   });
 
   test('a person who hid everything still finds the Hidden list', async ({ makeActor }) => {

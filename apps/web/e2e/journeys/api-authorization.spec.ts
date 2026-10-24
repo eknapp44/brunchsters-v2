@@ -291,8 +291,10 @@ test.describe('API authorization', () => {
   test('calling a brunch off, bringing it back and deleting it: every member write is a 409 while it is off, and a deleted brunch is a 404 for everyone', async ({
     makeActor,
   }) => {
-    // About fifty requests in a row, each route compiled on first use in dev mode.
-    test.slow();
+    // About fifty requests in a row, each route compiled on first use in dev mode. A cold full dev
+    // run (parallel workers all compiling routes) stalled it past 90 seconds twice, though it takes
+    // about 14 on its own, so it gets the longer allowance used by the other long journeys here.
+    test.setTimeout(240_000);
     const host = await makeActor('host');
     const attendee = await makeActor('attendee');
     const stranger = await makeActor('stranger');
