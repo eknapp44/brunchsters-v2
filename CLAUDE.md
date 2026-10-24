@@ -12,6 +12,7 @@ Always-loaded baseline is in this file. For deeper context, reference these on d
 
 - `@docs/constitution.md` — non-negotiable principles (read before any architectural decision)
 - `@docs/PLANNING.md` — product spec, data model, architecture overview
+- `@docs/BACKLOG.md` — every deferral, follow-up and open question, one entry each; the roadmap table is in PLANNING §16
 - `@docs/SETUP.md` — local environment setup, third-party accounts, startup, and local testing
 - `@docs/adrs/` — historical decision rationale
 - `@apps/web/CLAUDE.md` — UI conventions: design tokens, primitives, the accessible-name contract with the e2e suite, layout (read before touching any screen)

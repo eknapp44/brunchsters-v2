@@ -12,7 +12,7 @@ The feature idea is in the skill's argument (or ask for it in one line). Do the 
 ## Phase 0 — Load context (read, don't guess)
 
 - `CLAUDE.md` (conventions, the E2E bar, the 404/403 rule, branded types) and `docs/constitution.md`.
-- The `docs/PLANNING.md` sections the feature touches (data model §8, permissions §6, build order §16, open questions §17).
+- The `docs/PLANNING.md` sections the feature touches (data model §8, permissions §6, build order §16, open questions and deferrals in `docs/BACKLOG.md`).
 - `docs/adrs/` — skim titles, read any that touch the area. When in doubt about _why_, check the ADRs.
 - The previous specs most like this one (`specs/NNNN-*/spec.md` and `tasks.md`) — use them as the format and the quality bar; their testing notes list known gaps and findings that may be this feature's inputs.
 - The memory index for standing preferences.
@@ -25,7 +25,7 @@ Before asking anything, read the actual schema, services, routes and screens the
 
 Verify every claim you intend to put in a spec against the code or by running it. A spec that describes behavior the app doesn't have is a bug in the spec (spec 0007's first draft said approving an already-invited suggestion was "refused"; it is actually allowed).
 
-If the feature adds client state or a mutation, say **per piece** whether it is a Redux slice or local `useState` (`apps/web/CLAUDE.md` "State"), and whether it triggers one of the "Redux follow-ups" in `docs/PLANNING.md` §17 (a toast or visible error, the shared mutation slice, the unread count). Don't add a second pattern for state the store already has a home for.
+If the feature adds client state or a mutation, say **per piece** whether it is a Redux slice or local `useState` (`apps/web/CLAUDE.md` "State"), and whether it triggers one of the "Redux follow-ups" in `docs/BACKLOG.md` (a toast or visible error, the shared mutation slice, the unread count). Don't add a second pattern for state the store already has a home for.
 
 Also check: does the idea **conflict with the constitution or an ADR**? Surface it now and ask; don't comply silently.
 
@@ -53,7 +53,7 @@ Create `specs/NNNN-feature/` (next number from the directory; **grep the repo fo
 
 - **`spec.md`** — `Status`, `Branch`, `PLANNING.md ref`, `ADRs`; **What** (and why, with the evidence); **User flows** (numbered, who does what); **Acceptance Criteria** as checkboxes grouped by layer (schema, services, API routes, UI, docs); an **`## E2E Journeys`** section — each journey with an ID, the people involved, and what is asserted, prioritizing multi-person flows, client-side behavior, failure recovery and historic-bug classes (see spec 0006's inventory and `docs/SETUP.md` "Adding E2E coverage"); **What This Spec Does Not Cover**; **Open Questions**. A spec that adds or changes a screen also lists, per milestone, the **accessible names it changes** and the journeys that must be edited for them, and states what the screen leaves out on a phone.
 - If the spec **adopts a pattern or infrastructure** (state layer, library, convention), its acceptance criteria include the adoption itself, not just the first use: enforcement where cheap (lint rule or test), the conventions and a migration recipe in the scoped `CLAUDE.md`, a root rule if it is repo-wide, this skill's prompts if specs must now ask about it, and pointers from the docs where future specs will look. Built in, not tacked on later.
-- Every deliberate deferral is recorded in three places so it is not lost: the ADR (Consequences), the spec ("What This Spec Does Not Cover"), and `PLANNING.md` §17.
+- Every deliberate deferral gets **one entry in `docs/BACKLOG.md`** (origin, what is deferred, what would settle it); the ADR (Consequences) and the spec ("What This Spec Does Not Cover") say what was left out and why, and link to the entry instead of repeating its detail.
 
 - **`plan.md`** — files introduced or changed, key design (types, data model, migration shape, the order of checks for anything permission-related), decisions already made, risks with mitigations, test strategy.
 - **`tasks.md`** — small milestones, each independently green and ending in a commit: schema/migration → services + unit tests → routes + handler tests → UI → E2E journeys. Each has `- [ ]` checkboxes, a `Commit:` line with the Conventional Commit message, and `**Testing notes:** _(fill on completion)_`. The first task of M1 is "commit this spec and any ADR (docs-only commit, before any code)". Note that milestones close with `/milestone-done`.

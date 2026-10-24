@@ -40,7 +40,7 @@ Read each `- [ ]` bullet for this milestone and confirm the diff actually does i
 
 **New runtime dependency.** Record first-load JS before and after in the testing note: build `main` first (`git checkout main && CI=true pnpm build`, then back), and read the per-route chunks from `apps/web/.next/app-build-manifest.json`, because the build table can under-report chunks that belong to a shared layout.
 
-**Introduces a pattern or convention** (a state layer, a library, a rule)? It is not done until the pattern is enforced where cheap (a lint rule or a test, proven to fire), documented where the next author will look (the scoped `CLAUDE.md`, with a recipe for adopting it elsewhere), and the deferred adoption is recorded in `PLANNING.md` §17.
+**Introduces a pattern or convention** (a state layer, a library, a rule)? It is not done until the pattern is enforced where cheap (a lint rule or a test, proven to fire), documented where the next author will look (the scoped `CLAUDE.md`, with a recipe for adopting it elsewhere), and the deferred adoption is recorded in `docs/BACKLOG.md`.
 
 Quick self-check against CLAUDE.md rules on the new code: no `any` / `@ts-ignore`; business logic in `packages/core`, not components or pages; new schema has its migration committed and any new lookup table has seed entries; soft-deletable models' queries filter `deletedAt`; outsiders get 404 and members lacking privilege get 403 with membership checked first; emails are `Email` values from `normalizeEmail`.
 

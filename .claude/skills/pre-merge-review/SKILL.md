@@ -17,7 +17,7 @@ The owner likes a multi-lens review before merge. It is a pass over the **whole 
 1. **Architecture and style.** Does it follow the constitution, the ADR it cites, and the scoped `CLAUDE.md`? Business logic out of components; boundaries enforced (lint) rather than only documented; naming, file placement, branded types, `Result` usage, no `any`. Is anything a second way of doing what the repo already has a first way for?
 2. **Acceptance criteria.** Tick each box in `spec.md` against the code, not against the testing notes. Anything that differs from the spec is recorded under the spec's outcome, not left to drift.
 3. **Security and privacy.** New routes and the 404-for-outsiders / 403-for-members order; what is stored client-side and how long it lives; what a second person on the same browser could see; inputs trusted without validation.
-4. **Loose ends.** TODOs, dead code, unused exports, docs that still say the old thing (grep for the old wording), numbering references, deferred work recorded in `PLANNING.md` §17, testing notes that overstate coverage.
+4. **Loose ends.** TODOs, dead code, unused exports, docs that still say the old thing (grep for the old wording), numbering references, deferred work recorded in `docs/BACKLOG.md`, testing notes that overstate coverage.
 
 ## 2. Two extra passes that earlier reviews found things with
 

@@ -40,4 +40,4 @@ The limit key is the signed-in user id or the address, never a brunch, invite or
 
 ## 6. Docs
 
-The spec's journey table, ADR 0013 if a budget changes, `PLANNING.md` §17 for deferrals. Close with `/milestone-done`.
+The spec's journey table, ADR 0013 if a budget changes, `docs/BACKLOG.md` for deferrals. Close with `/milestone-done`.
