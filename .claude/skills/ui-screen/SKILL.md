@@ -28,7 +28,7 @@ Write down, in the spec's `tasks.md` or the PR, every **accessible name** the ch
 ## 4. Phone and voice
 
 - **Phone is the base style.** Decide what the screen leaves out at phone width: repetition and secondary lines, never the only source of a fact. Rows go vertical; long lists show a few plus "+N more". Touch targets are at least 44px. Nothing scrolls sideways.
-- **Voice** (`design-docs/Brand Voice.html`, the copy table in `specs/0011-design-fidelity/plan.md`): a friend, not a service; verbs over nouns; emoji at moments and always `aria-hidden`; never promise what the app does not do. Error wording belongs to the feedback-surfaces spec until it lands.
+- **Voice** (read `docs/voice-and-copy.md` first; sources `design-docs/Brand Voice.html` and the copy table in `specs/0011-design-fidelity/plan.md`; put the feature's strings in a tested `lib/*Copy.ts` module and add a new pattern to the doc): a friend, not a service; verbs over nouns; emoji at moments and always `aria-hidden`; never promise what the app does not do. Error wording belongs to the feedback-surfaces spec until it lands.
 - Do not leak through copy: a 404 says nothing about what was looked for; the invite preview shows only the host, title and description.
 
 ## 5. Cover it

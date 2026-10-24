@@ -80,7 +80,7 @@ Phone is the base style and the place to be strict about space (spec 0011). Leav
 
 ## Voice and copy
 
-The voice is `design-docs/Brand Voice.html`; the line-by-line rewrites are `design-docs/Copy Pass.html`; what spec 0011 adopted, adapted and refused is the copy table in `specs/0011-design-fidelity/plan.md`. Check it before writing a string.
+**Read `docs/voice-and-copy.md` before writing or changing a string:** the rules, the words to reach for and avoid, and the patterns (dialogs, waits, empty states, errors, emails) with shipped examples. The sources it is distilled from are `design-docs/Brand Voice.html` and `design-docs/Copy Pass.html`; what spec 0011 adopted, adapted and refused is the copy table in `specs/0011-design-fidelity/plan.md`. A feature's strings live in a tested `lib/*Copy.ts` module.
 
 - **Friend, not service.** Verbs over nouns, specific over generic, no corporate words (event, attendees, leverage, engage, community, "action required", "successfully").
 - **Emoji at moments, not in labels that carry state.** Greetings, celebrations, the empty state. Emoji are always `aria-hidden`, so the accessible name is the words ("I'm in", not "🙌 I'm in"). The RSVP buttons are the one place an emoji sits in a control, by the owner's choice.
