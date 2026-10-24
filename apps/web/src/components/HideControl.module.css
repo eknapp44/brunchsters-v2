@@ -6,19 +6,6 @@
   z-index: 1;
 }
 
-/* A phone has the brunch page's control; a row there is only a row. From 40rem, where the row is
-   one line with room in it, it carries its own. `display: none` also takes it out of the reading
-   order, so a screen reader on a phone does not meet a button that is not on screen. */
-.row {
-  display: none;
-}
-
-@media (min-width: 40rem) {
-  .row {
-    display: block;
-  }
-}
-
 /* A square button holding only the eye: as wide as it is tall (the touch target), no side padding. */
 .iconOnly {
   display: inline-flex;

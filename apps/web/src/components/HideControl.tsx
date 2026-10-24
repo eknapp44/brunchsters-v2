@@ -14,8 +14,8 @@ import styles from './HideControl.module.css';
 // places, told apart by name so a screen reader and a journey can tell the rows apart:
 //
 //   page         on the brunch page, "Hide from my dashboard" / "Unhide"
-//   row          on a dashboard row or the next-up card, "Hide <title>"; tablet and up (a phone
-//                has the page's control and a row that is only a row)
+//   row          on a dashboard row or the next-up card, "Hide <title>", at every width: an eye
+//                small enough for a phone's row
 //   hidden-list  on a row of the Hidden list, "Unhide <title>", at every width
 //
 // Open or pending is this one control's state, so `useState` (ADR 0011); the dashboard and the page

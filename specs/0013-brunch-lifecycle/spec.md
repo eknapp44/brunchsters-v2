@@ -115,7 +115,7 @@ Plus the **status flow** written down as a table the code checks, **one guard** 
 - [ ] Manage page: an "End of the road" section whose buttons depend on the state (Call it off; Bring it back and Delete; Delete this draft); a called-off brunch shows the banner and only these actions; confirm dialogs (focus trapped, Escape closes, safe default)
 - [ ] Brunch page: called-off banner, read-only; **Hide** / **Unhide** control for every member
 - [ ] Invite page: "called this one off" for a called-off brunch, signed in or out, no join, no sign-in button for the dead end
-- [ ] Dashboard: "Called off" badge on Past rows (copy table entry), Past capped at five with "Show all", "Hidden (n)" section/link (also in the empty state), hidden brunches excluded from next-up and the waiting count; a **Hide** button on each row and on the next-up card at tablet width and up (the existing `min-width: 40rem` breakpoint), absent on a phone, where the brunch page's control is the way; an **Unhide** button on each row of the Hidden list at every width
+- [ ] Dashboard: "Called off" badge on Past rows (copy table entry), Past capped at five with "Show all", "Hidden (n)" section/link (also in the empty state), hidden brunches excluded from next-up and the waiting count; a **Hide** control (an eye icon, named `Hide {title}`) on each row and on the next-up card at every width, phone included (first decided as tablet and up only; the icon fits a phone row, so it was extended after the owner's review); an **Unhide** button on each row of the Hidden list at every width
 - [ ] Client state: the dialogs' open/pending/error are a single control's state (`useState`, ADR 0011); no Redux slice. Server-rendered links for "Show all" and "Hidden". The 429 wait uses the existing `useWait`/`limitedMessage` pattern
 - [ ] Phone: phone board for the manage page's end section, the dialog, the called-off banner and the dashboard with a Hidden link; the explanatory sub-lines drop on a phone and the buttons stack full width
 - [ ] Voice: strings added to the copy table in `plan.md` and checked against the Brand Voice; accessible names listed per milestone below
@@ -168,7 +168,7 @@ All four first-round questions were settled by the owner on 2026-10-23:
 
 1. **The cancel budget number**: 6 per host per day is accepted as the starting point and tuned with beta data (`/limited-surface` still confirms it at M4).
 2. **Email subject and body lines** wait for M5, drafted against the Brand Voice and checked with `/real-send-check`.
-3. **Hide on dashboard rows**: yes on tablet and desktop, no on a phone (the page control stays the phone's way). Decided; see the UI criteria.
+3. **Hide on dashboard rows**: yes at every width. First decided as tablet and desktop only, with the page control as the phone's way; changed after the owner's review of the running app, when Hide became an icon that fits a phone row. See the UI criteria.
 4. **The hold length**: five minutes, a named constant that is easy to change.
 
 Still open: whether a stored `completed` status is wanted (asked 2026-10-23; see ADR 0015 if it is decided here).

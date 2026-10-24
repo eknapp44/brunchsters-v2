@@ -275,7 +275,7 @@ test.describe('E5 — deleting', () => {
 });
 
 test.describe('E6 — hiding a brunch from your own dashboard', () => {
-  test('from the page, the card and the list; it is only yours, and a phone has the page control', async ({
+  test('from the page, the card and the list; it is only yours, and a phone row has it too', async ({
     makeActor,
   }) => {
     const host = await makeActor('host');
@@ -314,7 +314,7 @@ test.describe('E6 — hiding a brunch from your own dashboard', () => {
     await expect(guest.page.getByRole('link', { name: `Open ${title}` })).toHaveCount(0);
     await expect(guest.page.getByRole('link', { name: 'Hidden (1)' })).toBeVisible();
 
-    // A phone's rows carry no Hide button (the page has the control).
+    // A phone's rows carry the eye too.
     await guest.page.goto(`/brunch/${brunchId}`);
     await guest.page.getByRole('button', { name: 'Unhide', exact: true }).click();
     // Wait for it to land (the control flips back) before leaving, or the request is cut off.
@@ -324,8 +324,10 @@ test.describe('E6 — hiding a brunch from your own dashboard', () => {
     await expectDashboard(guest.page);
     // The brunch is on the dashboard (so the missing button means something)...
     await expect(guest.page.getByRole('link', { name: `Open ${title}` })).toBeVisible();
-    // ...and, on a phone, it has no Hide button of its own.
-    await expect(guest.page.getByRole('button', { name: /^Hide / })).toHaveCount(0);
+    // ...and, on a phone, it has its own Hide button, which works.
+    await guest.page.getByRole('button', { name: `Hide ${title}` }).click();
+    await expect(guest.page.getByRole('link', { name: `Open ${title}` })).toHaveCount(0);
+    await expect(guest.page.getByRole('link', { name: 'Hidden (1)' })).toBeVisible();
   });
 
   test('a person who hid everything still finds the Hidden list', async ({ makeActor }) => {
