@@ -1,13 +1,15 @@
 import { createBrunch, uniqueSuffix } from '../support/factories';
 import { expect, test } from '../support/fixtures';
 import { fixturePlaces } from '../support/places';
+import { TOAST_WORDS } from '../support/toasts';
 import { daysFromNow } from '../support/time';
 import { addAttendee, ballot, castVotes, removeLocationByName } from '../support/voting';
 import { BrunchWizard } from '../support/wizard';
 
 const TWO_PLACES = [fixturePlaces.sunnySide, fixturePlaces.harborBistro];
 const TWO_TIMES = [daysFromNow(10), daysFromNow(11)];
-const SAVE_FAILED = 'Failed to save your vote';
+// A failed save is an inline line beside the ballot, worded from the code (spec 0014).
+const SAVE_FAILED = TOAST_WORDS.wentSideways;
 
 // Journeys R1-R3 (spec 0010). The client store lives in the (authenticated) layout and outlives
 // any one page, so these check that no draft or unsaved selection leaks from one visit to the next.

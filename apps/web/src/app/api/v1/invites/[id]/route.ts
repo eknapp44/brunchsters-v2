@@ -3,6 +3,7 @@ import type { InviteId, UserId } from '@brunchsters/shared';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/auth';
+import { apiError } from '@/lib/apiErrorResponse';
 import { enforceWriteLimit } from '@/lib/rateLimit';
 import { db } from '@/lib/db';
 
@@ -14,7 +15,7 @@ export async function DELETE(
 ): Promise<NextResponse> {
   const session = await auth();
   if (session === null) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return apiError({ code: 'signed_out', status: 401, message: 'Unauthorized' });
   }
 
   const limited = await enforceWriteLimit(session.user.id);
@@ -23,7 +24,7 @@ export async function DELETE(
   const { id } = await params;
   const parsedInviteId = inviteIdSchema.safeParse(id);
   if (!parsedInviteId.success) {
-    return NextResponse.json({ error: 'Invite not found' }, { status: 404 });
+    return apiError({ code: 'not_found', status: 404, message: 'Invite not found' });
   }
 
   const result = await revokeInvite(
@@ -34,14 +35,22 @@ export async function DELETE(
   if (result.isErr()) {
     switch (result.error.kind) {
       case 'invite_not_found':
-        return NextResponse.json({ error: 'Invite not found' }, { status: 404 });
+        return apiError({ code: 'not_found', status: 404, message: 'Invite not found' });
       case 'not_host':
-        return NextResponse.json({ error: 'Only the host can revoke invites' }, { status: 403 });
+        return apiError({
+          code: 'forbidden',
+          status: 403,
+          message: 'Only the host can revoke invites',
+        });
       case 'brunch_called_off':
-        return NextResponse.json({ error: 'This brunch was called off' }, { status: 409 });
+        return apiError({
+          code: 'brunch_called_off',
+          status: 409,
+          message: 'This brunch was called off',
+        });
       default:
         console.error('revokeInvite failed', result.error);
-        return NextResponse.json({ error: 'Failed to revoke invite' }, { status: 500 });
+        return apiError({ code: 'internal', status: 500, message: 'Failed to revoke invite' });
     }
   }
 

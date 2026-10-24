@@ -1,4 +1,6 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import type { ClientErrorCode } from '@/lib/errorCopy';
+import { readApiError } from '@/lib/readApiError';
 import { createAppAsyncThunk } from './hooks';
 import type { RootState } from './makeStore';
 
@@ -23,7 +25,8 @@ export type BallotEntry = {
   // earlier visit, before the entry was released) must not touch it.
   readonly requestId: string;
   readonly submitting: boolean;
-  readonly error: string | undefined;
+  // Why the last save failed, as a code the hook words (`errorCopy`): the store holds no text.
+  readonly error: ClientErrorCode | undefined;
   readonly emptyWarning: boolean;
 };
 
@@ -32,8 +35,6 @@ export type BallotsState = {
 };
 
 const initialState: BallotsState = { byKey: {} };
-
-export const SAVE_FAILED_MESSAGE = 'Failed to save your vote';
 
 const VOTE_PATH: Record<BallotKind, string> = {
   location: 'locations',
@@ -72,8 +73,14 @@ export type ToggleBallotArg = {
 };
 
 // Applies the toggle at once and saves the whole ballot. Resolves `{ saved: false }` when
-// nothing was sent (an empty ballot is never submitted); rejects with the message to show.
-export const toggleBallotOption = createAppAsyncThunk<{ readonly saved: boolean }, ToggleBallotArg>(
+// nothing was sent (an empty ballot is never submitted); rejects with the code of the failure
+// (the route's, or `network`), which the ballot shows inline: a failed vote rolls back and stays
+// beside the checkboxes, because it is the voter's to try again (spec 0014).
+export const toggleBallotOption = createAppAsyncThunk<
+  { readonly saved: boolean },
+  ToggleBallotArg,
+  { rejectValue: ClientErrorCode }
+>(
   'ballots/toggleBallotOption',
   async (arg, { extra, rejectWithValue }) => {
     const next = toggled(arg.current, arg.optionId);
@@ -87,10 +94,10 @@ export const toggleBallotOption = createAppAsyncThunk<{ readonly saved: boolean 
           body: JSON.stringify({ optionIds: next }),
         },
       );
-      if (!response.ok) return rejectWithValue(SAVE_FAILED_MESSAGE);
+      if (!response.ok) return rejectWithValue((await readApiError(response)).code);
       return { saved: true };
     } catch {
-      return rejectWithValue(SAVE_FAILED_MESSAGE);
+      return rejectWithValue('network');
     }
   },
   {
@@ -138,7 +145,7 @@ const ballotsSlice = createSlice({
         if (entry?.requestId !== action.meta.requestId) return;
         entry.selected = [...entry.previous];
         entry.submitting = false;
-        entry.error = action.payload ?? SAVE_FAILED_MESSAGE;
+        entry.error = action.payload ?? 'internal';
       });
   },
 });

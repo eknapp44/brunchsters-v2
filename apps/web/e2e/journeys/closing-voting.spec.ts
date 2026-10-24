@@ -118,7 +118,7 @@ test.describe('H2 — setting a deadline and closing voting', () => {
       data: { optionIds: [options.locations[0]?.id] },
     });
     expect(late.status()).toBe(409);
-    expect(await late.json()).toEqual({ error: 'Voting is closed' });
+    expect(await late.json()).toMatchObject({ error: { code: 'voting_closed' } });
     expect((await db.brunch.findFirst({ where: { id: brunchId } }))?.votingClosedAt).not.toBeNull();
   });
 });

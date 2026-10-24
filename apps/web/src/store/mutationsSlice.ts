@@ -29,6 +29,9 @@ export type RunMutationArg = {
   // Where a failure shows: a toast for a one-tap result, inline for what the person has to fix or
   // wait out. Either way the entry keeps the code.
   readonly failure: 'toast' | 'inline';
+  // The control has its own place to show a 429 (an inline wait beside its button, `useWait`), so
+  // the toast queue leaves a refusal to it. The entry still keeps the facts for the control to read.
+  readonly ownsWait?: boolean;
 };
 
 export type MutationFailure = {

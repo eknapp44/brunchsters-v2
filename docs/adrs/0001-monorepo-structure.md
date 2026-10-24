@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-14  
 **Status:** Accepted  
-**Deciders:** Evan Knapp  
+**Deciders:** Evan Knapp
 
 ## Context
 

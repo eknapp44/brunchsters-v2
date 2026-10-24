@@ -191,7 +191,7 @@ test.describe('H8 — managing a draft brunch', () => {
     // It is a rule, not just a disabled button: the server refuses too, and nothing changes.
     const closed = await host.context.request.post(`/api/v1/brunches/${brunchId}/voting/close`);
     expect(closed.status()).toBe(409);
-    expect(await closed.json()).toEqual({ error: 'Brunch is not open for voting' });
+    expect(await closed.json()).toMatchObject({ error: { code: 'brunch_not_active' } });
     expect(
       (await getDb().brunch.findFirst({ where: { id: brunchId } }))?.votingClosedAt,
     ).toBeNull();

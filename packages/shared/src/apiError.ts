@@ -22,6 +22,7 @@ export const API_ERROR_STATUSES = {
   already_confirmed: [409],
   nothing_to_confirm: [409],
   option_confirmed: [409],
+  not_a_vote: [409],
   already_there: [409],
   not_called_off: [409],
   not_deletable: [409],

@@ -2,6 +2,7 @@ import { getDb } from '../support/db';
 import { createBrunch, uniqueSuffix } from '../support/factories';
 import { expect, test } from '../support/fixtures';
 import { fixturePlaces } from '../support/places';
+import { TOAST_WORDS } from '../support/toasts';
 import { daysFromNow } from '../support/time';
 import { addAttendee, ballot, closeVoting } from '../support/voting';
 import { BrunchWizard } from '../support/wizard';
@@ -11,7 +12,8 @@ import { BrunchWizard } from '../support/wizard';
 
 const TWO_PLACES = [fixturePlaces.sunnySide, fixturePlaces.harborBistro];
 const TWO_TIMES = [daysFromNow(10), daysFromNow(11)];
-const SAVE_FAILED = 'Failed to save your vote';
+// A failed save is an inline line beside the ballot, worded from the code the route sent (spec 0014).
+const SAVE_FAILED = TOAST_WORDS.wentSideways;
 
 test.describe('F1 — a ballot that fails to save', () => {
   for (const kind of ['locations', 'times'] as const) {
@@ -68,7 +70,10 @@ test.describe('F1 — a ballot that fails to save', () => {
     await closeVoting({ brunchId, host: host.user });
     await box.click();
 
-    await expect(voter.page.getByRole('alert').filter({ hasText: SAVE_FAILED })).toBeVisible();
+    // A real refusal from the server, so it reads as its own code, not the general line.
+    await expect(
+      voter.page.getByRole('alert').filter({ hasText: TOAST_WORDS.votingClosed }),
+    ).toBeVisible();
     await expect(box).not.toBeChecked();
     const votes = await getDb().brunchLocationVote.count({
       where: { userId: voter.user.id, brunchLocation: { brunchId } },

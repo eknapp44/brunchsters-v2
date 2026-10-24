@@ -31,7 +31,7 @@ export function RsvpControl({
   // again is the retry (spec 0014). A success is one too, because the only other sign of it is a
   // button's look, which a screen reader does not hear.
   async function respond(response: RsvpResponse): Promise<void> {
-    const saved = await run({
+    const result = await run({
       request: {
         url: `/api/v1/brunches/${brunchId}/rsvp`,
         method: 'POST',
@@ -40,7 +40,7 @@ export function RsvpControl({
       success: rsvpToast(response),
       failure: 'toast',
     });
-    if (saved) router.refresh();
+    if (result.ok) router.refresh();
   }
 
   return (

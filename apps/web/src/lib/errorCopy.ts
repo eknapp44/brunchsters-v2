@@ -28,6 +28,7 @@ const COPY: Readonly<Record<ClientErrorCode, string>> = {
   already_confirmed: "This one's already locked in.",
   nothing_to_confirm: 'Add a spot and a time before you lock it in.',
   option_confirmed: "That one's locked in, so it can't come off the table.",
+  not_a_vote: "There's only one option, so there's nothing to vote on.",
   already_there: "That one's already on the list.",
   not_called_off: "This brunch isn't called off.",
   not_deletable: 'Call it off first, then you can delete it.',

@@ -155,6 +155,8 @@ test.describe('T2 — the toast region', () => {
     const shown = toast(page, TOAST_WORDS.wentSideways);
     await expect(shown).toBeVisible();
 
+    // Measured once the toast has finished sliding in, or a fractional position skews it.
+    await settleTransitions(page);
     const box = await shown.boundingBox();
     const viewport = page.viewportSize();
     if (box === null || viewport === null) throw new Error('no box to measure');
@@ -162,7 +164,7 @@ test.describe('T2 — the toast region', () => {
     expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
     expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
     const dismiss = await shown.getByRole('button', { name: 'Dismiss' }).boundingBox();
-    expect(dismiss?.height ?? 0).toBeGreaterThanOrEqual(44);
+    expect(Math.round(dismiss?.height ?? 0)).toBeGreaterThanOrEqual(44);
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     ).toBe(true);

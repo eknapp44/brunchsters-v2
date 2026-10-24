@@ -2,7 +2,7 @@ import { RATE_LIMIT_POLICIES } from '@brunchsters/shared';
 import { describe, expect, it, vi } from 'vitest';
 import { makeStore, type ThunkExtra } from './makeStore';
 import { runMutation, type RunMutationArg } from './mutationsSlice';
-import { MAX_TOASTS, selectToasts, toastDismissed } from './toastsSlice';
+import { MAX_TOASTS, selectToasts, toastDismissed, toastShown } from './toastsSlice';
 
 function json(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
@@ -85,6 +85,45 @@ describe('toasts fed by runMutation', () => {
 
     expect(selectToasts(store.getState())).toMatchObject([
       { tone: 'info', text: 'That one just went out. Give it 2 minutes.' },
+    ]);
+  });
+
+  it('leaves a 429 to a control that shows its own wait, but still keeps the facts for it', async () => {
+    const store = storeAnswering(
+      json(
+        { error: { code: 'rate_limited', message: 'x' }, policy: 'write', retryAfterSeconds: 30 },
+        429,
+      ),
+    );
+
+    await expect(store.dispatch(runMutation(arg({ ownsWait: true }))).unwrap()).rejects.toEqual({
+      code: 'rate_limited',
+      rateLimit: { policy: 'write', retryAfterSeconds: 30 },
+    });
+
+    expect(selectToasts(store.getState())).toEqual([]);
+  });
+
+  it('still toasts every other failure of a control that owns a wait', async () => {
+    const store = storeAnswering(json({ error: { code: 'internal', message: 'x' } }, 500));
+
+    await store.dispatch(runMutation(arg({ ownsWait: true })));
+
+    expect(selectToasts(store.getState())).toHaveLength(1);
+  });
+
+  it('shows a toast that is not the answer to a request, de-duplicated by its key', () => {
+    const store = storeAnswering();
+
+    store.dispatch(
+      toastShown({ id: 'a', key: 'copy:t:done', tone: 'success', text: 'Link copied.' }),
+    );
+    store.dispatch(
+      toastShown({ id: 'b', key: 'copy:t:done', tone: 'success', text: 'Link copied.' }),
+    );
+
+    expect(selectToasts(store.getState())).toEqual([
+      { id: 'b', key: 'copy:t:done', tone: 'success', text: 'Link copied.' },
     ]);
   });
 

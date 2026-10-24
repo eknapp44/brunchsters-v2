@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
+import { apiError } from './apiErrorResponse';
 
 // What every limited route answers (ADR 0013): 429 with Retry-After, and the same facts in the
-// body so a control can word its message and keep the wait. `policy` is the name of the policy
+// body so a control can word its message and keep the wait. The `error` is the coded shape every
+// route answers with (spec 0014); `policy` and `retryAfterSeconds` ride beside it. `policy` is the name of the policy
 // that refused; it says nothing about any brunch or invite. Pure, so a test can use it without
 // the database (the part that counts is `rateLimit.ts`).
 export type RateLimitedAnswer = {
@@ -12,7 +14,7 @@ export type RateLimitedAnswer = {
 export function rateLimitedResponse(limited: RateLimitedAnswer): NextResponse {
   return NextResponse.json(
     {
-      error: 'Too many requests',
+      error: { code: 'rate_limited', message: 'Too many requests' },
       policy: limited.policy,
       retryAfterSeconds: limited.retryAfterSeconds,
     },
@@ -27,7 +29,7 @@ export function rateLimiterUnavailableResponse(params: {
   readonly cause: unknown;
 }): NextResponse {
   console.error(`${params.route}: the rate limiter is unavailable`, params.cause);
-  return NextResponse.json({ error: 'Temporarily unavailable' }, { status: 503 });
+  return apiError({ code: 'unavailable', status: 503, message: 'Temporarily unavailable' });
 }
 
 const UNKNOWN_ADDRESS = 'unknown';

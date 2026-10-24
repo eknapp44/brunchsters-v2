@@ -39,6 +39,10 @@ const toastsSlice = createSlice({
     toastDismissed(state, action: PayloadAction<string>) {
       state.queue = state.queue.filter((toast) => toast.id !== action.payload);
     },
+    // For a result that is not a request (a link was copied): the caller makes the id.
+    toastShown(state, action: PayloadAction<Toast>) {
+      state.queue = [...pushed(state.queue, action.payload)];
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -57,6 +61,8 @@ const toastsSlice = createSlice({
       .addCase(runMutation.rejected, (state, action) => {
         if (action.meta.arg.failure !== 'toast') return;
         const failure = action.payload ?? { code: 'internal' as const, rateLimit: undefined };
+        // A control that shows its own wait does not also toast it.
+        if (failure.code === 'rate_limited' && action.meta.arg.ownsWait === true) return;
         state.queue = [
           ...pushed(state.queue, {
             id: action.meta.requestId,
@@ -70,5 +76,5 @@ const toastsSlice = createSlice({
   },
 });
 
-export const { toastDismissed } = toastsSlice.actions;
+export const { toastDismissed, toastShown } = toastsSlice.actions;
 export const toastsReducer = toastsSlice.reducer;

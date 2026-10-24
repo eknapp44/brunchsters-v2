@@ -8,6 +8,7 @@ vi.mock('@brunchsters/core', () => ({ closeVoting: vi.fn() }));
 import { closeVoting } from '@brunchsters/core';
 import { auth } from '@/auth';
 import { POST } from './route';
+import { errorCodeOf } from '@/test-support/errorCodeOf';
 
 const mockAuth = vi.mocked(auth as unknown as () => Promise<unknown>);
 const mockCloseVoting = vi.mocked(closeVoting);
@@ -32,6 +33,7 @@ describe('POST /api/v1/brunches/[id]/voting/close', () => {
     });
 
     expect(response.status).toBe(401);
+    expect(await errorCodeOf(response)).toBe('signed_out');
     expect(mockCloseVoting).not.toHaveBeenCalled();
   });
 
@@ -41,6 +43,7 @@ describe('POST /api/v1/brunches/[id]/voting/close', () => {
     const response = await POST(new Request('http://localhost'), { params: params('not-a-uuid') });
 
     expect(response.status).toBe(404);
+    expect(await errorCodeOf(response)).toBe('not_found');
     expect(mockCloseVoting).not.toHaveBeenCalled();
   });
 
@@ -70,6 +73,7 @@ describe('POST /api/v1/brunches/[id]/voting/close', () => {
     });
 
     expect(response.status).toBe(403);
+    expect(await errorCodeOf(response)).toBe('forbidden');
   });
 
   it('returns 409 when already closed', async () => {
@@ -81,6 +85,7 @@ describe('POST /api/v1/brunches/[id]/voting/close', () => {
     });
 
     expect(response.status).toBe(409);
+    expect(await errorCodeOf(response)).toBe('voting_closed');
   });
 
   it('returns 409 when the brunch is not active (a draft has no voting to close)', async () => {
@@ -92,7 +97,8 @@ describe('POST /api/v1/brunches/[id]/voting/close', () => {
     });
 
     expect(response.status).toBe(409);
-    expect(await response.json()).toEqual({ error: 'Brunch is not open for voting' });
+    expect(await errorCodeOf(response)).toBe('brunch_not_active');
+    expect(await errorCodeOf(response)).toBe('brunch_not_active');
   });
 
   it('returns 404 when the brunch does not exist', async () => {
@@ -104,6 +110,7 @@ describe('POST /api/v1/brunches/[id]/voting/close', () => {
     });
 
     expect(response.status).toBe(404);
+    expect(await errorCodeOf(response)).toBe('not_found');
   });
 
   it('returns 500 on an unexpected service error', async () => {
@@ -115,5 +122,6 @@ describe('POST /api/v1/brunches/[id]/voting/close', () => {
     });
 
     expect(response.status).toBe(500);
+    expect(await errorCodeOf(response)).toBe('internal');
   });
 });

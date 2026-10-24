@@ -3,6 +3,13 @@
 // Brand Voice (`docs/voice-and-copy.md`): friend, not service, so no "successfully" and no "saved
 // your RSVP". Failures are in `errorCopy.ts`.
 
+export const INVITE_RESENT_TOAST = 'Sent again.';
+export const DEADLINE_SAVED_TOAST = 'Deadline saved.';
+export const DEADLINE_CLEARED_TOAST = 'Deadline cleared. Voting stays open.';
+export const LINK_COPIED_TOAST = 'Link copied.';
+// The browser refused the clipboard (an insecure page, a denied permission).
+export const LINK_COPY_FAILED_TOAST = "That didn't copy. Your browser wouldn't let it.";
+
 export type RsvpAnswer = 'yes' | 'maybe' | 'no';
 
 const RSVP_TOASTS: Readonly<Record<RsvpAnswer, string>> = {

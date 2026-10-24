@@ -27,7 +27,7 @@ describe('enforceWriteLimit', () => {
     expect(refused?.status).toBe(429);
     expect(Number(refused?.headers.get('Retry-After'))).toBeGreaterThanOrEqual(1);
     expect(await refused?.json()).toMatchObject({
-      error: 'Too many requests',
+      error: { code: 'rate_limited', message: 'Too many requests' },
       policy: 'writes',
     });
   });

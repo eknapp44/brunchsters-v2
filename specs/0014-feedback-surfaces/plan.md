@@ -40,6 +40,7 @@ runMutation({
   request: { url: string; method: 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown },
   success?: ToastCopyKey,           // a toast on 2xx, from a copy table (never a free string)
   failure: 'toast' | 'inline',
+  ownsWait?: boolean,               // the control shows a 429 as its own wait, so no toast for it
 })
 // fulfilled: { status, body }   rejected (rejectWithValue): { code, rateLimit? }
 ```
@@ -123,6 +124,7 @@ The codes come from the real error cases of every route under `app/api/v1` (walk
 | `voting_closed`       | 409      | "Voting is closed", "Voting is already closed"                                                                   | Voting's closed on this one.                                                   |
 | `already_confirmed`   | 409      | "Brunch is already confirmed"                                                                                    | This one's already locked in.                                                  |
 | `nothing_to_confirm`  | 409      | "No locations / times to confirm"                                                                                | Add a spot and a time before you lock it in.                                   |
+| `not_a_vote`          | 409      | "There is only one option — nothing to vote on"                                                                  | There's only one option, so there's nothing to vote on.                        |
 | `option_confirmed`    | 409      | "Cannot remove a confirmed time / location"                                                                      | That one's locked in, so it can't come off the table.                          |
 | `already_there`       | 409      | "This place / time is already an option", "… already suggested" (3)                                              | That one's already on the list.                                                |
 | `not_called_off`      | 409      | "This brunch is not called off"                                                                                  | This brunch isn't called off.                                                  |
@@ -136,3 +138,5 @@ The codes come from the real error cases of every route under `app/api/v1` (walk
 Two details changed from the first draft above: the reader accepts a **404 body's `option_gone` only** (every other 404 reads as `not_found` whatever the body says), and `apps/web/src/lib/readApiError.ts` reads the body **by hand, not with Zod**: Zod 4 probes for `eval` with `new Function`, which the enforced CSP reports as a violation on every page that bundles it (found in M2 by journey S3; every other Zod import in the app is server-only). The shared package holds only the codes and the type. "Brunch is not open for suggestions" and its kin are `brunch_not_active` (a draft or confirmed brunch), which is not the same as `brunch_called_off`.
 
 **Adopted from the shipped voice:** the 403 line ("That one's the host's."), the 404 line ("This table's empty.") and the `notice_pending` line are the existing patterns in `docs/voice-and-copy.md`. **Extrapolated:** every other line, in the same voice. **Not adopted:** the Brand Voice doc's "We'll try again — your tap stuck." (rule 7).
+
+**Added in M3:** `not_a_vote` (the ballot routes' "only one option" refusal), the thunk's `ownsWait` flag (a control with its own wait line, `useWait`, is the only place a 429 shows; the toast queue skips it but the entry keeps the facts), `useMutation.run` resolving a result (`{ ok: true }` or `{ ok: false, failure }`) so a caller can read a 429's facts without waiting for a re-render, a `useToast()` for a toast that is not a request's answer (a link was copied), and `rateLimitedResponse`/`rateLimiterUnavailableResponse` answering in the coded shape (`error: { code, message }`) with `policy` and `retryAfterSeconds` beside it. The route and route-test rewrites were done with two small codemods (a message table to `apiError(...)`, and a code assertion per test from its title), kept in the session scratchpad, not in the repo: every message they did not know stopped the run.
