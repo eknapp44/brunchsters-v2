@@ -12,6 +12,15 @@ export type {
   IanaTimezone,
   InviteToken,
 } from './types/ids';
+export {
+  API_ERROR_CODES,
+  API_ERROR_STATUSES,
+  codeForStatus,
+  isApiErrorCode,
+  isStatusAllowedFor,
+  type ApiErrorBody,
+  type ApiErrorCode,
+} from './apiError';
 export { normalizeEmail } from './email';
 export { MAX_INVITES_PER_REQUEST } from './invites';
 export {

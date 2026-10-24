@@ -8,19 +8,27 @@ The order proves the path early: the vocabulary (M1), then one control end to en
 
 ## M1 — Codes, copy and the voice test
 
-- [ ] Commit this spec folder, ADR 0016 (with the README index row), the PLANNING §16 row and the BACKLOG edits as one docs-only commit, before any code
-- [ ] `packages/shared/src/apiError.ts`: `API_ERROR_CODES`, `ApiErrorCode`, `ApiErrorBody`, a status table per code; unit tests
-- [ ] Walk every route under `app/api/v1` and list its real error cases; derive the "specific" codes from them (record the list and the draft copy in `plan.md`)
-- [ ] `apps/web/src/lib/errorCopy.ts` and `readApiError.ts` (tolerates the old body, the 422 shape, a non-JSON body; ignores a 404's body); unit tests including: every code has copy, the 404 copy is the same for any input, unknown falls back by status
-- [ ] `voiceCopy.test.ts`: scans `lib/*Copy.ts` and JSX text for rule 4's words (attendees, event, leverage, utilize, reach out, community, engage, action required, touch base, circle back, connect, successfully, "awesome!", "amazing!") with a small allowlist, failing with file and word; run it over the current tree and fix or allowlist what it finds (record each)
-- [ ] `docs/voice-and-copy.md`: error and toast patterns added, the "Not enforced yet" section replaced by what the test checks
-- [ ] `/limited-surface`: record that M1 to M6 add no mutating route, email or paid call (no new policy)
-- [ ] **Prove the tests can fail:** add a banned word to a copy module → the voice test fails naming it; give a code no copy → the `errorCopy` test fails
-- [ ] Commit: `feat: add API error codes, the error copy table and a voice test (M1)`
+- [x] Commit this spec folder, ADR 0016 (with the README index row), the PLANNING §16 row and the BACKLOG edits as one docs-only commit, before any code
+- [x] `packages/shared/src/apiError.ts`: `API_ERROR_CODES`, `ApiErrorCode`, `ApiErrorBody`, a status table per code; unit tests
+- [x] Walk every route under `app/api/v1` and list its real error cases; derive the "specific" codes from them (record the list and the draft copy in `plan.md`)
+- [x] `apps/web/src/lib/errorCopy.ts` and `readApiError.ts` (tolerates the old body, the 422 shape, a non-JSON body; ignores a 404's body); unit tests including: every code has copy, the 404 copy is the same for any input, unknown falls back by status
+- [x] `voiceCopy.test.ts`: scans `lib/*Copy.ts` and JSX text for rule 4's words (attendees, event, leverage, utilize, reach out, community, engage, action required, touch base, circle back, connect, successfully, "awesome!", "amazing!") with a small allowlist, failing with file and word; run it over the current tree and fix or allowlist what it finds (record each)
+- [x] `docs/voice-and-copy.md`: error and toast patterns added, the "Not enforced yet" section replaced by what the test checks
+- [x] `/limited-surface`: record that M1 to M6 add no mutating route, email or paid call (no new policy)
+- [x] **Prove the tests can fail:** add a banned word to a copy module → the voice test fails naming it; give a code no copy → the `errorCopy` test fails
+- [x] Commit: `feat: add API error codes, the error copy table and a voice test (M1)`
 
 **Journeys that change:** none (nothing is mounted). **Deployable:** yes.
 
-**Testing notes:** _(fill on completion)_
+**Testing notes:**
+
+- **What was tested:** the code list (every code has a 4xx/5xx status and a snake_case name; `network` is not a route code; `isApiErrorCode` refuses inherited keys such as `toString`; each code is allowed only with its own statuses; `codeForStatus` gives the general code for every status). `errorCopy`: every route code and `network` has a line, no line for an unknown code, the 404 line is the same whatever else it is given and says nothing about brunches, a 429 is worded from its wait when it has one (the resend line) and generically when not, no line contains "failed", "error", "invalid", "unable" or "successfully", none promises "we'll try again". `readApiError`: reads a coded body; reads a 429 as its wait; falls back by status for the old shapes (`{ error: 'text' }`, the 422 `errors` list), a non-JSON page and an empty body; ignores an unknown code and a code sent with the wrong status; says `not_found` for every 404 whatever the body (except the member-only `option_gone`); never takes its words from the body. The voice test reads every string literal, template and JSX text in `lib/*Copy.ts`, `app/**/*.tsx` and `components/**/*.tsx` (comments, identifiers and imports are not read) and the detector itself is tested (flags each rule-4 word in a string, a template and JSX text; whole words only; the allowlist skips one whole string and only that string).
+- **How:** unit tests in node, nothing mocked (shared +6 tests in 1 file; web +26 in 3 files: 614 web tests in all). `pnpm typecheck` and `pnpm lint` clean; `pnpm test` shared 54, core 721, web 614, database 1 (the `failed {` lines in the web output are logged errors from tests that expect them). The voice test passed on the existing tree on its first run: no banned word is read anywhere today, so `ALLOWED_STRINGS` starts empty and nothing was reworded. **Mutation checks** (each reverted and confirmed with `git status`): (1) "community" put into `lifecycleCopy.ts` → the voice test failed naming `lib/lifecycleCopy.ts:23`; (2) "Connect with us" put into `RsvpControl.tsx` JSX text → it failed naming `RsvpControl.tsx:55`; (3) the `internal` line deleted from `errorCopy.ts` → the "has a line for every code" test failed.
+- **E2E journeys:** none needed. Nothing is mounted or changed for a person: no control, route, rule or accessible name moves, so the e2e suite was not run (it runs from M2, the first milestone that changes a screen).
+- **/limited-surface:** answered by reading, not by walking the recipe (nothing to add): M1 adds no mutating route (so no `enforceWriteLimit`), no email event (so no `emailBudgets.test.ts` decision) and no paid call (so no `routeLimits.test.ts` entry). The same holds for M2 to M6 as specced; a milestone that adds a route reopens it.
+- **Findings:** the routes' real cases collapse to 22 codes (the table is in `plan.md` "Copy table and codes"); two points differ from the spec's first draft and are written there: the reader parses with Zod in the web app (shared holds only codes and the type), and the only 404 body it believes is `option_gone`. "Brunch is not open for suggestions/changes/voting" is `brunch_not_active` (a draft or confirmed brunch), which is not `brunch_called_off`.
+- **What's deferred:** no route returns a code yet and no control reads one (M2 onward); `network` and `signed_out` are made by the thunk in M2. The voice test does not read CSS or e2e text, which a person never reads from source.
+- **How to run it:** `pnpm --filter @brunchsters/shared exec vitest run apiError`; `pnpm --filter @brunchsters/web exec vitest run src/lib/errorCopy src/lib/readApiError src/lib/voiceCopy`.
 
 ---
 
