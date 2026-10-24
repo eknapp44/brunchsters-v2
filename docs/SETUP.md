@@ -116,14 +116,12 @@ pnpm db:generate
 # 7. Seed lookup tables (statuses, RSVP states, decision types, etc.)
 pnpm db:seed
 
-# 8. (Optional) Start the Inngest local dev server in a second terminal
-npx inngest-cli@1.46.0 dev --no-discovery -u http://localhost:3000/api/inngest
-#    -> needed to actually deliver emails locally (see 'Email and the job queue' below);
-#       set INNGEST_DEV=1 in apps/web/.env.local. Dev UI: http://localhost:8288
-
-# 9. Run the app
+# 8. Run the app and the job queue together
 pnpm dev
-#    -> http://localhost:3000
+#    -> the app on http://localhost:3000 and the Inngest local dev server (the queue) with its
+#       UI on http://localhost:8288. The queue delivers emails locally and, since spec 0013, is what
+#       lets a called-off brunch be deleted (see 'Email and the job queue' below); set
+#       INNGEST_DEV=1 in apps/web/.env.local. `pnpm dev:app` starts the app alone.
 ```
 
 When everything's up you should have: the Next.js app on `:3000`, local Supabase (Postgres + Realtime) on its CLI-reported ports, and optionally the Inngest dev server.
@@ -178,7 +176,7 @@ Emails are sent by queued handlers (ADR 0009, spec 0008). Which implementation r
 
 1. In `apps/web/.env.local` set `INNGEST_DEV=1`, and leave `RESEND_API_KEY`, `INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY` **blank**.
    A real Resend key would send real mail (to your own address only, until a domain is verified); a real event key would send events to Inngest Cloud, which cannot reach your laptop.
-2. Run `pnpm dev`, and in a second terminal `npx inngest-cli@1.46.0 dev --no-discovery -u http://localhost:3000/api/inngest`.
+2. Run `pnpm dev`: it starts the app and the Inngest dev server together (`pnpm dev:queue` is the queue alone, if you run the app yourself).
 3. Invite someone from the app. The newest file in `.mail-outbox/` is the email: open it and copy the `href` out of the `html` field (or read the `subject` and `to`). Runs and retries show in the Inngest dev UI at <http://localhost:8288>.
 
 **Production deployment.** A Vercel production deployment (`VERCEL_ENV=production`) refuses to start unless `AUTH_URL`, `RESEND_API_KEY`, `EMAIL_FROM`, `INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY` are set, and the error names whichever is missing. It also refuses to start if `INNGEST_DEV` is set there, because dev mode turns off signature checks on the public `/api/inngest` route. `EMAIL_FROM` is required there because without it Resend's sandbox sender would be used, which can only write to your own account address, so every real recipient would be rejected. Point Inngest Cloud at `https://<your-domain>/api/inngest` (the Vercel integration does this for you). `NODE_ENV=production` alone is deliberately not enough to trigger the check: CI and the e2e suite serve a production build that is not a deployment.
@@ -202,8 +200,7 @@ Until you do this, Resend only delivers to the email address of your own Resend 
 
 ```bash
 supabase start            # if not already running
-pnpm dev                  # app on :3000
-npx inngest-cli@1.46.0 dev --no-discovery -u http://localhost:3000/api/inngest   # second terminal; only if you want emails delivered locally
+pnpm dev                  # app on :3000 and the job queue on :8288 (`pnpm dev:app` for the app alone)
 
 # ... make changes on a feature branch ...
 

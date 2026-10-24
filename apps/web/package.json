@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
+    "dev:queue": "npx --yes inngest-cli@1.46.0 dev --no-discovery -u http://localhost:3000/api/inngest",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
