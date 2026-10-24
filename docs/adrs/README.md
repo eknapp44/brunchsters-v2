@@ -56,3 +56,4 @@ What else was evaluated and why was it not chosen?
 | [0013](./0013-rate-limits-in-postgres.md)                   | Rate limits: Postgres counters behind a `RateLimiter` interface         | Accepted |
 | [0014](./0014-content-security-policy-with-nonce.md)        | Content-Security-Policy with a per-request nonce                        | Accepted |
 | [0015](./0015-brunch-lifecycle.md)                          | Brunch lifecycle: call it off, bring it back, delete, and hide          | Accepted |
+| [0016](./0016-feedback-surfaces.md)                         | Feedback surfaces: one mutation thunk, error codes, toasts              | Accepted |
