@@ -1,6 +1,6 @@
 # Spec 0013 — Brunch Lifecycle
 
-**Status:** Complete 2026-10-24 (M1 to M7 built, tested and reviewed by the owner; not yet merged or released)  
+**Status:** Complete and released as v1.11.0 (M1 to M7 done and merged 2026-10-24, PR #21; see "Outcome")  
 **Branch:** `feat/0013-brunch-lifecycle`  
 **PLANNING.md ref:** §16 roadmap step 2, §17 "Product candidates" (2), §8 (Brunch, BrunchAttendee)  
 **ADRs:** [0015 — Brunch lifecycle](../../docs/adrs/0015-brunch-lifecycle.md)  
@@ -147,6 +147,30 @@ Plus the **status flow** written down as a table the code checks, **one guard** 
 **Accessible names added** (new; but see the correction at the end of this paragraph): buttons **Call it off**, **Bring it back**, **Delete this brunch**, **Delete this draft**, **Hide from my dashboard** (brunch page), **Hide {title}** and **Unhide {title}** (dashboard rows; the title keeps them distinct), **Unhide**; dialog buttons **Nope, keep it** and the confirm button named as its action; headings **End of the road** and **Hidden**; link **Hidden (n)**; link **Show all**. **Correction found in M6:** "new, so nothing breaks" was wrong. `getByRole` matches names as substrings, so **Call it off** also matches the manage page's existing **Call it** (close voting); five journey lines in `closing-voting`, `confirm` and `manage-options` first passed `exact: true`, and the two buttons sit next to each other on the manage page, so after M6 the owner chose to rename close voting from **Call it** to **Close voting** (and the nudge line to "close voting now if you're ready"), which reverses spec 0011's wording for that button; the `exact: true` workarounds were removed. **Names that change:** the Past section's status text on cancelled rows ("Cancelled" becomes "Called off").
 
 ---
+
+## Outcome
+
+Shipped in PR #21 (released as **v1.11.0** on 2026-10-24) in seven milestones, each committed green, then reviewed by the owner on the running app and by `/pre-merge-review`.
+
+**What shipped.** A brunch can end. The host **calls it off** (and can **bring it back**) or **deletes** a draft or a called-off brunch; any member **hides** a brunch from their own dashboard. The status moves are a table in code (`BRUNCH_TRANSITIONS`), one guard (`assertBrunchOpen`) stops a called-off brunch taking changes and a static test names any service that skips it, and calling off has its own budget (6 per host per day). Guests get a "called off" email after a five-minute hold (so the host can change their mind) and a "back on" email only if they had been told. A called-off brunch is read-only for members, an old invite link says it was called off and joins nobody, and Delete waits until the guests have been told (or an hour of grace). The dashboard caps Past at five ("Show all"), has a Hidden list, and Hide is an eye icon on rows, the next-up card and the Hidden list at every width. One additive migration (four nullable columns, `hiddenAt`, one foreign key).
+
+**What changed from the plan.**
+
+- **The spec's "new names break nothing" was wrong.** `getByRole` matches names as substrings, so **Call it off** matched the manage page's **Call it** (close voting). The owner chose clarity over brevity: the close-voting button is now **Close voting** (this reverses spec 0011's wording for it), and the exact-match workarounds were removed.
+- **Hide moved.** It was a "Tidy up" panel at the bottom of the brunch page; it is a button in the header beside Manage brunch, with its explanation as a tooltip (and a line under the bar on a phone). On rows it was first tablet-and-up only; as an icon it fits a phone row, so it is on phones too. The spec's phone criterion (sub-lines drop, buttons stack full width) was corrected to what was built.
+- **Delete's wait asks the server.** The first countdown re-enabled the button by itself while the server still said the guests had not been told; `useWait` gained `onExpire`, and the control refreshes and keeps holding until the server says it may.
+- **The first dialog in the app is a native `<dialog>`** (no library). Its centring was broken by the brunch page's panel spacing rule (a top margin beat the browser's `margin: auto`); fixed and guarded by a geometry assertion, with a journey that it stays open while its request is in flight.
+- **`hideBrunchAs` was not added** (every Hide journey presses the real control); `pnpm dev` now starts the Inngest queue (`pnpm dev:app` and `pnpm dev:queue` for either alone), because Delete and the emails depend on it.
+- **The CLAUDE.md files were slimmed** (the accessible-names history moved to `docs/accessible-names.md`) and four skills learned from the review.
+
+**What was found.**
+
+- **A real bug in production builds:** a page-level `notFound()` is sent as an empty error shell that the browser rebuilds, and the rebuild hung when the Hero stylesheet request was aborted (about 1 in 10 attempts under load). It surfaced as the intermittent P9 and H4 failures. Worked around by importing `Hero.module.css` from the root layout; it has no deterministic test of its own (P9 and H4 are its only guard) and should be revisited when Next is upgraded (PLANNING §17).
+- **The dev-mode e2e flakes were the suite's own parallelism:** with no worker limit it ran 12 browsers against one `next dev` process, which compiles routes on first use and is the limit. 4 and 6 workers take the same time (about 200 seconds, every test passing); local runs are capped at 4 workers. A production build runs the suite in about 40 seconds and is the quick gate. Dev-mode runs also fail while the owner's own `pnpm dev` and queue are running (`docs/SETUP.md`).
+- **Two mutation checks that proved nothing** were caught and closed: the Hide control's layering (the journey had only clicked the next-up card, never a list row) and the Delete refresh.
+- **The CI audit gate failed on a new `zod` advisory** during the PR (GHSA-mrhx-c7xc-m3w5); `zod` was bumped to 4.6.7. Expect more of these.
+
+**What is deferred.** Recorded in "What This Spec Does Not Cover" below and PLANNING §17 "Lifecycle deferrals": a reason note on a cancellation, the in-app notification and per-brunch mute, leaving a brunch, no "over" guard (a confirmed brunch whose time has passed still accepts changes, and Bring it back does not check that its time went by while it was called off), the "Suggested" group in the Locations and Times panels, and, before launch, confirming the two new Inngest functions are registered in Inngest Cloud.
 
 ## What This Spec Does Not Cover
 
