@@ -24,7 +24,7 @@ Never push to `main`. Branch `docs/NNNN-released` from the updated `main`, and:
 
 - Spec `spec.md`: **Status** says complete and released as vX.Y.Z (PR number, date); **Outcome** says what shipped (milestones, with anything that changed from the plan), what changed, what was found, and what is deferred. Rewrite any Outcome bullet that the later milestones or review passes made stale; do not leave a description of a design that was replaced.
 - Spec `tasks.md`: a **Released** line.
-- `docs/PLANNING.md`: the roadmap line (§17) says merged and released as vX.Y.Z; mark the previous spec too if it still says "ready to merge" (`grep -n "ready to merge"`). New deferrals are in §17.
+- `docs/PLANNING.md`: the roadmap table (§16, "Roadmap after the core flow") says merged and released as vX.Y.Z; mark the previous spec too if it still says "ready to merge" (`grep -n "ready to merge"`). New deferrals are in `docs/BACKLOG.md`.
 - Anything else that quotes the old state (`grep` the old wording): `SETUP.md`, scoped `CLAUDE.md`, the skills.
 - Prettier on the changed files, a `docs:` commit with the co-author trailer, push the branch, open a docs-only PR (template: no code, no journey needed). Do not merge it unless the owner says so (a merge to `main` may cut another release).
 

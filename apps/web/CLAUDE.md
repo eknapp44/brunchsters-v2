@@ -48,7 +48,7 @@ Why and what: [ADR 0011](../../docs/adrs/0011-redux-toolkit-for-client-ui-state.
 
 ### Moving another control onto the store
 
-The remaining controls (RSVP, invites, suggestions, option management, voting controls, confirmation, suggestion review) each own a `submitting`/`error` pair, a `fetch` and a `router.refresh()`. They move together, not one slice each, when the toast / visible-error spec lands (PLANNING §17 "Redux follow-ups"). Until then a **new** control follows the same shape rather than inventing another: if several components will read its state or it has rules worth unit tests, add a slice and a `createAppAsyncThunk` (copy `ballotsSlice.ts`); otherwise keep `useState`, with the same generic error string and `role="alert"` as its neighbours. When migrating a control: keep its text, roles and accessible names (the e2e contract below), keep the generic error message, add a thunk test per failure path, and prove the journey that covers it fails without the new rule.
+The remaining controls (RSVP, invites, suggestions, option management, voting controls, confirmation, suggestion review) each own a `submitting`/`error` pair, a `fetch` and a `router.refresh()`. They move together, not one slice each, when the toast / visible-error spec lands (`docs/BACKLOG.md` "Redux follow-ups"). Until then a **new** control follows the same shape rather than inventing another: if several components will read its state or it has rules worth unit tests, add a slice and a `createAppAsyncThunk` (copy `ballotsSlice.ts`); otherwise keep `useState`, with the same generic error string and `role="alert"` as its neighbours. When migrating a control: keep its text, roles and accessible names (the e2e contract below), keep the generic error message, add a thunk test per failure path, and prove the journey that covers it fails without the new rule.
 
 ## Accessible names are a contract with the e2e suite
 
@@ -75,7 +75,7 @@ Phone is the base style and the place to be strict about space (spec 0011). Leav
 
 - **Drop repetition and secondary lines, never the only source of a fact.** Allowed: a count that repeats a heading, a helper line under a list heading, a chip that repeats the header's, the top bar's name (visually only: it stays in the accessibility tree), the wizard's top Cancel when the footer has one. Not allowed: hiding something a person could not learn elsewhere on the same screen.
 - Rows go vertical on phone (a date tile, then the title, one line, then the pill and count) and long lists show a few items plus "+N more" (the next-up roster shows three).
-- Collapsing sections is not used yet; it is decided after a real-phone review (PLANNING §17). Do not add collapsible or auto-collapsing sections without that decision.
+- Collapsing sections is not used yet; it is decided after a real-phone review (`docs/BACKLOG.md`). Do not add collapsible or auto-collapsing sections without that decision.
 - A change to a screen is judged on the phone board as well as the desktop one.
 
 ## Voice and copy
