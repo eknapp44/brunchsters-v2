@@ -8,13 +8,15 @@
 // The list is `specs/NNNN-name/screenshots.json`:
 //   { "shots": [ { "name": "feedback/toast-error", "caption": "...", "variants": ["phone-light"] } ] }
 // `name` is the one passed to `captureReviewShots` in `e2e/screenshots/review.spec.ts`; `variants` are
-// `<device>-<scheme>` (device: desktop or phone) and default to phone light, phone dark, desktop light.
+// `<device>-<scheme>` (device: desktop or phone) and default to phone light and desktop light (two per
+// shot at most keeps the folder small). Each image is one screenful, JPEG quality 60; pass `{ focus }`
+// to `captureReviewShots` to scroll a lower part of a long page into view.
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const DEFAULT_VARIANTS = ['phone-light', 'phone-dark', 'desktop-light'];
+const DEFAULT_VARIANTS = ['phone-light', 'desktop-light'];
 const here = path.dirname(fileURLToPath(import.meta.url));
 const webDir = path.resolve(here, '..');
 const specsDir = path.resolve(webDir, '..', '..', 'specs');

@@ -1,10 +1,12 @@
 import path from 'node:path';
-import type { Page, TestInfo } from '@playwright/test';
+import type { Locator, Page, TestInfo } from '@playwright/test';
 import { COLOR_SCHEMES, type ColorScheme, useColorScheme } from './a11y';
 import { E2E_SCREENSHOT_DIR } from './env';
 
 // `pnpm shots:spec` (scripts/specShots.mjs) names the few shots a spec keeps, and where. They are
-// saved again as small JPEGs for the spec's folder; everything else stays in the git-ignored set.
+// saved again as small JPEGs for the spec's folder (one screenful, scrolled to `focus` when given:
+// a record of the moment, not the whole page, so the folder stays small); everything else stays in
+// the git-ignored set.
 function curatedTarget(name: string, device: string, scheme: ColorScheme): string | undefined {
   const dir = process.env.SPEC_SHOTS_DIR;
   if (dir === undefined || dir === '') return undefined;
@@ -23,6 +25,7 @@ export async function captureReviewShots(
   page: Page,
   name: string,
   testInfo: TestInfo,
+  options?: { readonly focus?: Locator },
 ): Promise<void> {
   for (const scheme of COLOR_SCHEMES) {
     await useColorScheme(page, scheme);
@@ -40,7 +43,8 @@ export async function captureReviewShots(
     });
     const curated = curatedTarget(name, testInfo.project.name, scheme);
     if (curated !== undefined) {
-      await page.screenshot({ path: curated, type: 'jpeg', quality: 72, fullPage: true });
+      await options?.focus?.evaluate((element) => element.scrollIntoView({ block: 'center' }));
+      await page.screenshot({ path: curated, type: 'jpeg', quality: 60 });
     }
   }
 }

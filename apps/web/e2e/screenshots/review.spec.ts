@@ -365,7 +365,9 @@ test('invites note and search error', async ({ makeActor }, testInfo) => {
       .getByRole('status')
       .filter({ hasText: "Your brunch is up, but the invites didn't go out." }),
   ).toBeVisible();
-  await captureReviewShots(host.page, 'feedback/invites-note', testInfo);
+  await captureReviewShots(host.page, 'feedback/invites-note', testInfo, {
+    focus: host.page.getByRole('status').filter({ hasText: 'Your brunch is up' }),
+  });
 });
 
 // Spec 0014: the inline failures (a ballot, a dialog) and the sign-in page's way back.
@@ -389,7 +391,9 @@ test('inline failures and the sign-in way back', async ({ makeActor, page }, tes
   await expect(
     voter.page.getByRole('alert').filter({ hasText: "Voting's closed on this one." }),
   ).toBeVisible();
-  await captureReviewShots(voter.page, 'feedback/ballot-error', testInfo);
+  await captureReviewShots(voter.page, 'feedback/ballot-error', testInfo, {
+    focus: voter.page.getByRole('alert').filter({ hasText: "Voting's closed on this one." }),
+  });
 
   // A call-off that fails: the line stays inside the dialog.
   await host.page.goto(`/brunch/${brunchId}/manage`);

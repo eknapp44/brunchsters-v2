@@ -351,7 +351,7 @@ It uses the same isolated e2e server, database and queue as `pnpm test:e2e` (sto
 pnpm --filter @brunchsters/web shots:spec 0014   # reads specs/0014-*/screenshots.json, runs the review set once, keeps only the listed shots in specs/0014-*/screenshots/ with a README
 ```
 
-It runs the review set against the dev server (stop your own `pnpm dev` first; it overwrites the production `.next`, so rerun `pnpm build` before `pnpm test:e2e`). Add a shot by naming it in `screenshots.json` (the name is the one given to `captureReviewShots` in `e2e/screenshots/review.spec.ts`); keep the folder to about 3 MB (trim the `variants`).
+It runs the review set against the dev server (stop your own `pnpm dev` first; it overwrites the production `.next`, so rerun `pnpm build` before `pnpm test:e2e`). Add a shot by naming it in `screenshots.json` (the name is the one given to `captureReviewShots` in `e2e/screenshots/review.spec.ts`); keep the folder near 1 MB (one screenful per image, two variants per shot at most).
 
 **Boards: the prototype next to the app (spec 0011).** Each design-fidelity milestone is reviewed with a board per screen, light and dark, desktop and phone:
 
