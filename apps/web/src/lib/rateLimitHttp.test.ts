@@ -12,7 +12,7 @@ describe('rateLimitedResponse', () => {
     expect(response.status).toBe(429);
     expect(response.headers.get('Retry-After')).toBe('540');
     expect(await response.json()).toEqual({
-      error: 'Too many requests',
+      error: { code: 'rate_limited', message: 'Too many requests' },
       policy: 'resend-invite',
       retryAfterSeconds: 540,
     });
@@ -27,7 +27,9 @@ describe('rateLimiterUnavailableResponse', () => {
     const response = rateLimiterUnavailableResponse({ route: 'POST /invites', cause });
 
     expect(response.status).toBe(503);
-    expect(await response.json()).toEqual({ error: 'Temporarily unavailable' });
+    expect(await response.json()).toEqual({
+      error: { code: 'unavailable', message: 'Temporarily unavailable' },
+    });
     expect(log).toHaveBeenCalledWith('POST /invites: the rate limiter is unavailable', cause);
   });
 });

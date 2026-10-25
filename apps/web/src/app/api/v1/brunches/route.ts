@@ -2,6 +2,7 @@ import { createBrunch, createBrunchRequestSchema, getBrunchesForUser } from '@br
 import type { UserId } from '@brunchsters/shared';
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
+import { apiError } from '@/lib/apiErrorResponse';
 import { enforceWriteLimit } from '@/lib/rateLimit';
 import { db } from '@/lib/db';
 import { eventBus } from '@/lib/services';
@@ -9,7 +10,7 @@ import { eventBus } from '@/lib/services';
 export async function POST(request: Request): Promise<NextResponse> {
   const session = await auth();
   if (session === null) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return apiError({ code: 'signed_out', status: 401, message: 'Unauthorized' });
   }
 
   const limited = await enforceWriteLimit(session.user.id);
@@ -20,12 +21,16 @@ export async function POST(request: Request): Promise<NextResponse> {
     body = await request.json();
   } catch (cause) {
     console.error('Failed to parse brunch creation request body', cause);
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    return apiError({ code: 'invalid', status: 400, message: 'Invalid JSON body' });
   }
 
   const parsed = createBrunchRequestSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ errors: parsed.error.issues }, { status: 422 });
+    return apiError({
+      code: 'invalid',
+      status: 422,
+      message: parsed.error.issues.map((issue) => issue.message).join('; '),
+    });
   }
 
   const result = await createBrunch(
@@ -35,7 +40,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   if (result.isErr()) {
     console.error('createBrunch failed', result.error);
-    return NextResponse.json({ error: 'Failed to create brunch' }, { status: 500 });
+    return apiError({ code: 'internal', status: 500, message: 'Failed to create brunch' });
   }
 
   return NextResponse.json(
@@ -47,7 +52,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 export async function GET(): Promise<NextResponse> {
   const session = await auth();
   if (session === null) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return apiError({ code: 'signed_out', status: 401, message: 'Unauthorized' });
   }
 
   const brunches = await getBrunchesForUser({ userId: session.user.id as UserId }, { db });

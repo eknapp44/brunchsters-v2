@@ -14,6 +14,7 @@ import { auth } from '@/auth';
 import { enforceWriteLimit } from '@/lib/rateLimit';
 import { rateLimitedResponse } from '@/lib/rateLimitHttp';
 import { POST } from './route';
+import { errorCodeOf } from '@/test-support/errorCodeOf';
 
 const mockAuth = vi.mocked(auth as unknown as () => Promise<unknown>);
 const mockCancelBrunch = vi.mocked(cancelBrunch);
@@ -38,6 +39,7 @@ describe('POST /api/v1/brunches/[id]/cancel', () => {
     const response = await call();
 
     expect(response.status).toBe(401);
+    expect(await errorCodeOf(response)).toBe('signed_out');
     expect(mockEnforceWriteLimit).not.toHaveBeenCalled();
     expect(mockCancelBrunch).not.toHaveBeenCalled();
   });
@@ -61,6 +63,7 @@ describe('POST /api/v1/brunches/[id]/cancel', () => {
     const response = await call('not-a-uuid');
 
     expect(response.status).toBe(404);
+    expect(await errorCodeOf(response)).toBe('not_found');
     expect(mockCancelBrunch).not.toHaveBeenCalled();
   });
 
@@ -120,14 +123,16 @@ describe('POST /api/v1/brunches/[id]/cancel', () => {
     expect(await response.json()).toMatchObject({ policy: 'cancel-notices-host' });
   });
 
-  it('tells a draft apart from a changed status in the words it answers with', async () => {
+  it('tells a draft apart from a changed status by code', async () => {
     mockAuth.mockResolvedValue(SESSION);
     mockCancelBrunch.mockResolvedValue(
       err({ kind: 'invalid_transition', from: 'draft', to: 'cancelled' }),
     );
+    expect(await errorCodeOf(await call())).toBe('brunch_not_active');
 
-    expect(await (await call()).json()).toEqual({
-      error: 'A draft cannot be called off. Delete it instead',
-    });
+    mockCancelBrunch.mockResolvedValue(
+      err({ kind: 'invalid_transition', from: 'confirmed', to: 'cancelled' }),
+    );
+    expect(await errorCodeOf(await call())).toBe('brunch_changed');
   });
 });

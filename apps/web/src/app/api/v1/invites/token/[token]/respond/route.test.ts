@@ -18,6 +18,7 @@ import { auth } from '@/auth';
 import { enforceLimit, enforceWriteLimit } from '@/lib/rateLimit';
 import { rateLimitedResponse } from '@/lib/rateLimitHttp';
 import { POST } from './route';
+import { errorCodeOf } from '@/test-support/errorCodeOf';
 
 const mockAuth = vi.mocked(auth as unknown as () => Promise<unknown>);
 const mockRespondToInvite = vi.mocked(respondToInvite);
@@ -49,6 +50,7 @@ describe('POST /api/v1/invites/token/[token]/respond', () => {
     const response = await POST(postRequest({ response: 'yes' }), { params: params('some-token') });
 
     expect(response.status).toBe(401);
+    expect(await errorCodeOf(response)).toBe('signed_out');
     expect(mockRespondToInvite).not.toHaveBeenCalled();
   });
 
@@ -60,6 +62,7 @@ describe('POST /api/v1/invites/token/[token]/respond', () => {
     });
 
     expect(response.status).toBe(422);
+    expect(await errorCodeOf(response)).toBe('invalid');
     expect(mockRespondToInvite).not.toHaveBeenCalled();
   });
 
@@ -87,6 +90,7 @@ describe('POST /api/v1/invites/token/[token]/respond', () => {
     const response = await POST(postRequest({ response: 'yes' }), { params: params('bad-token') });
 
     expect(response.status).toBe(404);
+    expect(await errorCodeOf(response)).toBe('not_found');
   });
 
   it('returns 500 on an unexpected service error', async () => {
@@ -96,6 +100,7 @@ describe('POST /api/v1/invites/token/[token]/respond', () => {
     const response = await POST(postRequest({ response: 'yes' }), { params: params('some-token') });
 
     expect(response.status).toBe(500);
+    expect(await errorCodeOf(response)).toBe('internal');
   });
 });
 
@@ -113,6 +118,7 @@ describe('POST /api/v1/invites/token/[token]/respond — the budgets', () => {
     );
 
     expect(response.status).toBe(401);
+    expect(await errorCodeOf(response)).toBe('signed_out');
     expect(mockEnforceLimit).toHaveBeenCalledWith({
       policy: RATE_LIMIT_POLICIES.inviteTokenPerIp,
       subject: '203.0.113.9',

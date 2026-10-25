@@ -17,6 +17,7 @@ vi.mock('@brunchsters/core', () => ({
 import { resendInvite } from '@brunchsters/core';
 import { auth } from '@/auth';
 import { POST } from './route';
+import { errorCodeOf } from '@/test-support/errorCodeOf';
 
 const mockAuth = vi.mocked(auth as unknown as () => Promise<unknown>);
 const mockResendInvite = vi.mocked(resendInvite);
@@ -41,6 +42,7 @@ describe('POST /api/v1/invites/[id]/resend', () => {
     });
 
     expect(response.status).toBe(401);
+    expect(await errorCodeOf(response)).toBe('signed_out');
     expect(mockResendInvite).not.toHaveBeenCalled();
   });
 
@@ -50,6 +52,7 @@ describe('POST /api/v1/invites/[id]/resend', () => {
     const response = await POST(new Request('http://localhost'), { params: params('not-a-uuid') });
 
     expect(response.status).toBe(404);
+    expect(await errorCodeOf(response)).toBe('not_found');
     expect(mockResendInvite).not.toHaveBeenCalled();
   });
 
@@ -77,6 +80,7 @@ describe('POST /api/v1/invites/[id]/resend', () => {
     });
 
     expect(response.status).toBe(403);
+    expect(await errorCodeOf(response)).toBe('forbidden');
   });
 
   it('returns 404 when the invite does not exist', async () => {
@@ -88,6 +92,7 @@ describe('POST /api/v1/invites/[id]/resend', () => {
     });
 
     expect(response.status).toBe(404);
+    expect(await errorCodeOf(response)).toBe('not_found');
   });
 });
 
@@ -117,7 +122,7 @@ describe('POST /api/v1/invites/[id]/resend — rate limits', () => {
     expect(response.status).toBe(429);
     expect(response.headers.get('Retry-After')).toBe('540');
     expect(await response.json()).toEqual({
-      error: 'Too many requests',
+      error: { code: 'rate_limited', message: 'Too many requests' },
       policy: 'resend-invite',
       retryAfterSeconds: 540,
     });
@@ -135,5 +140,6 @@ describe('POST /api/v1/invites/[id]/resend — rate limits', () => {
     });
 
     expect(response.status).toBe(503);
+    expect(await errorCodeOf(response)).toBe('unavailable');
   });
 });

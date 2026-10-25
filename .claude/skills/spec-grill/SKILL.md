@@ -27,6 +27,8 @@ Verify every claim you intend to put in a spec against the code or by running it
 
 If the feature adds client state or a mutation, say **per piece** whether it is a Redux slice or local `useState` (`apps/web/CLAUDE.md` "State"), and whether it triggers one of the "Redux follow-ups" in `docs/BACKLOG.md` (a toast or visible error, the shared mutation slice, the unread count). Don't add a second pattern for state the store already has a home for.
 
+If the feature adds a control that sends a request or a route that can fail, it uses `useMutation` and a coded `apiError` (`apps/web/CLAUDE.md` "Adding a control that sends a request"): ask where each failure shows (a toast for one tap with nothing to fix, inline for what the person typed or must wait out) and what each new failure code says in the voice (`lib/errorCopy.ts`).
+
 Also check: does the idea **conflict with the constitution or an ADR**? Surface it now and ask; don't comply silently.
 
 ## Phase 2 — Grill
@@ -57,6 +59,9 @@ Create `specs/NNNN-feature/` (next number from the directory; **grep the repo fo
 
 - **`plan.md`** — files introduced or changed, key design (types, data model, migration shape, the order of checks for anything permission-related), decisions already made, risks with mitigations, test strategy.
 - **`tasks.md`** — small milestones, each independently green and ending in a commit: schema/migration → services + unit tests → routes + handler tests → UI → E2E journeys. Each has `- [ ]` checkboxes, a `Commit:` line with the Conventional Commit message, and `**Testing notes:** _(fill on completion)_`. The first task of M1 is "commit this spec and any ADR (docs-only commit, before any code)". Note that milestones close with `/milestone-done`.
+- **`MANUAL-TESTING.md`** — the owner's own sign-off list (`specs/0014-feedback-surfaces/MANUAL-TESTING.md` is the model): a few minutes per item, grouped by what a person does, for what automation cannot judge (feel, wording, a real phone, a screen reader, a real email or Google sign-in). Setup at the top (how to run it, how to make a request fail with DevTools), a tick box per item, a sign-off table at the end. Drafted now from the journeys and "what automation cannot see"; kept true by each milestone; checked in the pre-merge review.
+- **`SUMMARY.md`** — the one page the owner reads (the model is spec 0014's): what it does in plain words, the decisions and why, what changed from the plan, what is not done and why, how it was checked, and where to look. Written at the end (the pre-merge review fixes it up); the spec, plan and tasks are the working documents behind it.
+- **`screenshots.json`** (a spec that touches UI): the 6 to 10 shots that say what was built (`{ "shots": [ { "name", "caption", "variants" } ] }`, names from `e2e/screenshots/review.spec.ts`); `pnpm --filter @brunchsters/web shots:spec NNNN` makes the images and a README in the spec folder at the end (about 1 MB: one screenful per image, two variants per shot at most).
 
 Keep milestones small enough to review. Prefer proving the risky part early. Spell out what each milestone's tests are and how a regression test will be proven to fail.
 

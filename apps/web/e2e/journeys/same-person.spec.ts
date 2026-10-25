@@ -4,6 +4,7 @@ import { getDb } from '../support/db';
 import { createBrunch, getInviteToken, uniqueSuffix } from '../support/factories';
 import { expect, test } from '../support/fixtures';
 import { inviteLink, inviteRow } from '../support/invites';
+import { TOAST_WORDS } from '../support/toasts';
 import { addAttendee } from '../support/voting';
 import { BrunchWizard } from '../support/wizard';
 
@@ -138,7 +139,7 @@ test.describe('I7 — one address, one person', () => {
     await expect(attendee.page.getByLabel('Suggest someone')).toHaveValue('');
     await suggest(`FRIEND-${suffix}@EXAMPLE.COM`);
     await expect(
-      attendee.page.getByRole('alert').filter({ hasText: 'Failed to suggest invitee' }),
+      attendee.page.getByRole('alert').filter({ hasText: TOAST_WORDS.alreadyThere }),
     ).toBeVisible();
     expect(
       await getDb().brunchInviteSuggestion.count({

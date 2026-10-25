@@ -1,6 +1,7 @@
 import { getInviteByToken } from '@brunchsters/core';
 import { RATE_LIMIT_POLICIES, type InviteToken } from '@brunchsters/shared';
 import { NextResponse } from 'next/server';
+import { apiError } from '@/lib/apiErrorResponse';
 import { db } from '@/lib/db';
 import { enforceLimit } from '@/lib/rateLimit';
 import { clientIp } from '@/lib/rateLimitHttp';
@@ -23,7 +24,7 @@ export async function GET(
 
   const preview = await getInviteByToken(token as InviteToken, { db });
   if (preview === undefined) {
-    return NextResponse.json({ error: 'Invite not found or expired' }, { status: 404 });
+    return apiError({ code: 'not_found', status: 404, message: 'Invite not found or expired' });
   }
 
   return NextResponse.json(preview, { status: 200 });

@@ -1,6 +1,8 @@
 import type { PlaceDetails } from '@brunchsters/core';
 import { MAX_INVITES_PER_REQUEST } from '@brunchsters/shared';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import type { ClientErrorCode } from '@/lib/errorCopy';
+import { readApiError } from '@/lib/readApiError';
 import { createAppAsyncThunk } from './hooks';
 import type { RootState } from './makeStore';
 
@@ -16,7 +18,8 @@ export type WizardState = {
   readonly votingDeadline: string;
   readonly emails: readonly string[];
   readonly submitting: boolean;
-  readonly submitError: string | undefined;
+  // Why the create failed, as a code the page words (`errorCopy`): the store holds no text.
+  readonly submitError: ClientErrorCode | undefined;
   // The create request this wizard is waiting on; a failure from any other request (one from an
   // earlier visit, before the wizard was reset) must not touch it.
   readonly requestId: string | undefined;
@@ -35,27 +38,19 @@ export const initialWizardState: WizardState = {
   requestId: undefined,
 };
 
-const CREATE_FAILED_MESSAGE = 'Failed to create brunch';
-
-type ApiErrorBody = {
-  readonly error?: string;
-  readonly errors?: ReadonlyArray<{ readonly message?: string }>;
-};
-
-async function extractErrorMessage(response: Response): Promise<string> {
-  const body = (await response.json().catch(() => undefined)) as ApiErrorBody | undefined;
-  if (body?.error !== undefined) return body.error;
-  if (body?.errors !== undefined && body.errors.length > 0) {
-    const messages = body.errors
-      .map((issue) => issue.message)
-      .filter((message): message is string => message !== undefined);
-    if (messages.length > 0) return messages.join('; ');
-  }
-  return CREATE_FAILED_MESSAGE;
-}
+// What a successful create hands back. `invitesFailed` is true when the brunch exists but its invite
+// batch was refused for a reason the invite panel's own counters do not show (a 500, offline): the
+// panel then says so (`noticesSlice`), because the addresses are gone with the wizard. A batch
+// refused for the day's budget (a 429) is not a failure here: the brunch page asks the counters and
+// opens with its send button waiting and the reason shown (spec 0012).
+export type CreatedBrunch = { readonly id: string; readonly invitesFailed: boolean };
 
 // Creates the brunch, then sends the invites. Router navigation stays in the component.
-export const createBrunch = createAppAsyncThunk<{ readonly id: string }, undefined>(
+export const createBrunch = createAppAsyncThunk<
+  CreatedBrunch,
+  undefined,
+  { rejectValue: ClientErrorCode }
+>(
   'wizard/createBrunch',
   async (_arg, { getState, extra, rejectWithValue }) => {
     const wizard = getState().wizard;
@@ -80,28 +75,29 @@ export const createBrunch = createAppAsyncThunk<{ readonly id: string }, undefin
         }),
       });
 
-      if (!response.ok) return rejectWithValue(await extractErrorMessage(response));
+      if (!response.ok) return rejectWithValue((await readApiError(response)).code);
 
       const created = (await response.json()) as { id: string };
 
+      let invitesFailed = false;
       if (wizard.emails.length > 0) {
-        // Best-effort — the brunch already exists at this point, and a failed
-        // send here can be retried from the detail page's invite panel, so it
-        // shouldn't block the redirect the way a failed brunch creation does.
+        // The brunch already exists, so a failed batch must not block the redirect the way a failed
+        // create does: the host lands on it, and the invite panel says the invites did not go out.
         try {
-          await extra.fetch(`/api/v1/brunches/${created.id}/invites`, {
+          const invites = await extra.fetch(`/api/v1/brunches/${created.id}/invites`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ emails: wizard.emails }),
           });
+          invitesFailed = !invites.ok && invites.status !== 429;
         } catch {
-          // Ignored — see comment above.
+          invitesFailed = true;
         }
       }
 
-      return { id: created.id };
+      return { id: created.id, invitesFailed };
     } catch {
-      return rejectWithValue(CREATE_FAILED_MESSAGE);
+      return rejectWithValue('network');
     }
   },
   {
@@ -170,7 +166,7 @@ const wizardSlice = createSlice({
         if (state.requestId !== action.meta.requestId) return;
         state.requestId = undefined;
         state.submitting = false;
-        state.submitError = action.payload ?? CREATE_FAILED_MESSAGE;
+        state.submitError = action.payload ?? 'internal';
       });
   },
 });

@@ -44,7 +44,7 @@ Adopt **Redux Toolkit** (`@reduxjs/toolkit`) and **`react-redux`** in `apps/web`
 - A provider that outlives a page means state can outlive a page. Each slice must say how it is reset or released; the wizard resets on unmount, and ballot entries are released on unmount and reseeded from server props. A request that started before a reset can finish after it, so each entry remembers the request it is waiting for and ignores any other.
 - Redux DevTools is enabled in development only.
 
-**Deferred, to be picked up as their own specs**
+**Deferred, to be picked up as their own specs** (the shared mutation slice, the toasts and the server's real error text were done in [ADR 0016](./0016-feedback-surfaces.md), spec 0014)
 
 - Migrating the remaining panels' `submitting`/`error`/`pending` to a shared mutation slice (RSVP, invites, suggestions, option management, voting controls, confirmation, suggestion review).
 - Toasts and a visible error surface, and showing the server's real error message (PLANNING §17 "silent failures").

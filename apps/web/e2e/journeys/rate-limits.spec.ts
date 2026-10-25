@@ -510,7 +510,7 @@ test.describe('L3 — place search', () => {
     });
     expect(Number(refused.headers()['retry-after'])).toBeGreaterThanOrEqual(1);
     expect(await refused.json()).toMatchObject({
-      error: 'Too many requests',
+      error: { code: 'rate_limited' },
       policy: 'place-search',
     });
 
@@ -566,7 +566,10 @@ test.describe('L4 — writes', () => {
       expectedUntilThen: (response) => expect(response.status()).toBe(200),
     });
     expect(Number(refused.headers()['retry-after'])).toBeGreaterThanOrEqual(1);
-    expect(await refused.json()).toMatchObject({ error: 'Too many requests', policy: 'writes' });
+    expect(await refused.json()).toMatchObject({
+      error: { code: 'rate_limited' },
+      policy: 'writes',
+    });
 
     // The budget is the person's own: a second member is not slowed down.
     expect((await rsvp(calm)).status()).toBe(200);

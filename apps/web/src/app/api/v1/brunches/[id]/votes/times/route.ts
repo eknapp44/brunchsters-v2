@@ -3,6 +3,7 @@ import type { BrunchId, BrunchTimeId, UserId } from '@brunchsters/shared';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/auth';
+import { apiError } from '@/lib/apiErrorResponse';
 import { enforceWriteLimit } from '@/lib/rateLimit';
 import { db } from '@/lib/db';
 import { eventBus } from '@/lib/services';
@@ -15,7 +16,7 @@ export async function PUT(
 ): Promise<NextResponse> {
   const session = await auth();
   if (session === null) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return apiError({ code: 'signed_out', status: 401, message: 'Unauthorized' });
   }
 
   const limited = await enforceWriteLimit(session.user.id);
@@ -24,7 +25,7 @@ export async function PUT(
   const { id } = await params;
   const parsedBrunchId = brunchIdSchema.safeParse(id);
   if (!parsedBrunchId.success) {
-    return NextResponse.json({ error: 'Brunch not found' }, { status: 404 });
+    return apiError({ code: 'not_found', status: 404, message: 'Brunch not found' });
   }
 
   let body: unknown;
@@ -32,12 +33,16 @@ export async function PUT(
     body = await request.json();
   } catch (cause) {
     console.error('Failed to parse cast-ballot request body', cause);
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    return apiError({ code: 'invalid', status: 400, message: 'Invalid JSON body' });
   }
 
   const parsed = castBallotRequestSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ errors: parsed.error.issues }, { status: 422 });
+    return apiError({
+      code: 'invalid',
+      status: 422,
+      message: parsed.error.issues.map((issue) => issue.message).join('; '),
+    });
   }
 
   const result = await castTimeBallot(
@@ -52,25 +57,34 @@ export async function PUT(
   if (result.isErr()) {
     switch (result.error.kind) {
       case 'brunch_not_found':
-        return NextResponse.json({ error: 'Brunch not found' }, { status: 404 });
+        return apiError({ code: 'not_found', status: 404, message: 'Brunch not found' });
       case 'brunch_not_active':
-        return NextResponse.json({ error: 'Brunch is not open for voting' }, { status: 409 });
+        return apiError({
+          code: 'brunch_not_active',
+          status: 409,
+          message: 'Brunch is not open for voting',
+        });
       case 'empty_ballot':
-        return NextResponse.json({ error: 'Select at least one option' }, { status: 422 });
+        return apiError({ code: 'invalid', status: 422, message: 'Select at least one option' });
       case 'cannot_vote':
-        return NextResponse.json({ error: 'Your RSVP does not allow voting' }, { status: 403 });
+        return apiError({
+          code: 'cannot_vote',
+          status: 403,
+          message: 'Your RSVP does not allow voting',
+        });
       case 'voting_closed':
-        return NextResponse.json({ error: 'Voting is closed' }, { status: 409 });
+        return apiError({ code: 'voting_closed', status: 409, message: 'Voting is closed' });
       case 'not_a_vote':
-        return NextResponse.json(
-          { error: 'There is only one option — nothing to vote on' },
-          { status: 409 },
-        );
+        return apiError({
+          code: 'not_a_vote',
+          status: 409,
+          message: 'There is only one option — nothing to vote on',
+        });
       case 'unknown_option':
-        return NextResponse.json({ error: 'Unknown option' }, { status: 404 });
+        return apiError({ code: 'option_gone', status: 404, message: 'Unknown option' });
       default:
         console.error('castTimeBallot failed', result.error);
-        return NextResponse.json({ error: 'Failed to cast ballot' }, { status: 500 });
+        return apiError({ code: 'internal', status: 500, message: 'Failed to cast ballot' });
     }
   }
 

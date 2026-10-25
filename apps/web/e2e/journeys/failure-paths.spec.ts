@@ -2,6 +2,7 @@ import { getDb } from '../support/db';
 import { createBrunch, uniqueSuffix } from '../support/factories';
 import { expect, test } from '../support/fixtures';
 import { fixturePlaces } from '../support/places';
+import { TOAST_WORDS, toast } from '../support/toasts';
 import { daysFromNow } from '../support/time';
 import { addAttendee, ballot, closeVoting } from '../support/voting';
 import { BrunchWizard } from '../support/wizard';
@@ -11,7 +12,8 @@ import { BrunchWizard } from '../support/wizard';
 
 const TWO_PLACES = [fixturePlaces.sunnySide, fixturePlaces.harborBistro];
 const TWO_TIMES = [daysFromNow(10), daysFromNow(11)];
-const SAVE_FAILED = 'Failed to save your vote';
+// A failed save is an inline line beside the ballot, worded from the code the route sent (spec 0014).
+const SAVE_FAILED = TOAST_WORDS.wentSideways;
 
 test.describe('F1 — a ballot that fails to save', () => {
   for (const kind of ['locations', 'times'] as const) {
@@ -68,7 +70,10 @@ test.describe('F1 — a ballot that fails to save', () => {
     await closeVoting({ brunchId, host: host.user });
     await box.click();
 
-    await expect(voter.page.getByRole('alert').filter({ hasText: SAVE_FAILED })).toBeVisible();
+    // A real refusal from the server, so it reads as its own code, not the general line.
+    await expect(
+      voter.page.getByRole('alert').filter({ hasText: TOAST_WORDS.votingClosed }),
+    ).toBeVisible();
     await expect(box).not.toBeChecked();
     const votes = await getDb().brunchLocationVote.count({
       where: { userId: voter.user.id, brunchLocation: { brunchId } },
@@ -107,8 +112,9 @@ test.describe('F2 — a brunch that fails to create', () => {
     await wizard.create();
 
     // Filtered by text: Next.js keeps its own empty role="alert" region on every page.
+    // Worded from the code (a 500 is "internal"), never from what the route said.
     await expect(
-      host.page.getByRole('alert').filter({ hasText: 'The database is unavailable' }),
+      host.page.getByRole('alert').filter({ hasText: TOAST_WORDS.wentSideways }),
     ).toBeVisible();
     await expect(host.page).toHaveURL('/brunch/new');
     await expect(wizard.selectedItem(guest)).toBeVisible();
@@ -142,18 +148,15 @@ test.describe('F3 — removing the last option', () => {
       .filter({ hasText: fixturePlaces.sunnySide.name })
       .getByRole('button', { name: 'Remove' })
       .click();
-    await expect(
-      host.page.getByRole('alert').filter({ hasText: 'Failed to remove location' }),
-    ).toBeVisible();
+    // One tap with nothing to fix: the server's refusal reads as its code, in a toast.
+    await expect(toast(host.page, TOAST_WORDS.lastOption)).toBeVisible();
     await expect(rows.filter({ hasText: fixturePlaces.sunnySide.name })).toHaveCount(1);
 
     await rows
       .filter({ hasText: /\d{1,2}:\d{2}\s?[AP]M/ })
       .getByRole('button', { name: 'Remove' })
       .click();
-    await expect(
-      host.page.getByRole('alert').filter({ hasText: 'Failed to remove time' }),
-    ).toBeVisible();
+    await expect(toast(host.page, TOAST_WORDS.lastOption)).toHaveCount(2);
     await expect(rows.filter({ hasText: /\d{1,2}:\d{2}\s?[AP]M/ })).toHaveCount(1);
 
     const db = getDb();

@@ -15,6 +15,7 @@ vi.mock('@brunchsters/core', async (importOriginal) => {
 import { updateVotingDeadline } from '@brunchsters/core';
 import { auth } from '@/auth';
 import { PATCH } from './route';
+import { errorCodeOf } from '@/test-support/errorCodeOf';
 
 const mockAuth = vi.mocked(auth as unknown as () => Promise<unknown>);
 const mockUpdateVotingDeadline = vi.mocked(updateVotingDeadline);
@@ -48,6 +49,7 @@ describe('PATCH /api/v1/brunches/[id]/voting/deadline', () => {
     });
 
     expect(response.status).toBe(401);
+    expect(await errorCodeOf(response)).toBe('signed_out');
     expect(mockUpdateVotingDeadline).not.toHaveBeenCalled();
   });
 
@@ -59,6 +61,7 @@ describe('PATCH /api/v1/brunches/[id]/voting/deadline', () => {
     });
 
     expect(response.status).toBe(404);
+    expect(await errorCodeOf(response)).toBe('not_found');
     expect(mockUpdateVotingDeadline).not.toHaveBeenCalled();
   });
 
@@ -70,6 +73,7 @@ describe('PATCH /api/v1/brunches/[id]/voting/deadline', () => {
     });
 
     expect(response.status).toBe(422);
+    expect(await errorCodeOf(response)).toBe('invalid');
     expect(mockUpdateVotingDeadline).not.toHaveBeenCalled();
   });
 
@@ -113,6 +117,7 @@ describe('PATCH /api/v1/brunches/[id]/voting/deadline', () => {
     });
 
     expect(response.status).toBe(403);
+    expect(await errorCodeOf(response)).toBe('forbidden');
   });
 
   it('returns 409 when voting is already closed', async () => {
@@ -124,6 +129,7 @@ describe('PATCH /api/v1/brunches/[id]/voting/deadline', () => {
     });
 
     expect(response.status).toBe(409);
+    expect(await errorCodeOf(response)).toBe('voting_closed');
   });
 
   it('returns 404 when the brunch does not exist', async () => {
@@ -135,6 +141,7 @@ describe('PATCH /api/v1/brunches/[id]/voting/deadline', () => {
     });
 
     expect(response.status).toBe(404);
+    expect(await errorCodeOf(response)).toBe('not_found');
   });
 
   it('returns 500 on an unexpected service error', async () => {
@@ -146,5 +153,6 @@ describe('PATCH /api/v1/brunches/[id]/voting/deadline', () => {
     });
 
     expect(response.status).toBe(500);
+    expect(await errorCodeOf(response)).toBe('internal');
   });
 });

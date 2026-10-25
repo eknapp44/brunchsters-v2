@@ -6,6 +6,7 @@ import type { ReactElement } from 'react';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { InlineAlert } from '@/components/ui/InlineAlert';
+import { pageIsStale } from '@/lib/errorCopy';
 import { limitedMessage } from '@/lib/limitedCopy';
 import {
   callOffDialog,
@@ -13,8 +14,8 @@ import {
   DELETE_WAIT_POLICY,
   deleteDialog,
 } from '@/lib/lifecycleCopy';
-import { readRateLimit } from '@/lib/readRateLimit';
 import { useWait, type Wait } from '@/lib/useWait';
+import { useMutation } from '@/store/useMutation';
 import detail from '../detail.module.css';
 import styles from './manage.module.css';
 
@@ -45,9 +46,10 @@ export function EndOfTheRoad(props: {
 }): ReactElement | null {
   const router = useRouter();
   const [asking, setAsking] = useState<Asking>(undefined);
-  const [pending, setPending] = useState(false);
-  const [dialogError, setDialogError] = useState<string | undefined>(undefined);
-  const [error, setError] = useState<string | undefined>(undefined);
+  const callOff = useMutation(`call-off:${props.brunchId}`);
+  const deleting = useMutation(`delete:${props.brunchId}`);
+  const bringBack = useMutation(`bring-back:${props.brunchId}`);
+  const pending = callOff.pending || deleting.pending;
   const callOffWait = useWait(props.callOffWait);
   // Its end is a guess (the queue may run late), so it asks the server instead of letting go.
   const deleteWait = useWait(props.deleteWait, { onExpire: () => router.refresh() });
@@ -56,92 +58,88 @@ export function EndOfTheRoad(props: {
   const isCalledOff = props.statusCode === 'cancelled';
 
   function ask(what: Exclude<Asking, undefined>): void {
-    setError(undefined);
-    setDialogError(undefined);
+    callOff.reset();
+    deleting.reset();
     setAsking(what);
   }
 
   function close(): void {
     if (pending) return;
     setAsking(undefined);
-    setDialogError(undefined);
   }
 
+  // A failure inside the dialog stays there, where it is seen; a wait is the button's, not the
+  // dialog's, so a refusal closes the dialog (below) and is not worded here.
+  const dialogFailure =
+    asking === 'call-off' ? callOff.failure : asking === 'delete' ? deleting.failure : undefined;
+  const dialogError =
+    dialogFailure !== undefined &&
+    dialogFailure.code !== 'rate_limited' &&
+    dialogFailure.code !== 'notice_pending'
+      ? dialogFailure.text
+      : undefined;
+
   async function callItOff(): Promise<void> {
-    setPending(true);
-    setDialogError(undefined);
-    try {
-      const response = await fetch(`/api/v1/brunches/${props.brunchId}/cancel`, { method: 'POST' });
-      if (!response.ok) {
-        const facts = await readRateLimit(response);
-        if (facts !== undefined) {
-          // The day's cancellations are used up: close the dialog and let the button show why. No
-          // refresh follows: no other control on the page depends on this budget, and a reload asks
-          // the counter again (`getCancelWait`).
-          callOffWait.start(facts);
-          setAsking(undefined);
-          return;
-        }
-        setDialogError('Failed to call it off');
-        return;
-      }
+    const result = await callOff.run({
+      request: { url: `/api/v1/brunches/${props.brunchId}/cancel`, method: 'POST' },
+      failure: 'inline',
+      ownsWait: true,
+    });
+    if (result.ok) {
       setAsking(undefined);
       router.refresh();
-    } catch {
-      setDialogError('Failed to call it off');
-    } finally {
-      setPending(false);
+      return;
     }
+    const facts = result.failure?.rateLimit;
+    if (facts !== undefined) {
+      // The day's cancellations are used up: close the dialog and let the button show why. No
+      // refresh follows: no other control on the page depends on this budget, and a reload asks
+      // the counter again (`getCancelWait`).
+      callOffWait.start(facts);
+      setAsking(undefined);
+      return;
+    }
+    // Already called off, or the status moved: the line says so in the dialog; the page behind
+    // asks again so it matches.
+    if (result.failure !== undefined && pageIsStale(result.failure.code)) router.refresh();
   }
 
   async function deleteIt(): Promise<void> {
-    setPending(true);
-    setDialogError(undefined);
-    try {
-      const response = await fetch(`/api/v1/brunches/${props.brunchId}`, { method: 'DELETE' });
-      if (response.status === 409) {
-        // Called off a moment ago and the guests have not been told yet: wait, as the page would.
-        deleteWait.start({ policy: DELETE_WAIT_POLICY, retryAfterSeconds: DELETE_RETRY_SECONDS });
-        setAsking(undefined);
-        router.refresh();
-        return;
-      }
-      if (!response.ok) {
-        const facts = await readRateLimit(response);
-        if (facts !== undefined) {
-          deleteWait.start(facts);
-          setAsking(undefined);
-          router.refresh();
-          return;
-        }
-        setDialogError('Failed to delete the brunch');
-        return;
-      }
+    const result = await deleting.run({
+      request: { url: `/api/v1/brunches/${props.brunchId}`, method: 'DELETE' },
+      failure: 'inline',
+      ownsWait: true,
+    });
+    if (result.ok) {
       // The brunch is gone: there is nothing here to refresh.
       router.replace('/dashboard');
-    } catch {
-      setDialogError('Failed to delete the brunch');
-    } finally {
-      setPending(false);
+      return;
     }
+    const failure = result.failure;
+    if (failure?.code === 'notice_pending') {
+      // Called off a moment ago and the guests have not been told yet: wait, as the page would.
+      deleteWait.start({ policy: DELETE_WAIT_POLICY, retryAfterSeconds: DELETE_RETRY_SECONDS });
+      setAsking(undefined);
+      router.refresh();
+      return;
+    }
+    if (failure?.rateLimit !== undefined) {
+      deleteWait.start(failure.rateLimit);
+      setAsking(undefined);
+      router.refresh();
+      return;
+    }
+    if (failure !== undefined && pageIsStale(failure.code)) router.refresh();
   }
 
+  // One tap with nothing to fix, so a failure is a toast and the button is as it was.
   async function bringItBack(): Promise<void> {
-    setPending(true);
-    setError(undefined);
-    try {
-      const response = await fetch(`/api/v1/brunches/${props.brunchId}/reinstate`, {
-        method: 'POST',
-      });
-      if (!response.ok) {
-        setError('Failed to bring it back');
-        return;
-      }
+    const result = await bringBack.run({
+      request: { url: `/api/v1/brunches/${props.brunchId}/reinstate`, method: 'POST' },
+      failure: 'toast',
+    });
+    if (result.ok || (result.failure !== undefined && pageIsStale(result.failure.code))) {
       router.refresh();
-    } catch {
-      setError('Failed to bring it back');
-    } finally {
-      setPending(false);
     }
   }
 
@@ -178,7 +176,7 @@ export function EndOfTheRoad(props: {
             <Button
               type="button"
               variant="primary"
-              disabled={pending}
+              aria-disabled={bringBack.pending ? true : undefined}
               onClick={() => void bringItBack()}
             >
               Bring it back
@@ -231,12 +229,6 @@ export function EndOfTheRoad(props: {
             </div>
           )}
         </>
-      )}
-
-      {error !== undefined && (
-        <InlineAlert tone="error" role="alert">
-          <p>{error}</p>
-        </InlineAlert>
       )}
 
       {dialog !== undefined && (

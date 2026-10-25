@@ -1,6 +1,7 @@
 import { RATE_LIMIT_POLICIES } from '@brunchsters/shared';
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
+import { apiError } from '@/lib/apiErrorResponse';
 import { GooglePlacesProvider } from '@/adapters/GooglePlacesProvider';
 import { requireGooglePlacesApiKey } from '@/lib/googlePlacesApiKey';
 import { enforceLimit } from '@/lib/rateLimit';
@@ -11,7 +12,7 @@ export async function GET(
 ): Promise<NextResponse> {
   const session = await auth();
   if (session === null) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return apiError({ code: 'signed_out', status: 401, message: 'Unauthorized' });
   }
 
   const limited = await enforceLimit({
@@ -33,12 +34,12 @@ export async function GET(
     });
 
     if (details === undefined) {
-      return NextResponse.json({ error: 'Place not found' }, { status: 404 });
+      return apiError({ code: 'not_found', status: 404, message: 'Place not found' });
     }
 
     return NextResponse.json(details);
   } catch (cause) {
     console.error('Place details lookup failed', cause);
-    return NextResponse.json({ error: 'Place search unavailable' }, { status: 502 });
+    return apiError({ code: 'unavailable', status: 502, message: 'Place search unavailable' });
   }
 }

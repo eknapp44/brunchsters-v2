@@ -62,19 +62,19 @@ Record each mutation and which test it failed in the testing note ("How").
 
 ## 4. Write the testing note
 
-Fill the milestone's `**Testing notes:**` block in `tasks.md` (replace any `_(fill on completion)_` placeholder). House format, short and honest:
+Fill the milestone's `**Testing notes:**` block in `tasks.md` (replace any `_(fill on completion)_` placeholder). **Short: three or four bullets, not paragraphs.** The detail already lives in the tests, the commit and (at the end) `SUMMARY.md`; the note is the index to it, and honest about what it does not cover.
 
-- **What was tested** - behaviors and paths covered, including rejection cases
-- **How** - unit / integration (real local Postgres) / E2E (Playwright) / smoke; what was mocked; the test counts; the mutation checks from step 3
-- **E2E journeys** - which journeys this milestone added or updated (or the one-line reason none were needed)
-- **What's deferred** - known gaps and why, including anything unverified. Never imply coverage that doesn't exist.
-- **How to run it** - exact commands
+- **What and how** - one bullet: the behaviors covered (including rejection cases), the kind of test (unit / integration on real local Postgres / E2E), the counts, the journeys added or edited (or the one-line reason none were needed), and a one-clause list of the mutations proved to fail (step 3)
+- **Fixed on the way** - only if applicable: a bug found and how it was caught, an infra gotcha later milestones need (one line each)
+- **Deferred** - known gaps and why, including anything unverified. Never imply coverage that doesn't exist.
+- **Run** - the exact command, if it isn't the usual one
 
-Add these only when they apply: a bug found along the way and how it was caught, a design choice the spec didn't pin down, an infra gotcha future milestones need, a product finding that was logged but not fixed.
+A product finding that was logged but not fixed goes to `docs/BACKLOG.md`, and a lesson worth keeping to the spec's Outcome, not into the note.
 
 ## 5. Update docs in the same commit
 
 - Tick this milestone's checkboxes in `tasks.md` (only what is truly done).
+- Keep the spec's `MANUAL-TESTING.md` true: add an item for anything the milestone made a person do or see that automation cannot judge (feel, wording, phone, screen reader), and fix an item whose steps changed. For a UI milestone add its new screens to `e2e/screenshots/review.spec.ts` and, if they belong in the record, to the spec's `screenshots.json`. (`SUMMARY.md` and the final screenshots are the pre-merge review's.)
 - `PLANNING.md` / `SETUP.md` / the spec's `spec.md` if reality diverged or a command or env var changed. PLANNING is the source of truth: fix the doc rather than silently diverging.
 - New ADR if the milestone introduced a library, pattern, or constitution deviation (`docs/adrs/README.md` has the template).
 

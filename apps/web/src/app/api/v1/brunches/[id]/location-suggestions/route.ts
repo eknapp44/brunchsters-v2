@@ -3,6 +3,7 @@ import type { BrunchId, UserId } from '@brunchsters/shared';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/auth';
+import { apiError } from '@/lib/apiErrorResponse';
 import { enforceWriteLimit } from '@/lib/rateLimit';
 import { db } from '@/lib/db';
 
@@ -14,7 +15,7 @@ export async function POST(
 ): Promise<NextResponse> {
   const session = await auth();
   if (session === null) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return apiError({ code: 'signed_out', status: 401, message: 'Unauthorized' });
   }
 
   const limited = await enforceWriteLimit(session.user.id);
@@ -23,7 +24,7 @@ export async function POST(
   const { id } = await params;
   const parsedBrunchId = brunchIdSchema.safeParse(id);
   if (!parsedBrunchId.success) {
-    return NextResponse.json({ error: 'Brunch not found' }, { status: 404 });
+    return apiError({ code: 'not_found', status: 404, message: 'Brunch not found' });
   }
 
   let body: unknown;
@@ -31,12 +32,16 @@ export async function POST(
     body = await request.json();
   } catch (cause) {
     console.error('Failed to parse suggest-location request body', cause);
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    return apiError({ code: 'invalid', status: 400, message: 'Invalid JSON body' });
   }
 
   const parsed = locationInputSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ errors: parsed.error.issues }, { status: 422 });
+    return apiError({
+      code: 'invalid',
+      status: 422,
+      message: parsed.error.issues.map((issue) => issue.message).join('; '),
+    });
   }
 
   const result = await suggestLocation(
@@ -51,19 +56,28 @@ export async function POST(
   if (result.isErr()) {
     switch (result.error.kind) {
       case 'brunch_not_found':
-        return NextResponse.json({ error: 'Brunch not found' }, { status: 404 });
+        return apiError({ code: 'not_found', status: 404, message: 'Brunch not found' });
       case 'suggestions_disabled':
-        return NextResponse.json(
-          { error: 'Location suggestions are disabled for this brunch' },
-          { status: 403 },
-        );
+        return apiError({
+          code: 'suggestions_off',
+          status: 403,
+          message: 'Location suggestions are disabled for this brunch',
+        });
       case 'brunch_not_active':
-        return NextResponse.json({ error: 'Brunch is not open for suggestions' }, { status: 409 });
+        return apiError({
+          code: 'brunch_not_active',
+          status: 409,
+          message: 'Brunch is not open for suggestions',
+        });
       case 'already_suggested':
-        return NextResponse.json({ error: 'This place was already suggested' }, { status: 409 });
+        return apiError({
+          code: 'already_there',
+          status: 409,
+          message: 'This place was already suggested',
+        });
       default:
         console.error('suggestLocation failed', result.error);
-        return NextResponse.json({ error: 'Failed to suggest location' }, { status: 500 });
+        return apiError({ code: 'internal', status: 500, message: 'Failed to suggest location' });
     }
   }
 

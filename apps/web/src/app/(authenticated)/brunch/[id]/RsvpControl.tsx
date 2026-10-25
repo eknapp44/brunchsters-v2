@@ -1,10 +1,10 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Eyebrow } from '@/components/ui/Eyebrow';
-import { InlineAlert } from '@/components/ui/InlineAlert';
+import { rsvpToast } from '@/lib/toastCopy';
+import { useMutation } from '@/store/useMutation';
 import styles from './detail.module.css';
 
 // The answers, in the order a person reads them. The emoji are decoration (hidden from screen
@@ -25,28 +25,22 @@ export function RsvpControl({
   readonly currentStatus: string | undefined;
 }) {
   const router = useRouter();
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | undefined>(undefined);
+  const { pending, run } = useMutation(`rsvp:${brunchId}`);
 
+  // A failure is a toast, not a line under the buttons: the buttons are as they were, so tapping
+  // again is the retry (spec 0014). A success is one too, because the only other sign of it is a
+  // button's look, which a screen reader does not hear.
   async function respond(response: RsvpResponse): Promise<void> {
-    setSubmitting(true);
-    setError(undefined);
-    try {
-      const result = await fetch(`/api/v1/brunches/${brunchId}/rsvp`, {
+    const result = await run({
+      request: {
+        url: `/api/v1/brunches/${brunchId}/rsvp`,
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ response }),
-      });
-      if (!result.ok) {
-        setError('Failed to update RSVP');
-        return;
-      }
-      router.refresh();
-    } catch {
-      setError('Failed to update RSVP');
-    } finally {
-      setSubmitting(false);
-    }
+        body: { response },
+      },
+      success: rsvpToast(response),
+      failure: 'toast',
+    });
+    if (result.ok) router.refresh();
   }
 
   return (
@@ -61,7 +55,9 @@ export function RsvpControl({
             type="button"
             className={styles.rsvpChoice}
             variant={currentStatus === choice.response ? 'primary' : 'secondary'}
-            disabled={submitting}
+            // Not `disabled`: a disabled button drops the keyboard's focus the moment it is
+            // pressed. The thunk ignores a tap while one is in flight, so this only has to look it.
+            aria-disabled={pending ? true : undefined}
             onClick={() => void respond(choice.response)}
           >
             <span aria-hidden="true" className={styles.emoji}>
@@ -71,11 +67,6 @@ export function RsvpControl({
           </Button>
         ))}
       </div>
-      {error !== undefined && (
-        <InlineAlert tone="error" role="alert">
-          <p>{error}</p>
-        </InlineAlert>
-      )}
     </section>
   );
 }

@@ -30,6 +30,11 @@ function postRequest(body: unknown): Request {
   });
 }
 
+async function errorCode(response: Response): Promise<unknown> {
+  const body = (await response.json()) as { error?: { code?: unknown } };
+  return body.error?.code;
+}
+
 function params(id: string): Promise<{ id: string }> {
   return Promise.resolve({ id });
 }
@@ -47,6 +52,7 @@ describe('POST /api/v1/brunches/[id]/rsvp', () => {
     });
 
     expect(response.status).toBe(401);
+    expect(await errorCode(response)).toBe('signed_out');
     expect(mockUpdateRsvp).not.toHaveBeenCalled();
   });
 
@@ -58,6 +64,7 @@ describe('POST /api/v1/brunches/[id]/rsvp', () => {
     });
 
     expect(response.status).toBe(404);
+    expect(await errorCode(response)).toBe('not_found');
     expect(mockUpdateRsvp).not.toHaveBeenCalled();
   });
 
@@ -69,6 +76,7 @@ describe('POST /api/v1/brunches/[id]/rsvp', () => {
     });
 
     expect(response.status).toBe(422);
+    expect(await errorCode(response)).toBe('invalid');
     expect(mockUpdateRsvp).not.toHaveBeenCalled();
   });
 
@@ -112,5 +120,30 @@ describe('POST /api/v1/brunches/[id]/rsvp', () => {
     });
 
     expect(response.status).toBe(500);
+    expect(await errorCode(response)).toBe('internal');
+  });
+
+  it('returns 409 brunch_called_off for a called-off brunch', async () => {
+    mockAuth.mockResolvedValue(SESSION);
+    mockUpdateRsvp.mockResolvedValue(err({ kind: 'brunch_called_off' }));
+
+    const response = await POST(postRequest({ response: 'yes' }), {
+      params: params(VALID_BRUNCH_ID),
+    });
+
+    expect(response.status).toBe(409);
+    expect(await errorCode(response)).toBe('brunch_called_off');
+  });
+
+  it('answers an outsider and a made-up id with the same status, code and body', async () => {
+    mockAuth.mockResolvedValue(SESSION);
+    mockUpdateRsvp.mockResolvedValue(err({ kind: 'brunch_not_found' }));
+    const outsider = await POST(postRequest({ response: 'yes' }), {
+      params: params(VALID_BRUNCH_ID),
+    });
+    const madeUp = await POST(postRequest({ response: 'yes' }), { params: params('not-a-uuid') });
+
+    expect(outsider.status).toBe(madeUp.status);
+    expect(await outsider.json()).toEqual(await madeUp.json());
   });
 });

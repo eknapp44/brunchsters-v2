@@ -5,9 +5,10 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Field } from '@/components/ui/Field';
 import { InlineAlert } from '@/components/ui/InlineAlert';
-import { limitedMessage } from '@/lib/limitedCopy';
-import { readRateLimit } from '@/lib/readRateLimit';
+import { pageIsStale } from '@/lib/errorCopy';
+import { limitedMessage, type RateLimitFacts } from '@/lib/limitedCopy';
 import { useWait, type Wait } from '@/lib/useWait';
+import { useMutation } from '@/store/useMutation';
 import styles from './detail.module.css';
 
 type SuggestionListItem = {
@@ -15,6 +16,81 @@ type SuggestionListItem = {
   readonly suggestedEmail: string;
   readonly suggestedByName: string;
 };
+
+// One pending suggestion, with its own request state (a toast on failure: Approve and Decline are
+// one tap with nothing to fix). Approving emails the address, so it spends the host's daily invite
+// budget; a refusal is the panel's shared wait (`onBudgetRefused`), shown by the panel, so the
+// toast queue leaves it alone (`ownsWait`).
+function SuggestionRow({
+  suggestion,
+  approvalsWaiting,
+  onBudgetRefused,
+}: {
+  readonly suggestion: SuggestionListItem;
+  readonly approvalsWaiting: boolean;
+  readonly onBudgetRefused: (facts: RateLimitFacts) => void;
+}) {
+  const router = useRouter();
+  const reviewing = useMutation(`suggestion-review:${suggestion.id}`);
+
+  async function review(decision: 'approve' | 'decline'): Promise<void> {
+    if (reviewing.pending) return;
+    // A waiting Approve asks the server nothing; declining sends no email, so it is never held.
+    if (decision === 'approve' && approvalsWaiting) return;
+
+    const result = await reviewing.run({
+      request: {
+        url: `/api/v1/suggestions/${suggestion.id}/review`,
+        method: 'POST',
+        body: { decision },
+      },
+      failure: 'toast',
+      ownsWait: true,
+    });
+    if (result.ok) {
+      router.refresh();
+      return;
+    }
+    const facts = result.failure?.rateLimit;
+    if (facts !== undefined) {
+      // Shown at once; the refresh brings the server's account of it, which the invite panel's
+      // send button then shares.
+      onBudgetRefused(facts);
+      router.refresh();
+      return;
+    }
+    // Already reviewed, or the brunch moved on: ask again so the list is true.
+    if (result.failure !== undefined && pageIsStale(result.failure.code)) router.refresh();
+  }
+
+  return (
+    <li className={styles.row}>
+      <span className={styles.rowMain}>
+        <span>{suggestion.suggestedEmail}</span>{' '}
+        <span className={styles.detail}>suggested by {suggestion.suggestedByName}</span>
+      </span>
+      <span className={styles.rowActions}>
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => void review('approve')}
+          aria-disabled={approvalsWaiting || reviewing.pending ? true : undefined}
+          aria-describedby={approvalsWaiting ? 'approvals-limit' : undefined}
+        >
+          Approve
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => void review('decline')}
+          aria-disabled={reviewing.pending ? true : undefined}
+        >
+          Decline
+        </Button>
+      </span>
+    </li>
+  );
+}
 
 export function SuggestionsPanel({
   brunchId,
@@ -31,70 +107,28 @@ export function SuggestionsPanel({
 }) {
   const router = useRouter();
   const [email, setEmail] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | undefined>(undefined);
-  const [pendingSuggestionId, setPendingSuggestionId] = useState<string | undefined>(undefined);
+  const suggestion = useMutation(`suggest-invitee:${brunchId}`);
   // Approving a suggestion emails the address, so it spends the same invite budget as the invite
   // panel's send button, and the server gives both the same answer (spec 0012).
   const inviteBudget = useWait(sendWait);
   const approvalsWaiting = inviteBudget.wait !== undefined;
 
+  // Suggesting has a field the person typed into, so a failure stays inline beside it.
   async function suggest(): Promise<void> {
     const trimmed = email.trim();
     if (trimmed === '') return;
 
-    setSubmitting(true);
-    setError(undefined);
-    try {
-      const response = await fetch(`/api/v1/brunches/${brunchId}/suggestions`, {
+    const result = await suggestion.run({
+      request: {
+        url: `/api/v1/brunches/${brunchId}/suggestions`,
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: trimmed }),
-      });
-      if (!response.ok) {
-        setError('Failed to suggest invitee');
-        return;
-      }
+        body: { email: trimmed },
+      },
+      failure: 'inline',
+    });
+    if (result.ok) {
       setEmail('');
       router.refresh();
-    } catch {
-      setError('Failed to suggest invitee');
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  async function review(suggestionId: string, decision: 'approve' | 'decline'): Promise<void> {
-    if (pendingSuggestionId !== undefined) return;
-    // A waiting Approve asks the server nothing; declining sends no email, so it is never held.
-    if (decision === 'approve' && approvalsWaiting) return;
-
-    setPendingSuggestionId(suggestionId);
-    setError(undefined);
-    try {
-      const response = await fetch(`/api/v1/suggestions/${suggestionId}/review`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ decision }),
-      });
-      if (!response.ok) {
-        // Approving emails the address, so the host's daily invite budget applies (spec 0012).
-        const facts = await readRateLimit(response);
-        if (facts !== undefined) {
-          // Shown at once; the refresh brings the server's account of it, which the invite panel's
-          // send button then shares.
-          inviteBudget.start(facts);
-          router.refresh();
-          return;
-        }
-        setError('Failed to review suggestion');
-        return;
-      }
-      router.refresh();
-    } catch {
-      setError('Failed to review suggestion');
-    } finally {
-      setPendingSuggestionId(undefined);
     }
   }
 
@@ -109,33 +143,13 @@ export function SuggestionsPanel({
 
       {pendingSuggestions !== undefined && pendingSuggestions.length > 0 && (
         <ul className={styles.rows} role="list">
-          {pendingSuggestions.map((suggestion) => (
-            <li key={suggestion.id} className={styles.row}>
-              <span className={styles.rowMain}>
-                <span>{suggestion.suggestedEmail}</span>{' '}
-                <span className={styles.detail}>suggested by {suggestion.suggestedByName}</span>
-              </span>
-              <span className={styles.rowActions}>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => void review(suggestion.id, 'approve')}
-                  disabled={pendingSuggestionId === suggestion.id}
-                  aria-disabled={approvalsWaiting ? true : undefined}
-                  aria-describedby={approvalsWaiting ? 'approvals-limit' : undefined}
-                >
-                  Approve
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => void review(suggestion.id, 'decline')}
-                  disabled={pendingSuggestionId === suggestion.id}
-                >
-                  Decline
-                </Button>
-              </span>
-            </li>
+          {pendingSuggestions.map((pending) => (
+            <SuggestionRow
+              key={pending.id}
+              suggestion={pending}
+              approvalsWaiting={approvalsWaiting}
+              onBudgetRefused={inviteBudget.start}
+            />
           ))}
         </ul>
       )}
@@ -149,9 +163,9 @@ export function SuggestionsPanel({
             type="button"
             aria-label="Suggest this person"
             onClick={() => void suggest()}
-            disabled={submitting}
+            aria-disabled={suggestion.pending ? true : undefined}
           >
-            {submitting ? 'Sending…' : 'Suggest'}
+            {suggestion.pending ? 'Sending…' : 'Suggest'}
           </Button>
         </div>
       )}
@@ -165,9 +179,9 @@ export function SuggestionsPanel({
             </InlineAlert>
           </div>
         )}
-      {error !== undefined && (
+      {suggestion.failure !== undefined && (
         <InlineAlert tone="error" role="alert">
-          <p>{error}</p>
+          <p>{suggestion.failure.text}</p>
         </InlineAlert>
       )}
     </section>

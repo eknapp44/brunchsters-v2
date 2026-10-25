@@ -5,7 +5,6 @@ import {
   ballotKey,
   ballotReleased,
   effectiveSelection,
-  SAVE_FAILED_MESSAGE,
   type ToggleBallotArg,
   toggleBallotOption,
 } from './ballotsSlice';
@@ -162,18 +161,27 @@ describe('toggleBallotOption', () => {
 
   it('puts back exactly the previous selection when the server refuses the save', async () => {
     const store = makeStore({
-      fetch: vi.fn<ThunkExtra['fetch']>(async () => new Response('{}', { status: 409 })),
+      fetch: vi.fn<ThunkExtra['fetch']>(
+        async () =>
+          new Response(
+            JSON.stringify({ error: { code: 'voting_closed', message: 'Voting is closed' } }),
+            {
+              status: 409,
+            },
+          ),
+      ),
     });
 
     const result = await store.dispatch(toggleBallotOption(arg({ current: ['a', 'c'] })));
 
-    expect(result.payload).toBe(SAVE_FAILED_MESSAGE);
+    // the code the route sent, not a message
+    expect(result.payload).toBe('voting_closed');
     expect(entryOf(store, locationKey)).toEqual({
       selected: ['a', 'c'],
       previous: ['a', 'c'],
       requestId: expect.any(String),
       submitting: false,
-      error: SAVE_FAILED_MESSAGE,
+      error: 'voting_closed',
       emptyWarning: false,
     });
   });
@@ -187,7 +195,7 @@ describe('toggleBallotOption', () => {
 
     expect(entryOf(store, locationKey)).toMatchObject({
       selected: ['a'],
-      error: SAVE_FAILED_MESSAGE,
+      error: 'network',
       submitting: false,
     });
   });
@@ -199,10 +207,10 @@ describe('toggleBallotOption', () => {
       .mockResolvedValueOnce(okResponse());
     const store = makeStore({ fetch: fakeFetch });
     await store.dispatch(toggleBallotOption(arg()));
-    expect(entryOf(store, locationKey)?.error).toBe(SAVE_FAILED_MESSAGE);
+    expect(entryOf(store, locationKey)?.error).toBe('internal');
 
     await store.dispatch(toggleBallotOption(arg({ optionId: 'a' })));
-    expect(entryOf(store, locationKey)?.error).toBe(SAVE_FAILED_MESSAGE);
+    expect(entryOf(store, locationKey)?.error).toBe('internal');
 
     await store.dispatch(toggleBallotOption(arg({ current: [], optionId: 'b' })));
     expect(entryOf(store, locationKey)?.error).toBeUndefined();
@@ -223,7 +231,7 @@ describe('toggleBallotOption', () => {
     expect(entryOf(store, timeKey)).toMatchObject({ selected: ['t1', 't2'], error: undefined });
     expect(entryOf(store, locationKey)).toMatchObject({
       selected: ['a'],
-      error: SAVE_FAILED_MESSAGE,
+      error: 'internal',
     });
   });
 

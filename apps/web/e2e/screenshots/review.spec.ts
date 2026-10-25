@@ -9,6 +9,7 @@ import { fixturePlaces } from '../support/places';
 import { captureReviewShots } from '../support/screenshots';
 import { createConfirmedBrunch, createVotingBrunch, inviteNewcomer } from '../support/showcase';
 import { daysFromNow, toDatetimeLocalValue } from '../support/time';
+import { TOAST_WORDS, toast } from '../support/toasts';
 import { addAttendee, castVotes, closeVoting } from '../support/voting';
 import { BrunchWizard } from '../support/wizard';
 
@@ -302,4 +303,113 @@ test('the lifecycle screens: end of the road, the dialog, called off, hidden', a
     page.getByRole('heading', { level: 1, name: `${host.user.name} called this one off.` }),
   ).toBeVisible();
   await captureReviewShots(page, 'lifecycle/invite-called-off', testInfo);
+});
+
+// Spec 0014: the toast region, an error and a success, held (focus) so it is up when photographed.
+test('toasts', async ({ makeActor }, testInfo) => {
+  const host = await makeActor('host');
+  const yes = await makeActor('yes');
+  const maybe = await makeActor('maybe');
+  const pending = await makeActor('pending');
+  const { brunchId } = await createVotingBrunch({ host, guests: { yes, maybe, pending } });
+  await maybe.page.goto(`/brunch/${brunchId}`);
+  await expect(maybe.page.getByRole('heading', { name: 'You in?', exact: true })).toBeVisible();
+
+  await maybe.page.route('**/api/v1/brunches/*/rsvp', (route) =>
+    route.fulfill({ status: 500, json: { error: { code: 'internal', message: 'x' } } }),
+  );
+  await maybe.page.getByRole('button', { name: "I'm in", exact: true }).click();
+  const failure = toast(maybe.page, TOAST_WORDS.wentSideways);
+  await expect(failure).toBeVisible();
+  await failure.getByRole('button', { name: 'Dismiss' }).focus();
+  await captureReviewShots(maybe.page, 'feedback/toast-error', testInfo);
+  await failure.getByRole('button', { name: 'Dismiss' }).click();
+
+  await maybe.page.unroute('**/api/v1/brunches/*/rsvp');
+  await maybe.page.getByRole('button', { name: "I'm in", exact: true }).click();
+  const success = toast(maybe.page, TOAST_WORDS.imIn);
+  await expect(success).toBeVisible();
+  await success.getByRole('button', { name: 'Dismiss' }).focus();
+  await captureReviewShots(maybe.page, 'feedback/toast-success', testInfo);
+});
+
+// Spec 0014 M5: the invite panel's note after a brunch was created with invites that did not go
+// out, and the place search's line when the search could not be answered.
+test('invites note and search error', async ({ makeActor }, testInfo) => {
+  const host = await makeActor('host');
+  const wizard = new BrunchWizard(host.page);
+  await wizard.open();
+  await wizard.fillWhat({ title: `Invites Note ${uniqueSuffix()}` });
+  await host.page.route('**/api/v1/places/search**', (route) =>
+    route.fulfill({
+      status: 502,
+      json: { error: { code: 'unavailable', message: 'x' } },
+    }),
+  );
+  await wizard.searchBox().fill('sunny');
+  await expect(host.page.getByRole('alert').filter({ hasText: 'Our end hiccuped.' })).toBeVisible();
+  await captureReviewShots(host.page, 'feedback/search-error', testInfo);
+  await host.page.unroute('**/api/v1/places/search**');
+
+  await wizard.addPlace(fixturePlaces.sunnySide);
+  await wizard.next();
+  await wizard.addTime(10);
+  await wizard.next();
+  await wizard.addEmail(`guest-${uniqueSuffix()}@example.com`);
+  await host.page.route('**/api/v1/brunches/*/invites', (route) =>
+    route.fulfill({ status: 500, json: { error: { code: 'internal', message: 'x' } } }),
+  );
+  await wizard.create();
+  await expect(
+    host.page
+      .getByRole('status')
+      .filter({ hasText: "Your brunch is up, but the invites didn't go out." }),
+  ).toBeVisible();
+  await captureReviewShots(host.page, 'feedback/invites-note', testInfo, {
+    focus: host.page.getByRole('status').filter({ hasText: 'Your brunch is up' }),
+  });
+});
+
+// Spec 0014: the inline failures (a ballot, a dialog) and the sign-in page's way back.
+test('inline failures and the sign-in way back', async ({ makeActor, page }, testInfo) => {
+  const host = await makeActor('host');
+  const voter = await makeActor('voter');
+  const brunchId = await createBrunch({
+    host: host.user,
+    title: 'Sunday Funday',
+    locations: [fixturePlaces.sunnySide, fixturePlaces.harborBistro],
+    times: [daysFromNow(10), daysFromNow(11)],
+  });
+  await addAttendee({ brunchId, host: host.user, user: voter.user, response: 'yes' });
+
+  // A ballot whose save fails: rolled back, with the reason beside it.
+  await voter.page.goto(`/brunch/${brunchId}`);
+  await voter.page.route(`**/api/v1/brunches/${brunchId}/votes/locations`, (route) =>
+    route.fulfill({ status: 409, json: { error: { code: 'voting_closed', message: 'x' } } }),
+  );
+  await voter.page.getByRole('checkbox', { name: /^Sunny Side Cafe/ }).click();
+  await expect(
+    voter.page.getByRole('alert').filter({ hasText: "Voting's closed on this one." }),
+  ).toBeVisible();
+  await captureReviewShots(voter.page, 'feedback/ballot-error', testInfo, {
+    focus: voter.page.getByRole('alert').filter({ hasText: "Voting's closed on this one." }),
+  });
+
+  // A call-off that fails: the line stays inside the dialog.
+  await host.page.goto(`/brunch/${brunchId}/manage`);
+  await host.page.route(`**/api/v1/brunches/${brunchId}/cancel`, (route) =>
+    route.fulfill({ status: 500, json: { error: { code: 'internal', message: 'x' } } }),
+  );
+  await host.page.getByRole('button', { name: 'Call it off', exact: true }).click();
+  const dialog = host.page.getByRole('dialog');
+  await dialog.getByRole('button', { name: 'Call it off', exact: true }).click();
+  await expect(
+    dialog.getByRole('alert').filter({ hasText: 'Something went sideways on our end.' }),
+  ).toBeVisible();
+  await captureReviewShots(host.page, 'feedback/dialog-error', testInfo);
+
+  // Sign-in, reached from a page that was open when the session ended.
+  await page.goto(`/sign-in?callbackUrl=${encodeURIComponent(`/brunch/${brunchId}`)}`);
+  await expect(page.getByText("Sign in and we'll take you right back")).toBeVisible();
+  await captureReviewShots(page, 'feedback/signin-way-back', testInfo);
 });

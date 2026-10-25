@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/Button';
 import { DateTimeInput } from '@/components/ui/DateTimeInput';
 import { InlineAlert } from '@/components/ui/InlineAlert';
 import { LocalDateTime } from '@/components/ui/LocalDateTime';
+import { errorCopy, pageIsStale } from '@/lib/errorCopy';
+import { useMutation } from '@/store/useMutation';
 import { PlaceSearchInput } from '../../PlaceSearchInput';
 import detail from '../detail.module.css';
 import styles from './manage.module.css';
@@ -29,6 +31,47 @@ function voteCountLabel(voteCount: number): string {
   return `${voteCount} vote${voteCount === 1 ? '' : 's'}`;
 }
 
+// Remove is one tap with nothing to fix, so a failure is a toast and the row is as it was. One
+// request state per option (spec 0014): removing two options never waits on one request.
+function RemoveButton({
+  brunchId,
+  kind,
+  optionId,
+  disabled,
+}: {
+  readonly brunchId: string;
+  readonly kind: 'locations' | 'times';
+  readonly optionId: string;
+  readonly disabled: boolean;
+}) {
+  const router = useRouter();
+  const removing = useMutation(`option-remove:${kind}:${optionId}`);
+
+  async function remove(): Promise<void> {
+    if (removing.pending) return;
+    const result = await removing.run({
+      request: { url: `/api/v1/brunches/${brunchId}/${kind}/${optionId}`, method: 'DELETE' },
+      failure: 'toast',
+    });
+    if (result.ok || (result.failure !== undefined && pageIsStale(result.failure.code))) {
+      router.refresh();
+    }
+  }
+
+  return (
+    <Button
+      type="button"
+      size="sm"
+      variant="danger"
+      onClick={() => void remove()}
+      disabled={disabled}
+      aria-disabled={removing.pending ? true : undefined}
+    >
+      Remove
+    </Button>
+  );
+}
+
 export function OptionManager({
   brunchId,
   locations,
@@ -43,108 +86,54 @@ export function OptionManager({
 }) {
   const router = useRouter();
   const [timeInput, setTimeInput] = useState('');
-  const [pendingId, setPendingId] = useState<string | undefined>(undefined);
-  // Separate from pendingId (which tracks a specific remove-by-id) — guards
-  // the two add paths against a double-click firing two POSTs, since
-  // nothing else disabled those controls while a request was in flight
-  // (architect review, nit under F10/F12).
-  const [adding, setAdding] = useState(false);
-  const [error, setError] = useState<string | undefined>(undefined);
+  // The place lookup itself failed (before anything was added): its words, kept beside the search.
+  const [lookupError, setLookupError] = useState<string | undefined>(undefined);
+  const addingLocation = useMutation(`option-add:locations:${brunchId}`);
+  const addingTime = useMutation(`option-add:times:${brunchId}`);
+  // Guards the two add paths against a double tap firing two requests.
+  const adding = addingLocation.pending || addingTime.pending;
 
+  // Adding has a field the person typed into, so a failure stays inline beside it.
   async function addLocation(details: PlaceDetails): Promise<void> {
     if (adding) return;
-
-    setAdding(true);
-    setError(undefined);
-    try {
-      const response = await fetch(`/api/v1/brunches/${brunchId}/locations`, {
+    setLookupError(undefined);
+    const result = await addingLocation.run({
+      request: {
+        url: `/api/v1/brunches/${brunchId}/locations`,
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: {
           placeId: details.placeId,
           placeName: details.name,
           placeAddress: details.address,
           placeUrl: details.placeUrl,
           timezone: details.timezone,
-        }),
-      });
-      if (!response.ok) {
-        setError('Failed to add location');
-        return;
-      }
+        },
+      },
+      failure: 'inline',
+    });
+    if (result.ok || (result.failure !== undefined && pageIsStale(result.failure.code))) {
       router.refresh();
-    } catch {
-      setError('Failed to add location');
-    } finally {
-      setAdding(false);
     }
   }
 
   async function addTime(): Promise<void> {
     if (timeInput === '' || adding) return;
-
-    setAdding(true);
-    setError(undefined);
-    try {
-      const response = await fetch(`/api/v1/brunches/${brunchId}/times`, {
+    setLookupError(undefined);
+    const result = await addingTime.run({
+      request: {
+        url: `/api/v1/brunches/${brunchId}/times`,
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scheduledAt: new Date(timeInput).toISOString() }),
-      });
-      if (!response.ok) {
-        setError('Failed to add time');
-        return;
-      }
-      setTimeInput('');
+        body: { scheduledAt: new Date(timeInput).toISOString() },
+      },
+      failure: 'inline',
+    });
+    if (result.ok) setTimeInput('');
+    if (result.ok || (result.failure !== undefined && pageIsStale(result.failure.code))) {
       router.refresh();
-    } catch {
-      setError('Failed to add time');
-    } finally {
-      setAdding(false);
     }
   }
 
-  async function removeLocation(locationId: string): Promise<void> {
-    if (pendingId !== undefined) return;
-
-    setPendingId(locationId);
-    setError(undefined);
-    try {
-      const response = await fetch(`/api/v1/brunches/${brunchId}/locations/${locationId}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) {
-        setError('Failed to remove location');
-        return;
-      }
-      router.refresh();
-    } catch {
-      setError('Failed to remove location');
-    } finally {
-      setPendingId(undefined);
-    }
-  }
-
-  async function removeTime(timeId: string): Promise<void> {
-    if (pendingId !== undefined) return;
-
-    setPendingId(timeId);
-    setError(undefined);
-    try {
-      const response = await fetch(`/api/v1/brunches/${brunchId}/times/${timeId}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) {
-        setError('Failed to remove time');
-        return;
-      }
-      router.refresh();
-    } catch {
-      setError('Failed to remove time');
-    } finally {
-      setPendingId(undefined);
-    }
-  }
+  const addError = lookupError ?? addingLocation.failure?.text ?? addingTime.failure?.text;
 
   return (
     <section className={detail.panel}>
@@ -163,21 +152,18 @@ export function OptionManager({
                   <span className={detail.address}>{location.placeAddress}</span>
                 </span>
               </span>
-              <Button
-                type="button"
-                size="sm"
-                variant="danger"
-                onClick={() => void removeLocation(location.id)}
-                disabled={disabled || pendingId === location.id}
-              >
-                Remove
-              </Button>
+              <RemoveButton
+                brunchId={brunchId}
+                kind="locations"
+                optionId={location.id}
+                disabled={disabled}
+              />
             </li>
           ))}
         </ul>
         <PlaceSearchInput
           onSelect={(details) => void addLocation(details)}
-          onError={() => setError('Failed to add location')}
+          onError={() => setLookupError(errorCopy({ code: 'unavailable' }))}
           disabled={disabled || adding}
         />
       </div>
@@ -196,15 +182,12 @@ export function OptionManager({
                   </span>
                 </span>
               </span>
-              <Button
-                type="button"
-                size="sm"
-                variant="danger"
-                onClick={() => void removeTime(time.id)}
-                disabled={disabled || pendingId === time.id}
-              >
-                Remove
-              </Button>
+              <RemoveButton
+                brunchId={brunchId}
+                kind="times"
+                optionId={time.id}
+                disabled={disabled}
+              />
             </li>
           ))}
         </ul>
@@ -216,15 +199,20 @@ export function OptionManager({
             disabled={disabled || adding}
             onChange={(event) => setTimeInput(event.target.value)}
           />
-          <Button type="button" onClick={() => void addTime()} disabled={disabled || adding}>
+          <Button
+            type="button"
+            onClick={() => void addTime()}
+            disabled={disabled}
+            aria-disabled={adding ? true : undefined}
+          >
             Add Time
           </Button>
         </div>
       </div>
 
-      {error !== undefined && (
+      {addError !== undefined && (
         <InlineAlert tone="error" role="alert">
-          <p>{error}</p>
+          <p>{addError}</p>
         </InlineAlert>
       )}
     </section>

@@ -133,7 +133,7 @@ describe('createBrunch', () => {
 
     const result = await store.dispatch(createBrunch());
 
-    expect(result.payload).toEqual({ id: 'brunch-1' });
+    expect(result.payload).toEqual({ id: 'brunch-1', invitesFailed: false });
     expect(fakeFetch).toHaveBeenCalledTimes(1);
     const [url, init] = fakeFetch.mock.calls[0] ?? [];
     expect(url).toBe('/api/v1/brunches');
@@ -194,22 +194,63 @@ describe('createBrunch', () => {
   it.each([
     ['rejects', () => Promise.reject(new Error('offline'))],
     ['returns 500', async () => jsonResponse(500, { error: 'nope' })],
-  ])('still returns the id when the invite request %s', async (_name, inviteResponse) => {
+    [
+      'returns 409',
+      async () => jsonResponse(409, { error: { code: 'brunch_changed', message: 'x' } }),
+    ],
+  ])(
+    'still returns the id, and says the invites did not go out, when the invite request %s',
+    async (_name, inviteResponse) => {
+      const fakeFetch = vi.fn<ThunkExtra['fetch']>(async (url) =>
+        String(url).endsWith('/invites') ? inviteResponse() : jsonResponse(201, { id: 'brunch-1' }),
+      );
+      const store = storeWith(fakeFetch);
+      store.dispatch(emailAdded('a@example.com'));
+
+      const result = await store.dispatch(createBrunch());
+
+      expect(result.payload).toEqual({ id: 'brunch-1', invitesFailed: true });
+      // The brunch exists, so the wizard itself has nothing to show; the invite panel will.
+      expect(store.getState().wizard.submitError).toBeUndefined();
+    },
+  );
+
+  it('does not call a refused day budget (429) a failure: the brunch page shows that wait itself', async () => {
     const fakeFetch = vi.fn<ThunkExtra['fetch']>(async (url) =>
-      String(url).endsWith('/invites') ? inviteResponse() : jsonResponse(201, { id: 'brunch-1' }),
+      String(url).endsWith('/invites')
+        ? jsonResponse(429, {
+            error: { code: 'rate_limited', message: 'x' },
+            policy: 'invite-emails-host',
+            retryAfterSeconds: 3600,
+          })
+        : jsonResponse(201, { id: 'brunch-1' }),
     );
     const store = storeWith(fakeFetch);
     store.dispatch(emailAdded('a@example.com'));
 
     const result = await store.dispatch(createBrunch());
 
-    expect(result.payload).toEqual({ id: 'brunch-1' });
-    expect(store.getState().wizard.submitError).toBeUndefined();
+    expect(result.payload).toEqual({ id: 'brunch-1', invitesFailed: false });
   });
 
-  it("keeps every entry and shows the server's message when the create fails", async () => {
+  it('says the invites went out when the batch is accepted', async () => {
+    const fakeFetch = vi.fn<ThunkExtra['fetch']>(async (url) =>
+      String(url).endsWith('/invites')
+        ? jsonResponse(201, {})
+        : jsonResponse(201, { id: 'brunch-1' }),
+    );
+    const store = storeWith(fakeFetch);
+    store.dispatch(emailAdded('a@example.com'));
+
+    expect((await store.dispatch(createBrunch())).payload).toEqual({
+      id: 'brunch-1',
+      invitesFailed: false,
+    });
+  });
+
+  it('keeps every entry and records the code the route sent when the create fails', async () => {
     const fakeFetch = vi.fn<ThunkExtra['fetch']>(async () =>
-      jsonResponse(500, { error: 'The database is unavailable' }),
+      jsonResponse(503, { error: { code: 'unavailable', message: 'The database is unavailable' } }),
     );
     const store = storeWith(fakeFetch);
     store.dispatch(emailAdded('a@example.com'));
@@ -221,30 +262,30 @@ describe('createBrunch', () => {
     expect(store.getState().wizard).toEqual({
       ...before,
       submitting: false,
-      submitError: 'The database is unavailable',
+      submitError: 'unavailable',
     });
     expect(fakeFetch).toHaveBeenCalledTimes(1);
   });
 
-  it('joins validation messages from an errors array', async () => {
+  it('records a validation failure as the code invalid, not its messages', async () => {
     const store = storeWith(
       vi.fn<ThunkExtra['fetch']>(async () =>
         jsonResponse(400, { errors: [{ message: 'Title is required' }, { message: 'Bad time' }] }),
       ),
     );
     await store.dispatch(createBrunch());
-    expect(store.getState().wizard.submitError).toBe('Title is required; Bad time');
+    expect(store.getState().wizard.submitError).toBe('invalid');
   });
 
-  it('falls back to the generic message for an unreadable error body', async () => {
+  it('reads an unreadable error body by its status', async () => {
     const store = storeWith(
       vi.fn<ThunkExtra['fetch']>(async () => new Response('oops', { status: 502 })),
     );
     await store.dispatch(createBrunch());
-    expect(store.getState().wizard.submitError).toBe('Failed to create brunch');
+    expect(store.getState().wizard.submitError).toBe('unavailable');
   });
 
-  it('uses the generic message on a network error and clears it on the next attempt', async () => {
+  it('says network on a network error and clears it on the next attempt', async () => {
     const fakeFetch = vi
       .fn<ThunkExtra['fetch']>()
       .mockRejectedValueOnce(new Error('offline'))
@@ -252,13 +293,13 @@ describe('createBrunch', () => {
     const store = storeWith(fakeFetch);
 
     await store.dispatch(createBrunch());
-    expect(store.getState().wizard.submitError).toBe('Failed to create brunch');
+    expect(store.getState().wizard.submitError).toBe('network');
     expect(store.getState().wizard.submitting).toBe(false);
 
     const retry = store.dispatch(createBrunch());
     expect(store.getState().wizard.submitError).toBeUndefined();
     expect(store.getState().wizard.submitting).toBe(true);
-    expect((await retry).payload).toEqual({ id: 'brunch-1' });
+    expect((await retry).payload).toEqual({ id: 'brunch-1', invitesFailed: false });
   });
 
   it('drops a failure that arrives after the wizard was reset, so the next visit is clean', async () => {
@@ -291,7 +332,7 @@ describe('createBrunch', () => {
     expect(fakeFetch).toHaveBeenCalledTimes(1);
 
     finish(jsonResponse(201, { id: 'brunch-1' }));
-    expect((await first).payload).toEqual({ id: 'brunch-1' });
+    expect((await first).payload).toEqual({ id: 'brunch-1', invitesFailed: false });
     expect(fakeFetch).toHaveBeenCalledTimes(1);
   });
 
@@ -314,6 +355,6 @@ describe('createBrunch', () => {
     expect(store.getState().wizard).toMatchObject({ submitting: true, submitError: undefined });
 
     finishNew(jsonResponse(201, { id: 'brunch-2' }));
-    expect((await newCreate).payload).toEqual({ id: 'brunch-2' });
+    expect((await newCreate).payload).toEqual({ id: 'brunch-2', invitesFailed: false });
   });
 });

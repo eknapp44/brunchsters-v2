@@ -8,6 +8,7 @@ vi.mock('@brunchsters/core', () => ({ revokeInvite: vi.fn() }));
 import { revokeInvite } from '@brunchsters/core';
 import { auth } from '@/auth';
 import { DELETE } from './route';
+import { errorCodeOf } from '@/test-support/errorCodeOf';
 
 const mockAuth = vi.mocked(auth as unknown as () => Promise<unknown>);
 const mockRevokeInvite = vi.mocked(revokeInvite);
@@ -32,6 +33,7 @@ describe('DELETE /api/v1/invites/[id]', () => {
     });
 
     expect(response.status).toBe(401);
+    expect(await errorCodeOf(response)).toBe('signed_out');
     expect(mockRevokeInvite).not.toHaveBeenCalled();
   });
 
@@ -43,6 +45,7 @@ describe('DELETE /api/v1/invites/[id]', () => {
     });
 
     expect(response.status).toBe(404);
+    expect(await errorCodeOf(response)).toBe('not_found');
     expect(mockRevokeInvite).not.toHaveBeenCalled();
   });
 
@@ -70,6 +73,7 @@ describe('DELETE /api/v1/invites/[id]', () => {
     });
 
     expect(response.status).toBe(403);
+    expect(await errorCodeOf(response)).toBe('forbidden');
   });
 
   it('returns 404 when the invite does not exist', async () => {
@@ -81,5 +85,6 @@ describe('DELETE /api/v1/invites/[id]', () => {
     });
 
     expect(response.status).toBe(404);
+    expect(await errorCodeOf(response)).toBe('not_found');
   });
 });

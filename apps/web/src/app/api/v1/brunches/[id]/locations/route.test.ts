@@ -15,6 +15,7 @@ vi.mock('@brunchsters/core', async (importOriginal) => {
 import { addLocation } from '@brunchsters/core';
 import { auth } from '@/auth';
 import { POST } from './route';
+import { errorCodeOf } from '@/test-support/errorCodeOf';
 
 const mockAuth = vi.mocked(auth as unknown as () => Promise<unknown>);
 const mockAddLocation = vi.mocked(addLocation);
@@ -53,6 +54,7 @@ describe('POST /api/v1/brunches/[id]/locations', () => {
     const response = await POST(postRequest(LOCATION_BODY), { params: params(VALID_BRUNCH_ID) });
 
     expect(response.status).toBe(401);
+    expect(await errorCodeOf(response)).toBe('signed_out');
     expect(mockAddLocation).not.toHaveBeenCalled();
   });
 
@@ -62,6 +64,7 @@ describe('POST /api/v1/brunches/[id]/locations', () => {
     const response = await POST(postRequest(LOCATION_BODY), { params: params('not-a-uuid') });
 
     expect(response.status).toBe(404);
+    expect(await errorCodeOf(response)).toBe('not_found');
     expect(mockAddLocation).not.toHaveBeenCalled();
   });
 
@@ -73,6 +76,7 @@ describe('POST /api/v1/brunches/[id]/locations', () => {
     });
 
     expect(response.status).toBe(422);
+    expect(await errorCodeOf(response)).toBe('invalid');
     expect(mockAddLocation).not.toHaveBeenCalled();
   });
 
@@ -97,6 +101,7 @@ describe('POST /api/v1/brunches/[id]/locations', () => {
     const response = await POST(postRequest(LOCATION_BODY), { params: params(VALID_BRUNCH_ID) });
 
     expect(response.status).toBe(403);
+    expect(await errorCodeOf(response)).toBe('forbidden');
   });
 
   it('returns 409 when the brunch is not active', async () => {
@@ -106,6 +111,7 @@ describe('POST /api/v1/brunches/[id]/locations', () => {
     const response = await POST(postRequest(LOCATION_BODY), { params: params(VALID_BRUNCH_ID) });
 
     expect(response.status).toBe(409);
+    expect(await errorCodeOf(response)).toBe('brunch_not_active');
   });
 
   it('returns 409 when voting is closed', async () => {
@@ -115,6 +121,7 @@ describe('POST /api/v1/brunches/[id]/locations', () => {
     const response = await POST(postRequest(LOCATION_BODY), { params: params(VALID_BRUNCH_ID) });
 
     expect(response.status).toBe(409);
+    expect(await errorCodeOf(response)).toBe('voting_closed');
   });
 
   it('returns 404 when the brunch does not exist', async () => {
@@ -124,6 +131,7 @@ describe('POST /api/v1/brunches/[id]/locations', () => {
     const response = await POST(postRequest(LOCATION_BODY), { params: params(VALID_BRUNCH_ID) });
 
     expect(response.status).toBe(404);
+    expect(await errorCodeOf(response)).toBe('not_found');
   });
 
   it('returns 409 when the place is already an option', async () => {
@@ -133,6 +141,7 @@ describe('POST /api/v1/brunches/[id]/locations', () => {
     const response = await POST(postRequest(LOCATION_BODY), { params: params(VALID_BRUNCH_ID) });
 
     expect(response.status).toBe(409);
+    expect(await errorCodeOf(response)).toBe('already_there');
   });
 
   it('returns 500 on an unexpected service error', async () => {
@@ -142,5 +151,6 @@ describe('POST /api/v1/brunches/[id]/locations', () => {
     const response = await POST(postRequest(LOCATION_BODY), { params: params(VALID_BRUNCH_ID) });
 
     expect(response.status).toBe(500);
+    expect(await errorCodeOf(response)).toBe('internal');
   });
 });

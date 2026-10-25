@@ -1,0 +1,36 @@
+{
+  "shots": [
+    {
+      "name": "feedback/toast-success",
+      "caption": "A one-tap result says so: tapping \"I'm in\" toasts a warm line (held up here with focus)",
+      "variants": ["phone-light", "phone-dark"]
+    },
+    {
+      "name": "feedback/toast-error",
+      "caption": "A one-tap failure, in the app's voice, with the control as it was"
+    },
+    {
+      "name": "feedback/ballot-error",
+      "caption": "A vote that did not save rolls back and says why, beside the ballot"
+    },
+    {
+      "name": "feedback/dialog-error",
+      "caption": "A call-off that failed keeps its line inside the dialog, where it is seen"
+    },
+    {
+      "name": "feedback/invites-note",
+      "caption": "A brunch created with invites that did not go out says so in the Invites panel",
+      "variants": ["phone-light", "phone-dark"]
+    },
+    {
+      "name": "feedback/search-error",
+      "caption": "A place search that could not be answered says so beside the input",
+      "variants": ["phone-dark", "desktop-light"]
+    },
+    {
+      "name": "feedback/signin-way-back",
+      "caption": "Sign-in, reached after a session ended, says it will take the person back",
+      "variants": ["phone-light"]
+    }
+  ]
+}

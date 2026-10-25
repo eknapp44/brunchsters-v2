@@ -1,11 +1,11 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
 import { PopIcon } from '@/components/icons/PopIcon';
 import { Button } from '@/components/ui/Button';
-import { InlineAlert } from '@/components/ui/InlineAlert';
 import { LocalDateTime } from '@/components/ui/LocalDateTime';
+import { pageIsStale } from '@/lib/errorCopy';
+import { useMutation } from '@/store/useMutation';
 import detail from '../detail.module.css';
 
 type PendingLocationSuggestion = {
@@ -21,6 +21,56 @@ type PendingTimeSuggestion = {
   readonly suggestedByName: string;
 };
 
+// Approve and Decline are one tap with nothing to fix, so a failure is a toast and the row is as it
+// was. One request state per suggestion (spec 0014), so two rows never wait on each other.
+function ReviewActions({
+  kind,
+  suggestionId,
+}: {
+  readonly kind: 'location' | 'time';
+  readonly suggestionId: string;
+}) {
+  const router = useRouter();
+  const reviewing = useMutation(`option-review:${kind}:${suggestionId}`);
+
+  async function review(decision: 'approve' | 'decline'): Promise<void> {
+    if (reviewing.pending) return;
+    const path = kind === 'location' ? 'location-suggestions' : 'time-suggestions';
+    const result = await reviewing.run({
+      request: {
+        url: `/api/v1/${path}/${suggestionId}/review`,
+        method: 'POST',
+        body: { decision },
+      },
+      failure: 'toast',
+    });
+    if (result.ok || (result.failure !== undefined && pageIsStale(result.failure.code))) {
+      router.refresh();
+    }
+  }
+
+  return (
+    <span className={detail.rowActions}>
+      <Button
+        type="button"
+        size="sm"
+        onClick={() => void review('approve')}
+        aria-disabled={reviewing.pending ? true : undefined}
+      >
+        Approve
+      </Button>
+      <Button
+        type="button"
+        size="sm"
+        onClick={() => void review('decline')}
+        aria-disabled={reviewing.pending ? true : undefined}
+      >
+        Decline
+      </Button>
+    </span>
+  );
+}
+
 export function OptionSuggestionReview({
   locationSuggestions,
   timeSuggestions,
@@ -28,38 +78,6 @@ export function OptionSuggestionReview({
   readonly locationSuggestions: readonly PendingLocationSuggestion[];
   readonly timeSuggestions: readonly PendingTimeSuggestion[];
 }) {
-  const router = useRouter();
-  const [pendingId, setPendingId] = useState<string | undefined>(undefined);
-  const [error, setError] = useState<string | undefined>(undefined);
-
-  async function review(
-    kind: 'location' | 'time',
-    suggestionId: string,
-    decision: 'approve' | 'decline',
-  ): Promise<void> {
-    if (pendingId !== undefined) return;
-
-    setPendingId(suggestionId);
-    setError(undefined);
-    try {
-      const path = kind === 'location' ? 'location-suggestions' : 'time-suggestions';
-      const response = await fetch(`/api/v1/${path}/${suggestionId}/review`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ decision }),
-      });
-      if (!response.ok) {
-        setError('Failed to review suggestion');
-        return;
-      }
-      router.refresh();
-    } catch {
-      setError('Failed to review suggestion');
-    } finally {
-      setPendingId(undefined);
-    }
-  }
-
   if (locationSuggestions.length === 0 && timeSuggestions.length === 0) return null;
 
   return (
@@ -78,24 +96,7 @@ export function OptionSuggestionReview({
                   <span className={detail.address}>{suggestion.placeAddress}</span>
                 </span>
               </span>
-              <span className={detail.rowActions}>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => void review('location', suggestion.id, 'approve')}
-                  disabled={pendingId === suggestion.id}
-                >
-                  Approve
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => void review('location', suggestion.id, 'decline')}
-                  disabled={pendingId === suggestion.id}
-                >
-                  Decline
-                </Button>
-              </span>
+              <ReviewActions kind="location" suggestionId={suggestion.id} />
             </li>
           ))}
         </ul>
@@ -112,33 +113,10 @@ export function OptionSuggestionReview({
                   <span className={detail.detail}>(suggested by {suggestion.suggestedByName})</span>
                 </span>
               </span>
-              <span className={detail.rowActions}>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => void review('time', suggestion.id, 'approve')}
-                  disabled={pendingId === suggestion.id}
-                >
-                  Approve
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => void review('time', suggestion.id, 'decline')}
-                  disabled={pendingId === suggestion.id}
-                >
-                  Decline
-                </Button>
-              </span>
+              <ReviewActions kind="time" suggestionId={suggestion.id} />
             </li>
           ))}
         </ul>
-      )}
-
-      {error !== undefined && (
-        <InlineAlert tone="error" role="alert">
-          <p>{error}</p>
-        </InlineAlert>
       )}
     </section>
   );

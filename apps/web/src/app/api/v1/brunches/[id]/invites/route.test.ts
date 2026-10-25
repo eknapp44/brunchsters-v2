@@ -15,6 +15,7 @@ vi.mock('@brunchsters/core', async (importOriginal) => {
 import { sendInvites } from '@brunchsters/core';
 import { auth } from '@/auth';
 import { POST } from './route';
+import { errorCodeOf } from '@/test-support/errorCodeOf';
 
 const mockAuth = vi.mocked(auth as unknown as () => Promise<unknown>);
 const mockSendInvites = vi.mocked(sendInvites);
@@ -47,6 +48,7 @@ describe('POST /api/v1/brunches/[id]/invites', () => {
     });
 
     expect(response.status).toBe(401);
+    expect(await errorCodeOf(response)).toBe('signed_out');
     expect(mockSendInvites).not.toHaveBeenCalled();
   });
 
@@ -58,6 +60,7 @@ describe('POST /api/v1/brunches/[id]/invites', () => {
     });
 
     expect(response.status).toBe(404);
+    expect(await errorCodeOf(response)).toBe('not_found');
     expect(mockSendInvites).not.toHaveBeenCalled();
   });
 
@@ -67,6 +70,7 @@ describe('POST /api/v1/brunches/[id]/invites', () => {
     const response = await POST(postRequest({ emails: [] }), { params: params(VALID_BRUNCH_ID) });
 
     expect(response.status).toBe(422);
+    expect(await errorCodeOf(response)).toBe('invalid');
     expect(mockSendInvites).not.toHaveBeenCalled();
   });
 
@@ -99,6 +103,7 @@ describe('POST /api/v1/brunches/[id]/invites', () => {
     });
 
     expect(response.status).toBe(403);
+    expect(await errorCodeOf(response)).toBe('forbidden');
   });
 
   it('returns 404 when the brunch does not exist', async () => {
@@ -110,6 +115,7 @@ describe('POST /api/v1/brunches/[id]/invites', () => {
     });
 
     expect(response.status).toBe(404);
+    expect(await errorCodeOf(response)).toBe('not_found');
   });
 
   it('returns 500 on an unexpected service error', async () => {
@@ -121,6 +127,7 @@ describe('POST /api/v1/brunches/[id]/invites', () => {
     });
 
     expect(response.status).toBe(500);
+    expect(await errorCodeOf(response)).toBe('internal');
   });
 });
 
@@ -150,7 +157,7 @@ describe('POST /api/v1/brunches/[id]/invites — rate limits', () => {
     expect(response.status).toBe(429);
     expect(response.headers.get('Retry-After')).toBe('3600');
     expect(await response.json()).toEqual({
-      error: 'Too many requests',
+      error: { code: 'rate_limited', message: 'Too many requests' },
       policy: 'invite-emails-brunch',
       retryAfterSeconds: 3600,
     });
@@ -168,6 +175,9 @@ describe('POST /api/v1/brunches/[id]/invites — rate limits', () => {
     });
 
     expect(response.status).toBe(503);
-    expect(await response.json()).toEqual({ error: 'Temporarily unavailable' });
+    expect(await errorCodeOf(response)).toBe('unavailable');
+    expect(await response.json()).toEqual({
+      error: { code: 'unavailable', message: 'Temporarily unavailable' },
+    });
   });
 });

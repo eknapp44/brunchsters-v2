@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/Button';
 import { DateTimeInput } from '@/components/ui/DateTimeInput';
 import { Field } from '@/components/ui/Field';
 import { InlineAlert } from '@/components/ui/InlineAlert';
+import { DEADLINE_CLEARED_TOAST, DEADLINE_SAVED_TOAST } from '@/lib/toastCopy';
+import { useMutation } from '@/store/useMutation';
 import detail from '../detail.module.css';
 
 // Matches nowAsDatetimeLocalValue() in brunch/new/page.tsx — the browser's
@@ -54,50 +56,38 @@ export function VotingControls({
     }
     setMinDeadline(toDatetimeLocalValue(new Date()));
   }, [votingDeadline]);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | undefined>(undefined);
+  const deadline = useMutation(`voting-deadline:${brunchId}`);
+  const close = useMutation(`voting-close:${brunchId}`);
+  const submitting = deadline.pending || close.pending;
 
+  // Saving a deadline has a field the person typed into, so a failure stays inline beside it; the
+  // success is a toast because the saved value looks like what was typed.
   async function saveDeadline(): Promise<void> {
+    if (submitting) return;
     const deadlineInput = deadlineRef.current?.value ?? '';
-    setSubmitting(true);
-    setError(undefined);
-    try {
-      const response = await fetch(`/api/v1/brunches/${brunchId}/voting/deadline`, {
+    const result = await deadline.run({
+      request: {
+        url: `/api/v1/brunches/${brunchId}/voting/deadline`,
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: {
           votingDeadline: deadlineInput === '' ? null : new Date(deadlineInput).toISOString(),
-        }),
-      });
-      if (!response.ok) {
-        setError('Failed to update the voting deadline');
-        return;
-      }
-      router.refresh();
-    } catch {
-      setError('Failed to update the voting deadline');
-    } finally {
-      setSubmitting(false);
-    }
+        },
+      },
+      success: deadlineInput === '' ? DEADLINE_CLEARED_TOAST : DEADLINE_SAVED_TOAST,
+      failure: 'inline',
+    });
+    if (result.ok) router.refresh();
   }
 
+  // Closing voting is one tap with nothing to fix, so a failure is a toast; success shows itself
+  // (the panel becomes "Voting is closed.").
   async function closeVotingNow(): Promise<void> {
-    setSubmitting(true);
-    setError(undefined);
-    try {
-      const response = await fetch(`/api/v1/brunches/${brunchId}/voting/close`, {
-        method: 'POST',
-      });
-      if (!response.ok) {
-        setError('Failed to close voting');
-        return;
-      }
-      router.refresh();
-    } catch {
-      setError('Failed to close voting');
-    } finally {
-      setSubmitting(false);
-    }
+    if (submitting) return;
+    const result = await close.run({
+      request: { url: `/api/v1/brunches/${brunchId}/voting/close`, method: 'POST' },
+      failure: 'toast',
+    });
+    if (result.ok) router.refresh();
   }
 
   if (closed) {
@@ -125,10 +115,14 @@ export function VotingControls({
             ref={deadlineRef}
             placeholderText="Pick a deadline"
             min={minDeadline}
-            disabled={submitting}
+            disabled={deadline.pending}
           />
         </Field>
-        <Button type="button" onClick={() => void saveDeadline()} disabled={submitting}>
+        <Button
+          type="button"
+          onClick={() => void saveDeadline()}
+          aria-disabled={submitting ? true : undefined}
+        >
           Save deadline
         </Button>
       </div>
@@ -137,15 +131,16 @@ export function VotingControls({
         <Button
           type="button"
           onClick={() => void closeVotingNow()}
-          disabled={submitting || !canClose}
+          disabled={!canClose}
+          aria-disabled={submitting ? true : undefined}
         >
           Close voting
         </Button>
       </div>
 
-      {error !== undefined && (
+      {deadline.failure !== undefined && (
         <InlineAlert tone="error" role="alert">
-          <p>{error}</p>
+          <p>{deadline.failure.text}</p>
         </InlineAlert>
       )}
     </section>

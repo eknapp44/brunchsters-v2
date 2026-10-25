@@ -3,6 +3,7 @@ import type { BrunchId, UserId } from '@brunchsters/shared';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/auth';
+import { apiError } from '@/lib/apiErrorResponse';
 import { enforceWriteLimit } from '@/lib/rateLimit';
 import { db } from '@/lib/db';
 
@@ -16,7 +17,7 @@ export async function DELETE(
 ): Promise<NextResponse> {
   const session = await auth();
   if (session === null) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return apiError({ code: 'signed_out', status: 401, message: 'Unauthorized' });
   }
 
   const limited = await enforceWriteLimit(session.user.id);
@@ -25,7 +26,7 @@ export async function DELETE(
   const { id } = await params;
   const parsedBrunchId = brunchIdSchema.safeParse(id);
   if (!parsedBrunchId.success) {
-    return NextResponse.json({ error: 'Brunch not found' }, { status: 404 });
+    return apiError({ code: 'not_found', status: 404, message: 'Brunch not found' });
   }
 
   const result = await deleteBrunch(
@@ -36,22 +37,28 @@ export async function DELETE(
   if (result.isErr()) {
     switch (result.error.kind) {
       case 'brunch_not_found':
-        return NextResponse.json({ error: 'Brunch not found' }, { status: 404 });
+        return apiError({ code: 'not_found', status: 404, message: 'Brunch not found' });
       case 'not_host':
-        return NextResponse.json({ error: 'Only the host can delete a brunch' }, { status: 403 });
+        return apiError({
+          code: 'forbidden',
+          status: 403,
+          message: 'Only the host can delete a brunch',
+        });
       case 'not_deletable':
-        return NextResponse.json(
-          { error: 'Call this brunch off before deleting it' },
-          { status: 409 },
-        );
+        return apiError({
+          code: 'not_deletable',
+          status: 409,
+          message: 'Call this brunch off before deleting it',
+        });
       case 'notice_pending':
-        return NextResponse.json(
-          { error: 'People are still being told it was called off. Give it a few minutes' },
-          { status: 409 },
-        );
+        return apiError({
+          code: 'notice_pending',
+          status: 409,
+          message: 'People are still being told it was called off. Give it a few minutes',
+        });
       default:
         console.error('deleteBrunch failed', result.error);
-        return NextResponse.json({ error: 'Failed to delete the brunch' }, { status: 500 });
+        return apiError({ code: 'internal', status: 500, message: 'Failed to delete the brunch' });
     }
   }
 

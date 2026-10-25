@@ -21,7 +21,7 @@ export function ConfirmDialog(props: {
   readonly confirmLabel: string;
   readonly cancelLabel: string;
   readonly pending: boolean;
-  // the generic error line of a failed request, kept inside the dialog so it is seen
+  // the line for a failed request's code (`errorCopy`), kept inside the dialog so it is seen
   readonly error: string | undefined;
   readonly onConfirm: () => void;
   readonly onCancel: () => void;

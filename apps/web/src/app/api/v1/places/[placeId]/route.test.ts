@@ -11,6 +11,7 @@ import { auth } from '@/auth';
 import { enforceLimit } from '@/lib/rateLimit';
 import { rateLimitedResponse } from '@/lib/rateLimitHttp';
 import { GET } from './route';
+import { errorCodeOf } from '@/test-support/errorCodeOf';
 
 const mockAuth = vi.mocked(auth as unknown as () => Promise<unknown>);
 const mockEnforceLimit = vi.mocked(enforceLimit);
@@ -77,7 +78,8 @@ describe('GET /api/v1/places/[placeId]', () => {
     const response = await GET(request, { params });
 
     expect(response.status).toBe(404);
-    expect(await response.json()).toEqual({ error: 'Place not found' });
+    expect(await errorCodeOf(response)).toBe('not_found');
+    expect(await errorCodeOf(response)).toBe('not_found');
   });
 
   it('returns 502 when the provider throws', async () => {
@@ -87,7 +89,8 @@ describe('GET /api/v1/places/[placeId]', () => {
     const response = await GET(request, { params });
 
     expect(response.status).toBe(502);
-    expect(await response.json()).toEqual({ error: 'Place search unavailable' });
+    expect(await errorCodeOf(response)).toBe('unavailable');
+    expect(await errorCodeOf(response)).toBe('unavailable');
   });
 });
 
@@ -99,6 +102,7 @@ describe('GET /api/v1/places/[placeId] — who may call it and how often', () =>
     const response = await GET(request, { params });
 
     expect(response.status).toBe(401);
+    expect(await errorCodeOf(response)).toBe('signed_out');
     expect(mockEnforceLimit).not.toHaveBeenCalled();
     expect(mockGetDetails).not.toHaveBeenCalled();
   });

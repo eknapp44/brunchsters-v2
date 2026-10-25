@@ -11,6 +11,7 @@ import { auth } from '@/auth';
 import { enforceLimit } from '@/lib/rateLimit';
 import { rateLimitedResponse } from '@/lib/rateLimitHttp';
 import { GET } from './route';
+import { errorCodeOf } from '@/test-support/errorCodeOf';
 
 const mockAuth = vi.mocked(auth as unknown as () => Promise<unknown>);
 const mockEnforceLimit = vi.mocked(enforceLimit);
@@ -35,6 +36,7 @@ describe('GET /api/v1/places/search', () => {
     const response = await GET(searchRequest(''));
 
     expect(response.status).toBe(400);
+    expect(await errorCodeOf(response)).toBe('invalid');
     expect(mockSearch).not.toHaveBeenCalled();
   });
 
@@ -42,6 +44,7 @@ describe('GET /api/v1/places/search', () => {
     const response = await GET(searchRequest('q=ab'));
 
     expect(response.status).toBe(400);
+    expect(await errorCodeOf(response)).toBe('invalid');
     expect(mockSearch).not.toHaveBeenCalled();
   });
 
@@ -71,7 +74,8 @@ describe('GET /api/v1/places/search', () => {
     const response = await GET(searchRequest('q=brunch'));
 
     expect(response.status).toBe(502);
-    expect(await response.json()).toEqual({ error: 'Place search unavailable' });
+    expect(await errorCodeOf(response)).toBe('unavailable');
+    expect(await errorCodeOf(response)).toBe('unavailable');
   });
 });
 
@@ -82,6 +86,7 @@ describe('GET /api/v1/places/search — who may call it and how often', () => {
     const response = await GET(searchRequest('q=brunch'));
 
     expect(response.status).toBe(401);
+    expect(await errorCodeOf(response)).toBe('signed_out');
     expect(mockEnforceLimit).not.toHaveBeenCalled();
     expect(mockSearch).not.toHaveBeenCalled();
   });

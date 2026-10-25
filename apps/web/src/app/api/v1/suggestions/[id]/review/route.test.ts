@@ -15,6 +15,7 @@ vi.mock('@brunchsters/core', async (importOriginal) => {
 import { reviewInviteSuggestion } from '@brunchsters/core';
 import { auth } from '@/auth';
 import { POST } from './route';
+import { errorCodeOf } from '@/test-support/errorCodeOf';
 
 const mockAuth = vi.mocked(auth as unknown as () => Promise<unknown>);
 const mockReview = vi.mocked(reviewInviteSuggestion);
@@ -47,6 +48,7 @@ describe('POST /api/v1/suggestions/[id]/review', () => {
     });
 
     expect(response.status).toBe(401);
+    expect(await errorCodeOf(response)).toBe('signed_out');
     expect(mockReview).not.toHaveBeenCalled();
   });
 
@@ -58,6 +60,7 @@ describe('POST /api/v1/suggestions/[id]/review', () => {
     });
 
     expect(response.status).toBe(404);
+    expect(await errorCodeOf(response)).toBe('not_found');
   });
 
   it('returns 422 for an invalid decision', async () => {
@@ -68,6 +71,7 @@ describe('POST /api/v1/suggestions/[id]/review', () => {
     });
 
     expect(response.status).toBe(422);
+    expect(await errorCodeOf(response)).toBe('invalid');
     expect(mockReview).not.toHaveBeenCalled();
   });
 
@@ -95,6 +99,7 @@ describe('POST /api/v1/suggestions/[id]/review', () => {
     });
 
     expect(response.status).toBe(403);
+    expect(await errorCodeOf(response)).toBe('forbidden');
   });
 
   it('returns 404 when the suggestion does not exist', async () => {
@@ -106,6 +111,7 @@ describe('POST /api/v1/suggestions/[id]/review', () => {
     });
 
     expect(response.status).toBe(404);
+    expect(await errorCodeOf(response)).toBe('not_found');
   });
 
   it('returns 409 when the suggestion was already reviewed', async () => {
@@ -117,6 +123,7 @@ describe('POST /api/v1/suggestions/[id]/review', () => {
     });
 
     expect(response.status).toBe(409);
+    expect(await errorCodeOf(response)).toBe('already_reviewed');
   });
 });
 
@@ -162,5 +169,6 @@ describe('POST /api/v1/suggestions/[id]/review — rate limits', () => {
     });
 
     expect(response.status).toBe(503);
+    expect(await errorCodeOf(response)).toBe('unavailable');
   });
 });

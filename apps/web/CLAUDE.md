@@ -24,7 +24,7 @@ Scoped to the web app. The repo-wide rules are in the root `CLAUDE.md`; why the 
 
 Why and what: [ADR 0013](../../docs/adrs/0013-rate-limits-in-postgres.md), [ADR 0014](../../docs/adrs/0014-content-security-policy-with-nonce.md), `specs/0012-security-hardening/`.
 
-- **A control that can be told to slow down reads a 429 with `readRateLimit` and words it with `limitedMessage`** (`src/lib`). Only the invite panel, the suggestion approval and the place search do so today; every other control shows its generic error until the feedback-surfaces spec, which is also when the wizard stops ignoring a refused invite batch. How a waiting control behaves (`aria-disabled`, `useWait`) is in "Writing components".
+- **A control that can be told to slow down reads a 429 with `readRateLimit` and words it with `limitedMessage`** (`src/lib`). The invite panel, the suggestion approval, call it off, delete and the place search hold their own wait; every other control shows a 429 as the line for its code (a toast or inline, `errorCopy`: "Slow down a sec, then try again."). The wizard reports an invite batch that failed (not a 429) through `noticesSlice`: the Invites panel says so after the redirect. How a waiting control behaves (`aria-disabled`, `useWait`) is in "Writing components".
 - **A new API route that changes something calls `enforceWriteLimit` right after its session check** (root `CLAUDE.md` has the rule and the order; the scanning test fails otherwise). Never key a limit by an id the caller merely named.
 - **A new email, or a new use of the paid Places API, is caught by a test until it has a budget** (root `CLAUDE.md` names the tests): a new email event needs a decision in `emailBudgets.test.ts`, and a new file that reaches Places has to be added to `routeLimits.test.ts` on purpose. The failure message says what to do.
 - **No inline `<script>` and no inline event handler** (`onclick=`, `onerror=`): the policy refuses both, by design. Scripts come from Next's own bundles.
@@ -33,7 +33,7 @@ Why and what: [ADR 0013](../../docs/adrs/0013-rate-limits-in-postgres.md), [ADR 
 
 ## State
 
-Why and what: [ADR 0011](../../docs/adrs/0011-redux-toolkit-for-client-ui-state.md), `specs/0010-redux-ui-state/`. Today the wizard (`wizardSlice`) and the vote ballots (`ballotsSlice`, `useBallot`) are on the store; every other control still uses `useState`, on purpose (see "Moving another control onto the store").
+Why and what: [ADR 0011](../../docs/adrs/0011-redux-toolkit-for-client-ui-state.md), `specs/0010-redux-ui-state/`. Today the wizard (`wizardSlice`), the vote ballots (`ballotsSlice`, `useBallot`) and every control that sends a request (the shared `useMutation`, below) are on the store; what stays `useState` is a single control's own input text and open or closed flags.
 
 - **The store holds UI state only.** Business rules stay on the server and in `packages/core`. Brunch data stays in Server Components and is refreshed with `router.refresh()` (called from the component); do not copy it into the store.
 - **Per-request store, never a module-level one.** `makeStore` builds a fresh store; `StoreProvider` (`src/store/`) creates it once per mount. Server Components never touch Redux.
@@ -46,9 +46,29 @@ Why and what: [ADR 0011](../../docs/adrs/0011-redux-toolkit-for-client-ui-state.
 - **Slice or `useState`?** State only one component reads (an input's text, a copied-to-clipboard flag) stays `useState`. A slice earns its place when several components read it, or when its rules (optimistic update, rollback, stale-id filtering) deserve unit tests.
 - Test reducers, selectors and thunks; do not test that React renders (root `CLAUDE.md`).
 
-### Moving another control onto the store
+### Shared mutations and toasts (spec 0014, ADR 0016)
 
-The remaining controls (RSVP, invites, suggestions, option management, voting controls, confirmation, suggestion review) each own a `submitting`/`error` pair, a `fetch` and a `router.refresh()`. They move together, not one slice each, when the toast / visible-error spec lands (`docs/BACKLOG.md` "Redux follow-ups"). Until then a **new** control follows the same shape rather than inventing another: if several components will read its state or it has rules worth unit tests, add a slice and a `createAppAsyncThunk` (copy `ballotsSlice.ts`); otherwise keep `useState`, with the same generic error string and `role="alert"` as its neighbours. When migrating a control: keep its text, roles and accessible names (the e2e contract below), keep the generic error message, add a thunk test per failure path, and prove the journey that covers it fails without the new rule.
+- **A control's request is `useMutation(key)`** (`src/store/useMutation.ts`): `run({ request, success?, failure })` dispatches the one `runMutation` thunk under a key of the control's own (`rsvp:<brunchId>`), reads `pending` and `failure`, and the control does `router.refresh()` when `run` resolves true. No `fetch`, no `submitting`/`error` pair, no failure string in a component. The second tap on a key in flight does nothing (the thunk's `condition`); a result from an earlier request is ignored.
+- **A pending control is `aria-disabled`, not `disabled`**, so keyboard focus stays on the button that was pressed (a disabled button drops it).
+- **Where a failure shows is the caller's choice:** `failure: 'toast'` for a one-tap result, `'inline'` for what the person has to fix or wait out (render `failure.text` in an `InlineAlert` where the old error line was). A 429 on a control with a wait surface is that control's own inline line (`useWait`), never a toast: pass `ownsWait: true` and start the wait from `result.failure.rateLimit`. A one-tap action with nothing to fix (resend, revoke, close voting) fails as a toast; a control with a field the person typed into (send an invite, save a deadline) fails inline beside it; a ballot rolls back and keeps its line inline.
+- **Failure words are `errorCopy`'s, from the code the route sent** (`packages/shared/src/apiError.ts`); a route builds its errors with `apiError()` (`src/lib/apiErrorResponse.ts`). Success words are in a `lib/*Copy.ts` (`toastCopy.ts`), never inline.
+- **A journey that asserts a toast did _not_ appear takes one non-retrying look** (`expect(await locator.count()).toBe(0)` after a short settle): `toHaveCount(0)` retries, so it waits for the toast to time out and passes (found in M3: the first version of that journey stayed green with the behavior broken).
+- **A request the page cannot send through the store is a read that must be cancelled** (the place search as you type): it uses `fetch` with an `AbortController` per query and drops an answer that is not the newest, and it is on the `noBareFetch.test.ts` list with that reason. Anything that changes something goes through `useMutation`.
+- **A notice that must outlive its page** (the wizard resets when its page unmounts) lives in `noticesSlice`, keyed by the brunch it is about, and is cleared by the action that ends it.
+- **A signed-out refusal sends the person to sign in:** `useMutation` does it for every control (`/sign-in?callbackUrl=<this page>`, the same callback the middleware gives a page request); a control does nothing for it.
+- **Never import Zod into code that runs in the browser:** Zod 4 probes with `new Function`, which the CSP reports (journey S3 fails). Read a response body by hand there.
+
+### Adding a control that sends a request
+
+Copy any migrated control (`RsvpControl` is the smallest). The checklist, in order:
+
+1. `const thing = useMutation('<control>:<subject id>')` (a key unique to this control and what it acts on, with the placement in it if the control can be on screen twice) and `thing.run({ request, success?, failure })`; `router.refresh()` when it resolves `ok`. A control per row (remove, approve) is its own small component so each row has its own key.
+2. **Decide where a failure shows:** inline (`failure: 'inline'`, render `thing.failure.text` in an `InlineAlert` with `role="alert"` where the field is) when the person typed or chose something; a toast (`failure: 'toast'`) for one tap with nothing to fix. A success toast only where the page change is subtle (`success` words from a `lib/*Copy.ts`). A rolled-back optimistic control keeps its line inline.
+3. **Pending is `aria-disabled`** (keeps keyboard focus); a structural "cannot" (a draft, nothing chosen) stays `disabled`.
+4. **A control with its own wait** (it holds a 429 beside its button with `useWait`) passes `ownsWait: true` and starts the wait from `result.failure.rateLimit`.
+5. **A failure that means the page is out of date** (`pageIsStale(code)` in `lib/errorCopy.ts`: an option removed, voting closed, called off, already locked) asks the page again.
+6. **The route** answers with `apiError({ code, status, message })`; a failure a person can act on is a new code in `packages/shared/src/apiError.ts` and a line in `lib/errorCopy.ts`. `apiErrors.test.ts` fails an uncoded route; `noBareFetch.test.ts` fails a component that calls `fetch` itself.
+7. **A journey** for the failure and the next try (intercept the route with a coded body, or cause the real refusal), proved to fail with the behavior removed.
 
 ## Accessible names are a contract with the e2e suite
 
@@ -84,7 +104,7 @@ Phone is the base style and the place to be strict about space (spec 0011). Leav
 
 - **Friend, not service.** Verbs over nouns, specific over generic, no corporate words (event, attendees, leverage, engage, community, "action required", "successfully").
 - **Emoji at moments, not in labels that carry state.** Greetings, celebrations, the empty state. Emoji are always `aria-hidden`, so the accessible name is the words ("I'm in", not "🙌 I'm in"). The RSVP buttons are the one place an emoji sits in a control, by the owner's choice.
-- **Do not promise what the app does not do** (no "we'll try again" without a retry). Error wording belongs to the feedback-surfaces spec; the generic error strings stay as they are until then.
+- **Do not promise what the app does not do** (no "we'll try again" without a retry). Error lines come from `lib/errorCopy.ts` by code (see "Adding a control that sends a request"), and `voiceCopy.test.ts` fails the corporate words.
 - **Status wording on the dashboard is a display mapping** (`src/lib/brunchCopy.ts`, M2), not a change to the status lookup table; the brunch page badge keeps the lookup label and the exact-text rule below. A test fails when a seeded status code has no mapping.
 - A copy change is a journey change: list the names it touches before making it.
 

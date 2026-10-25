@@ -1,12 +1,12 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
 import type { ReactElement } from 'react';
 import { HIDE_LABEL, UNHIDE_LABEL } from '@/lib/lifecycleCopy';
+import { HIDDEN_TOAST, UNHIDDEN_TOAST } from '@/lib/toastCopy';
+import { useMutation } from '@/store/useMutation';
 import { Icon } from './icons/Icon';
 import { Button } from './ui/Button';
-import { InlineAlert } from './ui/InlineAlert';
 import styles from './HideControl.module.css';
 
 // Hide a brunch from the signed-in person's own dashboard, or show it again (spec 0013, ADR 0015).
@@ -30,28 +30,25 @@ export function HideControl(props: {
   readonly hint?: { readonly id: string; readonly text: string };
 }): ReactElement {
   const router = useRouter();
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | undefined>(undefined);
+  // The placement is in the key: a brunch can be on screen twice (its row and the next-up card).
+  const hiding = useMutation(`hide:${props.placement}:${props.brunchId}`);
 
+  // One tap with nothing to fix, so a failure is a toast. On a row the row moves, which shows it;
+  // on the brunch page nothing else changes, so the result is said once.
   async function change(): Promise<void> {
-    setSubmitting(true);
-    setError(undefined);
-    try {
-      const response = await fetch(`/api/v1/brunches/${props.brunchId}/hidden`, {
+    if (hiding.pending) return;
+    const result = await hiding.run({
+      request: {
+        url: `/api/v1/brunches/${props.brunchId}/hidden`,
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hidden: !props.hidden }),
-      });
-      if (!response.ok) {
-        setError('Failed to update your dashboard');
-        return;
-      }
-      router.refresh();
-    } catch {
-      setError('Failed to update your dashboard');
-    } finally {
-      setSubmitting(false);
-    }
+        body: { hidden: !props.hidden },
+      },
+      ...(props.placement === 'page'
+        ? { success: props.hidden ? UNHIDDEN_TOAST : HIDDEN_TOAST }
+        : {}),
+      failure: 'toast',
+    });
+    if (result.ok) router.refresh();
   }
 
   const onPage = props.placement === 'page';
@@ -75,7 +72,7 @@ export function HideControl(props: {
         type="button"
         size="sm"
         variant="secondary"
-        disabled={submitting}
+        aria-disabled={hiding.pending ? true : undefined}
         {...(isIcon ? { className: styles.iconOnly } : {})}
         {...(label !== undefined ? { 'aria-label': label, title: label } : {})}
         {...(props.hint !== undefined
@@ -85,11 +82,6 @@ export function HideControl(props: {
       >
         {isIcon ? <Icon name={props.hidden ? 'eye' : 'eyeOff'} size={18} /> : text}
       </Button>
-      {error !== undefined && (
-        <InlineAlert tone="error" role="alert">
-          <p>{error}</p>
-        </InlineAlert>
-      )}
     </div>
   );
 }

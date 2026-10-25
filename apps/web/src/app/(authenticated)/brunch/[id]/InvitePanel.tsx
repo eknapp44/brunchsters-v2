@@ -8,8 +8,12 @@ import { Button } from '@/components/ui/Button';
 import { Field } from '@/components/ui/Field';
 import { InlineAlert } from '@/components/ui/InlineAlert';
 import { holdsAllInvites, limitedMessage, type RateLimitFacts } from '@/lib/limitedCopy';
-import { readRateLimit } from '@/lib/readRateLimit';
+import { INVITES_DID_NOT_GO_OUT } from '@/lib/noticeCopy';
+import { INVITE_RESENT_TOAST, LINK_COPIED_TOAST, LINK_COPY_FAILED_TOAST } from '@/lib/toastCopy';
 import { useWait, type Wait } from '@/lib/useWait';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { invitesNoticeCleared, selectInvitesDidNotGoOut } from '@/store/noticesSlice';
+import { useMutation, useToast } from '@/store/useMutation';
 import styles from './detail.module.css';
 
 type InviteStatus = 'pending' | 'yes' | 'no' | 'maybe';
@@ -34,11 +38,20 @@ function badgeToneFor(status: InviteStatus): 'neutral' | 'accent' | 'mint' {
 
 function CopyLinkButton({ token }: { readonly token: string }) {
   const [copied, setCopied] = useState(false);
+  const showToast = useToast();
 
   async function copy(): Promise<void> {
-    await navigator.clipboard.writeText(inviteLink(token));
+    try {
+      await navigator.clipboard.writeText(inviteLink(token));
+    } catch {
+      // An insecure page or a denied permission: say so instead of failing without a word.
+      showToast({ key: `copy:${token}:failed`, tone: 'error', text: LINK_COPY_FAILED_TOAST });
+      return;
+    }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+    // The button's label changes for a moment, which a screen reader does not hear.
+    showToast({ key: `copy:${token}:done`, tone: 'success', text: LINK_COPIED_TOAST });
   }
 
   return (
@@ -56,29 +69,49 @@ function CopyLinkButton({ token }: { readonly token: string }) {
 function InviteRow({
   invite,
   waitFromServer,
-  busy,
-  onResend,
   onBudgetRefused,
-  onRevoke,
 }: {
   readonly invite: InviteListItem;
   readonly waitFromServer: Wait | undefined;
-  readonly busy: boolean;
-  readonly onResend: (inviteId: string) => Promise<RateLimitFacts | undefined>;
   // The day's invite budget (not just this invite's cooldown) is spent: the panel's send button waits too.
   readonly onBudgetRefused: (facts: RateLimitFacts) => void;
-  readonly onRevoke: (inviteId: string) => Promise<void>;
 }) {
+  const router = useRouter();
   const { wait: limit, start } = useWait(waitFromServer);
+  const resendMutation = useMutation(`invite-resend:${invite.id}`);
+  const revokeMutation = useMutation(`invite-revoke:${invite.id}`);
   const limited = limit !== undefined;
+  const busy = resendMutation.pending || revokeMutation.pending;
   const noteId = `resend-limit-${invite.id}`;
 
   async function resend(): Promise<void> {
-    if (limited) return;
-    const facts = await onResend(invite.id);
+    if (limited || busy) return;
+    // The wait is this row's own, so the toast queue leaves a refusal to it (`ownsWait`).
+    const result = await resendMutation.run({
+      request: { url: `/api/v1/invites/${invite.id}/resend`, method: 'POST' },
+      success: INVITE_RESENT_TOAST,
+      failure: 'toast',
+      ownsWait: true,
+    });
+    if (result.ok) {
+      router.refresh();
+      return;
+    }
+    const facts = result.failure?.rateLimit;
     if (facts === undefined) return;
     start(facts);
     if (holdsAllInvites(facts.policy)) onBudgetRefused(facts);
+    // The server's own account of it, which every other control on the page then shares.
+    router.refresh();
+  }
+
+  async function revoke(): Promise<void> {
+    if (busy) return;
+    const result = await revokeMutation.run({
+      request: { url: `/api/v1/invites/${invite.id}`, method: 'DELETE' },
+      failure: 'toast',
+    });
+    if (result.ok) router.refresh();
   }
 
   return (
@@ -93,8 +126,7 @@ function InviteRow({
           type="button"
           size="sm"
           onClick={() => void resend()}
-          disabled={busy}
-          aria-disabled={limited ? true : undefined}
+          aria-disabled={limited || busy ? true : undefined}
           aria-describedby={limited ? noteId : undefined}
         >
           Resend
@@ -103,8 +135,8 @@ function InviteRow({
           type="button"
           size="sm"
           variant="danger"
-          onClick={() => void onRevoke(invite.id)}
-          disabled={busy}
+          onClick={() => void revoke()}
+          aria-disabled={busy ? true : undefined}
         >
           Revoke
         </Button>
@@ -134,89 +166,42 @@ export function InvitePanel({
 }) {
   const router = useRouter();
   const [email, setEmail] = useState('');
-  const [sending, setSending] = useState(false);
-  const [error, setError] = useState<string | undefined>(undefined);
-  const [pendingInviteId, setPendingInviteId] = useState<string | undefined>(undefined);
+  const send = useMutation(`invite-send:${brunchId}`);
+  const dispatch = useAppDispatch();
+  // The brunch was just created and its invite batch did not go out (the wizard could not say so
+  // itself: it is gone by now). It stays until an invite is sent.
+  const invitesDidNotGoOut = useAppSelector((state) => selectInvitesDidNotGoOut(state, brunchId));
   const sendLimit = useWait(sendWait);
   const sendLimited = sendLimit.wait !== undefined;
 
+  // A failure here is inline, beside the field the person typed into: it is theirs to fix or wait
+  // out. A refusal (429) is the wait line below instead, so it is not also shown as a failure.
   async function sendInvite(): Promise<void> {
     if (sendLimited) return;
     const trimmed = email.trim();
     if (trimmed === '') return;
 
-    setSending(true);
-    setError(undefined);
-    try {
-      const response = await fetch(`/api/v1/brunches/${brunchId}/invites`, {
+    const result = await send.run({
+      request: {
+        url: `/api/v1/brunches/${brunchId}/invites`,
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ emails: [trimmed] }),
-      });
-      if (!response.ok) {
-        const facts = await readRateLimit(response);
-        if (facts !== undefined) {
-          // The typed address stays, so it is there when the wait is over. The refresh brings the
-          // server's own account of it, which every other control on the page then shares.
-          sendLimit.start(facts);
-          router.refresh();
-          return;
-        }
-        setError('Failed to send invite');
-        return;
-      }
+        body: { emails: [trimmed] },
+      },
+      failure: 'inline',
+      ownsWait: true,
+    });
+    if (result.ok) {
       setEmail('');
+      dispatch(invitesNoticeCleared(brunchId));
       router.refresh();
-    } catch {
-      setError('Failed to send invite');
-    } finally {
-      setSending(false);
+      return;
     }
-  }
-
-  // Returns the wait when the server said 429, so the row that asked can hold its own button.
-  async function resend(inviteId: string): Promise<RateLimitFacts | undefined> {
-    if (pendingInviteId !== undefined) return undefined;
-
-    setPendingInviteId(inviteId);
-    setError(undefined);
-    try {
-      const response = await fetch(`/api/v1/invites/${inviteId}/resend`, { method: 'POST' });
-      if (!response.ok) {
-        const facts = await readRateLimit(response);
-        if (facts !== undefined) {
-          router.refresh();
-          return facts;
-        }
-        setError('Failed to resend invite');
-        return undefined;
-      }
-      router.refresh();
-    } catch {
-      setError('Failed to resend invite');
-    } finally {
-      setPendingInviteId(undefined);
-    }
-    return undefined;
-  }
-
-  async function revoke(inviteId: string): Promise<void> {
-    if (pendingInviteId !== undefined) return;
-
-    setPendingInviteId(inviteId);
-    setError(undefined);
-    try {
-      const response = await fetch(`/api/v1/invites/${inviteId}`, { method: 'DELETE' });
-      if (!response.ok) {
-        setError('Failed to revoke invite');
-        return;
-      }
-      router.refresh();
-    } catch {
-      setError('Failed to revoke invite');
-    } finally {
-      setPendingInviteId(undefined);
-    }
+    const facts = result.failure?.rateLimit;
+    if (facts === undefined) return;
+    // The typed address stays, so it is there when the wait is over. The refresh brings the
+    // server's own account of it, which every other control on the page then shares.
+    sendLimit.start(facts);
+    router.refresh();
   }
 
   return (
@@ -232,13 +217,18 @@ export function InvitePanel({
               key={invite.id}
               invite={invite}
               waitFromServer={resendWaits[invite.id]}
-              busy={pendingInviteId === invite.id}
-              onResend={resend}
               onBudgetRefused={sendLimit.start}
-              onRevoke={revoke}
             />
           ))}
         </ul>
+      )}
+
+      {invitesDidNotGoOut && (
+        <div className={styles.limitNote}>
+          <InlineAlert tone="info" role="status">
+            <p>{INVITES_DID_NOT_GO_OUT}</p>
+          </InlineAlert>
+        </div>
       )}
 
       <div className={styles.addRow}>
@@ -248,11 +238,10 @@ export function InvitePanel({
         <Button
           type="button"
           onClick={() => void sendInvite()}
-          disabled={sending}
-          aria-disabled={sendLimited ? true : undefined}
+          aria-disabled={sendLimited || send.pending ? true : undefined}
           aria-describedby={sendLimited ? 'invites-send-limit' : undefined}
         >
-          {sending ? (
+          {send.pending ? (
             'Sending…'
           ) : (
             <>
@@ -269,9 +258,9 @@ export function InvitePanel({
           </InlineAlert>
         </div>
       )}
-      {error !== undefined && (
+      {send.failure !== undefined && send.failure.code !== 'rate_limited' && (
         <InlineAlert tone="error" role="alert">
-          <p>{error}</p>
+          <p>{send.failure.text}</p>
         </InlineAlert>
       )}
     </section>

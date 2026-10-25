@@ -3,8 +3,8 @@ import { RATE_LIMIT_POLICIES } from '@brunchsters/shared';
 // What a person is told when a limit holds them back (spec 0012, ADR 0013). In the Brand Voice
 // (`design-docs/Brand Voice.html`): a friend, not a service, so no "rate limit" and no
 // "successfully"; and it promises nothing the app does not do (no "we'll try again", because the
-// person has to). These are the only strings the spec adds; every other control keeps its generic
-// error until the feedback-surfaces spec.
+// person has to). The wait lines here are the only copy a 429 has with a wait of its own; a refusal a
+// control has no wait for is `errorCopy`'s "Slow down a sec, then try again." (spec 0014).
 
 // The facts a 429 carries (the body of `rateLimitedResponse`).
 export type RateLimitFacts = {

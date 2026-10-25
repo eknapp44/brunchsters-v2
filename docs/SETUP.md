@@ -345,6 +345,14 @@ pnpm --filter @brunchsters/web screenshots   # clears apps/web/.screenshots/app,
 
 It uses the same isolated e2e server, database and queue as `pnpm test:e2e` (stop your own `pnpm dev` first), logs in as fixture users, and saves one PNG per screen and state under `apps/web/.screenshots/app/<area>/` (`front-door`, `dashboard`, `brunch`, `manage`, `wizard`): `<state>-<light|dark>-<desktop|tablet|phone>.png`, for example `app/brunch/host-voting-dark-phone.png` (desktop is 1280px wide, the tablet 820px, below the width where two columns start, and the phone an emulated Pixel 7). The folder is git-ignored and nothing compares against it; it exists so you and Claude can look at the same pictures. Re-run it after a change; it overwrites the files.
 
+**A spec's curated screenshots (spec 0014).** A spec that touches UI keeps the few shots that say what was built, as small JPEGs in its own folder (a record of how it looked then, not a baseline):
+
+```bash
+pnpm --filter @brunchsters/web shots:spec 0014   # reads specs/0014-*/screenshots.json, runs the review set once, keeps only the listed shots in specs/0014-*/screenshots/ with a README
+```
+
+It runs the review set against the dev server (stop your own `pnpm dev` first; it overwrites the production `.next`, so rerun `pnpm build` before `pnpm test:e2e`). Add a shot by naming it in `screenshots.json` (the name is the one given to `captureReviewShots` in `e2e/screenshots/review.spec.ts`); keep the folder near 1 MB (one screenful per image, two variants per shot at most).
+
 **Boards: the prototype next to the app (spec 0011).** Each design-fidelity milestone is reviewed with a board per screen, light and dark, desktop and phone:
 
 ```bash
