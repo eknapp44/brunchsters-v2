@@ -39,7 +39,15 @@ export default auth((req) => {
     // API clients get a 401, not a 307 to an HTML sign-in page —
     // fetch follows redirects silently and the failure becomes confusing.
     if (pathname.startsWith('/api/')) {
-      return withPolicy(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }), policy);
+      // The same coded shape every route answers with (spec 0014): this is the 401 a person
+      // meets when their session ends while a page is open, so the client words it "signed out".
+      return withPolicy(
+        NextResponse.json(
+          { error: { code: 'signed_out', message: 'Unauthorized' } },
+          { status: 401 },
+        ),
+        policy,
+      );
     }
     const signInUrl = new URL('/sign-in', req.url);
     signInUrl.searchParams.set('callbackUrl', pathname);

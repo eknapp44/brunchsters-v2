@@ -5,6 +5,8 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { InlineAlert } from '@/components/ui/InlineAlert';
 import { LocalDateTime } from '@/components/ui/LocalDateTime';
+import { pageIsStale } from '@/lib/errorCopy';
+import { useMutation } from '@/store/useMutation';
 import detail from '../detail.module.css';
 import styles from './manage.module.css';
 
@@ -53,8 +55,8 @@ export function ConfirmControl({
   const router = useRouter();
   const [locationId, setLocationId] = useState<string | undefined>(() => leaderId(locations));
   const [timeId, setTimeId] = useState<string | undefined>(() => leaderId(times));
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | undefined>(undefined);
+  const confirming = useMutation(`confirm:${brunchId}`);
+  const submitting = confirming.pending;
 
   // locationId/timeId only ever get set once (on mount) or by a radio click —
   // if the option they point at was removed by OptionManager in the same
@@ -65,26 +67,21 @@ export function ConfirmControl({
     : leaderId(locations);
   const effectiveTimeId = times.some((time) => time.id === timeId) ? timeId : leaderId(times);
 
+  // Locking it in has radios the person chose, so a failure stays inline beside them. A failure that
+  // means the brunch moved on (already locked, an option removed, called off) asks the page again.
   async function confirm(): Promise<void> {
     if (effectiveLocationId === undefined || effectiveTimeId === undefined) return;
 
-    setSubmitting(true);
-    setError(undefined);
-    try {
-      const response = await fetch(`/api/v1/brunches/${brunchId}/confirm`, {
+    const result = await confirming.run({
+      request: {
+        url: `/api/v1/brunches/${brunchId}/confirm`,
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ locationId: effectiveLocationId, timeId: effectiveTimeId }),
-      });
-      if (!response.ok) {
-        setError('Failed to confirm the brunch');
-        return;
-      }
+        body: { locationId: effectiveLocationId, timeId: effectiveTimeId },
+      },
+      failure: 'inline',
+    });
+    if (result.ok || (result.failure !== undefined && pageIsStale(result.failure.code))) {
       router.refresh();
-    } catch {
-      setError('Failed to confirm the brunch');
-    } finally {
-      setSubmitting(false);
     }
   }
 
@@ -148,20 +145,16 @@ export function ConfirmControl({
           type="button"
           variant="primary"
           onClick={() => void confirm()}
-          disabled={
-            disabled ||
-            submitting ||
-            effectiveLocationId === undefined ||
-            effectiveTimeId === undefined
-          }
+          disabled={disabled || effectiveLocationId === undefined || effectiveTimeId === undefined}
+          aria-disabled={submitting ? true : undefined}
         >
           Lock it in
         </Button>
       </div>
 
-      {error !== undefined && (
+      {confirming.failure !== undefined && (
         <InlineAlert tone="error" role="alert">
-          <p>{error}</p>
+          <p>{confirming.failure.text}</p>
         </InlineAlert>
       )}
     </section>

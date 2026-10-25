@@ -2,7 +2,7 @@ import { getDb } from '../support/db';
 import { createBrunch, uniqueSuffix } from '../support/factories';
 import { expect, test } from '../support/fixtures';
 import { fixturePlaces } from '../support/places';
-import { TOAST_WORDS } from '../support/toasts';
+import { TOAST_WORDS, toast } from '../support/toasts';
 import { daysFromNow } from '../support/time';
 import { addAttendee, ballot, closeVoting } from '../support/voting';
 import { BrunchWizard } from '../support/wizard';
@@ -147,18 +147,15 @@ test.describe('F3 — removing the last option', () => {
       .filter({ hasText: fixturePlaces.sunnySide.name })
       .getByRole('button', { name: 'Remove' })
       .click();
-    await expect(
-      host.page.getByRole('alert').filter({ hasText: 'Failed to remove location' }),
-    ).toBeVisible();
+    // One tap with nothing to fix: the server's refusal reads as its code, in a toast.
+    await expect(toast(host.page, TOAST_WORDS.lastOption)).toBeVisible();
     await expect(rows.filter({ hasText: fixturePlaces.sunnySide.name })).toHaveCount(1);
 
     await rows
       .filter({ hasText: /\d{1,2}:\d{2}\s?[AP]M/ })
       .getByRole('button', { name: 'Remove' })
       .click();
-    await expect(
-      host.page.getByRole('alert').filter({ hasText: 'Failed to remove time' }),
-    ).toBeVisible();
+    await expect(toast(host.page, TOAST_WORDS.lastOption)).toHaveCount(2);
     await expect(rows.filter({ hasText: /\d{1,2}:\d{2}\s?[AP]M/ })).toHaveCount(1);
 
     const db = getDb();

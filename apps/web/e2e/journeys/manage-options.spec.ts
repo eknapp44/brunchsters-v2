@@ -3,6 +3,7 @@ import { getDb } from '../support/db';
 import { createBrunch, uniqueSuffix } from '../support/factories';
 import { expect, test } from '../support/fixtures';
 import { fixturePlaces } from '../support/places';
+import { TOAST_WORDS } from '../support/toasts';
 import { daysFromNow, datetimeLocalIn } from '../support/time';
 import { addAttendee, ballot, castVotes, manageOptions } from '../support/voting';
 
@@ -151,7 +152,7 @@ test.describe('H5 — historic bug: removing the option selected for confirming'
     await expect(host.page.getByRole('heading', { name: 'Confirmed', exact: true })).toBeVisible();
     await expect(host.page.getByText(fixturePlaces.harborBistro.name)).toBeVisible();
     // (Not getByRole('alert'): Next.js keeps an empty alert region for route announcements.)
-    await expect(host.page.getByText('Failed to confirm the brunch')).toHaveCount(0);
+    await expect(host.page.getByText(TOAST_WORDS.wentSideways)).toHaveCount(0);
   });
 });
 
@@ -197,7 +198,9 @@ test.describe('H8 — managing a draft brunch', () => {
     ).toBeNull();
     // The old screen also claimed "you can still confirm", which the next click contradicted.
     await expect(host.page.getByText('No one else has accepted yet')).toHaveCount(0);
-    await expect(host.page.getByRole('alert').filter({ hasText: 'Failed' })).toHaveCount(0);
+    await expect(
+      host.page.getByRole('alert').filter({ hasText: TOAST_WORDS.wentSideways }),
+    ).toHaveCount(0);
 
     // The link goes to where invites are sent; the first one activates the brunch.
     await host.page.getByRole('link', { name: 'Invite people from the brunch page' }).click();

@@ -6,6 +6,8 @@
 export const INVITE_RESENT_TOAST = 'Sent again.';
 export const DEADLINE_SAVED_TOAST = 'Deadline saved.';
 export const DEADLINE_CLEARED_TOAST = 'Deadline cleared. Voting stays open.';
+export const HIDDEN_TOAST = 'Off your dashboard. Nobody else sees a change.';
+export const UNHIDDEN_TOAST = 'Back on your dashboard.';
 export const LINK_COPIED_TOAST = 'Link copied.';
 // The browser refused the clipboard (an insecure page, a denied permission).
 export const LINK_COPY_FAILED_TOAST = "That didn't copy. Your browser wouldn't let it.";

@@ -184,6 +184,9 @@ test.describe('T2 — the toast region', () => {
       const success = toast(page, TOAST_WORDS.cantMakeIt);
       await expect(success).toBeVisible();
       await success.getByRole('button', { name: 'Dismiss' }).focus();
+      // The page refresh that follows the save swaps which button is primary, a color transition
+      // that must finish before axe measures it: wait for the refreshed answer, then for the motion.
+      await expect(page.getByText('Current: no')).toBeVisible();
       await settleTransitions(page);
       await expectNoA11yViolations(page, `the brunch page with a success toast (${scheme})`);
       await success.getByRole('button', { name: 'Dismiss' }).click();

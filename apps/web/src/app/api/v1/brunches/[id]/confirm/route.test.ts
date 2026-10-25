@@ -13,6 +13,7 @@ vi.mock('@brunchsters/core', () => ({
 import { confirmBrunch } from '@brunchsters/core';
 import { auth } from '@/auth';
 import { POST } from './route';
+import { errorCodeOf } from '@/test-support/errorCodeOf';
 
 const mockAuth = vi.mocked(auth as unknown as () => Promise<unknown>);
 const mockConfirmBrunch = vi.mocked(confirmBrunch);
@@ -47,6 +48,7 @@ describe('POST /api/v1/brunches/[id]/confirm', () => {
     });
 
     expect(response.status).toBe(401);
+    expect(await errorCodeOf(response)).toBe('signed_out');
     expect(mockConfirmBrunch).not.toHaveBeenCalled();
   });
 
@@ -58,6 +60,7 @@ describe('POST /api/v1/brunches/[id]/confirm', () => {
     });
 
     expect(response.status).toBe(404);
+    expect(await errorCodeOf(response)).toBe('not_found');
     expect(mockConfirmBrunch).not.toHaveBeenCalled();
   });
 
@@ -69,6 +72,7 @@ describe('POST /api/v1/brunches/[id]/confirm', () => {
     });
 
     expect(response.status).toBe(422);
+    expect(await errorCodeOf(response)).toBe('invalid');
     expect(mockConfirmBrunch).not.toHaveBeenCalled();
   });
 
@@ -102,6 +106,7 @@ describe('POST /api/v1/brunches/[id]/confirm', () => {
     });
 
     expect(response.status).toBe(403);
+    expect(await errorCodeOf(response)).toBe('forbidden');
   });
 
   it('returns 409 when the brunch is already confirmed', async () => {
@@ -113,6 +118,7 @@ describe('POST /api/v1/brunches/[id]/confirm', () => {
     });
 
     expect(response.status).toBe(409);
+    expect(await errorCodeOf(response)).toBe('already_confirmed');
   });
 
   it('returns 409 when there are no locations', async () => {
@@ -124,6 +130,7 @@ describe('POST /api/v1/brunches/[id]/confirm', () => {
     });
 
     expect(response.status).toBe(409);
+    expect(await errorCodeOf(response)).toBe('nothing_to_confirm');
   });
 
   it('returns 409 when there are no times', async () => {
@@ -135,6 +142,7 @@ describe('POST /api/v1/brunches/[id]/confirm', () => {
     });
 
     expect(response.status).toBe(409);
+    expect(await errorCodeOf(response)).toBe('nothing_to_confirm');
   });
 
   it('returns 404 when the option is unknown', async () => {
@@ -146,6 +154,7 @@ describe('POST /api/v1/brunches/[id]/confirm', () => {
     });
 
     expect(response.status).toBe(404);
+    expect(await errorCodeOf(response)).toBe('option_gone');
   });
 
   it('returns 404 when the brunch does not exist', async () => {
@@ -157,6 +166,7 @@ describe('POST /api/v1/brunches/[id]/confirm', () => {
     });
 
     expect(response.status).toBe(404);
+    expect(await errorCodeOf(response)).toBe('not_found');
   });
 
   it('returns 500 on an unexpected service error', async () => {
@@ -168,5 +178,6 @@ describe('POST /api/v1/brunches/[id]/confirm', () => {
     });
 
     expect(response.status).toBe(500);
+    expect(await errorCodeOf(response)).toBe('internal');
   });
 });

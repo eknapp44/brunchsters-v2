@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/Button';
 import { DateTimeInput } from '@/components/ui/DateTimeInput';
 import { InlineAlert } from '@/components/ui/InlineAlert';
 import { LocalDateTime } from '@/components/ui/LocalDateTime';
+import { errorCopy, pageIsStale } from '@/lib/errorCopy';
+import { useMutation } from '@/store/useMutation';
 import { PlaceSearchInput } from '../PlaceSearchInput';
 import styles from './detail.module.css';
 
@@ -22,6 +24,7 @@ type PendingTimeSuggestion = {
   readonly scheduledAt: Date;
 };
 
+// Suggesting has a field or a search the person used, so a failure stays inline beside it.
 export function LocationSuggestionControl({
   brunchId,
   canSuggest,
@@ -32,37 +35,34 @@ export function LocationSuggestionControl({
   readonly pendingSuggestions: readonly PendingLocationSuggestion[];
 }) {
   const router = useRouter();
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | undefined>(undefined);
+  const suggestion = useMutation(`suggest-location:${brunchId}`);
+  // The place lookup itself failed (before anything was suggested).
+  const [lookupError, setLookupError] = useState<string | undefined>(undefined);
 
   async function suggest(details: PlaceDetails): Promise<void> {
-    setSubmitting(true);
-    setError(undefined);
-    try {
-      const response = await fetch(`/api/v1/brunches/${brunchId}/location-suggestions`, {
+    setLookupError(undefined);
+    const result = await suggestion.run({
+      request: {
+        url: `/api/v1/brunches/${brunchId}/location-suggestions`,
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: {
           placeId: details.placeId,
           placeName: details.name,
           placeAddress: details.address,
           placeUrl: details.placeUrl,
           timezone: details.timezone,
-        }),
-      });
-      if (!response.ok) {
-        setError('Failed to suggest location');
-        return;
-      }
+        },
+      },
+      failure: 'inline',
+    });
+    if (result.ok || (result.failure !== undefined && pageIsStale(result.failure.code))) {
       router.refresh();
-    } catch {
-      setError('Failed to suggest location');
-    } finally {
-      setSubmitting(false);
     }
   }
 
   if (!canSuggest && pendingSuggestions.length === 0) return null;
+
+  const error = lookupError ?? suggestion.failure?.text;
 
   return (
     <section className={styles.panel}>
@@ -70,14 +70,14 @@ export function LocationSuggestionControl({
 
       {pendingSuggestions.length > 0 && (
         <ul className={styles.rows} role="list">
-          {pendingSuggestions.map((suggestion) => (
-            <li key={suggestion.id} className={styles.row}>
+          {pendingSuggestions.map((pending) => (
+            <li key={pending.id} className={styles.row}>
               <span className={styles.rowMain}>
                 <PopIcon name="pin" size={22} />
                 <span className={styles.rowText}>
-                  <span className={styles.name}>{suggestion.placeName}</span>{' '}
+                  <span className={styles.name}>{pending.placeName}</span>{' '}
                   <span className={styles.detail}>(awaiting host approval)</span>
-                  <span className={styles.address}>{suggestion.placeAddress}</span>
+                  <span className={styles.address}>{pending.placeAddress}</span>
                 </span>
               </span>
             </li>
@@ -88,8 +88,8 @@ export function LocationSuggestionControl({
       {canSuggest && (
         <PlaceSearchInput
           onSelect={(details) => void suggest(details)}
-          onError={() => setError('Failed to suggest location')}
-          disabled={submitting}
+          onError={() => setLookupError(errorCopy({ code: 'unavailable' }))}
+          disabled={suggestion.pending}
         />
       )}
       {error !== undefined && (
@@ -112,30 +112,22 @@ export function TimeSuggestionControl({
 }) {
   const router = useRouter();
   const [timeInput, setTimeInput] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | undefined>(undefined);
+  const suggestion = useMutation(`suggest-time:${brunchId}`);
 
   async function suggest(): Promise<void> {
     if (timeInput === '') return;
 
-    setSubmitting(true);
-    setError(undefined);
-    try {
-      const response = await fetch(`/api/v1/brunches/${brunchId}/time-suggestions`, {
+    const result = await suggestion.run({
+      request: {
+        url: `/api/v1/brunches/${brunchId}/time-suggestions`,
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scheduledAt: new Date(timeInput).toISOString() }),
-      });
-      if (!response.ok) {
-        setError('Failed to suggest time');
-        return;
-      }
-      setTimeInput('');
+        body: { scheduledAt: new Date(timeInput).toISOString() },
+      },
+      failure: 'inline',
+    });
+    if (result.ok) setTimeInput('');
+    if (result.ok || (result.failure !== undefined && pageIsStale(result.failure.code))) {
       router.refresh();
-    } catch {
-      setError('Failed to suggest time');
-    } finally {
-      setSubmitting(false);
     }
   }
 
@@ -147,12 +139,12 @@ export function TimeSuggestionControl({
 
       {pendingSuggestions.length > 0 && (
         <ul className={styles.rows} role="list">
-          {pendingSuggestions.map((suggestion) => (
-            <li key={suggestion.id} className={styles.row}>
+          {pendingSuggestions.map((pending) => (
+            <li key={pending.id} className={styles.row}>
               <span className={styles.rowMain}>
                 <PopIcon name="clock" size={22} />
                 <span className={styles.rowText}>
-                  <LocalDateTime date={suggestion.scheduledAt} />{' '}
+                  <LocalDateTime date={pending.scheduledAt} />{' '}
                   <span className={styles.detail}>(awaiting host approval)</span>
                 </span>
               </span>
@@ -167,22 +159,22 @@ export function TimeSuggestionControl({
             placeholderText="Suggest a time"
             aria-label="Suggested date and time"
             value={timeInput}
-            disabled={submitting}
+            disabled={suggestion.pending}
             onChange={(event) => setTimeInput(event.target.value)}
           />
           <Button
             type="button"
             aria-label="Suggest this time"
             onClick={() => void suggest()}
-            disabled={submitting}
+            aria-disabled={suggestion.pending ? true : undefined}
           >
-            {submitting ? 'Suggesting…' : 'Suggest'}
+            {suggestion.pending ? 'Suggesting…' : 'Suggest'}
           </Button>
         </div>
       )}
-      {error !== undefined && (
+      {suggestion.failure !== undefined && (
         <InlineAlert tone="error" role="alert">
-          <p>{error}</p>
+          <p>{suggestion.failure.text}</p>
         </InlineAlert>
       )}
     </section>

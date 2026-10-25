@@ -3,6 +3,7 @@ import type { BrunchId, UserId } from '@brunchsters/shared';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/auth';
+import { apiError } from '@/lib/apiErrorResponse';
 import { enforceWriteLimit } from '@/lib/rateLimit';
 import { db } from '@/lib/db';
 import { rateLimitedResponse, rateLimiterUnavailableResponse } from '@/lib/rateLimitHttp';
@@ -18,7 +19,7 @@ export async function POST(
 ): Promise<NextResponse> {
   const session = await auth();
   if (session === null) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return apiError({ code: 'signed_out', status: 401, message: 'Unauthorized' });
   }
 
   const limited = await enforceWriteLimit(session.user.id);
@@ -27,7 +28,7 @@ export async function POST(
   const { id } = await params;
   const parsedBrunchId = brunchIdSchema.safeParse(id);
   if (!parsedBrunchId.success) {
-    return NextResponse.json({ error: 'Brunch not found' }, { status: 404 });
+    return apiError({ code: 'not_found', status: 404, message: 'Brunch not found' });
   }
 
   const result = await cancelBrunch(
@@ -38,30 +39,48 @@ export async function POST(
   if (result.isErr()) {
     switch (result.error.kind) {
       case 'brunch_not_found':
-        return NextResponse.json({ error: 'Brunch not found' }, { status: 404 });
+        return apiError({ code: 'not_found', status: 404, message: 'Brunch not found' });
       case 'not_host':
-        return NextResponse.json({ error: 'Only the host can call it off' }, { status: 403 });
+        return apiError({
+          code: 'forbidden',
+          status: 403,
+          message: 'Only the host can call it off',
+        });
       case 'brunch_called_off':
-        return NextResponse.json({ error: 'This brunch was already called off' }, { status: 409 });
+        return apiError({
+          code: 'brunch_called_off',
+          status: 409,
+          message: 'This brunch was already called off',
+        });
       case 'invalid_transition':
-        return NextResponse.json(
-          {
-            error:
-              result.error.from === 'draft'
-                ? 'A draft cannot be called off. Delete it instead'
-                : 'The brunch changed. Try again.',
-          },
-          { status: 409 },
-        );
+        return result.error.from === 'draft'
+          ? apiError({
+              code: 'brunch_not_active',
+              status: 409,
+              message: 'A draft cannot be called off. Delete it instead',
+            })
+          : apiError({
+              code: 'brunch_changed',
+              status: 409,
+              message: 'The brunch changed. Try again.',
+            });
       case 'brunch_over':
-        return NextResponse.json({ error: 'That brunch has already happened' }, { status: 409 });
+        return apiError({
+          code: 'brunch_over',
+          status: 409,
+          message: 'That brunch has already happened',
+        });
       case 'rate_limited':
         return rateLimitedResponse(result.error);
       case 'rate_limiter_unavailable':
         return rateLimiterUnavailableResponse({ route: 'cancelBrunch', cause: result.error.cause });
       default:
         console.error('cancelBrunch failed', result.error);
-        return NextResponse.json({ error: 'Failed to call off the brunch' }, { status: 500 });
+        return apiError({
+          code: 'internal',
+          status: 500,
+          message: 'Failed to call off the brunch',
+        });
     }
   }
 

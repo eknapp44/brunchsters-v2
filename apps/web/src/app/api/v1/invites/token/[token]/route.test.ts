@@ -8,6 +8,7 @@ import { RATE_LIMIT_POLICIES } from '@brunchsters/shared';
 import { enforceLimit } from '@/lib/rateLimit';
 import { rateLimitedResponse } from '@/lib/rateLimitHttp';
 import { GET } from './route';
+import { errorCodeOf } from '@/test-support/errorCodeOf';
 
 const mockGetInviteByToken = vi.mocked(getInviteByToken);
 const mockEnforceLimit = vi.mocked(enforceLimit);
@@ -48,6 +49,7 @@ describe('GET /api/v1/invites/token/[token]', () => {
     const response = await GET(new Request('http://localhost'), { params: params('bad-token') });
 
     expect(response.status).toBe(404);
+    expect(await errorCodeOf(response)).toBe('not_found');
   });
 });
 

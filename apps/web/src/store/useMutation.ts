@@ -35,6 +35,8 @@ type MutationView = {
   // a tap ignored because this key is already in flight. The caller does `router.refresh()` on ok
   // (ADR 0011).
   readonly run: (arg: Omit<RunMutationArg, 'key'>) => Promise<MutationResult>;
+  // Forgets the last failure (a dialog opening again should not show the last attempt's line).
+  readonly reset: () => void;
 };
 
 function isMutationFailure(value: unknown): value is MutationFailure {
@@ -72,6 +74,7 @@ export function useMutation(key: MutationKey): MutationView {
             rateLimit: failure.rateLimit,
           },
     run,
+    reset: () => void dispatch(mutationReleased(key)),
   };
 }
 

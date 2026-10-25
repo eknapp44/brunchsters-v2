@@ -8,6 +8,7 @@ vi.mock('@brunchsters/core', () => ({ removeLocation: vi.fn() }));
 import { removeLocation } from '@brunchsters/core';
 import { auth } from '@/auth';
 import { DELETE } from './route';
+import { errorCodeOf } from '@/test-support/errorCodeOf';
 
 const mockAuth = vi.mocked(auth as unknown as () => Promise<unknown>);
 const mockRemoveLocation = vi.mocked(removeLocation);
@@ -33,6 +34,7 @@ describe('DELETE /api/v1/brunches/[id]/locations/[optionId]', () => {
     });
 
     expect(response.status).toBe(401);
+    expect(await errorCodeOf(response)).toBe('signed_out');
     expect(mockRemoveLocation).not.toHaveBeenCalled();
   });
 
@@ -44,6 +46,7 @@ describe('DELETE /api/v1/brunches/[id]/locations/[optionId]', () => {
     });
 
     expect(response.status).toBe(404);
+    expect(await errorCodeOf(response)).toBe('not_found');
     expect(mockRemoveLocation).not.toHaveBeenCalled();
   });
 
@@ -55,6 +58,7 @@ describe('DELETE /api/v1/brunches/[id]/locations/[optionId]', () => {
     });
 
     expect(response.status).toBe(404);
+    expect(await errorCodeOf(response)).toBe('not_found');
     expect(mockRemoveLocation).not.toHaveBeenCalled();
   });
 
@@ -86,6 +90,7 @@ describe('DELETE /api/v1/brunches/[id]/locations/[optionId]', () => {
     });
 
     expect(response.status).toBe(403);
+    expect(await errorCodeOf(response)).toBe('forbidden');
   });
 
   it('returns 409 when the brunch is not active', async () => {
@@ -97,6 +102,7 @@ describe('DELETE /api/v1/brunches/[id]/locations/[optionId]', () => {
     });
 
     expect(response.status).toBe(409);
+    expect(await errorCodeOf(response)).toBe('brunch_not_active');
   });
 
   it('returns 404 when the location is unknown', async () => {
@@ -108,6 +114,7 @@ describe('DELETE /api/v1/brunches/[id]/locations/[optionId]', () => {
     });
 
     expect(response.status).toBe(404);
+    expect(await errorCodeOf(response)).toBe('not_found');
   });
 
   it('returns 409 when the location is already confirmed', async () => {
@@ -119,6 +126,7 @@ describe('DELETE /api/v1/brunches/[id]/locations/[optionId]', () => {
     });
 
     expect(response.status).toBe(409);
+    expect(await errorCodeOf(response)).toBe('option_confirmed');
   });
 
   it('returns 409 when removing the last remaining location', async () => {
@@ -130,6 +138,7 @@ describe('DELETE /api/v1/brunches/[id]/locations/[optionId]', () => {
     });
 
     expect(response.status).toBe(409);
+    expect(await errorCodeOf(response)).toBe('last_option');
   });
 
   it('returns 500 on an unexpected service error', async () => {
@@ -141,5 +150,6 @@ describe('DELETE /api/v1/brunches/[id]/locations/[optionId]', () => {
     });
 
     expect(response.status).toBe(500);
+    expect(await errorCodeOf(response)).toBe('internal');
   });
 });

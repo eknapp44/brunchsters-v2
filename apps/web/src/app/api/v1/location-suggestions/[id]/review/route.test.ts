@@ -15,6 +15,7 @@ vi.mock('@brunchsters/core', async (importOriginal) => {
 import { reviewLocationSuggestion } from '@brunchsters/core';
 import { auth } from '@/auth';
 import { POST } from './route';
+import { errorCodeOf } from '@/test-support/errorCodeOf';
 
 const mockAuth = vi.mocked(auth as unknown as () => Promise<unknown>);
 const mockReview = vi.mocked(reviewLocationSuggestion);
@@ -47,6 +48,7 @@ describe('POST /api/v1/location-suggestions/[id]/review', () => {
     });
 
     expect(response.status).toBe(401);
+    expect(await errorCodeOf(response)).toBe('signed_out');
     expect(mockReview).not.toHaveBeenCalled();
   });
 
@@ -58,6 +60,7 @@ describe('POST /api/v1/location-suggestions/[id]/review', () => {
     });
 
     expect(response.status).toBe(404);
+    expect(await errorCodeOf(response)).toBe('not_found');
   });
 
   it('returns 422 for an invalid decision', async () => {
@@ -68,6 +71,7 @@ describe('POST /api/v1/location-suggestions/[id]/review', () => {
     });
 
     expect(response.status).toBe(422);
+    expect(await errorCodeOf(response)).toBe('invalid');
     expect(mockReview).not.toHaveBeenCalled();
   });
 
@@ -95,6 +99,7 @@ describe('POST /api/v1/location-suggestions/[id]/review', () => {
     });
 
     expect(response.status).toBe(403);
+    expect(await errorCodeOf(response)).toBe('forbidden');
   });
 
   it('returns 404 when the suggestion does not exist', async () => {
@@ -106,6 +111,7 @@ describe('POST /api/v1/location-suggestions/[id]/review', () => {
     });
 
     expect(response.status).toBe(404);
+    expect(await errorCodeOf(response)).toBe('not_found');
   });
 
   it('returns 409 when the brunch is no longer active', async () => {
@@ -117,6 +123,7 @@ describe('POST /api/v1/location-suggestions/[id]/review', () => {
     });
 
     expect(response.status).toBe(409);
+    expect(await errorCodeOf(response)).toBe('brunch_not_active');
   });
 
   it('returns 409 when voting is closed', async () => {
@@ -128,6 +135,7 @@ describe('POST /api/v1/location-suggestions/[id]/review', () => {
     });
 
     expect(response.status).toBe(409);
+    expect(await errorCodeOf(response)).toBe('voting_closed');
   });
 
   it('returns 409 when the place is already an option', async () => {
@@ -139,6 +147,7 @@ describe('POST /api/v1/location-suggestions/[id]/review', () => {
     });
 
     expect(response.status).toBe(409);
+    expect(await errorCodeOf(response)).toBe('already_there');
   });
 
   it('returns 409 when the suggestion was already reviewed', async () => {
@@ -150,6 +159,7 @@ describe('POST /api/v1/location-suggestions/[id]/review', () => {
     });
 
     expect(response.status).toBe(409);
+    expect(await errorCodeOf(response)).toBe('already_reviewed');
   });
 
   it('returns 500 on an unexpected service error', async () => {
@@ -161,5 +171,6 @@ describe('POST /api/v1/location-suggestions/[id]/review', () => {
     });
 
     expect(response.status).toBe(500);
+    expect(await errorCodeOf(response)).toBe('internal');
   });
 });

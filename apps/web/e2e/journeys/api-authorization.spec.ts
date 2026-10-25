@@ -136,16 +136,22 @@ test.describe('API authorization', () => {
 
     for (const [what, method, path, data] of hostOnly) {
       await test.step(`${what}: anonymous 401, outsider 404, attendee 403`, async () => {
-        expect((await call(anonymous, method, path, data)).status, `${what} (anonymous)`).toBe(401);
+        const signedOut = await call(anonymous, method, path, data);
+        expect(signedOut.status, `${what} (anonymous)`).toBe(401);
+        // Every failure answers with a code the client words (spec 0014), never wording of its own.
+        expect(signedOut.body, `${what} (anonymous)`).toMatchObject({
+          error: { code: 'signed_out' },
+        });
         // An attendee belongs, so may be told they are not allowed...
-        expect(
-          (await call(attendee.context.request, method, path, data)).status,
-          `${what} (attendee)`,
-        ).toBe(403);
+        const member = await call(attendee.context.request, method, path, data);
+        expect(member.status, `${what} (attendee)`).toBe(403);
+        expect(member.body, `${what} (attendee)`).toMatchObject({ error: { code: 'forbidden' } });
         // ...but an outsider gets exactly what they would for something that does not exist.
         const outsider = await call(stranger.context.request, method, path, data);
         const nothing = await call(stranger.context.request, method, aimedAtNothing(path), data);
         expect(outsider.status, `${what} (outsider)`).toBe(404);
+        // The same code a made-up id gets, and one that says nothing about what was looked for.
+        expect(outsider.body, `${what} (outsider)`).toMatchObject({ error: { code: 'not_found' } });
         expect(outsider, `${what}: real vs made-up`).toEqual(nothing);
       });
     }

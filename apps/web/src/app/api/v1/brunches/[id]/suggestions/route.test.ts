@@ -15,6 +15,7 @@ vi.mock('@brunchsters/core', async (importOriginal) => {
 import { suggestInvitee } from '@brunchsters/core';
 import { auth } from '@/auth';
 import { POST } from './route';
+import { errorCodeOf } from '@/test-support/errorCodeOf';
 
 const mockAuth = vi.mocked(auth as unknown as () => Promise<unknown>);
 const mockSuggestInvitee = vi.mocked(suggestInvitee);
@@ -47,6 +48,7 @@ describe('POST /api/v1/brunches/[id]/suggestions', () => {
     });
 
     expect(response.status).toBe(401);
+    expect(await errorCodeOf(response)).toBe('signed_out');
     expect(mockSuggestInvitee).not.toHaveBeenCalled();
   });
 
@@ -58,6 +60,7 @@ describe('POST /api/v1/brunches/[id]/suggestions', () => {
     });
 
     expect(response.status).toBe(404);
+    expect(await errorCodeOf(response)).toBe('not_found');
   });
 
   it('returns 422 for an invalid email', async () => {
@@ -68,6 +71,7 @@ describe('POST /api/v1/brunches/[id]/suggestions', () => {
     });
 
     expect(response.status).toBe(422);
+    expect(await errorCodeOf(response)).toBe('invalid');
     expect(mockSuggestInvitee).not.toHaveBeenCalled();
   });
 
@@ -94,6 +98,7 @@ describe('POST /api/v1/brunches/[id]/suggestions', () => {
     });
 
     expect(response.status).toBe(403);
+    expect(await errorCodeOf(response)).toBe('suggestions_off');
   });
 
   it('returns 404 when the requester is not a member (an outsider cannot tell the brunch exists)', async () => {
@@ -105,6 +110,7 @@ describe('POST /api/v1/brunches/[id]/suggestions', () => {
     });
 
     expect(response.status).toBe(404);
+    expect(await errorCodeOf(response)).toBe('not_found');
   });
 
   it("returns 422 when suggesting the host's own email", async () => {
@@ -116,6 +122,7 @@ describe('POST /api/v1/brunches/[id]/suggestions', () => {
     });
 
     expect(response.status).toBe(422);
+    expect(await errorCodeOf(response)).toBe('cannot_suggest_host');
   });
 
   it('returns 409 for a duplicate suggestion', async () => {
@@ -127,6 +134,7 @@ describe('POST /api/v1/brunches/[id]/suggestions', () => {
     });
 
     expect(response.status).toBe(409);
+    expect(await errorCodeOf(response)).toBe('already_there');
   });
 
   it('returns 404 when the brunch does not exist', async () => {
@@ -138,5 +146,6 @@ describe('POST /api/v1/brunches/[id]/suggestions', () => {
     });
 
     expect(response.status).toBe(404);
+    expect(await errorCodeOf(response)).toBe('not_found');
   });
 });

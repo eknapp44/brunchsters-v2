@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { errorCopy } from '@/lib/errorCopy';
+import { errorCopy, pageIsStale, type ClientErrorCode } from '@/lib/errorCopy';
 import {
   type BallotKind,
   ballotKey,
@@ -12,14 +12,6 @@ import {
   toggleBallotOption,
 } from '@/store/ballotsSlice';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-
-// Failures that mean the page is out of date, not that the voter did something wrong.
-const PAGE_IS_STALE: readonly string[] = [
-  'option_gone',
-  'voting_closed',
-  'brunch_called_off',
-  'brunch_not_active',
-];
 
 type BallotOption = {
   readonly id: string;
@@ -72,7 +64,7 @@ export function useBallot(params: {
       // what this page showed (an option was removed, voting closed, it was called off), the page
       // is asked again, so what is on screen is what is true while the line says why.
       .catch((code: unknown) => {
-        if (typeof code === 'string' && PAGE_IS_STALE.includes(code)) router.refresh();
+        if (typeof code === 'string' && pageIsStale(code as ClientErrorCode)) router.refresh();
       });
   }
 

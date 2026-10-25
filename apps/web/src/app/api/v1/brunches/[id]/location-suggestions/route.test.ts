@@ -15,6 +15,7 @@ vi.mock('@brunchsters/core', async (importOriginal) => {
 import { suggestLocation } from '@brunchsters/core';
 import { auth } from '@/auth';
 import { POST } from './route';
+import { errorCodeOf } from '@/test-support/errorCodeOf';
 
 const mockAuth = vi.mocked(auth as unknown as () => Promise<unknown>);
 const mockSuggestLocation = vi.mocked(suggestLocation);
@@ -53,6 +54,7 @@ describe('POST /api/v1/brunches/[id]/location-suggestions', () => {
     const response = await POST(postRequest(LOCATION_BODY), { params: params(VALID_BRUNCH_ID) });
 
     expect(response.status).toBe(401);
+    expect(await errorCodeOf(response)).toBe('signed_out');
     expect(mockSuggestLocation).not.toHaveBeenCalled();
   });
 
@@ -62,6 +64,7 @@ describe('POST /api/v1/brunches/[id]/location-suggestions', () => {
     const response = await POST(postRequest(LOCATION_BODY), { params: params('not-a-uuid') });
 
     expect(response.status).toBe(404);
+    expect(await errorCodeOf(response)).toBe('not_found');
     expect(mockSuggestLocation).not.toHaveBeenCalled();
   });
 
@@ -73,6 +76,7 @@ describe('POST /api/v1/brunches/[id]/location-suggestions', () => {
     });
 
     expect(response.status).toBe(422);
+    expect(await errorCodeOf(response)).toBe('invalid');
     expect(mockSuggestLocation).not.toHaveBeenCalled();
   });
 
@@ -99,6 +103,7 @@ describe('POST /api/v1/brunches/[id]/location-suggestions', () => {
     const response = await POST(postRequest(LOCATION_BODY), { params: params(VALID_BRUNCH_ID) });
 
     expect(response.status).toBe(403);
+    expect(await errorCodeOf(response)).toBe('suggestions_off');
   });
 
   it('returns 404 when the requester is not a member (an outsider cannot tell the brunch exists)', async () => {
@@ -108,6 +113,7 @@ describe('POST /api/v1/brunches/[id]/location-suggestions', () => {
     const response = await POST(postRequest(LOCATION_BODY), { params: params(VALID_BRUNCH_ID) });
 
     expect(response.status).toBe(404);
+    expect(await errorCodeOf(response)).toBe('not_found');
   });
 
   it('returns 409 when the brunch is not active', async () => {
@@ -117,6 +123,7 @@ describe('POST /api/v1/brunches/[id]/location-suggestions', () => {
     const response = await POST(postRequest(LOCATION_BODY), { params: params(VALID_BRUNCH_ID) });
 
     expect(response.status).toBe(409);
+    expect(await errorCodeOf(response)).toBe('brunch_not_active');
   });
 
   it('returns 409 for a duplicate suggestion', async () => {
@@ -126,6 +133,7 @@ describe('POST /api/v1/brunches/[id]/location-suggestions', () => {
     const response = await POST(postRequest(LOCATION_BODY), { params: params(VALID_BRUNCH_ID) });
 
     expect(response.status).toBe(409);
+    expect(await errorCodeOf(response)).toBe('already_there');
   });
 
   it('returns 404 when the brunch does not exist', async () => {
@@ -135,6 +143,7 @@ describe('POST /api/v1/brunches/[id]/location-suggestions', () => {
     const response = await POST(postRequest(LOCATION_BODY), { params: params(VALID_BRUNCH_ID) });
 
     expect(response.status).toBe(404);
+    expect(await errorCodeOf(response)).toBe('not_found');
   });
 
   it('returns 500 on an unexpected service error', async () => {
@@ -144,5 +153,6 @@ describe('POST /api/v1/brunches/[id]/location-suggestions', () => {
     const response = await POST(postRequest(LOCATION_BODY), { params: params(VALID_BRUNCH_ID) });
 
     expect(response.status).toBe(500);
+    expect(await errorCodeOf(response)).toBe('internal');
   });
 });

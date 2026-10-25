@@ -3,6 +3,7 @@ import type { BrunchId, BrunchLocationId, BrunchTimeId, UserId } from '@brunchst
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/auth';
+import { apiError } from '@/lib/apiErrorResponse';
 import { enforceWriteLimit } from '@/lib/rateLimit';
 import { db } from '@/lib/db';
 import { eventBus } from '@/lib/services';
@@ -19,7 +20,7 @@ export async function POST(
 ): Promise<NextResponse> {
   const session = await auth();
   if (session === null) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return apiError({ code: 'signed_out', status: 401, message: 'Unauthorized' });
   }
 
   const limited = await enforceWriteLimit(session.user.id);
@@ -28,7 +29,7 @@ export async function POST(
   const { id } = await params;
   const parsedBrunchId = brunchIdSchema.safeParse(id);
   if (!parsedBrunchId.success) {
-    return NextResponse.json({ error: 'Brunch not found' }, { status: 404 });
+    return apiError({ code: 'not_found', status: 404, message: 'Brunch not found' });
   }
 
   let body: unknown;
@@ -36,12 +37,16 @@ export async function POST(
     body = await request.json();
   } catch (cause) {
     console.error('Failed to parse confirm-brunch request body', cause);
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    return apiError({ code: 'invalid', status: 400, message: 'Invalid JSON body' });
   }
 
   const parsed = confirmRequestSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ errors: parsed.error.issues }, { status: 422 });
+    return apiError({
+      code: 'invalid',
+      status: 422,
+      message: parsed.error.issues.map((issue) => issue.message).join('; '),
+    });
   }
 
   const result = await confirmBrunch(
@@ -57,22 +62,38 @@ export async function POST(
   if (result.isErr()) {
     switch (result.error.kind) {
       case 'brunch_not_found':
-        return NextResponse.json({ error: 'Brunch not found' }, { status: 404 });
+        return apiError({ code: 'not_found', status: 404, message: 'Brunch not found' });
       case 'not_host':
-        return NextResponse.json({ error: 'Only the host can confirm' }, { status: 403 });
+        return apiError({ code: 'forbidden', status: 403, message: 'Only the host can confirm' });
       case 'brunch_not_active':
-        return NextResponse.json({ error: 'Brunch is already confirmed' }, { status: 409 });
+        return apiError({
+          code: 'already_confirmed',
+          status: 409,
+          message: 'Brunch is already confirmed',
+        });
       case 'no_locations':
-        return NextResponse.json({ error: 'No locations to confirm' }, { status: 409 });
+        return apiError({
+          code: 'nothing_to_confirm',
+          status: 409,
+          message: 'No locations to confirm',
+        });
       case 'no_times':
-        return NextResponse.json({ error: 'No times to confirm' }, { status: 409 });
+        return apiError({
+          code: 'nothing_to_confirm',
+          status: 409,
+          message: 'No times to confirm',
+        });
       case 'unknown_option':
-        return NextResponse.json({ error: 'Unknown location or time' }, { status: 404 });
+        return apiError({ code: 'option_gone', status: 404, message: 'Unknown location or time' });
       case 'invalid_transition':
-        return NextResponse.json({ error: 'The brunch changed. Try again.' }, { status: 409 });
+        return apiError({
+          code: 'brunch_changed',
+          status: 409,
+          message: 'The brunch changed. Try again.',
+        });
       default:
         console.error('confirmBrunch failed', result.error);
-        return NextResponse.json({ error: 'Failed to confirm brunch' }, { status: 500 });
+        return apiError({ code: 'internal', status: 500, message: 'Failed to confirm brunch' });
     }
   }
 

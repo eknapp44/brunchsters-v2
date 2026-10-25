@@ -1,6 +1,7 @@
 import { RATE_LIMIT_POLICIES } from '@brunchsters/shared';
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
+import { apiError } from '@/lib/apiErrorResponse';
 import { GooglePlacesProvider } from '@/adapters/GooglePlacesProvider';
 import { requireGooglePlacesApiKey } from '@/lib/googlePlacesApiKey';
 import { enforceLimit } from '@/lib/rateLimit';
@@ -8,7 +9,7 @@ import { enforceLimit } from '@/lib/rateLimit';
 export async function GET(request: Request): Promise<NextResponse> {
   const session = await auth();
   if (session === null) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return apiError({ code: 'signed_out', status: 401, message: 'Unauthorized' });
   }
 
   // Google bills each call, so the budget is spent before it is called (spec 0012).
@@ -24,7 +25,11 @@ export async function GET(request: Request): Promise<NextResponse> {
   const sessionToken = searchParams.get('sessionToken');
 
   if (query.length < 3) {
-    return NextResponse.json({ error: 'Query must be at least 3 characters' }, { status: 400 });
+    return apiError({
+      code: 'invalid',
+      status: 400,
+      message: 'Query must be at least 3 characters',
+    });
   }
 
   try {
@@ -36,6 +41,6 @@ export async function GET(request: Request): Promise<NextResponse> {
     return NextResponse.json({ places });
   } catch (cause) {
     console.error('Place search failed', cause);
-    return NextResponse.json({ error: 'Place search unavailable' }, { status: 502 });
+    return apiError({ code: 'unavailable', status: 502, message: 'Place search unavailable' });
   }
 }

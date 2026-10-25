@@ -24,7 +24,7 @@ Scoped to the web app. The repo-wide rules are in the root `CLAUDE.md`; why the 
 
 Why and what: [ADR 0013](../../docs/adrs/0013-rate-limits-in-postgres.md), [ADR 0014](../../docs/adrs/0014-content-security-policy-with-nonce.md), `specs/0012-security-hardening/`.
 
-- **A control that can be told to slow down reads a 429 with `readRateLimit` and words it with `limitedMessage`** (`src/lib`). Only the invite panel, the suggestion approval and the place search do so today; every other control shows its generic error until the feedback-surfaces spec, which is also when the wizard stops ignoring a refused invite batch. How a waiting control behaves (`aria-disabled`, `useWait`) is in "Writing components".
+- **A control that can be told to slow down reads a 429 with `readRateLimit` and words it with `limitedMessage`** (`src/lib`). The invite panel, the suggestion approval, call it off, delete and the place search hold their own wait; every other control shows a 429 as the line for its code (a toast or inline, `errorCopy`: "Slow down a sec, then try again."). The wizard still ignores a refused invite batch until spec 0014 M5. How a waiting control behaves (`aria-disabled`, `useWait`) is in "Writing components".
 - **A new API route that changes something calls `enforceWriteLimit` right after its session check** (root `CLAUDE.md` has the rule and the order; the scanning test fails otherwise). Never key a limit by an id the caller merely named.
 - **A new email, or a new use of the paid Places API, is caught by a test until it has a budget** (root `CLAUDE.md` names the tests): a new email event needs a decision in `emailBudgets.test.ts`, and a new file that reaches Places has to be added to `routeLimits.test.ts` on purpose. The failure message says what to do.
 - **No inline `<script>` and no inline event handler** (`onclick=`, `onerror=`): the policy refuses both, by design. Scripts come from Next's own bundles.
@@ -33,7 +33,7 @@ Why and what: [ADR 0013](../../docs/adrs/0013-rate-limits-in-postgres.md), [ADR 
 
 ## State
 
-Why and what: [ADR 0011](../../docs/adrs/0011-redux-toolkit-for-client-ui-state.md), `specs/0010-redux-ui-state/`. Today the wizard (`wizardSlice`), the vote ballots (`ballotsSlice`, `useBallot`), RSVP, the invite panel and the voting controls (the shared `useMutation`, below) are on the store; every other control still uses `useState` until spec 0014 moves it (M4; see "Moving another control onto the store").
+Why and what: [ADR 0011](../../docs/adrs/0011-redux-toolkit-for-client-ui-state.md), `specs/0010-redux-ui-state/`. Today the wizard (`wizardSlice`), the vote ballots (`ballotsSlice`, `useBallot`) and every control that sends a request (the shared `useMutation`, below) are on the store; what stays `useState` is a single control's own input text and open or closed flags.
 
 - **The store holds UI state only.** Business rules stay on the server and in `packages/core`. Brunch data stays in Server Components and is refreshed with `router.refresh()` (called from the component); do not copy it into the store.
 - **Per-request store, never a module-level one.** `makeStore` builds a fresh store; `StoreProvider` (`src/store/`) creates it once per mount. Server Components never touch Redux.
@@ -55,9 +55,17 @@ Why and what: [ADR 0011](../../docs/adrs/0011-redux-toolkit-for-client-ui-state.
 - **A journey that asserts a toast did _not_ appear takes one non-retrying look** (`expect(await locator.count()).toBe(0)` after a short settle): `toHaveCount(0)` retries, so it waits for the toast to time out and passes (found in M3: the first version of that journey stayed green with the behavior broken).
 - **Never import Zod into code that runs in the browser:** Zod 4 probes with `new Function`, which the CSP reports (journey S3 fails). Read a response body by hand there.
 
-### Moving another control onto the store
+### Adding a control that sends a request
 
-The remaining controls (RSVP, invites, suggestions, option management, voting controls, confirmation, suggestion review) each own a `submitting`/`error` pair, a `fetch` and a `router.refresh()`. They move together, not one slice each, when the toast / visible-error spec lands (`docs/BACKLOG.md` "Redux follow-ups"). Until then a **new** control follows the same shape rather than inventing another: if several components will read its state or it has rules worth unit tests, add a slice and a `createAppAsyncThunk` (copy `ballotsSlice.ts`); otherwise keep `useState`, with the same generic error string and `role="alert"` as its neighbours. When migrating a control: keep its text, roles and accessible names (the e2e contract below), keep the generic error message, add a thunk test per failure path, and prove the journey that covers it fails without the new rule.
+Copy any migrated control (`RsvpControl` is the smallest). The checklist, in order:
+
+1. `const thing = useMutation('<control>:<subject id>')` (a key unique to this control and what it acts on, with the placement in it if the control can be on screen twice) and `thing.run({ request, success?, failure })`; `router.refresh()` when it resolves `ok`. A control per row (remove, approve) is its own small component so each row has its own key.
+2. **Decide where a failure shows:** inline (`failure: 'inline'`, render `thing.failure.text` in an `InlineAlert` with `role="alert"` where the field is) when the person typed or chose something; a toast (`failure: 'toast'`) for one tap with nothing to fix. A success toast only where the page change is subtle (`success` words from a `lib/*Copy.ts`). A rolled-back optimistic control keeps its line inline.
+3. **Pending is `aria-disabled`** (keeps keyboard focus); a structural "cannot" (a draft, nothing chosen) stays `disabled`.
+4. **A control with its own wait** (it holds a 429 beside its button with `useWait`) passes `ownsWait: true` and starts the wait from `result.failure.rateLimit`.
+5. **A failure that means the page is out of date** (`pageIsStale(code)` in `lib/errorCopy.ts`: an option removed, voting closed, called off, already locked) asks the page again.
+6. **The route** answers with `apiError({ code, status, message })`; a failure a person can act on is a new code in `packages/shared/src/apiError.ts` and a line in `lib/errorCopy.ts`. `apiErrors.test.ts` fails an uncoded route; `noBareFetch.test.ts` fails a component that calls `fetch` itself.
+7. **A journey** for the failure and the next try (intercept the route with a coded body, or cause the real refusal), proved to fail with the behavior removed.
 
 ## Accessible names are a contract with the e2e suite
 

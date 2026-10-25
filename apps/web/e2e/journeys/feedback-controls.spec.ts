@@ -236,3 +236,189 @@ test.describe('T11 — the voting controls', () => {
     await expect(host.page.getByText('Voting is closed.')).toHaveCount(0);
   });
 });
+
+// M4: the remaining controls. Each recovery path has a journey: where the failure shows, that the
+// control is as it was, and that the next try works.
+
+test.describe('T12 — locking it in', () => {
+  test('a refusal that means the brunch moved on is inline beside the radios, and the button is usable again', async ({
+    makeActor,
+  }) => {
+    const host = await makeActor('host');
+    const yes = await makeActor('yes');
+    const maybe = await makeActor('maybe');
+    const pending = await makeActor('pending');
+    const { brunchId } = await createVotingBrunch({ host, guests: { yes, maybe, pending } });
+    await host.page.goto(`/brunch/${brunchId}/manage`);
+    const lockIt = host.page.getByRole('button', { name: 'Lock it in' });
+    await expect(lockIt).toBeEnabled();
+
+    await host.page.route(`**/api/v1/brunches/${brunchId}/confirm`, (route) =>
+      route.fulfill({ status: 409, json: coded('already_confirmed') }),
+    );
+    await lockIt.click();
+
+    await expect(
+      host.page.getByRole('alert').filter({ hasText: TOAST_WORDS.alreadyConfirmed }),
+    ).toBeVisible();
+    await expect(lockIt).toBeEnabled();
+  });
+});
+
+test.describe('T13 — managing options', () => {
+  test('a failed add is inline and keeps what was typed; a failed remove is a toast and the row stays', async ({
+    makeActor,
+  }) => {
+    const host = await makeActor('host');
+    const guest = await makeActor('guest');
+    const brunchId = await createBrunch({
+      host: host.user,
+      locations: [fixturePlaces.sunnySide, fixturePlaces.harborBistro],
+      times: [daysFromNow(10), daysFromNow(11)],
+    });
+    // Active, so nothing here is held back for being a draft.
+    await addAttendee({ brunchId, host: host.user, user: guest.user, response: 'yes' });
+    await host.page.goto(`/brunch/${brunchId}/manage`);
+    const typed = datetimeLocalIn(daysFromNow(20, 11, 0), 'America/Chicago');
+    const field = host.page.getByLabel('Date and time to add');
+
+    await host.page.route(`**/api/v1/brunches/${brunchId}/times`, (route) =>
+      route.request().method() === 'POST'
+        ? route.fulfill({ status: 500, json: coded('internal') })
+        : route.fallback(),
+    );
+    await field.fill(typed);
+    await host.page.getByRole('button', { name: 'Add Time' }).click();
+    await expect(
+      host.page.getByRole('alert').filter({ hasText: TOAST_WORDS.wentSideways }),
+    ).toBeVisible();
+    await expect(field).toHaveValue(typed);
+    await host.page.waitForTimeout(600);
+    expect(await toastRegion(host.page).locator('div').count()).toBe(0);
+
+    // Removing a place that fails: a toast, and the place is still listed.
+    await host.page.route(`**/api/v1/brunches/${brunchId}/locations/*`, (route) =>
+      route.fulfill({ status: 500, json: coded('internal') }),
+    );
+    const sunny = host.page.getByRole('listitem').filter({ hasText: fixturePlaces.sunnySide.name });
+    await sunny.getByRole('button', { name: 'Remove' }).click();
+    await expect(toast(host.page, TOAST_WORDS.wentSideways)).toBeVisible();
+    await expect(sunny).toHaveCount(1);
+    await expect(sunny.getByRole('button', { name: 'Remove' })).not.toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+  });
+});
+
+test.describe('T14 — suggestions', () => {
+  test('a failed suggestion is inline; a failed approval is a toast and the row stays, then it goes through', async ({
+    makeActor,
+  }) => {
+    const host = await makeActor('host');
+    const suggester = await makeActor('suggester');
+    const brunchId = await createBrunch({
+      host: host.user,
+      locations: [fixturePlaces.sunnySide, fixturePlaces.harborBistro],
+      times: [daysFromNow(10), daysFromNow(11)],
+    });
+    await addAttendee({ brunchId, host: host.user, user: suggester.user, response: 'yes' });
+    await suggester.page.goto(`/brunch/${brunchId}`);
+    const typed = datetimeLocalIn(daysFromNow(20, 11, 0), 'America/Chicago');
+
+    // The suggestion fails: inline beside the field, what was typed is still there.
+    const suggestRoute = `**/api/v1/brunches/${brunchId}/time-suggestions`;
+    await suggester.page.route(suggestRoute, (route) =>
+      route.fulfill({ status: 500, json: coded('internal') }),
+    );
+    await suggester.page.getByLabel('Suggested date and time').fill(typed);
+    await suggester.page.getByRole('button', { name: 'Suggest this time' }).click();
+    await expect(
+      suggester.page.getByRole('alert').filter({ hasText: TOAST_WORDS.wentSideways }),
+    ).toBeVisible();
+    await expect(suggester.page.getByLabel('Suggested date and time')).toHaveValue(typed);
+
+    // Try again and it goes through: it waits for the host.
+    await suggester.page.unroute(suggestRoute);
+    await suggester.page.getByRole('button', { name: 'Suggest this time' }).click();
+    await expect(suggester.page.getByText('(awaiting host approval)')).toBeVisible();
+
+    // The host's approval fails: a toast, the row stays, the buttons are usable.
+    await host.page.goto(`/brunch/${brunchId}/manage`);
+    const pendingRow = host.page
+      .getByRole('listitem')
+      .filter({ hasText: `suggested by ${suggester.user.name}` });
+    await host.page.route('**/api/v1/time-suggestions/*/review', (route) =>
+      route.fulfill({ status: 500, json: coded('internal') }),
+    );
+    await pendingRow.getByRole('button', { name: 'Approve' }).click();
+    await expect(toast(host.page, TOAST_WORDS.wentSideways)).toBeVisible();
+    await expect(pendingRow).toHaveCount(1);
+
+    await host.page.unroute('**/api/v1/time-suggestions/*/review');
+    await pendingRow.getByRole('button', { name: 'Approve' }).click();
+    await expect(pendingRow).toHaveCount(0);
+  });
+});
+
+test.describe('T15 — the end of the road, and hiding', () => {
+  test('a failed call-off stays inside its dialog in voice, and Bring it back fails as a toast', async ({
+    makeActor,
+  }) => {
+    const host = await makeActor('host');
+    const guest = await makeActor('guest');
+    const brunchId = await createBrunch({ host: host.user });
+    await addAttendee({ brunchId, host: host.user, user: guest.user, response: 'yes' });
+    await host.page.goto(`/brunch/${brunchId}/manage`);
+
+    // The call-off fails: the dialog stays, with the line inside it, and nothing is toasted.
+    await host.page.route(`**/api/v1/brunches/${brunchId}/cancel`, (route) =>
+      route.fulfill({ status: 500, json: coded('internal') }),
+    );
+    await host.page.getByRole('button', { name: 'Call it off', exact: true }).click();
+    const dialog = host.page.getByRole('dialog');
+    await dialog.getByRole('button', { name: 'Call it off', exact: true }).click();
+    await expect(
+      dialog.getByRole('alert').filter({ hasText: TOAST_WORDS.wentSideways }),
+    ).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Nope, keep it' })).toBeEnabled();
+    await host.page.waitForTimeout(600);
+    expect(await toastRegion(host.page).locator('div').count()).toBe(0);
+
+    // The next try goes through, and Bring it back is the way out of it.
+    await host.page.unroute(`**/api/v1/brunches/${brunchId}/cancel`);
+    await dialog.getByRole('button', { name: 'Call it off', exact: true }).click();
+    const bringBack = host.page.getByRole('button', { name: 'Bring it back' });
+    await expect(bringBack).toBeVisible();
+
+    await host.page.route(`**/api/v1/brunches/${brunchId}/reinstate`, (route) =>
+      route.fulfill({ status: 500, json: coded('internal') }),
+    );
+    await bringBack.click();
+    await expect(toast(host.page, TOAST_WORDS.wentSideways)).toBeVisible();
+    await expect(bringBack).toBeVisible();
+    await expect(bringBack).not.toHaveAttribute('aria-disabled', 'true');
+  });
+
+  test('hiding from the brunch page: a failure toasts, and the result is said once', async ({
+    makeActor,
+  }) => {
+    const host = await makeActor('host');
+    const guest = await makeActor('guest');
+    const brunchId = await createBrunch({ host: host.user });
+    await addAttendee({ brunchId, host: host.user, user: guest.user, response: 'yes' });
+    await guest.page.goto(`/brunch/${brunchId}`);
+    const hide = guest.page.getByRole('button', { name: 'Hide from my dashboard' });
+
+    await guest.page.route(`**/api/v1/brunches/${brunchId}/hidden`, (route) =>
+      route.fulfill({ status: 500, json: coded('internal') }),
+    );
+    await hide.click();
+    await expect(toast(guest.page, TOAST_WORDS.wentSideways)).toBeVisible();
+    await expect(hide).toBeVisible();
+
+    await guest.page.unroute(`**/api/v1/brunches/${brunchId}/hidden`);
+    await hide.click();
+    await expect(toast(guest.page, TOAST_WORDS.hidden)).toBeVisible();
+  });
+});
