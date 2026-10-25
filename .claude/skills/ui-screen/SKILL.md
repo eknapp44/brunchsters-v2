@@ -38,6 +38,16 @@ Write down, in the spec's `tasks.md` or the PR, every **accessible name** the ch
 - Add the screen to `e2e/screenshots/review.spec.ts` under its area folder (`captureReviewShots(page, 'area/state', testInfo)`), and a pair to `scripts/boards.ts` if the prototype has a scene for it.
 - **Prove the new journey can fail** (copy the production file, break the behavior, run only that journey, restore from the copy; `/milestone-done` step 3).
 
+## 5b. Get an independent read (the design plugin)
+
+Our own checks (axe, contrast, the voice test, your own reading) are written by the same hand that built the screen. When the design plugin's skills are available (`design:accessibility-review`, `design:ux-copy`, `design:design-critique`; they are a user-level plugin, so if they are not listed, say so and move on: this step never blocks a milestone), use them on every milestone that adds or changes a screen:
+
+- **`design:accessibility-review`** on the screen's states: focus order, what a screen reader says (live regions, unread counts, dialogs), touch targets, contrast. It adds judgment to the axe journeys; it does not replace them.
+- **`design:ux-copy`** on every new or changed string. **Load `docs/voice-and-copy.md` first**: the skill's own voice is generic, ours is the Brand Voice, and the voice doc and the banned-word test win a conflict. Take its suggestions that sharpen a line (what happened, what to do next, one name per action), not ones that bring back corporate words or promise something the app does not do.
+- **`design:design-critique`** on the review screenshots (phone and desktop, light and dark) for hierarchy, density and consistency with the existing screens.
+
+Record what you took and what you declined, one line each, in the milestone's testing note (`tasks.md`), and fix what you took before the commit. A finding you decline for a reason is fine; one you did not look at is not.
+
 ## 6. Look at it, then stop for review
 
 Run `screenshots` and `boards`, open the phone and desktop shots in both palettes, and read them as the owner would (dark mode is a real theme; a crowded phone is a finding). Post what you changed, what you left out on a phone and why, and the names that changed. The owner reviews boards at milestone boundaries; do not start the next piece before they have.
