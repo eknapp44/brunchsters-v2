@@ -1,6 +1,6 @@
 # Spec 0014 — Feedback Surfaces
 
-**Status:** Complete 2026-10-25 (M1 to M5 shipped; loading skeletons deferred after the M6 spike, see "Outcome")  
+**Status:** Complete and released as v1.12.0 (PR #25, merged 2026-10-25); M1 to M5 shipped, loading skeletons deferred after the M6 spike (see "Outcome")  
 **Branch:** `feat/0014-feedback-surfaces`  
 **PLANNING.md ref:** §16 roadmap table, row 0014; `docs/BACKLOG.md` "Redux follow-ups" (1), (2) and "Silent failures to surface", "Place search can show stale results"  
 **ADRs:** [0016 — Feedback surfaces](../../docs/adrs/0016-feedback-surfaces.md); builds on [0011](../../docs/adrs/0011-redux-toolkit-for-client-ui-state.md) (the store), [0013](../../docs/adrs/0013-rate-limits-in-postgres.md) (limits and waits), [0015](../../docs/adrs/0015-brunch-lifecycle.md) (the lifecycle controls)  

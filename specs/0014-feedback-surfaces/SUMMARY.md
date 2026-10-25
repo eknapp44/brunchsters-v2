@@ -2,7 +2,7 @@
 
 The one page to read. `spec.md`, `plan.md` and `tasks.md` are the working documents behind it.
 
-**Status:** complete on `feat/0014-feedback-surfaces` (2026-10-25). **Release:** not yet (PR pending).
+**Status:** complete and released as **v1.12.0** (PR #25, merged 2026-10-25).
 
 ## What it does, in plain words
 

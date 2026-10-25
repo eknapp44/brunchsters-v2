@@ -1,5 +1,7 @@
 # Tasks 0014 — Feedback Surfaces
 
+**Released:** v1.12.0 (PR #25, merged 2026-10-25).
+
 Six milestones, each green on its own and ending in a commit. Branch: `feat/0014-feedback-surfaces`, cut from `main` (no stacking). Close each milestone with `/milestone-done`, then **stop for the owner's review** before the next. Every milestone runs `pnpm typecheck && pnpm lint && pnpm test`, and `pnpm test:e2e` whenever it touches anything a user sees or does (`CI=true pnpm build && CI=true pnpm test:e2e` is the quick gate; stop your own `pnpm dev` first). Re-verify each milestone's "journeys that change" list with a grep at its start; the grep wins over the list. Use `/ui-screen` for every milestone that changes a screen (M2 to M6) and `/limited-surface` at M1 to record that nothing here needs a new limit.
 
 The order proves the path early: the vocabulary (M1), then one control end to end (M2), then the rest, then the two bug fixes, then skeletons (the riskiest for the 404 rule) last.
