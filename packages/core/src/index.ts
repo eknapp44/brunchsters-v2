@@ -137,6 +137,31 @@ export type {
   UpdateVotingDeadlineInput,
   UpdateVotingDeadlineRequest,
 } from './brunch/updateVotingDeadline';
+export { writeNotification } from './notification/writeNotification';
+export type {
+  WriteNotificationError,
+  WriteNotificationInput,
+} from './notification/writeNotification';
+export { coalesceNotification, coalescedDedupeKey } from './notification/coalesceNotification';
+export type {
+  CoalesceNotificationError,
+  CoalesceNotificationInput,
+} from './notification/coalesceNotification';
+export { decideDelivery, shouldDeliver } from './notification/shouldDeliver';
+export type { ShouldDeliverInput } from './notification/shouldDeliver';
+export { recipientsFor } from './notification/recipientsFor';
+export type { RecipientMember, RecipientsInput } from './notification/recipientsFor';
+export { listNotifications } from './notification/listNotifications';
+export type { ListNotificationsInput } from './notification/listNotifications';
+export { countUnread } from './notification/countUnread';
+export { markAllRead, markRead } from './notification/markRead';
+export type { MarkReadInput } from './notification/markRead';
+export { COALESCED_TYPES } from './notification/notificationTypes';
+export type {
+  CoalescedType,
+  NotificationDbError,
+  NotificationItem,
+} from './notification/notificationTypes';
 export { confirmBrunch } from './brunch/confirmBrunch';
 export type { ConfirmBrunchError, ConfirmBrunchInput } from './brunch/confirmBrunch';
 export { suggestLocation } from './brunch/suggestLocation';

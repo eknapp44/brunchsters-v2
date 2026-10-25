@@ -6,18 +6,18 @@ Decisions are in [ADR 0017](../../docs/adrs/0017-notifications.md); the behavior
 
 **`packages/database`**
 
-- `prisma/schema.prisma` and one migration: `Notification.data Json`, `dedupeKey`, `updatedAt`, `@@unique([userId, dedupeKey])`, `@@index([userId, readAt, createdAt])`; `NotificationLevel` lookup and `BrunchAttendee.notificationLevelId` (default `all`); `BrunchInvite.emailFailedAt`.
+- `prisma/schema.prisma` and one migration: `Notification.data Json`, `dedupeKey`, `lastEventAt` (not `@updatedAt`: Prisma would bump that on every update, so marking a row read would move it to the top), `@@unique([userId, dedupeKey])`, `@@index([userId, readAt, lastEventAt])`; `NotificationLevel` lookup and `BrunchAttendee.notificationLevelId` (default `all`); `BrunchInvite.emailFailedAt`.
 - `src/seed.ts`: the three levels, two new `NotificationType` rows, and a unit-level check that every seeded type has a default.
 
 **`packages/shared`**
 
-- `notifications.ts`: type and level code lists (`as const`, with a `NotificationTypeCode` union), `NOTIFICATION_DEFAULTS`, `BIG_STUFF_TYPES`, retention and timing constants (`COMPLETED_AFTER_HOURS`, `DEADLINE_REMINDER_HOURS`, the two retention days), and the `NotificationData` Zod schemas per type (the shape of `Notification.data`; **not imported into browser code**: the browser reads by hand, see "Never import Zod into code that runs in the browser").
+- `notifications.ts`: type and level code lists (`as const`, with a `NotificationTypeCode` union), `NOTIFICATION_DEFAULTS`, `BIG_STUFF_TYPES`, retention and timing constants (`COMPLETED_AFTER_HOURS`, `DEADLINE_REMINDER_HOURS`, the two retention days), and the `NotificationData` union per type (the shape of `Notification.data`) with a hand-written reader, `readNotificationData` (`packages/shared` has no Zod, and Zod stays out of browser code).
 - `apiError.ts`: new codes (`brunch_over`, and any the routes need).
 
 **`packages/core/src/notification/`** (new; framework-free, Prisma injected)
 
-- `writeNotification.ts` (plain upsert on `(userId, dedupeKey)`) and `coalesceNotification.ts` (increments the count in `data`, bumps `updatedAt`, clears `readAt`, one statement).
-- `resolveRecipients.ts` (pure rules per type, given the brunch's members and the event), `shouldDeliver.ts` (type + channel + preference default + the person's mute level, **the only place that decides**), `listNotifications.ts`, `countUnread.ts`, `markRead.ts`, `setNotificationLevel.ts`, `preferences.ts`, `pruneNotifications.ts`.
+- `writeNotification.ts` (plain upsert on `(userId, dedupeKey)`) and `coalesceNotification.ts` (increments the count in `data`, bumps `lastEventAt` when the count changes, clears `readAt`, one statement).
+- `recipientsFor.ts` (pure rules per type, given the brunch's members and the event), `shouldDeliver.ts` (type + channel + preference default + the person's mute level, **the only place that decides**), `listNotifications.ts`, `countUnread.ts`, `markRead.ts`, `setNotificationLevel.ts`, `preferences.ts`, `pruneNotifications.ts`.
 - `reminders.ts`: `findDeadlineReminders({ now })` and `completePastBrunches({ now })`, both taking `now`, both idempotent.
 - `email/`: the four senders and the new reminder email each call `shouldDeliver` before `emailService.send`; `sendDeadlineReminderEmail.ts` joins `SENDERS` in `emailBudgets.test.ts`.
 - `brunch/guards/assertBrunchOpen.ts` gains the over rule; `BRUNCH_TRANSITIONS` gains `confirmed → completed`; `reinstateBrunch.ts` refuses when the restored status was `confirmed` and its time passed. The suggestion services emit new typed events; `EventBus.ts` gains `suggestion/invite|location|time`.
@@ -56,7 +56,7 @@ type NotificationData =
 
 ### Dedupe keys
 
-`rsvp:<brunchId>` and `vote:<brunchId>` (coalescing), `cancelled:<brunchId>:<cancelledAt>`, `reinstated:<brunchId>:<cancelledAt>`, `confirmed:<brunchId>`, `deadline:<brunchId>:<deadlineIso>`, `suggestion:<kind>:<suggestionId>`, `invite-received:<inviteId>`, `email-failed:<inviteId>:<n>` where `n` counts failures, so a second failure after a resend is a new row.
+`coalesced:<type>:<brunchId>` (replies and votes), `cancelled:<brunchId>:<cancelledAt>`, `reinstated:<brunchId>:<cancelledAt>`, `confirmed:<brunchId>`, `deadline:<brunchId>:<deadlineIso>`, `suggestion:<kind>:<suggestionId>`, `invite-received:<inviteId>`, `email-failed:<inviteId>:<n>` where `n` counts failures, so a second failure after a resend is a new row.
 
 ### Who decides delivery
 

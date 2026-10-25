@@ -152,6 +152,19 @@ model NotificationChannel {
   userNotificationPreferences UserNotificationPreference[]
 }
 
+// Per-brunch notification level (spec 0015, ADR 0017): all, big_stuff, muted. The 'all' row has a
+// fixed id because BrunchAttendee.notificationLevelId defaults to it (migration and seed agree).
+model NotificationLevel {
+  id        String   @id @default(uuid()) @db.Uuid
+  code      String   @unique
+  label     String
+  sortOrder Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  attendees BrunchAttendee[]
+}
+
 // ─── User & Auth [v1 schema + ui] ─────────────────────────────────────────────
 
 model User {
@@ -304,18 +317,27 @@ model Notification {
   notificationTypeId String    @db.Uuid
   channelId          String    @db.Uuid
   brunchId           String?   @db.Uuid
-  title              String
+  title              String // plain-text fallback; the inbox words `data` at read time (ADR 0017)
   body               String
+  // Structured facts for the row (counts, names, instants), never a token. Shape per type is in
+  // packages/shared/src/notifications.ts.
+  data               Json      @default("{}")
+  // Makes a retried handler write one row; a coalescing row (votes, replies) reuses it.
+  dedupeKey          String
   readAt             DateTime?
   sentAt             DateTime
   createdAt          DateTime  @default(now())
+  // When the last event touched this row: set on write and by a coalescing write, never by reading
+  // it (so marking a row read does not move it up the inbox; hence not @updatedAt).
+  lastEventAt        DateTime  @default(now())
 
   user             User                @relation(fields: [userId], references: [id])
   notificationType NotificationType    @relation(fields: [notificationTypeId], references: [id])
   channel          NotificationChannel @relation(fields: [channelId], references: [id])
   brunch           Brunch?             @relation(fields: [brunchId], references: [id])
 
-  @@index([userId])
+  @@unique([userId, dedupeKey])
+  @@index([userId, readAt, lastEventAt])
   @@index([brunchId])
 }
 
@@ -333,6 +355,9 @@ model Brunch {
   // no other trace. votingDeadline keeps its original meaning (intent);
   // this records what actually happened. See guards/assertVotingOpen.ts.
   votingClosedAt DateTime?
+  // When votingDeadline was last set (spec 0015): a deadline set inside the reminder window sends no
+  // reminder. Null on older rows, which count as set long ago.
+  votingDeadlineSetAt DateTime?
 
   // Permissions — stored on Brunch per PLANNING.md §6 (not a separate table)
   allowInviteSuggestions      Boolean @default(true)
@@ -395,6 +420,8 @@ model BrunchInvite {
   token          String    @unique
   tokenExpiresAt DateTime
   lastResentAt   DateTime?
+  // The invite email was rejected or its retries ran out (spec 0015); cleared by a successful resend.
+  emailFailedAt  DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   deletedAt      DateTime?
@@ -421,6 +448,8 @@ model BrunchAttendee {
   // "Hide from my dashboard" (spec 0013): per person, any brunch status, reversible. Only the
   // dashboard reads it; the brunch page and email ignore it.
   hiddenAt     DateTime?
+  // Per-brunch notification level (spec 0015): all, big_stuff, muted. Applies to the host too.
+  notificationLevelId String @default("00000000-0000-4000-8000-00000000a111") @db.Uuid
 
   // Rich RSVP state — fields are only relevant for their matching rsvpStatus
   arrivingLate   Boolean  @default(false) // yes RSVPs
@@ -439,6 +468,7 @@ model BrunchAttendee {
   user       User         @relation(fields: [userId], references: [id])
   invite     BrunchInvite @relation(fields: [inviteId], references: [id])
   rsvpStatus RsvpStatus   @relation(fields: [rsvpStatusId], references: [id])
+  notificationLevel NotificationLevel @relation(fields: [notificationLevelId], references: [id])
 
   @@unique([brunchId, userId])
   @@index([brunchId])

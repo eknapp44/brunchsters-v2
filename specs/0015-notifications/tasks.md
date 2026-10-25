@@ -10,17 +10,22 @@ Process (pilot, spec 0014 and this one): the folder also gets `SUMMARY.md`, `MAN
 
 ## M1 — Schema, shared lists and the notification core
 
-- [ ] Commit this spec folder, ADR 0017 (with the README index row), the PLANNING and BACKLOG edits and the ADR 0002 / 0009 pointers as one docs-only commit, before any code
-- [ ] Migration and seed per the spec (`Notification.data`, `dedupeKey`, `updatedAt`, indexes; `NotificationLevel` and `BrunchAttendee.notificationLevelId`; `BrunchInvite.emailFailedAt`; `Brunch.votingDeadlineSetAt`; two new types); generated and committed with the schema change
-- [ ] `packages/shared/src/notifications.ts` and tests (every seeded type has a default, codes are unique, `BIG_STUFF_TYPES` are types)
-- [ ] `packages/core/src/notification/`: `writeNotification`, `coalesceNotification`, `shouldDeliver`, `resolveRecipients` (pure), `listNotifications`, `countUnread`, `markRead`, `markAllRead`; `updateVotingDeadline` writes `votingDeadlineSetAt`
-- [ ] Unit tests (`shouldDeliver` table, recipient rules) and integration tests against local Postgres (replay writes one row; coalescing clears `readAt`; `markRead` touches only the caller's rows; a dedupe collision across users does not collide)
-- [ ] **Prove the tests can fail:** drop the dedupe unique index → the replay test fails; make `markRead` match on `id` alone → the "only the caller's rows" test fails
-- [ ] Commit: `feat: add the notification schema and the delivery core (M1)`
+- [x] Commit this spec folder, ADR 0017 (with the README index row), the PLANNING and BACKLOG edits and the ADR 0002 / 0009 pointers as one docs-only commit, before any code
+- [x] Migration and seed per the spec (`Notification.data`, `dedupeKey`, `lastEventAt`, indexes; `NotificationLevel` and `BrunchAttendee.notificationLevelId`; `BrunchInvite.emailFailedAt`; `Brunch.votingDeadlineSetAt`; two new types); generated and committed with the schema change
+- [x] `packages/shared/src/notifications.ts` and tests (every seeded type has a default, codes are unique, `BIG_STUFF_TYPES` are types)
+- [x] `packages/core/src/notification/`: `writeNotification`, `coalesceNotification`, `shouldDeliver`, `recipientsFor` (pure), `listNotifications`, `countUnread`, `markRead`, `markAllRead`; `updateVotingDeadline` writes `votingDeadlineSetAt`
+- [x] Unit tests (`shouldDeliver` table, recipient rules) and integration tests against local Postgres (replay writes one row; coalescing clears `readAt`; `markRead` touches only the caller's rows; a dedupe collision across users does not collide)
+- [x] **Prove the tests can fail:** drop the dedupe unique index → the replay test fails; make `markRead` match on `id` alone → the "only the caller's rows" test fails
+- [x] Commit: `feat: add the notification schema and the delivery core (M1)`
 
 **Journeys that change:** none (nothing is mounted). **Deployable:** yes.
 
-**Testing notes:** _(fill on completion)_
+**Testing notes:**
+
+- **What and how:** shared +9 unit (lists, defaults, `readNotificationData`), core +17 unit (the `decideDelivery`/`shouldDeliver` table and `recipientsFor`) and 13 integration tests on real Postgres (seeded vocabulary matches the shared list; write replay and a simultaneous double write make one row; coalescing through new, another person, same person, read, again, and two people at once; `markRead` ignores another person's, a made-up and a non-UUID id alike; reading does not move a row; list order, paging, deleted-brunch and unreadable rows left out; `shouldDeliver` against a muted level and a saved switch). No journey: nothing is mounted or user-visible; full CI-mode e2e still passes (279 passed, 2 skipped). Proved to fail: `markRead` matching on id alone, `markRead` bumping `lastEventAt`, and the dedupe unique index dropped (6 tests fail).
+- **Fixed on the way:** `@updatedAt` would have moved a row to the top of the inbox whenever it was read, so the column is `lastEventAt` (a plain timestamp), found by the paging test; the coalescing SQL needed parentheses around `->` before `@>`/`||` (caught by the first run). The migration SQL was written by hand (the 'all' level row must exist before existing attendee rows take its id as their default) and checked with `prisma migrate diff` (only the cosmetic uuid-default representation differs).
+- **Deferred:** `pruneNotifications`, preferences and mute writes are M5 and M7; the stress run and a second CI-mode run are skipped because nothing mounted changed (the first milestone that mounts the bell, M4, runs them). `updateVotingDeadline` writing `votingDeadlineSetAt` is covered by its unit test only.
+- **Run:** `pnpm --filter @brunchsters/core test:integration notification` (needs `pnpm db:seed` after `prisma migrate deploy`).
 
 ---
 
