@@ -13,6 +13,7 @@ import { Eyebrow } from '@/components/ui/Eyebrow';
 import { Field } from '@/components/ui/Field';
 import { InlineAlert } from '@/components/ui/InlineAlert';
 import { errorCopy } from '@/lib/errorCopy';
+import { useSignedOutRedirect } from '@/lib/useSignedOutRedirect';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   createBrunch,
@@ -347,6 +348,7 @@ export default function NewBrunchPage() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const step = useAppSelector(selectWizardStep);
+  const redirectIfSignedOut = useSignedOutRedirect();
 
   // The store lives in the layout and outlives this page, but a half-filled wizard must not.
   useEffect(() => () => void dispatch(wizardReset()), [dispatch]);
@@ -355,8 +357,9 @@ export default function NewBrunchPage() {
     void dispatch(createBrunch())
       .unwrap()
       .then(({ id }) => router.push(`/brunch/${id}`))
-      // The thunk already put the message in the store.
-      .catch(() => undefined);
+      // The thunk already put the code in the store, which the page words. A session that ended
+      // sends the person to sign in instead: nothing here will save until they have.
+      .catch((code: unknown) => void redirectIfSignedOut(code));
   }
 
   return (

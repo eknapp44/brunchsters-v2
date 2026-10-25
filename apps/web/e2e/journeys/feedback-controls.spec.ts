@@ -1,6 +1,6 @@
 import { RATE_LIMIT_POLICIES } from '@brunchsters/shared';
 import { createBrunch, inviteToBrunch, uniqueSuffix } from '../support/factories';
-import { expect, test } from '../support/fixtures';
+import { type Actor, expect, test } from '../support/fixtures';
 import { inviteRow } from '../support/invites';
 import { SIGN_IN_HEADING } from '../support/pages';
 import { fixturePlaces } from '../support/places';
@@ -601,6 +601,76 @@ test.describe('T8 — searching for a place', () => {
     ).toBeVisible();
     await expect(host.page.getByRole('alert').filter({ hasText: 'Our end hiccuped.' })).toHaveCount(
       0,
+    );
+  });
+});
+
+// Review follow-up: the session ending is answered the same way wherever a page sends a request,
+// not only by the controls on the shared mutation hook.
+
+async function endSession(actor: Actor): Promise<void> {
+  // (Let the page's own background requests finish first: a late one could set the cookie again.)
+  await actor.page.waitForLoadState('networkidle');
+  await actor.context.clearCookies();
+  await expect.poll(async () => (await actor.context.cookies()).length).toBe(0);
+}
+
+test.describe('T4b — a session that ends, wherever the page was about to send something', () => {
+  test('a ballot tick sends the person to sign in, with a way back', async ({ makeActor }) => {
+    const host = await makeActor('host');
+    const voter = await makeActor('voter');
+    const brunchId = await createBrunch({
+      host: host.user,
+      locations: [fixturePlaces.sunnySide, fixturePlaces.harborBistro],
+      times: [daysFromNow(10), daysFromNow(11)],
+    });
+    await addAttendee({ brunchId, host: host.user, user: voter.user, response: 'yes' });
+    await voter.page.goto(`/brunch/${brunchId}`);
+    const box = ballot(voter.page).locations.getByRole('checkbox').first();
+    await expect(box).toBeEnabled();
+
+    await endSession(voter);
+    await box.check();
+
+    await expect(voter.page).toHaveURL(
+      new RegExp(`/sign-in\\?callbackUrl=${encodeURIComponent(`/brunch/${brunchId}`)}$`),
+    );
+  });
+
+  test("the wizard's create sends the person to sign in, with a way back", async ({
+    makeActor,
+  }) => {
+    const host = await makeActor('host');
+    const wizard = new BrunchWizard(host.page);
+    await wizard.open();
+    await wizard.fillWhat({ title: `Signed Out ${uniqueSuffix()}` });
+    await wizard.addPlace(fixturePlaces.sunnySide);
+    await wizard.next();
+    await wizard.addTime(10);
+    await wizard.next();
+
+    await endSession(host);
+    await wizard.create();
+
+    await expect(host.page).toHaveURL(
+      new RegExp(`/sign-in\\?callbackUrl=${encodeURIComponent('/brunch/new')}$`),
+    );
+  });
+
+  test('a place search sends the person to sign in, with a way back', async ({ makeActor }) => {
+    const host = await makeActor('host');
+    const wizard = new BrunchWizard(host.page);
+    await wizard.open();
+    await wizard.fillWhat({ title: `Signed Out Search ${uniqueSuffix()}` });
+    // The real server answers this one (the context's fixtures are skipped), so it is the
+    // middleware's 401 that comes back.
+    await host.page.route('**/api/v1/places/search**', (route) => route.continue());
+
+    await endSession(host);
+    await wizard.searchBox().fill('sunny');
+
+    await expect(host.page).toHaveURL(
+      new RegExp(`/sign-in\\?callbackUrl=${encodeURIComponent('/brunch/new')}$`),
     );
   });
 });

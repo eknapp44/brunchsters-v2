@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { errorCopy, pageIsStale, type ClientErrorCode } from '@/lib/errorCopy';
+import { useSignedOutRedirect } from '@/lib/useSignedOutRedirect';
 import {
   type BallotKind,
   ballotKey,
@@ -40,6 +41,7 @@ export function useBallot(params: {
   const { brunchId, kind, options } = params;
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const redirectIfSignedOut = useSignedOutRedirect();
   const key = ballotKey({ brunchId, kind });
   const entry = useAppSelector((state) => selectBallotEntry(state, key));
 
@@ -64,6 +66,8 @@ export function useBallot(params: {
       // what this page showed (an option was removed, voting closed, it was called off), the page
       // is asked again, so what is on screen is what is true while the line says why.
       .catch((code: unknown) => {
+        // The session ended: nothing on this page will save again, so sign in and come back.
+        if (redirectIfSignedOut(code)) return;
         if (typeof code === 'string' && pageIsStale(code as ClientErrorCode)) router.refresh();
       });
   }

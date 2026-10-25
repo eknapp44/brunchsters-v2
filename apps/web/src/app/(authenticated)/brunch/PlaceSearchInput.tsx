@@ -7,6 +7,7 @@ import { InlineAlert } from '@/components/ui/InlineAlert';
 import { errorCopy } from '@/lib/errorCopy';
 import { limitedMessage, type RateLimitFacts } from '@/lib/limitedCopy';
 import { readApiError } from '@/lib/readApiError';
+import { useSignedOutRedirect } from '@/lib/useSignedOutRedirect';
 import styles from './PlaceSearchInput.module.css';
 
 export function PlaceSearchInput({
@@ -24,6 +25,7 @@ export function PlaceSearchInput({
   readonly onError?: () => void;
   readonly disabled?: boolean;
 }) {
+  const redirectIfSignedOut = useSignedOutRedirect();
   const [query, setQuery] = useState('');
   const [sessionToken, setSessionToken] = useState<string | undefined>(undefined);
   const [predictions, setPredictions] = useState<readonly PlaceResult[]>([]);
@@ -77,6 +79,7 @@ export function PlaceSearchInput({
           }
           const failure = await readApiError(response);
           if (controller.signal.aborted) return;
+          if (redirectIfSignedOut(failure.code)) return;
           if (failure.rateLimit !== undefined) {
             setLimit(failure.rateLimit);
             return;
@@ -126,6 +129,7 @@ export function PlaceSearchInput({
     if (!mounted.current || latestPick.current !== thisPick) return;
     if (!response.ok) {
       const failure = await readApiError(response);
+      if (redirectIfSignedOut(failure.code)) return;
       if (failure.rateLimit !== undefined) setLimit(failure.rateLimit);
       onError?.();
       return;
