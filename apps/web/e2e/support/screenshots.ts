@@ -1,7 +1,19 @@
 import path from 'node:path';
 import type { Page, TestInfo } from '@playwright/test';
-import { COLOR_SCHEMES, useColorScheme } from './a11y';
+import { COLOR_SCHEMES, type ColorScheme, useColorScheme } from './a11y';
 import { E2E_SCREENSHOT_DIR } from './env';
+
+// `pnpm shots:spec` (scripts/specShots.mjs) names the few shots a spec keeps, and where. They are
+// saved again as small JPEGs for the spec's folder; everything else stays in the git-ignored set.
+function curatedTarget(name: string, device: string, scheme: ColorScheme): string | undefined {
+  const dir = process.env.SPEC_SHOTS_DIR;
+  if (dir === undefined || dir === '') return undefined;
+  const variants = (
+    JSON.parse(process.env.SPEC_SHOTS_VARIANTS ?? '{}') as Record<string, string[]>
+  )[name];
+  if (variants === undefined || !variants.includes(`${device}-${scheme}`)) return undefined;
+  return path.join(dir, `${name.replace('/', '-')}-${scheme}-${device}.jpg`);
+}
 
 // Saves the current page in both palettes as <name>-<light|dark>-<project>.png under
 // .screenshots/app/, where the name is "<area>/<state>" (a folder per area) and the project is
@@ -26,5 +38,9 @@ export async function captureReviewShots(
       path: path.join(E2E_SCREENSHOT_DIR, `${name}-${scheme}-${testInfo.project.name}.png`),
       fullPage: true,
     });
+    const curated = curatedTarget(name, testInfo.project.name, scheme);
+    if (curated !== undefined) {
+      await page.screenshot({ path: curated, type: 'jpeg', quality: 72, fullPage: true });
+    }
   }
 }

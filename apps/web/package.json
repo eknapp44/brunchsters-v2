@@ -13,6 +13,7 @@
     "test:e2e": "pnpm e2e:db:reset && playwright test",
     "screenshots": "node scripts/cleanScreenshots.mjs && pnpm e2e:db:reset && playwright test --config playwright.screenshots.config.ts",
     "boards": "tsx scripts/boards.ts",
+    "shots:spec": "node scripts/specShots.mjs",
     "dev:as": "tsx scripts/devAs.ts"
   },
   "dependencies": {
