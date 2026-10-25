@@ -51,16 +51,21 @@ Process (pilot, spec 0014 and this one): the folder also gets `SUMMARY.md`, `MAN
 
 ## M3 — Routes, the store slice and the badge poll
 
-- [ ] `GET notifications/unread-count`, `POST notifications/read`; each returns coded errors; made-up and foreign ids get the same response; the read route spends `enforceWriteLimit` right after the session check (`/limited-surface` recorded)
-- [ ] `notificationsSlice` (count, poll status, optimistic `markRead` with rollback, release on unmount), selectors beside it; thunk tests (ok, coded failure, network, late result ignored)
-- [ ] `useBadgePoll`: 60 s while visible, once on focus, silent on failure; the decision is a pure function with unit tests
-- [ ] The API-authorization journey gains the two routes
-- [ ] **Prove the tests can fail:** the read route filtering by id only → the foreign-id test fails; the poll running while hidden → its unit test fails
-- [ ] Commit: `feat: add the notification routes, store slice and badge poll (M3)`
+- [x] `GET notifications/unread-count`, `POST notifications/read`; each returns coded errors; made-up and foreign ids get the same response; the read route spends `enforceWriteLimit` right after the session check (`/limited-surface` recorded)
+- [x] `notificationsSlice` (count, a poll-in-flight flag, optimistic `markNotificationsRead` with rollback; released with the store), selectors beside it; thunk tests (ok, coded failure, network, late result ignored)
+- [x] `useBadgePoll`: 60 s while visible, once on focus, silent on failure; the decision is a pure function with unit tests
+- [x] The API-authorization journey gains the two routes
+- [x] **Prove the tests can fail:** the read route filtering by id only → the foreign-id test fails; the poll running while hidden → its unit test fails
+- [x] Commit: `feat: add the notification routes, store slice and badge poll (M3)`
 
 **Accessible names changed:** none yet (the bell arrives in M4). **Journeys that change:** `api-authorization`. **Deployable:** yes.
 
-**Testing notes:** _(fill on completion)_
+**Testing notes:**
+
+- **What and how:** 13 slice tests (poll ok, a failed poll in five ways stays silent and keeps the number, no second poll while one is out or a read is in flight; `markNotificationsRead` drops the count at once, only by the unread rows named and never below zero, puts it back with a coded toast on a 500, offline and a 429, rolls back only the read that failed when two are out, and a poll that began before a read cannot put the old count back), 5 for the poll's pure rules (hidden never asks; mount always; focus not twice within 15 s; a tick right after a poll is skipped), 10 route tests (401 with a code and nothing spent, the write budget first, ids passed untouched, a foreign and a made-up id answered alike, 422/400/500 with codes, the count never cached). Journey **B5** (in `api-authorization`, real server): anonymous 401 on both routes; each person's count is their own; a foreign id, a made-up id and a non-id get the identical `{ marked: 0 }` and leave the other person's row unread; "mark all" touches only the caller's rows. Proved to fail: 8 unit/route mutations (poll epoch guard, no rollback, no clamp, poll during a read, no toast, poll while hidden, no write budget, cacheable count) and, in B5, the named-ids branch marking everything.
+- **Limits (`/limited-surface`):** no new policy. Mark-read is a plain mutation (the write budget, spent right after the session check, keyed by the caller; `routeLimits.test.ts` picks it up); the count is a read (one indexed query, never cached, polled at most about once a minute per open tab). No email, no paid call, so nothing for `emailBudgets.test.ts`.
+- **Deferred:** nothing is mounted, so `useBadgePoll`'s listeners and interval have no test beyond its pure rules; M4 mounts it and its journey (B4) proves the cleanup on sign-out and the poll on focus. No `unreadSeeded` caller yet (M4's bell seeds from the server render). Stress run and a second CI-mode run wait for M4 for the same reason.
+- **Run:** `pnpm --filter @brunchsters/web exec vitest run src/store/notificationsSlice src/lib/badgePoll src/app/api/v1/notifications`; `CI=true pnpm build && CI=true pnpm test:e2e api-authorization`.
 
 ---
 

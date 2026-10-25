@@ -2,6 +2,7 @@ import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import { errorCopy } from '@/lib/errorCopy';
 import type { RootState } from './makeStore';
 import { runMutation } from './mutationsSlice';
+import { markNotificationsRead } from './notificationsSlice';
 
 // The toast queue (spec 0014, ADR 0016): what a one-tap result says, for a few seconds. It is fed
 // by `runMutation` (its `fulfilled` and `rejected` cases read `meta.arg`, so the reducers stay pure
@@ -55,6 +56,19 @@ const toastsSlice = createSlice({
             key: `${key}:done`,
             tone: 'success',
             text: success,
+          }),
+        ];
+      })
+      // Marking notifications read has its own thunk (the count changes at once and rolls back),
+      // and its failure is always a toast: one tap, nothing for the person to fix.
+      .addCase(markNotificationsRead.rejected, (state, action) => {
+        const failure = action.payload ?? { code: 'internal' as const, rateLimit: undefined };
+        state.queue = [
+          ...pushed(state.queue, {
+            id: action.meta.requestId,
+            key: `notifications:read:${failure.code}`,
+            tone: failure.code === 'rate_limited' ? 'info' : 'error',
+            text: errorCopy({ code: failure.code, rateLimit: failure.rateLimit }),
           }),
         ];
       })

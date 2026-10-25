@@ -33,7 +33,7 @@ Why and what: [ADR 0013](../../docs/adrs/0013-rate-limits-in-postgres.md), [ADR 
 
 ## State
 
-Why and what: [ADR 0011](../../docs/adrs/0011-redux-toolkit-for-client-ui-state.md), `specs/0010-redux-ui-state/`. Today the wizard (`wizardSlice`), the vote ballots (`ballotsSlice`, `useBallot`) and every control that sends a request (the shared `useMutation`, below) are on the store; what stays `useState` is a single control's own input text and open or closed flags.
+Why and what: [ADR 0011](../../docs/adrs/0011-redux-toolkit-for-client-ui-state.md), `specs/0010-redux-ui-state/`. Today the wizard (`wizardSlice`), the vote ballots (`ballotsSlice`, `useBallot`) and every control that sends a request (the shared `useMutation`, below) are on the store, and so are the bell's unread count and marking notifications read (`notificationsSlice`, spec 0015: the count drops at once and comes back if the route says no; `useBadgePoll` keeps it fresh, and a result that lands after a newer request began is ignored); what stays `useState` is a single control's own input text and open or closed flags.
 
 - **The store holds UI state only.** Business rules stay on the server and in `packages/core`. Brunch data stays in Server Components and is refreshed with `router.refresh()` (called from the component); do not copy it into the store.
 - **Per-request store, never a module-level one.** `makeStore` builds a fresh store; `StoreProvider` (`src/store/`) creates it once per mount. Server Components never touch Redux.
