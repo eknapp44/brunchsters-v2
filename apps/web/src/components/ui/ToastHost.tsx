@@ -2,23 +2,15 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
+import { toastDurationMs } from '@/lib/toastTiming';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { selectToasts, type Toast, toastDismissed } from '@/store/toastsSlice';
 import styles from './ToastHost.module.css';
 
-// How long a toast stays. A failure stays longer: it carries something to act on, and it is read
-// slower than a "you're in". Hover or focus holds either one, so nothing is time-only.
-const SUCCESS_MS = 4000;
-const ERROR_MS = 8000;
-
-function durationFor(toast: Toast): number {
-  return toast.tone === 'error' ? ERROR_MS : SUCCESS_MS;
-}
-
 function ToastItem({ toast }: { readonly toast: Toast }): ReactElement {
   const dispatch = useAppDispatch();
   const [held, setHeld] = useState(false);
-  const remaining = useRef(durationFor(toast));
+  const remaining = useRef(toastDurationMs(toast.tone));
 
   // Counts down while nothing holds it, and keeps what is left across a hold.
   useEffect(() => {

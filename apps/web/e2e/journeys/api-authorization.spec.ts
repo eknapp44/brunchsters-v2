@@ -555,3 +555,79 @@ test.describe('API authorization', () => {
     expect(await hostOnly.json()).toMatchObject({ policy: 'writes' });
   });
 });
+
+// Spec 0014: the routes a member calls (not only the host-only ones) answer an outsider exactly as
+// they answer a made-up id, in code and body, and a signed-out caller with the coded 401. A member
+// may be told more (an option that went away), an outsider never.
+test.describe('API authorization: the member endpoints', () => {
+  test('an outsider cannot tell the brunch is real; a member who names a vanished option is told so', async ({
+    makeActor,
+  }) => {
+    test.slow();
+    const host = await makeActor('host');
+    const member = await makeActor('member');
+    const stranger = await makeActor('stranger');
+    const brunchId = await createBrunch({
+      host: host.user,
+      locations: [fixturePlaces.sunnySide, fixturePlaces.harborBistro],
+      times: [daysFromNow(10), daysFromNow(11)],
+    });
+    await addAttendee({ brunchId, host: host.user, user: member.user, response: 'yes' });
+    const anonymous = await playwrightRequest.newContext({ baseURL: baseUrl });
+
+    const b = `/api/v1/brunches/${brunchId}`;
+    const aMadeUpOption = randomUUID();
+    const endpoints: readonly (readonly [string, string, string, unknown])[] = [
+      ['RSVP', 'POST', `${b}/rsvp`, { response: 'yes' }],
+      ['vote for a place', 'PUT', `${b}/votes/locations`, { optionIds: [aMadeUpOption] }],
+      ['vote for a time', 'PUT', `${b}/votes/times`, { optionIds: [aMadeUpOption] }],
+      ['suggest a person', 'POST', `${b}/suggestions`, { email: 'someone@example.com' }],
+      ['suggest a place', 'POST', `${b}/location-suggestions`, location],
+      [
+        'suggest a time',
+        'POST',
+        `${b}/time-suggestions`,
+        { scheduledAt: daysFromNow(30).toISOString() },
+      ],
+    ];
+    const call = async (
+      who: APIRequestContext,
+      method: string,
+      path: string,
+      data: unknown,
+    ): Promise<{ readonly status: number; readonly body: unknown }> => {
+      const response = await who.fetch(path, { method, maxRedirects: 0, data });
+      return { status: response.status(), body: await response.json().catch(() => undefined) };
+    };
+
+    for (const [what, method, path, data] of endpoints) {
+      await test.step(`${what}: anonymous 401, outsider the same 404 as a made-up id`, async () => {
+        const signedOut = await call(anonymous, method, path, data);
+        expect(signedOut.status, `${what} (anonymous)`).toBe(401);
+        expect(signedOut.body).toMatchObject({ error: { code: 'signed_out' } });
+
+        const outsider = await call(stranger.context.request, method, path, data);
+        const nothing = await call(
+          stranger.context.request,
+          method,
+          path.replace(UUID, () => randomUUID()),
+          data,
+        );
+        expect(outsider.status, `${what} (outsider)`).toBe(404);
+        expect(outsider.body, `${what} (outsider)`).toMatchObject({ error: { code: 'not_found' } });
+        expect(outsider, `${what}: real vs made-up`).toEqual(nothing);
+      });
+    }
+
+    // A member may be told more: a vote for an option that is not on the table is a 404 that says
+    // so (`option_gone`), which is exactly what an outsider is never told.
+    for (const path of [`${b}/votes/locations`, `${b}/votes/times`]) {
+      const asMember = await call(member.context.request, 'PUT', path, {
+        optionIds: [aMadeUpOption],
+      });
+      expect(asMember.status, path).toBe(404);
+      expect(asMember.body, path).toMatchObject({ error: { code: 'option_gone' } });
+    }
+    await anonymous.dispose();
+  });
+});
