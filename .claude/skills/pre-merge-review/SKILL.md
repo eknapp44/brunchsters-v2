@@ -28,7 +28,8 @@ The owner likes a multi-lens review before merge. It is a pass over the **whole 
 
 - **`SUMMARY.md`** exists, is one page, and says what is true now (decisions, what changed from the plan, what is not done, how it was checked); write or correct it from the final code, not from the plan.
 - **`MANUAL-TESTING.md`** exists and its steps match the final behavior: run the items you can (the DevTools "block request" ones, the two-profile ones) or say which you did not; fix a step that no longer holds.
-- **UI specs:** make the curated screenshots (`pnpm --filter @brunchsters/web shots:spec NNNN`, dev mode: stop your own `pnpm dev`; it overwrites the production `.next`, so rebuild before the e2e run), look at each image, and commit them with their README. Keep the folder to about 3 MB.
+- **Pilot check (specs 0014 and 0015):** the manual-testing list and the screenshots are on trial. At spec 0015's review, ask the owner whether `MANUAL-TESTING.md` was run and the screenshots looked at, say what they cost (`du -sh specs/*/screenshots`, and the line count of the two files), and propose dropping whichever was not used. Until then keep both small: the notes in `tasks.md` stay short (see `/milestone-done` step 4) and the screenshots folder stays near 1 MB.
+- **UI specs:** make the curated screenshots (`pnpm --filter @brunchsters/web shots:spec NNNN`, dev mode: stop your own `pnpm dev`; it overwrites the production `.next`, so rebuild before the e2e run), look at each image, and commit them with their README. Keep the folder near 1 MB.
 
 ## 3. Report
 

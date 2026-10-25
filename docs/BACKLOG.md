@@ -38,6 +38,7 @@ Moved out of `PLANNING.md` §17 on 2026-10-24 (the text is unchanged; only its p
 
 ## Long-tail questions
 
+- **Process review after spec 0015** (set 2026-10-25): spec 0014 piloted `SUMMARY.md`, `MANUAL-TESTING.md` and curated `screenshots/` per spec. At spec 0015's pre-merge review, ask whether the manual-testing list was run and the screenshots looked at; drop what was not. Cost to weigh: about 11 KB of text and about 1 MB of JPEGs per UI spec (the clone size grows with every image, and they cannot be compressed across commits).
 - Pricing/monetization model (reservations affiliate? premium features? restaurant partnerships?)
 - ToS and Privacy Policy (will need before public launch)
 - Email digest vs. immediate per-event email
