@@ -1,6 +1,7 @@
 import type { DbClient } from '@brunchsters/database';
 import type { BrunchId, BrunchTimeSuggestionId, UserId } from '@brunchsters/shared';
 import { err, ok, type Result } from 'neverthrow';
+import type { EventBus } from '../events/EventBus';
 import { addTimeRequestSchema, type AddTimeRequest } from './addTime';
 import { reviewTimeSuggestion } from './reviewTimeSuggestion';
 import { assertBrunchActive } from './guards/assertBrunchActive';
@@ -28,7 +29,7 @@ export type SuggestTimeError =
 
 export async function suggestTime(
   input: SuggestTimeInput,
-  ctx: { readonly db: DbClient },
+  ctx: { readonly db: DbClient; readonly eventBus: EventBus },
 ): Promise<Result<SuggestTimeResult, SuggestTimeError>> {
   const { db } = ctx;
 
@@ -97,6 +98,17 @@ export async function suggestTime(
       return ok({ suggestionId, status: 'approved' });
     }
     // Suggestion row still exists as 'pending' — host can approve it manually later.
+  }
+
+  // Still waiting for the host: tell them (spec 0015). One approved on the spot needs no review.
+  try {
+    await ctx.eventBus.emit('suggestion/time', {
+      brunchId: input.brunchId,
+      suggestionId,
+      suggestedById: input.suggestedById,
+    });
+  } catch {
+    // Side effects must never fail the suggestion (Constitution 12).
   }
 
   return ok({ suggestionId, status: 'pending' });

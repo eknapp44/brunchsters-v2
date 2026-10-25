@@ -12,10 +12,10 @@ const SAM = 'sam' as UserId;
 const LEE = 'lee' as UserId;
 
 const MEMBERS: readonly RecipientMember[] = [
-  { userId: HOST, isHost: true, canVote: true, hasVoted: false },
-  { userId: MAYA, isHost: false, canVote: true, hasVoted: true },
-  { userId: SAM, isHost: false, canVote: true, hasVoted: false },
-  { userId: LEE, isHost: false, canVote: false, hasVoted: false },
+  { userId: HOST, isHost: true, canVote: true, hasVoted: false, hasDeclined: false },
+  { userId: MAYA, isHost: false, canVote: true, hasVoted: true, hasDeclined: false },
+  { userId: SAM, isHost: false, canVote: true, hasVoted: false, hasDeclined: false },
+  { userId: LEE, isHost: false, canVote: false, hasVoted: false, hasDeclined: false },
 ];
 
 describe('recipientsFor', () => {
@@ -50,6 +50,26 @@ describe('recipientsFor', () => {
     }
   });
 
+  it('leaves out someone who said no, as the emails do', () => {
+    const members: readonly RecipientMember[] = [
+      ...MEMBERS,
+      {
+        userId: 'nope' as UserId,
+        isHost: false,
+        canVote: false,
+        hasVoted: false,
+        hasDeclined: true,
+      },
+    ];
+    for (const type of ['brunch.confirmed', 'brunch.cancelled', 'brunch.reinstated'] as const) {
+      expect(recipientsFor({ type, hostId: HOST, members, actorId: HOST })).toEqual([
+        MAYA,
+        SAM,
+        LEE,
+      ]);
+    }
+  });
+
   it('reminds only members who can vote and have not', () => {
     expect(
       recipientsFor({ type: 'vote.deadline.approaching', hostId: HOST, members: MEMBERS }),
@@ -76,7 +96,10 @@ describe('recipientsFor', () => {
       recipientsFor({
         type: 'brunch.confirmed',
         hostId: HOST,
-        members: [...MEMBERS, { userId: SAM, isHost: false, canVote: true, hasVoted: false }],
+        members: [
+          ...MEMBERS,
+          { userId: SAM, isHost: false, canVote: true, hasVoted: false, hasDeclined: false },
+        ],
       }),
     ).toEqual([MAYA, SAM, LEE]);
   });

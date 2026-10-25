@@ -112,7 +112,7 @@ describe('option suggestions (integration — real Postgres)', () => {
         suggestedById: voterId,
         scheduledAt: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString(),
       },
-      { db },
+      { db, eventBus },
     );
     expect(suggested.isOk()).toBe(true);
     expect(suggested._unsafeUnwrap().status).toBe('pending');
@@ -128,7 +128,7 @@ describe('option suggestions (integration — real Postgres)', () => {
 
     const suggested = await suggestTime(
       { brunchId, suggestedById: voterId, scheduledAt: newScheduledAt },
-      { db },
+      { db, eventBus },
     );
     expect(suggested.isOk()).toBe(true);
     const suggestionId = suggested._unsafeUnwrap().suggestionId;
@@ -170,7 +170,7 @@ describe('option suggestions (integration — real Postgres)', () => {
 
     const suggested = await suggestTime(
       { brunchId, suggestedById: voterId, scheduledAt: suggestedScheduledAt },
-      { db },
+      { db, eventBus },
     );
     expect(suggested.isOk()).toBe(true);
     const suggestionId = suggested._unsafeUnwrap().suggestionId;
@@ -243,7 +243,7 @@ describe('option suggestions (integration — real Postgres)', () => {
         suggestedById: voterId,
         scheduledAt: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString(),
       },
-      { db },
+      { db, eventBus },
     );
     expect(suggested.isOk()).toBe(true);
     const suggestionId = suggested._unsafeUnwrap().suggestionId;
@@ -315,7 +315,7 @@ describe('option suggestions (integration — real Postgres)', () => {
           timezone: 'America/Chicago',
         },
       },
-      { db },
+      { db, eventBus },
     );
     expect(suggested.isOk()).toBe(true);
     const suggestionId = suggested._unsafeUnwrap().suggestionId;

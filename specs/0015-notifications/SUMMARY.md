@@ -38,7 +38,7 @@ Realtime and push; `running late` and `host transferred` (no feature behind them
 
 ## How it was checked
 
-_(filled at the pre-merge review: unit and integration counts, journeys N1 to N12 and what each was proved to fail without)_
+_(filled at the pre-merge review: unit and integration counts, journeys B1 to B12 and what each was proved to fail without)_
 
 ## Where to look
 

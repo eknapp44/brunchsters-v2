@@ -1,5 +1,12 @@
 import {
   markCancelNoticeSent,
+  notifyBrunchCancelled,
+  notifyBrunchConfirmed,
+  notifyBrunchReinstated,
+  notifyHostOfReply,
+  notifyHostOfSuggestion,
+  notifyHostOfVote,
+  notifyInvited,
   pruneRateLimitBuckets,
   resolveBackOnNotice,
   resolveCancelNotice,
@@ -16,6 +23,7 @@ import {
   type BrunchId,
   type Email,
   type InviteId,
+  type UserId,
 } from '@brunchsters/shared';
 import { NonRetriableError } from 'inngest';
 import { z } from 'zod';
@@ -26,7 +34,10 @@ import {
   BACK_ON_EMAIL_EVENTS,
   CANCELLED_EMAIL_EVENTS,
   CONFIRMED_EMAIL_EVENTS,
+  CONFIRMED_NOTIFICATION_EVENTS,
+  HOST_NOTIFICATION_EVENTS,
   INVITE_EMAIL_EVENTS,
+  INVITED_NOTIFICATION_EVENTS,
   PRUNE_RATE_LIMITS_CRON,
 } from './events';
 import { unwrapForQueue } from './unwrapForQueue';
@@ -38,6 +49,9 @@ const MAX_CONCURRENT_INVITE_EMAILS = 5;
 const inviteEventSchema = z.object({ inviteId: z.uuid() });
 const brunchEventSchema = z.object({ brunchId: z.uuid() });
 const cancelledEventSchema = z.object({ brunchId: z.uuid(), cancelledAt: z.iso.datetime() });
+const rsvpEventSchema = z.object({ brunchId: z.uuid(), viewerId: z.uuid() });
+const voteEventSchema = z.object({ brunchId: z.uuid(), voterId: z.uuid() });
+const suggestionEventSchema = z.object({ suggestionId: z.uuid() });
 
 function parseEventData<T>(params: { readonly schema: z.ZodType<T>; readonly data: unknown }): T {
   const parsed = params.schema.safeParse(params.data);
@@ -229,6 +243,16 @@ export const sendBrunchCancelledEmailsFunction = inngest.createFunction(
     );
     if (!claimed.marked) return { recipients: 0, stopped: 'superseded' };
 
+    // The in-app rows for the same people, written once the notice is claimed so a brunch brought
+    // back inside the hold writes none (spec 0015). Keyed by the cancellation, so a retry writes
+    // each row once. Before the emails: one failing address must not hold the inbox back.
+    const inbox = await step.run('write-inbox-rows', async () =>
+      unwrapForQueue({
+        result: await notifyBrunchCancelled({ brunchId, cancelledAt }, { db }),
+        step: 'write-inbox-rows',
+      }),
+    );
+
     const brunch = fromStepBrunch(plan.brunch);
     const outcomes: Record<string, string> = {};
     for (const recipient of plan.recipients) {
@@ -244,7 +268,7 @@ export const sendBrunchCancelledEmailsFunction = inngest.createFunction(
       );
     }
 
-    return { recipients: plan.recipients.length, outcomes };
+    return { recipients: plan.recipients.length, outcomes, inboxRows: inbox.written };
   },
 );
 
@@ -277,6 +301,16 @@ export const sendBrunchBackOnEmailsFunction = inngest.createFunction(
 
     const brunch = fromStepBrunch(plan.brunch);
     const cancelledAt = new Date(plan.cancelledAt);
+
+    // Only reached when people were told it was off (the stop above covers the rest), so the inbox
+    // says the same (spec 0015). Keyed by the cancellation it undoes.
+    const inbox = await step.run('write-inbox-rows', async () =>
+      unwrapForQueue({
+        result: await notifyBrunchReinstated({ brunchId, cancelledAt }, { db }),
+        step: 'write-inbox-rows',
+      }),
+    );
+
     const outcomes: Record<string, string> = {};
     for (const recipient of plan.recipients) {
       const stepName = `email-${recipient.key}`;
@@ -291,7 +325,110 @@ export const sendBrunchBackOnEmailsFunction = inngest.createFunction(
       );
     }
 
-    return { recipients: plan.recipients.length, outcomes };
+    return { recipients: plan.recipients.length, outcomes, inboxRows: inbox.written };
+  },
+);
+
+// The host's inbox (spec 0015, ADR 0017): a reply, a vote or a suggestion becomes a row for the host.
+// One function for the family because each case is a few lines over a core function that does the
+// work (who, whether, the words); the event name says which. Replies and votes coalesce into one
+// row per brunch, so a burst of ten is a count of ten, not ten rows.
+export const writeHostNotificationsFunction = inngest.createFunction(
+  {
+    id: 'write-host-notifications',
+    triggers: HOST_NOTIFICATION_EVENTS.map((event) => ({ event })),
+  },
+  async ({ event, step }) => {
+    const run = async (result: () => Promise<{ written: number }>) =>
+      step.run('write-notification', result);
+
+    // These functions subscribe by name (events.ts); the client has no per-event types.
+    const eventName: string = event.name;
+    switch (eventName) {
+      case 'attendee/rsvp.received':
+      case 'attendee/rsvp.changed': {
+        const data = parseEventData({ schema: rsvpEventSchema, data: event.data });
+        return run(async () =>
+          unwrapForQueue({
+            result: await notifyHostOfReply(
+              { brunchId: data.brunchId as BrunchId, actorId: data.viewerId as UserId },
+              { db },
+            ),
+            step: 'write-notification',
+          }),
+        );
+      }
+      case 'vote/cast':
+      case 'vote/changed': {
+        const data = parseEventData({ schema: voteEventSchema, data: event.data });
+        return run(async () =>
+          unwrapForQueue({
+            result: await notifyHostOfVote(
+              { brunchId: data.brunchId as BrunchId, actorId: data.voterId as UserId },
+              { db },
+            ),
+            step: 'write-notification',
+          }),
+        );
+      }
+      case 'suggestion/invite':
+      case 'suggestion/location':
+      case 'suggestion/time': {
+        const data = parseEventData({ schema: suggestionEventSchema, data: event.data });
+        const kind =
+          eventName === 'suggestion/invite'
+            ? 'invite'
+            : eventName === 'suggestion/time'
+              ? 'time'
+              : 'location';
+        return run(async () =>
+          unwrapForQueue({
+            result: await notifyHostOfSuggestion({ kind, suggestionId: data.suggestionId }, { db }),
+            step: 'write-notification',
+          }),
+        );
+      }
+      default:
+        throw new NonRetriableError(`Unexpected event for the host's inbox: ${eventName}`);
+    }
+  },
+);
+
+// "Brunch is on" in the inbox of everyone in the brunch but the host. Its own function, not a step
+// of the confirmation email: it needs no hold and no claim, and one failing address must not
+// withhold it.
+export const writeConfirmedNotificationsFunction = inngest.createFunction(
+  {
+    id: 'write-confirmed-notifications',
+    triggers: CONFIRMED_NOTIFICATION_EVENTS.map((event) => ({ event })),
+  },
+  async ({ event, step }) => {
+    const { brunchId } = parseEventData({ schema: brunchEventSchema, data: event.data });
+    return step.run('write-notifications', async () =>
+      unwrapForQueue({
+        result: await notifyBrunchConfirmed({ brunchId: brunchId as BrunchId }, { db }),
+        step: 'write-notifications',
+      }),
+    );
+  },
+);
+
+// "{Host} wants you at brunch" for an invited person who already has an account. A first send, a
+// resend and an approved suggestion all arrive here; the row is keyed by the invite, so only the
+// first writes anything.
+export const writeInviteNotificationFunction = inngest.createFunction(
+  {
+    id: 'write-invite-notification',
+    triggers: INVITED_NOTIFICATION_EVENTS.map((event) => ({ event })),
+  },
+  async ({ event, step }) => {
+    const { inviteId } = parseEventData({ schema: inviteEventSchema, data: event.data });
+    return step.run('write-notification', async () =>
+      unwrapForQueue({
+        result: await notifyInvited({ inviteId: inviteId as InviteId }, { db }),
+        step: 'write-notification',
+      }),
+    );
   },
 );
 
@@ -315,5 +452,8 @@ export const functions = [
   sendBrunchConfirmedEmailsFunction,
   sendBrunchCancelledEmailsFunction,
   sendBrunchBackOnEmailsFunction,
+  writeHostNotificationsFunction,
+  writeConfirmedNotificationsFunction,
+  writeInviteNotificationFunction,
   pruneRateLimitsFunction,
 ];

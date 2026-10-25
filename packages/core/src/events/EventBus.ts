@@ -1,9 +1,12 @@
 import type {
   BrunchId,
   BrunchLocationId,
+  BrunchLocationSuggestionId,
   BrunchTimeId,
+  BrunchTimeSuggestionId,
   Email,
   InviteId,
+  InviteSuggestionId,
   UserId,
 } from '@brunchsters/shared';
 
@@ -53,6 +56,23 @@ export type BrunchEventPayloads = {
   'attendee/rsvp.changed': RsvpPayload;
   'vote/cast': VotePayload;
   'vote/changed': VotePayload;
+  // Someone suggested an invitee, a place or a time and it is waiting for the host (spec 0015). Only
+  // emitted when the suggestion stays pending: one that was approved on the spot needs no review.
+  'suggestion/invite': {
+    readonly brunchId: BrunchId;
+    readonly suggestionId: InviteSuggestionId;
+    readonly suggestedById: UserId;
+  };
+  'suggestion/location': {
+    readonly brunchId: BrunchId;
+    readonly suggestionId: BrunchLocationSuggestionId;
+    readonly suggestedById: UserId;
+  };
+  'suggestion/time': {
+    readonly brunchId: BrunchId;
+    readonly suggestionId: BrunchTimeSuggestionId;
+    readonly suggestedById: UserId;
+  };
 };
 
 export type BrunchEventName = keyof BrunchEventPayloads;

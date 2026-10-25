@@ -69,6 +69,17 @@ describe('readNotificationData', () => {
     ).toEqual({ kind: 'vote.cast', count: 2, actors: ['a', 'b'] });
   });
 
+  it('reads an invitation only with the invite it names', () => {
+    const row = { kind: 'invite.received', hostName: 'Sam K.', inviteId: 'invite-1' };
+    expect(readNotificationData({ type: 'invite.received', data: row })).toEqual(row);
+    expect(
+      readNotificationData({
+        type: 'invite.received',
+        data: { kind: 'invite.received', hostName: 'Sam K.' },
+      }),
+    ).toBeUndefined();
+  });
+
   it('refuses data whose kind is not the row type', () => {
     expect(
       readNotificationData({

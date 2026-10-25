@@ -120,5 +120,16 @@ export async function suggestInvitee(
     // nothing is emailed.
   }
 
+  // Still waiting for the host: tell them (spec 0015). One approved on the spot needs no review.
+  try {
+    await ctx.eventBus.emit('suggestion/invite', {
+      brunchId: input.brunchId,
+      suggestionId,
+      suggestedById: input.suggestedById,
+    });
+  } catch {
+    // Side effects must never fail the suggestion (Constitution 12).
+  }
+
   return ok({ suggestionId, status: 'pending' });
 }

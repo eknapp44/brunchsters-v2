@@ -156,6 +156,19 @@ export type { ListNotificationsInput } from './notification/listNotifications';
 export { countUnread } from './notification/countUnread';
 export { markAllRead, markRead } from './notification/markRead';
 export type { MarkReadInput } from './notification/markRead';
+export {
+  notifyHostOfReply,
+  notifyHostOfSuggestion,
+  notifyHostOfVote,
+} from './notification/notifyHost';
+export type { SuggestionKind } from './notification/notifyHost';
+export {
+  notifyBrunchCancelled,
+  notifyBrunchConfirmed,
+  notifyBrunchReinstated,
+} from './notification/notifyMembers';
+export { notifyInvited } from './notification/notifyInvited';
+export type { NotifyError } from './notification/deliverInApp';
 export { COALESCED_TYPES } from './notification/notificationTypes';
 export type {
   CoalescedType,

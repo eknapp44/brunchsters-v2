@@ -1,4 +1,5 @@
 import type {
+  NotifyError,
   ResolveConfirmationRecipientsError,
   ResolveNoticeError,
   SendConfirmationEmailError,
@@ -11,7 +12,8 @@ type FailureKind =
   | SendInviteEmailError['kind']
   | ResolveConfirmationRecipientsError['kind']
   | ResolveNoticeError['kind']
-  | SendConfirmationEmailError['kind'];
+  | SendConfirmationEmailError['kind']
+  | NotifyError['kind'];
 
 // Failures that time cannot fix: retrying wastes attempts and hides the real problem. Typed
 // against core's error kinds, so a renamed or mistyped kind fails to compile; a kind core adds

@@ -31,16 +31,21 @@ Process (pilot, spec 0014 and this one): the folder also gets `SUMMARY.md`, `MAN
 
 ## M2 — Events and handlers write the rows
 
-- [ ] The three suggestion services emit `suggestion/invite|location|time` (typed in `EventBus.ts`); `events.ts` lists the new families; the handlers in `functions.ts` write rows per the spec's table, idempotently; the cancel row uses the same hold-and-recheck as the email
-- [ ] `invite.received` for an invitee who already has an account (a normalized-email lookup); nothing for one who does not
-- [ ] `notificationRecipients.test.ts` (a producible type without a recipient rule, or a handled event without a decision, fails and names the file)
-- [ ] Integration tests per event: who gets a row, who does not (the actor, the host for member types, a muted member); a retried handler writes once
-- [ ] **Prove the tests can fail:** remove the recheck from the cancel handler → a bring-back inside the hold still writes a row, and the test fails; remove a recipient rule → `notificationRecipients` fails
-- [ ] Commit: `feat: write notification rows from brunch events (M2)`
+- [x] The three suggestion services emit `suggestion/invite|location|time` (typed in `EventBus.ts`); `events.ts` lists the new families; the handlers in `functions.ts` write rows per the spec's table, idempotently; the cancel row uses the same hold-and-recheck as the email
+- [x] `invite.received` for an invitee who already has an account (a normalized-email lookup); nothing for one who does not
+- [x] `notificationRecipients.test.ts` (a producible type without a recipient rule, or a handled event without a decision, fails and names the file)
+- [x] Integration tests per event: who gets a row, who does not (the actor, the host for member types, a muted member); a retried handler writes once
+- [x] **Prove the tests can fail:** remove the recheck from the cancel handler → a bring-back inside the hold still writes a row, and the test fails; remove a recipient rule → `notificationRecipients` fails
+- [x] Commit: `feat: write notification rows from brunch events (M2)`
 
-**Journeys that change:** none yet (no screen reads them; a handler-level journey would assert nothing a person can see). **Deployable:** yes (rows accumulate unseen; the daily prune arrives in M7, and M2 to M6 are small).
+**Journeys that change:** new B13 (`notifications-queue.spec.ts`, reads the rows from the database: nothing on screen shows them until M4); `email-notifications` N4 (eight functions, was five). **Deployable:** yes (rows accumulate unseen; the daily prune arrives in M7, and M2 to M6 are small).
 
-**Testing notes:** _(fill on completion)_
+**Testing notes:**
+
+- **What and how:** 11 new integration tests on real Postgres (`producers.integration.test.ts`: a reply or vote counts a person once and never the actor or a muted host; a pending suggestion writes one row and a decided one none; confirmed reaches members but not the host, the decliner or a muted member; called-off and back-on rows are keyed by the cancellation; an invitation row names the invite, never its token), 3 unit tests each for the two suggestion services (emit while pending, not when approved, survive a dead queue), one for "no" in `recipientsFor`, and the static `notificationRecipients.test.ts` guard. Journey **B13** (3 tests, real Inngest dev server): reply, vote, suggestion and confirm reach the right inboxes; called off and back on write rows only when people were told (a brunch brought back inside the hold writes none); an invitation reaches an account holder and not an address with none. Proved to fail: 7 core mutations (ignore "no", tell the actor, expired invite, decided suggestion, called-off confirmation, skip `shouldDeliver`, cancellation key without its moment) and 2 in the Inngest wiring (the called-off step replaced by a no-op; votes routed to the reply producer).
+- **Fixed on the way:** a person with an account is added to the brunch the moment they are invited (answer "invited"), so skipping invites that have an attendee wrote nothing for exactly the people it is for; the integration test had built an invite without that row and passed, B13 found it. Journey ids: the spec's N-series clashed with spec 0008's N1 to N4, so the notification journeys are the **B** series (renamed in the spec folder). The static guard's "emitted by core" check must skip `EventBus.ts`, which names every event.
+- **Deferred:** the stress run: nothing mounted changed (the first milestone that mounts the bell, M4, runs it); the failed-invite row (M6) and the deadline reminder (M7) are the two types still listed as not yet produced. Votes and RSVPs now reach the queue (one send each, ADR 0009 said they cost nothing until consumed): fine for a beta, a thing to watch.
+- **Run:** `pnpm --filter @brunchsters/core test:integration notification`; `CI=true pnpm build && CI=true pnpm test:e2e notifications-queue`.
 
 ---
 
@@ -63,8 +68,8 @@ Process (pilot, spec 0014 and this one): the folder also gets `SUMMARY.md`, `MAN
 
 - [ ] `/ui-screen` first: the bell in `TopBar` ("Notifications, N unread", "99+"), `/notifications` (rows as links, "Mark all read", empty state, phone layout), `lib/notificationCopy.ts` (every type, singular/plural, `LocalDateTime` for times, no corporate words), `errorCopy` lines for new codes
 - [ ] Opening a row marks it read and navigates (best-effort); viewing the page marks nothing
-- [ ] Journeys N1 (coalescing, unread again, opening a row), N2, N3, N4, N5 (the read routes); axe (D2), layout (D3) and the phone board for the inbox; `screenshots.json` entries
-- [ ] **Prove the tests can fail:** coalescing removed → N1 fails; the page marking rows read on view → N4 fails; the recheck removed → N3 fails
+- [ ] Journeys B1 (coalescing, unread again, opening a row), B2, B3, B4, B5 (the read routes); axe (D2), layout (D3) and the phone board for the inbox; `screenshots.json` entries
+- [ ] **Prove the tests can fail:** coalescing removed → B1 fails; the page marking rows read on view → B4 fails; the recheck removed → B3 fails
 - [ ] Commit: `feat: add the notification bell and inbox (M4)`
 
 **Accessible names changed:** new bell, "Notifications" heading, "Mark all read". **Journeys that change:** `access-and-dashboard` (the bar), new `notifications.spec.ts`. **Deployable:** yes.
@@ -78,8 +83,8 @@ Process (pilot, spec 0014 and this one): the folder also gets `SUMMARY.md`, `MAN
 - [ ] `PUT notification-preferences` and `PUT brunches/[id]/notification-level` (membership first; `enforceWriteLimit`; coded errors); real and made-up brunch ids identical for an outsider
 - [ ] `shouldDeliver` wired into the inbox handlers and **all four existing email senders** (and a test that fails when an `emailService.send` caller does not call it); the invite email consults an account's preference by normalized email and is silent on a skip
 - [ ] `/settings/notifications` (grouped, only types that fire, in-app and email switches) and the brunch page's mute control; footer link in the four emails to the brunch page
-- [ ] Journeys N5 (the mute and preference routes), N6, N7, N12; the `email-notifications` journeys edited for preferences; axe light and dark, layout, phone board
-- [ ] **Prove the tests can fail:** bypass `shouldDeliver` in one email sender → N6 fails; let `big_stuff` keep host activity → N7 fails
+- [ ] Journeys B5 (the mute and preference routes), B6, B7, B12; the `email-notifications` journeys edited for preferences; axe light and dark, layout, phone board
+- [ ] **Prove the tests can fail:** bypass `shouldDeliver` in one email sender → B6 fails; let `big_stuff` keep host activity → B7 fails
 - [ ] Commit: `feat: add notification preferences and per-brunch mute (M5)`
 
 **Accessible names changed:** new switches, the mute control and its three options, "Notification settings". **Journeys that change:** `email-notifications`, `api-authorization`, new `notification-settings.spec.ts`. **Deployable:** yes.
@@ -92,12 +97,12 @@ Process (pilot, spec 0014 and this one): the folder also gets `SUMMARY.md`, `MAN
 
 - [ ] `emailFailedAt` set on a rejected address and, via `onFailure`, on exhausted retries; cleared by a successful resend; the host's `invite.email.failed` row (muting ignored); a preference skip writes nothing
 - [ ] The invite list line "Didn't go out" with the existing Resend control (`/ui-screen`); `docs/BACKLOG.md` "Silent failures to surface" closed
-- [ ] Journey N8 (rejected address through the real handler, row and line, resend clears both) and a case in N6 that a preference skip shows the host nothing
+- [ ] Journey B8 (rejected address through the real handler, row and line, resend clears both) and a case in B6 that a preference skip shows the host nothing
 - [ ] **Ask the owner whether M8 stays in this spec**
-- [ ] **Prove the tests can fail:** `onFailure` removed → N8's exhausted-retries case fails; a preference skip counted as failure → N6 fails
+- [ ] **Prove the tests can fail:** `onFailure` removed → B8's exhausted-retries case fails; a preference skip counted as failure → B6 fails
 - [ ] Commit: `feat: tell the host when an invite email did not go out (M6)`
 
-**Accessible names changed:** new invite-line text "Didn't go out". **Journeys that change:** `invitations-host`, new N8. **Deployable:** yes.
+**Accessible names changed:** new invite-line text "Didn't go out". **Journeys that change:** `invitations-host`, new B8. **Deployable:** yes.
 
 **Testing notes:** _(fill on completion)_
 
@@ -109,11 +114,11 @@ Process (pilot, spec 0014 and this one): the folder also gets `SUMMARY.md`, `MAN
 - [ ] `findDeadlineReminders`, `completePastBrunches` (take `now`); the cron function and `prune-notifications`; the deadline reminder email (`/limited-surface`: a decision in `emailBudgets.test.ts`, a sender in `SENDERS`)
 - [ ] The over rule (`brunch_over`, 409) beside `assertBrunchOpen`, `confirmed → completed` in `BRUNCH_TRANSITIONS`, Bring it back refuses a past confirmed brunch, `errorCopy` line, `lifecycleGuards.test.ts` and `lifecycleErrorMapping.test.ts` cover it; the dashboard and brunch page show "Over"
 - [ ] Integration tests: due, not due, already voted, cannot vote, a moved deadline, a deadline set inside the window, a retried run, a racing call off, the first-run flip notifying no one, prune boundaries (59/61 days read, 89/91 unread)
-- [ ] Journeys N9 and N10 (as the spike allows); `docs/SETUP.md` and the pre-launch checklist name the new functions to register in Inngest Cloud
-- [ ] **Prove the tests can fail:** drop the over rule → N10 fails; remove the voted-exclusion → N9 fails; prune using `createdAt` for unread → its boundary test fails
+- [ ] Journeys B9 and B10 (as the spike allows); `docs/SETUP.md` and the pre-launch checklist name the new functions to register in Inngest Cloud
+- [ ] **Prove the tests can fail:** drop the over rule → B10 fails; remove the voted-exclusion → B9 fails; prune using `createdAt` for unread → its boundary test fails
 - [ ] Commit: `feat: add deadline reminders, completed brunches and pruning (M7)`
 
-**Accessible names changed:** none beyond the "Over" status text. **Journeys that change:** the lifecycle journeys, new N9 and N10. **Deployable:** yes (the cron runs once registered).
+**Accessible names changed:** none beyond the "Over" status text. **Journeys that change:** the lifecycle journeys, new B9 and B10. **Deployable:** yes (the cron runs once registered).
 
 **Testing notes:** _(fill on completion)_
 
@@ -124,11 +129,11 @@ Process (pilot, spec 0014 and this one): the folder also gets `SUMMARY.md`, `MAN
 - [ ] `useRefreshOnFocus` (pure decision function: visible, ≥15 s since the last, no pending mutation, no dirty ballot, no open dialog); mounted on the brunch page, manage page and dashboard; unit tests for every exclusion
 - [ ] The vote-count live region (design-fidelity deferral 6): announces a change the person did not cause, politely; silent for their own tap
 - [ ] `docs/BACKLOG.md` "Live updates": the focus refresh and the live region done; Realtime stays an entry with what would settle it
-- [ ] Journey N11 (an outside change appears on focus; never with a dirty ballot; the live region); the mobile project; axe
-- [ ] **Prove the tests can fail:** drop the dirty-ballot exclusion → N11 fails (the ballot is replaced); announce an own tap → N11 fails
+- [ ] Journey B11 (an outside change appears on focus; never with a dirty ballot; the live region); the mobile project; axe
+- [ ] **Prove the tests can fail:** drop the dirty-ballot exclusion → B11 fails (the ballot is replaced); announce an own tap → B11 fails
 - [ ] Commit: `feat: refresh pages on focus and announce outside vote changes (M8)`
 
-**Journeys that change:** `voting` (the live region), new N11. **Deployable:** yes.
+**Journeys that change:** `voting` (the live region), new B11. **Deployable:** yes.
 
 **Testing notes:** _(fill on completion)_
 

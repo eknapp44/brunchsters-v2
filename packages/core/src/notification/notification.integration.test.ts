@@ -127,7 +127,7 @@ describe('writeNotification', () => {
       type: 'invite.received' as const,
       title: 'Invited',
       body: 'Come to brunch',
-      data: { kind: 'invite.received' as const, hostName: 'Notif Host' },
+      data: { kind: 'invite.received' as const, hostName: 'Notif Host', inviteId: 'invite-1' },
       dedupeKey: `invite-received:${RUN_ID}`,
     };
     await writeNotification({ ...base, userId: mayaId }, { db });

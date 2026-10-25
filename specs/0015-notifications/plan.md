@@ -79,7 +79,7 @@ One cron function, two steps. `completePastBrunches` runs first (a single condit
 
 ### How the cron is tested
 
-The core functions take `now` and are covered in integration tests against local Postgres (due, not due, voted, moved deadline, retry replay, racing call off). For the journey (N9, N10) M7 starts with a spike: invoke the registered function through the Inngest dev server's invoke API from Playwright. If that works, the journeys drive the real function; if it does not, the journeys create the due state through the real core services with a past `now`-equivalent (a deadline and a brunch time set in the past through the factories) and call the core function, and the testing note says plainly that the Inngest scheduling itself is unproved (as with `prune-rate-limits`, and on the pre-launch checklist).
+The core functions take `now` and are covered in integration tests against local Postgres (due, not due, voted, moved deadline, retry replay, racing call off). For the journey (B9, B10) M7 starts with a spike: invoke the registered function through the Inngest dev server's invoke API from Playwright. If that works, the journeys drive the real function; if it does not, the journeys create the due state through the real core services with a past `now`-equivalent (a deadline and a brunch time set in the past through the factories) and call the core function, and the testing note says plainly that the Inngest scheduling itself is unproved (as with `prune-rate-limits`, and on the pre-launch checklist).
 
 ### Live updates
 
@@ -127,11 +127,11 @@ See `spec.md` "Risks". Additional:
 
 - **Handlers writing rows for events the queue still drops.** `QUEUED_EVENTS` is derived from the handler lists; a test fails when a handled event is missing from it (already true) and when a new event has no decision.
 - **The `votingDeadlineSetAt` column** is the one addition not in the grill; it exists only to make "set inside the window sends nothing" decidable, and is nullable (existing rows: treated as set long ago).
-- **Test cost.** Journeys N1 to N12 run on the real queue; they stay quick by creating state through factories, and the cron journeys avoid sleeping.
+- **Test cost.** Journeys B1 to B12 run on the real queue; they stay quick by creating state through factories, and the cron journeys avoid sleeping.
 
 ## Test strategy
 
 - **Unit (node):** shared lists and defaults; `shouldDeliver` (a table of level × type × preference); `notificationCopy` (every type has a line, banned words, singular/plural); the focus-refresh decision; the slice.
 - **Integration (local Postgres):** `writeNotification` replay, coalescing, recipient rules per event, `markRead` only touches the caller, prune retention boundaries, reminders and completion with `now`, the invite-preference skip, failed-invite row and clearing.
 - **Route tests:** codes, limits (`routeLimits.test.ts`), real and made-up ids identical.
-- **E2E:** N1 to N12 (spec); **proved to fail** with the behavior removed is listed per milestone.
+- **E2E:** B1 to B12 (spec); **proved to fail** with the behavior removed is listed per milestone.

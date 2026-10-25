@@ -51,7 +51,11 @@ function makeMockDb(
   } as unknown as DbClient;
 }
 
+const emit = vi.fn().mockResolvedValue(undefined);
+const eventBus = { emit };
+
 beforeEach(() => {
+  emit.mockClear();
   vi.mocked(reviewTimeSuggestion).mockReset();
 });
 
@@ -61,7 +65,7 @@ describe('suggestTime', () => {
   it('creates a pending suggestion when host approval is required', async () => {
     const db = makeMockDb();
 
-    const result = await suggestTime(BASE_INPUT, { db });
+    const result = await suggestTime(BASE_INPUT, { db, eventBus });
 
     expect(result.isOk()).toBe(true);
     expect(result._unsafeUnwrap()).toEqual({
@@ -81,7 +85,7 @@ describe('suggestTime', () => {
         .mockResolvedValue({ ...OPEN_BRUNCH, requireHostApprovalForOptions: false }),
     });
 
-    const result = await suggestTime(BASE_INPUT, { db });
+    const result = await suggestTime(BASE_INPUT, { db, eventBus });
 
     expect(result.isOk()).toBe(true);
     expect(result._unsafeUnwrap()).toEqual({
@@ -108,7 +112,7 @@ describe('suggestTime', () => {
         .mockResolvedValue({ ...OPEN_BRUNCH, requireHostApprovalForOptions: false }),
     });
 
-    const result = await suggestTime(BASE_INPUT, { db });
+    const result = await suggestTime(BASE_INPUT, { db, eventBus });
 
     expect(result.isOk()).toBe(true);
     expect(result._unsafeUnwrap().status).toBe('pending');
@@ -118,7 +122,7 @@ describe('suggestTime', () => {
     const attendeeFindFirst = vi.fn();
     const db = makeMockDb({ attendeeFindFirst });
 
-    const result = await suggestTime({ ...BASE_INPUT, suggestedById: HOST_ID }, { db });
+    const result = await suggestTime({ ...BASE_INPUT, suggestedById: HOST_ID }, { db, eventBus });
 
     expect(result.isOk()).toBe(true);
     expect(attendeeFindFirst).not.toHaveBeenCalled();
@@ -127,7 +131,7 @@ describe('suggestTime', () => {
   it('returns brunch_not_found when the brunch does not exist', async () => {
     const db = makeMockDb({ brunchFindFirst: vi.fn().mockResolvedValue(null) });
 
-    const result = await suggestTime(BASE_INPUT, { db });
+    const result = await suggestTime(BASE_INPUT, { db, eventBus });
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_found' });
   });
@@ -137,7 +141,7 @@ describe('suggestTime', () => {
       brunchFindFirst: vi.fn().mockResolvedValue({ ...OPEN_BRUNCH, allowTimeSuggestions: false }),
     });
 
-    const result = await suggestTime(BASE_INPUT, { db });
+    const result = await suggestTime(BASE_INPUT, { db, eventBus });
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'suggestions_disabled' });
   });
@@ -147,7 +151,7 @@ describe('suggestTime', () => {
       brunchFindFirst: vi.fn().mockResolvedValue({ ...OPEN_BRUNCH, status: { code: 'confirmed' } }),
     });
 
-    const result = await suggestTime(BASE_INPUT, { db });
+    const result = await suggestTime(BASE_INPUT, { db, eventBus });
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_active' });
   });
@@ -155,7 +159,7 @@ describe('suggestTime', () => {
   it('treats someone who is not a member as if the brunch does not exist', async () => {
     const db = makeMockDb({ attendeeFindFirst: vi.fn().mockResolvedValue(null) });
 
-    const result = await suggestTime(BASE_INPUT, { db });
+    const result = await suggestTime(BASE_INPUT, { db, eventBus });
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_found' });
   });
@@ -171,12 +175,14 @@ describe('suggestTime', () => {
       brunchFindFirst: vi.fn().mockResolvedValue({ ...OPEN_BRUNCH, status: { code: 'confirmed' } }),
     });
 
-    expect((await suggestTime(BASE_INPUT, { db: off }))._unsafeUnwrapErr()).toEqual({
+    expect((await suggestTime(BASE_INPUT, { db: off, eventBus }))._unsafeUnwrapErr()).toEqual({
       kind: 'brunch_not_found',
     });
-    expect((await suggestTime(BASE_INPUT, { db: confirmed }))._unsafeUnwrapErr()).toEqual({
-      kind: 'brunch_not_found',
-    });
+    expect((await suggestTime(BASE_INPUT, { db: confirmed, eventBus }))._unsafeUnwrapErr()).toEqual(
+      {
+        kind: 'brunch_not_found',
+      },
+    );
   });
 
   it('returns already_suggested when the time was already suggested for this brunch', async () => {
@@ -184,7 +190,7 @@ describe('suggestTime', () => {
       suggestionFindUnique: vi.fn().mockResolvedValue({ id: 'existing-suggestion' }),
     });
 
-    const result = await suggestTime(BASE_INPUT, { db });
+    const result = await suggestTime(BASE_INPUT, { db, eventBus });
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'already_suggested' });
   });
@@ -194,7 +200,7 @@ describe('suggestTime', () => {
       timeFindFirst: vi.fn().mockResolvedValue({ id: 'existing-time' }),
     });
 
-    const result = await suggestTime(BASE_INPUT, { db });
+    const result = await suggestTime(BASE_INPUT, { db, eventBus });
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'already_suggested' });
   });
@@ -202,7 +208,7 @@ describe('suggestTime', () => {
   it('returns lookup_not_found when the pending status row is missing', async () => {
     const db = makeMockDb({ statusFindFirst: vi.fn().mockResolvedValue(null) });
 
-    const result = await suggestTime(BASE_INPUT, { db });
+    const result = await suggestTime(BASE_INPUT, { db, eventBus });
 
     expect(result._unsafeUnwrapErr()).toEqual({
       kind: 'lookup_not_found',
@@ -213,7 +219,7 @@ describe('suggestTime', () => {
   it('returns db_error when suggestion creation fails', async () => {
     const db = makeMockDb({ suggestionCreate: vi.fn().mockRejectedValue(new Error('boom')) });
 
-    const result = await suggestTime(BASE_INPUT, { db });
+    const result = await suggestTime(BASE_INPUT, { db, eventBus });
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'db_error', cause: expect.any(Error) });
   });
@@ -228,5 +234,41 @@ describe('suggestTimeRequestSchema', () => {
     expect(
       suggestTimeRequestSchema.safeParse({ scheduledAt: '2000-01-01T00:00:00.000Z' }).success,
     ).toBe(false);
+  });
+
+  it('tells the host about a suggestion that is still waiting for them', async () => {
+    const db = makeMockDb({});
+
+    const result = await suggestTime(BASE_INPUT, { db, eventBus });
+
+    expect(result._unsafeUnwrap().status).toBe('pending');
+    expect(emit).toHaveBeenCalledWith('suggestion/time', {
+      brunchId: BRUNCH_ID,
+      suggestionId: expect.anything(),
+      suggestedById: ATTENDEE_ID,
+    });
+  });
+
+  it('says nothing when the suggestion was approved on the spot', async () => {
+    vi.mocked(reviewTimeSuggestion).mockResolvedValue(ok({} as never));
+    const db = makeMockDb({
+      brunchFindFirst: vi
+        .fn()
+        .mockResolvedValue({ ...OPEN_BRUNCH, requireHostApprovalForOptions: false }),
+    });
+
+    const result = await suggestTime(BASE_INPUT, { db, eventBus });
+
+    expect(result._unsafeUnwrap().status).toBe('approved');
+    expect(emit).not.toHaveBeenCalled();
+  });
+
+  it('still succeeds when the queue is down', async () => {
+    emit.mockRejectedValueOnce(new Error('queue down'));
+    const db = makeMockDb({});
+
+    const result = await suggestTime(BASE_INPUT, { db, eventBus });
+
+    expect(result.isOk()).toBe(true);
   });
 });

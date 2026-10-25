@@ -78,6 +78,29 @@ describe('suggestInvitee', () => {
     expect(reviewInviteSuggestion).not.toHaveBeenCalled();
   });
 
+  it('tells the host about a suggestion that is waiting for them, and survives a dead queue', async () => {
+    const emit = vi.fn().mockResolvedValue(undefined);
+
+    const told = await suggestInvitee(BASE_INPUT, {
+      rateLimiter: new InMemoryRateLimiter(),
+      db: makeMockDb(),
+      eventBus: { emit },
+    });
+    expect(told._unsafeUnwrap().status).toBe('pending');
+    expect(emit).toHaveBeenCalledWith('suggestion/invite', {
+      brunchId: BRUNCH_ID,
+      suggestionId: 'new-suggestion-uuid',
+      suggestedById: ATTENDEE_ID,
+    });
+
+    const down = await suggestInvitee(BASE_INPUT, {
+      rateLimiter: new InMemoryRateLimiter(),
+      db: makeMockDb(),
+      eventBus: { emit: vi.fn().mockRejectedValue(new Error('queue down')) },
+    });
+    expect(down.isOk()).toBe(true);
+  });
+
   it('auto-approves and creates the invite when host approval is not required', async () => {
     vi.mocked(reviewInviteSuggestion).mockResolvedValue(
       ok({ suggestionId: 'new-suggestion-uuid' as never }),

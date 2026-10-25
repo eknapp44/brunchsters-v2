@@ -1,6 +1,7 @@
 import type { DbClient } from '@brunchsters/database';
 import type { BrunchId, BrunchLocationSuggestionId, UserId } from '@brunchsters/shared';
 import { err, ok, type Result } from 'neverthrow';
+import type { EventBus } from '../events/EventBus';
 import type { LocationInput } from './createBrunch';
 import { reviewLocationSuggestion } from './reviewLocationSuggestion';
 import { assertBrunchActive } from './guards/assertBrunchActive';
@@ -26,7 +27,7 @@ export type SuggestLocationError =
 
 export async function suggestLocation(
   input: SuggestLocationInput,
-  ctx: { readonly db: DbClient },
+  ctx: { readonly db: DbClient; readonly eventBus: EventBus },
 ): Promise<Result<SuggestLocationResult, SuggestLocationError>> {
   const { db } = ctx;
 
@@ -99,6 +100,17 @@ export async function suggestLocation(
       return ok({ suggestionId, status: 'approved' });
     }
     // Suggestion row still exists as 'pending' — host can approve it manually later.
+  }
+
+  // Still waiting for the host: tell them (spec 0015). One approved on the spot needs no review.
+  try {
+    await ctx.eventBus.emit('suggestion/location', {
+      brunchId: input.brunchId,
+      suggestionId,
+      suggestedById: input.suggestedById,
+    });
+  } catch {
+    // Side effects must never fail the suggestion (Constitution 12).
   }
 
   return ok({ suggestionId, status: 'pending' });

@@ -8,6 +8,8 @@ export type RecipientMember = {
   readonly canVote: boolean;
   // They have cast a ballot on the open voting.
   readonly hasVoted: boolean;
+  // They answered no: the one answer that opts out of hearing about the brunch (as with its emails).
+  readonly hasDeclined: boolean;
 };
 
 export type RecipientsInput = {
@@ -31,7 +33,7 @@ export type RecipientsInput = {
 // A type nothing produces has no recipients. Recipients are de-duplicated and never include the
 // actor.
 export function recipientsFor(input: RecipientsInput): readonly UserId[] {
-  const everyoneButHost = input.members.filter((member) => !member.isHost);
+  const everyoneButHost = input.members.filter((member) => !member.isHost && !member.hasDeclined);
   let chosen: readonly UserId[];
 
   switch (input.type) {

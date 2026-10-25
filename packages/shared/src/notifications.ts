@@ -130,7 +130,9 @@ export type NotificationData =
   | { readonly kind: 'brunch.cancelled'; readonly hostName: string }
   | { readonly kind: 'brunch.reinstated'; readonly hostName: string }
   | { readonly kind: 'vote.deadline.approaching'; readonly deadline: string }
-  | { readonly kind: 'invite.received'; readonly hostName: string }
+  // `inviteId` lets the inbox find the invite page for a person who has not joined yet; it is an id,
+  // never the token (the page reads the token itself, for the signed-in invitee only).
+  | { readonly kind: 'invite.received'; readonly hostName: string; readonly inviteId: string }
   | { readonly kind: 'invite.email.failed'; readonly email: string };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -199,11 +201,15 @@ export function readNotificationData(params: {
       };
     }
     case 'brunch.cancelled':
-    case 'brunch.reinstated':
-    case 'invite.received': {
+    case 'brunch.reinstated': {
       const found = stringFields(data, ['hostName']);
       if (found === undefined) return undefined;
       return { kind: type, hostName: found['hostName'] ?? '' };
+    }
+    case 'invite.received': {
+      const found = stringFields(data, ['hostName', 'inviteId']);
+      if (found === undefined) return undefined;
+      return { kind: type, hostName: found['hostName'] ?? '', inviteId: found['inviteId'] ?? '' };
     }
     case 'vote.deadline.approaching': {
       const found = stringFields(data, ['deadline']);

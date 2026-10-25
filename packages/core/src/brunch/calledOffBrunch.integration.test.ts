@@ -204,7 +204,10 @@ describe('a called-off brunch takes no changes (integration — real Postgres)',
         { db, eventBus },
       ),
       addLocation({ brunchId, requestedById: hostId, location: OTHER_LOCATION }, { db }),
-      suggestLocation({ brunchId, suggestedById: memberId, location: OTHER_LOCATION }, { db }),
+      suggestLocation(
+        { brunchId, suggestedById: memberId, location: OTHER_LOCATION },
+        { db, eventBus },
+      ),
     ]);
 
     expect(confirm._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_active' });
