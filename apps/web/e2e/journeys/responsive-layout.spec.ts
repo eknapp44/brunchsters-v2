@@ -2,6 +2,8 @@ import { GONE_COLD } from '../support/pages';
 import { EMPTY_DASHBOARD_HEADLINE } from '../support/dashboard';
 import type { Page } from '@playwright/test';
 import { createBrunch } from '../support/factories';
+import { bell, EMPTY_INBOX_HEADLINE, inboxRows } from '../support/inbox';
+import { giveNotification } from '../support/notifications';
 import { createLifecycleShowcase, hideForGuest } from '../support/lifecycleShowcase';
 import { afterTheHold, callOffBrunch } from '../support/lifecycle';
 import { expect, test } from '../support/fixtures';
@@ -47,6 +49,24 @@ test.describe('D3 — every screen fits and shows its one action', () => {
     await page.goto('/invite/not-a-real-token');
     await expect(page.getByRole('heading', { name: GONE_COLD })).toBeVisible();
     await expectNoSidewaysScroll(page, 'the invalid invite page');
+  });
+
+  test('the inbox, empty and full, with the bell in the bar (spec 0015)', async ({ makeActor }) => {
+    const ann = await makeActor('ann');
+    await ann.page.goto('/notifications');
+    await expect(ann.page.getByRole('heading', { name: EMPTY_INBOX_HEADLINE })).toBeVisible();
+    await expect(bell(ann.page)).toBeInViewport();
+    await expect(ann.page.getByRole('link', { name: 'Plan a Brunch' })).toBeInViewport();
+    await expectNoSidewaysScroll(ann.page, 'the empty inbox');
+
+    // A name with no break in it must wrap inside the row, not push the page wider.
+    await giveNotification({ user: ann.user, hostName: 'A'.repeat(80) });
+    for (let n = 0; n < 4; n += 1) await giveNotification({ user: ann.user });
+    await ann.page.goto('/notifications');
+    await expect(inboxRows(ann.page)).toHaveCount(5);
+    await expect(bell(ann.page)).toBeInViewport();
+    await expect(ann.page.getByRole('button', { name: 'Mark all read' })).toBeInViewport();
+    await expectNoSidewaysScroll(ann.page, 'the inbox');
   });
 
   test('the dashboard, empty and full', async ({ makeActor }) => {

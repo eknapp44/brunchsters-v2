@@ -36,6 +36,7 @@ const PAIRS: readonly {
     needs: TEXT,
     what: 'primary button label',
   },
+  { foreground: 'accent-fg', background: 'accent', needs: TEXT, what: 'the bell count' },
   {
     foreground: 'accent-soft-fg',
     background: 'accent-soft',

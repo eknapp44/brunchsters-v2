@@ -1,0 +1,156 @@
+/* The inbox, phone first: one column of rows. A row is a single link (the whole row is the target,
+   44px or more), the words first, the time under them. From 40rem there is more room around the
+   rows and nothing else changes. Unread rows are a soft butter and their words are bolder; the dot
+   is a second cue, and screen readers hear "Unread." instead. */
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.header h1 {
+  margin: 0;
+  font-size: var(--text-2xl);
+}
+
+.list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  margin: 0;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 0.625rem minmax(0, 1fr);
+  align-items: start;
+  column-gap: var(--space-3);
+  min-height: var(--touch-target);
+  padding: var(--space-3) var(--space-4);
+  color: var(--fg);
+  text-decoration: none;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  transition:
+    border-color var(--duration-base) var(--ease),
+    background var(--duration-base) var(--ease);
+}
+
+.row:hover {
+  border-color: var(--fg-subtle);
+}
+
+.unread {
+  background: var(--accent-soft);
+  border-color: transparent;
+}
+
+.dot {
+  width: 0.625rem;
+  height: 0.625rem;
+  margin-top: 0.35rem;
+  background: transparent;
+  border-radius: var(--r-pill);
+}
+
+.unread .dot {
+  background: var(--fg);
+}
+
+.text {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.headline {
+  font-size: var(--text-md);
+  overflow-wrap: anywhere;
+}
+
+.unread .headline {
+  font-weight: 600;
+}
+
+.detail {
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+  overflow-wrap: anywhere;
+}
+
+.unread .detail {
+  color: var(--accent-soft-fg);
+}
+
+.when {
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+
+.unread .when {
+  color: var(--accent-soft-fg);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.more {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-4);
+}
+
+.empty {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  padding: var(--space-6) 0;
+  text-align: center;
+}
+
+.empty h2,
+.empty p {
+  margin: 0;
+}
+
+.empty p {
+  color: var(--fg-muted);
+}
+
+@media (min-width: 40rem) {
+  .list {
+    gap: var(--space-3);
+  }
+
+  .row {
+    padding: var(--space-4) var(--space-5);
+  }
+}
+
+@media (forced-colors: active) {
+  .unread {
+    border-color: CanvasText;
+  }
+
+  .unread .dot {
+    background: CanvasText;
+  }
+}

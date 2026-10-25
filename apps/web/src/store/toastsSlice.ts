@@ -1,5 +1,6 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import { errorCopy } from '@/lib/errorCopy';
+import { ALL_CAUGHT_UP_TOAST } from '@/lib/toastCopy';
 import type { RootState } from './makeStore';
 import { runMutation } from './mutationsSlice';
 import { markNotificationsRead } from './notificationsSlice';
@@ -56,6 +57,18 @@ const toastsSlice = createSlice({
             key: `${key}:done`,
             tone: 'success',
             text: success,
+          }),
+        ];
+      })
+      // "Mark all read" says so: the rows and the bell change, which a screen reader hears nothing of.
+      .addCase(markNotificationsRead.fulfilled, (state, action) => {
+        if (!('all' in action.meta.arg)) return;
+        state.queue = [
+          ...pushed(state.queue, {
+            id: action.meta.requestId,
+            key: 'notifications:read:done',
+            tone: 'success',
+            text: ALL_CAUGHT_UP_TOAST,
           }),
         ];
       })

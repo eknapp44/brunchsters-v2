@@ -11,11 +11,14 @@ For your own sign-off, in your own time. The automated suite proves the behavior
 - [ ] **A3. It comes back.** After reading, have them vote again: the same row is unread again with the new count.
 - [ ] **A4. Nothing about the person who acted.** The person who replied or voted gets nothing about their own action.
 - [ ] **A5. Empty and long.** A brand-new account sees the empty state and it invites you to do something. With 30+ rows the page still scrolls smoothly on a phone.
-- [ ] **A6. Mark all read** clears the count at once; with the network blocked it rolls back and a toast says so in plain words.
+- [ ] **A6. Mark all read** clears the count at once and a toast says "All caught up."; with the network blocked it rolls back and a toast says so in plain words.
+- [ ] **A7. Keyboard.** Tab to the bell (it comes before Sign out), press Enter. Tab to **Mark all read** and press Enter: the button dims but keeps the focus (the focus ring does not vanish).
+- [ ] **A8. Unread without color.** Unread rows have a dot and a butter background. With a screen reader each unread row starts with "Unread."; read rows don't. In dark mode both kinds are easy to tell apart.
+- [ ] **A9. Older.** With more than 30 rows the page ends with **Show older**, and it takes you to the next page.
 
 ## B. Member notices
 
-- [ ] **B1. Confirmed.** The host locks it in; the second person gets a row and the email. The row's time is in **their** time zone (change your OS zone if you can, and reload).
+- [ ] **B1. Confirmed.** The host locks it in; the second person gets a row and the email. The row says the place and the time **in the place's own zone, with the zone named** ("… · Sunday, December 6 · 10:00 AM PST"), the same as the brunch page does.
 - [ ] **B2. Called off, then back on.** Call it off and bring it back inside five minutes: nobody hears anything. Call it off and wait: a row and an email. Bring it back: "back on" row and email.
 - [ ] **B3. Invited with an account.** Invite the second person's address: they get a row and the email. Invite an address with no account: only the email.
 

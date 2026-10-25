@@ -123,6 +123,20 @@ describe('markNotificationsRead', () => {
     expect(selectUnreadCount(store2.getState())).toBe(0);
   });
 
+  it('says "All caught up." for mark-all, and nothing for one row (the page change is plain there)', async () => {
+    const all = storeWith(vi.fn(async () => json({ marked: 2 })));
+    all.dispatch(unreadSeeded(2));
+    await all.dispatch(markNotificationsRead({ all: true }));
+    expect(selectToasts(all.getState()).map((toast) => [toast.tone, toast.text])).toEqual([
+      ['success', 'All caught up.'],
+    ]);
+
+    const one = storeWith(vi.fn(async () => json({ marked: 1 })));
+    one.dispatch(unreadSeeded(2));
+    await one.dispatch(markNotificationsRead({ ids: ['a'], unreadAmong: 1 }));
+    expect(selectToasts(one.getState())).toEqual([]);
+  });
+
   it('puts the count back and says why, in a toast, when the route says no', async () => {
     const store = storeWith(vi.fn(async () => json({ error: { code: 'internal' } }, 500)));
     store.dispatch(unreadSeeded(5));

@@ -2,6 +2,8 @@ import { GONE_COLD, LANDING_HEADING, NOT_FOUND, SIGN_IN_HEADING } from '../suppo
 import { EMPTY_DASHBOARD_HEADLINE } from '../support/dashboard';
 import { COLOR_SCHEMES, expectNoA11yViolations, useColorScheme } from '../support/a11y';
 import { createBrunch } from '../support/factories';
+import { EMPTY_INBOX_HEADLINE, expectBell, inboxRows } from '../support/inbox';
+import { giveNotification, readNotification } from '../support/notifications';
 import { afterTheHold, callOffBrunch } from '../support/lifecycle';
 import { expect, test } from '../support/fixtures';
 import { fixturePlaces } from '../support/places';
@@ -94,6 +96,33 @@ for (const scheme of COLOR_SCHEMES) {
       await host.page.goto('/dashboard');
       await expect(host.page.getByRole('heading', { name: 'Upcoming' })).toBeVisible();
       await expectNoA11yViolations(host.page, `dashboard at phone width (${scheme})`);
+    });
+
+    test('the bell and the inbox: empty, with unread and read rows, and at phone width (spec 0015)', async ({
+      makeActor,
+    }) => {
+      const ann = await makeActor('ann');
+      await useColorScheme(ann.page, scheme);
+
+      await ann.page.goto('/notifications');
+      await expect(ann.page.getByRole('heading', { name: EMPTY_INBOX_HEADLINE })).toBeVisible();
+      await expectNoA11yViolations(ann.page, `empty inbox (${scheme})`);
+
+      // One read and two unread, so the bell has a number and both kinds of row are drawn.
+      const read = await giveNotification({ user: ann.user });
+      await giveNotification({ user: ann.user });
+      await giveNotification({ user: ann.user });
+      await readNotification({ user: ann.user, id: read });
+
+      await ann.page.goto('/notifications');
+      await expect(inboxRows(ann.page)).toHaveCount(3);
+      await expectBell(ann.page, 2);
+      await expectNoA11yViolations(ann.page, `inbox with rows (${scheme})`);
+
+      await ann.page.setViewportSize({ width: 390, height: 844 });
+      await ann.page.goto('/notifications');
+      await expect(inboxRows(ann.page)).toHaveCount(3);
+      await expectNoA11yViolations(ann.page, `inbox at phone width (${scheme})`);
     });
 
     test('the brunch detail page, as host and as invitee, in every state', async ({

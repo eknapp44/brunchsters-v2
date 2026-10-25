@@ -1,6 +1,6 @@
 import { avatarColorIndex } from '@brunchsters/shared';
 import Link from 'next/link';
-import type { ReactElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { Wordmark } from '../art/Wordmark';
 import { InitialsAvatar } from '../ui/InitialsAvatar';
 import { Button } from '../ui/Button';
@@ -16,6 +16,9 @@ export type TopBarUser = {
 // they would point to (spec 0009 parity table).
 export function TopBar(props: {
   readonly user: TopBarUser | undefined;
+  // The notification bell (spec 0015), for a signed-in person; it needs the store, so the root
+  // layout builds it.
+  readonly bell?: ReactNode;
   readonly signOutAction: () => Promise<void>;
 }): ReactElement {
   const { user } = props;
@@ -27,6 +30,7 @@ export function TopBar(props: {
         </Link>
         {user !== undefined && (
           <nav className={styles.account} aria-label="Account">
+            {props.bell}
             <InitialsAvatar
               name={user.name ?? 'Your account'}
               colorIndex={avatarColorIndex(user.email ?? user.name ?? '')}

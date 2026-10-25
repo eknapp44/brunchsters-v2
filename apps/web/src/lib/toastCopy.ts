@@ -9,6 +9,9 @@ export const DEADLINE_CLEARED_TOAST = 'Deadline cleared. Voting stays open.';
 export const HIDDEN_TOAST = 'Off your dashboard. Nobody else sees a change.';
 export const UNHIDDEN_TOAST = 'Back on your dashboard.';
 export const LINK_COPIED_TOAST = 'Link copied.';
+// "Mark all read" worked: for a screen reader the only change is a name and some missing words, so
+// it is said (spec 0015).
+export const ALL_CAUGHT_UP_TOAST = 'All caught up.';
 // The browser refused the clipboard (an insecure page, a denied permission).
 export const LINK_COPY_FAILED_TOAST = "That didn't copy. Your browser wouldn't let it.";
 

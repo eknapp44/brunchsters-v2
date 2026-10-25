@@ -1,6 +1,9 @@
 import { expectDashboard } from '../support/dashboard';
 import type { Locator, Page } from '@playwright/test';
 import { createBrunch } from '../support/factories';
+import { bell, MARK_ALL_READ, inboxRow } from '../support/inbox';
+import { giveNotification } from '../support/notifications';
+import { TOAST_WORDS, toast } from '../support/toasts';
 import { expect, test } from '../support/fixtures';
 import { createVotingBrunch } from '../support/showcase';
 import { BrunchWizard } from '../support/wizard';
@@ -62,6 +65,31 @@ test.describe('D4 — the keyboard alone', () => {
     await tabTo(host.page, host.page.getByRole('link', { name: title }));
     await host.page.keyboard.press('Enter');
     await expect(host.page).toHaveURL(`/brunch/${brunchId}`);
+  });
+
+  test('the bell and the inbox: reach the bell, open it, mark all read, and keep the focus (spec 0015)', async ({
+    makeActor,
+  }) => {
+    const ann = await makeActor('ann');
+    await giveNotification({ user: ann.user });
+    await ann.page.goto('/dashboard');
+    await expect(bell(ann.page)).toHaveAccessibleName('Notifications, 1 unread');
+
+    await tabTo(ann.page, bell(ann.page));
+    await ann.page.keyboard.press('Enter');
+    await expect(ann.page).toHaveURL('/notifications');
+    await expect(inboxRow(ann.page, 'called off')).toBeVisible();
+
+    // Pressing it leaves nothing to mark; the focus must stay on the button, not fall to the page.
+    const markAll = ann.page.getByRole('button', { name: MARK_ALL_READ });
+    await tabTo(ann.page, markAll);
+    await ann.page.keyboard.press('Enter');
+    // Wait for the request to be over (the toast), not just for the number to drop: the button is
+    // `aria-disabled` while it is out, which would make this pass whatever it does afterwards.
+    await expect(toast(ann.page, TOAST_WORDS.allCaughtUp)).toBeVisible();
+    await expect(bell(ann.page)).toHaveAccessibleName('Notifications');
+    await expect(markAll).toHaveAttribute('aria-disabled', 'true');
+    await expect(markAll).toBeFocused();
   });
 
   test('the wizard: fill in the first step and move on', async ({ makeActor }) => {

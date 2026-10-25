@@ -10,6 +10,8 @@ import { captureReviewShots } from '../support/screenshots';
 import { createConfirmedBrunch, createVotingBrunch, inviteNewcomer } from '../support/showcase';
 import { daysFromNow, toDatetimeLocalValue } from '../support/time';
 import { TOAST_WORDS, toast } from '../support/toasts';
+import { giveShowcaseNotifications } from '../support/notifications';
+import { EMPTY_INBOX_HEADLINE, inboxRows } from '../support/inbox';
 import { addAttendee, castVotes, closeVoting } from '../support/voting';
 import { BrunchWizard } from '../support/wizard';
 
@@ -35,6 +37,26 @@ test('signed-out pages', async ({ page, makeActor }, testInfo) => {
   await page.goto('/invite/not-a-real-token');
   await expect(page.getByRole('heading', { name: GONE_COLD })).toBeVisible();
   await captureReviewShots(page, 'front-door/invite-invalid', testInfo);
+});
+
+test('notifications: the empty inbox, the bell and the inbox', async ({ makeActor }, testInfo) => {
+  const ann = await makeActor('ann');
+  await ann.page.goto('/notifications');
+  await expect(ann.page.getByRole('heading', { name: EMPTY_INBOX_HEADLINE })).toBeVisible();
+  await captureReviewShots(ann.page, 'notifications/inbox-empty', testInfo);
+
+  const host = await makeActor('host');
+  const brunchId = await createBrunch({ host: host.user, title: 'Sunday Catch-up' });
+  await giveShowcaseNotifications({ user: ann.user, brunchId });
+  await ann.page.goto('/dashboard');
+  await expect(ann.page.getByRole('link', { name: /^Notifications, 2 unread/ })).toBeVisible();
+  await captureReviewShots(ann.page, 'notifications/bell', testInfo, {
+    focus: ann.page.getByRole('banner'),
+  });
+
+  await ann.page.goto('/notifications');
+  await expect(inboxRows(ann.page)).toHaveCount(4);
+  await captureReviewShots(ann.page, 'notifications/inbox', testInfo);
 });
 
 test('dashboard, empty and full', async ({ makeActor }, testInfo) => {
