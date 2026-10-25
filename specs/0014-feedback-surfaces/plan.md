@@ -22,6 +22,8 @@ Spec: [spec.md](./spec.md). Decision record: [ADR 0016](../../docs/adrs/0016-fee
 
 Changed: the ten controls; `ballotsSlice`, `wizardSlice`, `makeStore`; `PlaceSearchInput`; `InvitePanel` (the wizard's note); about 28 route files; the ~10 journeys named in the spec; `eslint.config.mjs` (a rule against a bare `fetch` in a component); `docs/*` and `CLAUDE.md` files per the spec.
 
+> **Skeletons (the `Skeleton` and `loading.tsx` rows in the table above, "### Skeletons" below, step 6 of the order of work and the first row of the risks table) were deferred after the M6 spike**; see [`spec.md`](./spec.md) "Outcome" and `docs/BACKLOG.md` "Loading skeletons". They are kept here as the plan that was tried.
+
 ## Key design
 
 ### Error codes

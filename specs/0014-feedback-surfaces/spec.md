@@ -190,4 +190,12 @@ The app's pages load in about 130 ms locally, so the placeholder buys little unt
 
 **Differences from the first plan** (each recorded where it happened): the reader parses error bodies by hand, not with Zod (Zod 4 in the browser trips the CSP); a signed-out refusal redirects explicitly instead of `router.refresh()`, and the toast does not survive it; a control's inline line renders whenever a failure is stored (the toast choice is only the `failure` option); a pending control is `aria-disabled`, not `disabled` (focus); `ownsWait` keeps a control's own 429 line out of the toast queue.
 
+**Differences from the spec's acceptance criteria and flows, found in the pre-merge review** (accepted, recorded here instead of left to drift):
+
+- The invites-did-not-go-out note is cleared **only when an invite is sent** (or the store is dropped by a reload or sign-out), not "when read": a note that vanished on first display would be gone before the host could act.
+- Flow 3 said every control without a wait of its own toasts a 429. A control whose failure is **inline** (an add, a suggestion, Lock it in, a ballot, the dialog) shows the same "Slow down a sec, then try again." as its inline line instead, beside what the person typed; a toast is for the one-tap controls.
+- The "an outsider and a made-up id get the same code and body" assertion is explicit in the RSVP route test and the API-authorization journey (every host-only endpoint, real versus made-up); the other member-reachable routes assert their codes, and the order of checks is the services' (membership first, covered by their tests).
+- The signed-out redirect first lived only in `useMutation`; the review found the ballots, the wizard's create and the place search left a signed-out person stranded, and `useSignedOutRedirect` now answers it everywhere (journeys T4 and T4b).
+- Not asserted anywhere: the 8-second life of an error toast (journey T2 checks the 4-second success toast and the hold on focus), and that Delete's dialog cannot be pressed twice in the instant between its success and the redirect (as before this spec).
+
 **Findings worth remembering** (details in `tasks.md`): the auth middleware's 401 is the one a person meets when a session ends and was still the old shape; `clearCookies()` does not end a session while a prefetch is in flight; a "never" assertion on a toast must not retry; a journey that waits for a toast to disappear proves nothing about it never appearing.
