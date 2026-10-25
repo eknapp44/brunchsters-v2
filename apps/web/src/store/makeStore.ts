@@ -1,6 +1,7 @@
 import { type Action, combineReducers, configureStore, type Reducer } from '@reduxjs/toolkit';
 import { ballotsReducer } from './ballotsSlice';
 import { mutationsReducer } from './mutationsSlice';
+import { noticesReducer } from './noticesSlice';
 import { toastsReducer } from './toastsSlice';
 import { wizardReducer } from './wizardSlice';
 
@@ -16,6 +17,7 @@ const rootReducer = combineReducers({
   ballots: ballotsReducer,
   mutations: mutationsReducer,
   toasts: toastsReducer,
+  notices: noticesReducer,
 });
 
 export type RootState = ReturnType<typeof rootReducer>;

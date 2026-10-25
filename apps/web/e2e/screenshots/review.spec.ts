@@ -332,3 +332,38 @@ test('toasts', async ({ makeActor }, testInfo) => {
   await success.getByRole('button', { name: 'Dismiss' }).focus();
   await captureReviewShots(maybe.page, 'feedback/toast-success', testInfo);
 });
+
+// Spec 0014 M5: the invite panel's note after a brunch was created with invites that did not go
+// out, and the place search's line when the search could not be answered.
+test('invites note and search error', async ({ makeActor }, testInfo) => {
+  const host = await makeActor('host');
+  const wizard = new BrunchWizard(host.page);
+  await wizard.open();
+  await wizard.fillWhat({ title: `Invites Note ${uniqueSuffix()}` });
+  await host.page.route('**/api/v1/places/search**', (route) =>
+    route.fulfill({
+      status: 502,
+      json: { error: { code: 'unavailable', message: 'x' } },
+    }),
+  );
+  await wizard.searchBox().fill('sunny');
+  await expect(host.page.getByRole('alert').filter({ hasText: 'Our end hiccuped.' })).toBeVisible();
+  await captureReviewShots(host.page, 'feedback/search-error', testInfo);
+  await host.page.unroute('**/api/v1/places/search**');
+
+  await wizard.addPlace(fixturePlaces.sunnySide);
+  await wizard.next();
+  await wizard.addTime(10);
+  await wizard.next();
+  await wizard.addEmail(`guest-${uniqueSuffix()}@example.com`);
+  await host.page.route('**/api/v1/brunches/*/invites', (route) =>
+    route.fulfill({ status: 500, json: { error: { code: 'internal', message: 'x' } } }),
+  );
+  await wizard.create();
+  await expect(
+    host.page
+      .getByRole('status')
+      .filter({ hasText: "Your brunch is up, but the invites didn't go out." }),
+  ).toBeVisible();
+  await captureReviewShots(host.page, 'feedback/invites-note', testInfo);
+});

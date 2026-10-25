@@ -8,8 +8,11 @@ import { Button } from '@/components/ui/Button';
 import { Field } from '@/components/ui/Field';
 import { InlineAlert } from '@/components/ui/InlineAlert';
 import { holdsAllInvites, limitedMessage, type RateLimitFacts } from '@/lib/limitedCopy';
+import { INVITES_DID_NOT_GO_OUT } from '@/lib/noticeCopy';
 import { INVITE_RESENT_TOAST, LINK_COPIED_TOAST, LINK_COPY_FAILED_TOAST } from '@/lib/toastCopy';
 import { useWait, type Wait } from '@/lib/useWait';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { invitesNoticeCleared, selectInvitesDidNotGoOut } from '@/store/noticesSlice';
 import { useMutation, useToast } from '@/store/useMutation';
 import styles from './detail.module.css';
 
@@ -164,6 +167,10 @@ export function InvitePanel({
   const router = useRouter();
   const [email, setEmail] = useState('');
   const send = useMutation(`invite-send:${brunchId}`);
+  const dispatch = useAppDispatch();
+  // The brunch was just created and its invite batch did not go out (the wizard could not say so
+  // itself: it is gone by now). It stays until an invite is sent.
+  const invitesDidNotGoOut = useAppSelector((state) => selectInvitesDidNotGoOut(state, brunchId));
   const sendLimit = useWait(sendWait);
   const sendLimited = sendLimit.wait !== undefined;
 
@@ -185,6 +192,7 @@ export function InvitePanel({
     });
     if (result.ok) {
       setEmail('');
+      dispatch(invitesNoticeCleared(brunchId));
       router.refresh();
       return;
     }
@@ -213,6 +221,14 @@ export function InvitePanel({
             />
           ))}
         </ul>
+      )}
+
+      {invitesDidNotGoOut && (
+        <div className={styles.limitNote}>
+          <InlineAlert tone="info" role="status">
+            <p>{INVITES_DID_NOT_GO_OUT}</p>
+          </InlineAlert>
+        </div>
       )}
 
       <div className={styles.addRow}>

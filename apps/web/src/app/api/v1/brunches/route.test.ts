@@ -18,6 +18,7 @@ vi.mock('@brunchsters/core', async (importOriginal) => {
 import { createBrunch, getBrunchesForUser } from '@brunchsters/core';
 import { auth } from '@/auth';
 import { GET, POST } from './route';
+import { errorCodeOf } from '@/test-support/errorCodeOf';
 
 const mockAuth = vi.mocked(auth as unknown as () => Promise<unknown>);
 const mockCreateBrunch = vi.mocked(createBrunch);
@@ -44,6 +45,7 @@ describe('POST /api/v1/brunches', () => {
     const response = await POST(postRequest({ title: 'Weekend Brunch' }));
 
     expect(response.status).toBe(401);
+    expect(await errorCodeOf(response)).toBe('signed_out');
     expect(mockCreateBrunch).not.toHaveBeenCalled();
   });
 
@@ -53,8 +55,10 @@ describe('POST /api/v1/brunches', () => {
     const response = await POST(postRequest({ description: 'no title' }));
 
     expect(response.status).toBe(422);
-    const json = (await response.json()) as { errors: unknown[] };
-    expect(json.errors.length).toBeGreaterThan(0);
+    expect(await errorCodeOf(response)).toBe('invalid');
+    // the message (for logs) carries what was wrong; the client words the code
+    const json = (await response.json()) as { error: { message: string } };
+    expect(json.error.message.length).toBeGreaterThan(0);
     expect(mockCreateBrunch).not.toHaveBeenCalled();
   });
 
@@ -66,6 +70,7 @@ describe('POST /api/v1/brunches', () => {
     );
 
     expect(response.status).toBe(400);
+    expect(await errorCodeOf(response)).toBe('invalid');
   });
 
   it('returns 201 with id, title, and status on success', async () => {
@@ -110,6 +115,7 @@ describe('POST /api/v1/brunches', () => {
     const response = await POST(postRequest({ title: 'Weekend Brunch' }));
 
     expect(response.status).toBe(500);
+    expect(await errorCodeOf(response)).toBe('internal');
   });
 });
 
@@ -120,6 +126,7 @@ describe('GET /api/v1/brunches', () => {
     const response = await GET();
 
     expect(response.status).toBe(401);
+    expect(await errorCodeOf(response)).toBe('signed_out');
     expect(mockGetBrunchesForUser).not.toHaveBeenCalled();
   });
 

@@ -112,8 +112,9 @@ test.describe('F2 — a brunch that fails to create', () => {
     await wizard.create();
 
     // Filtered by text: Next.js keeps its own empty role="alert" region on every page.
+    // Worded from the code (a 500 is "internal"), never from what the route said.
     await expect(
-      host.page.getByRole('alert').filter({ hasText: 'The database is unavailable' }),
+      host.page.getByRole('alert').filter({ hasText: TOAST_WORDS.wentSideways }),
     ).toBeVisible();
     await expect(host.page).toHaveURL('/brunch/new');
     await expect(wizard.selectedItem(guest)).toBeVisible();

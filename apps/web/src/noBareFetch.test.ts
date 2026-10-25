@@ -17,7 +17,7 @@ const SRC_DIR = fileURLToPath(new URL('.', import.meta.url));
 const ALLOWED: ReadonlyMap<string, string> = new Map([
   [
     'app/(authenticated)/brunch/PlaceSearchInput.tsx',
-    'GET lookups as the person types (search, place details), not mutations; reworked in M5 (the stale-response fix)',
+    'GET lookups as the person types (search, place details), not mutations: they are cancelled and de-duplicated by the component itself (an abort per query), which a store cannot do for a read',
   ],
   [
     'store/StoreProvider.tsx',

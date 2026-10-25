@@ -12,6 +12,7 @@ import { Container } from '@/components/ui/Container';
 import { Eyebrow } from '@/components/ui/Eyebrow';
 import { Field } from '@/components/ui/Field';
 import { InlineAlert } from '@/components/ui/InlineAlert';
+import { errorCopy } from '@/lib/errorCopy';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   createBrunch,
@@ -325,7 +326,7 @@ function StepFour({ onSubmit }: { readonly onSubmit: () => void }) {
 
       {submitError !== undefined && (
         <InlineAlert tone="error" role="alert">
-          <p className={styles.hint}>{submitError}</p>
+          <p className={styles.hint}>{errorCopy({ code: submitError })}</p>
         </InlineAlert>
       )}
 

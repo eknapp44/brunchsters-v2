@@ -1,5 +1,6 @@
 'use client';
 
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { errorCopy, type ClientErrorCode } from '@/lib/errorCopy';
 import type { RateLimitFacts } from '@/lib/limitedCopy';
@@ -47,6 +48,8 @@ function isMutationFailure(value: unknown): value is MutationFailure {
 // wording and the double-tap rule are the same everywhere (spec 0014).
 export function useMutation(key: MutationKey): MutationView {
   const dispatch = useAppDispatch();
+  const router = useRouter();
+  const pathname = usePathname();
   const entry = useAppSelector((state) => selectMutation(state, key));
 
   // Release on unmount so the next visit starts clean; a late result is ignored by the slice.
@@ -58,7 +61,14 @@ export function useMutation(key: MutationKey): MutationView {
       return { ok: true };
     } catch (thrown) {
       // The slice kept the failure. A tap ignored by `condition` lands here too, with no failure.
-      return { ok: false, failure: isMutationFailure(thrown) ? thrown : undefined };
+      const failure = isMutationFailure(thrown) ? thrown : undefined;
+      // The session ended while the page was open: nothing on it will work again, so send the
+      // person to sign in and bring them back here (the same callback the middleware gives a page
+      // request). The toast says why; the sign-in page then takes over.
+      if (failure?.code === 'signed_out') {
+        router.replace(`/sign-in?callbackUrl=${encodeURIComponent(pathname)}`);
+      }
+      return { ok: false, failure };
     }
   }
 

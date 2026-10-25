@@ -16,14 +16,9 @@ import { describe, expect, it } from 'vitest';
 
 const API_DIR = fileURLToPath(new URL('.', import.meta.url));
 
-// Routes that still answer the old way, each with the reason and the milestone that removes it.
-// The test also fails when an exempt route no longer needs the exemption.
-const EXEMPT: ReadonlyMap<string, string> = new Map([
-  [
-    'brunches/route.ts',
-    'the wizard reads its 422 issue list by hand (`extractErrorMessage` in wizardSlice); M5 moves the wizard to codes with the invite response',
-  ],
-]);
+// Routes that may still answer the old way, each with the reason. None today (the wizard's create call
+// was the last, moved in spec 0014 M5); the test also fails when an exempt route no longer needs it.
+const EXEMPT: ReadonlyMap<string, string> = new Map<string, string>([]);
 
 function listRoutes(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {

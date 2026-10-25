@@ -101,17 +101,24 @@ The order proves the path early: the vocabulary (M1), then one control end to en
 
 ## M5 — The wizard and place search
 
-- [ ] `createBrunch` returns `{ id, invitesFailed }`; thunk tests for ok, a 429 (not a failure), a 500 and a rejected request; the flag lives in the `notices` entry and is released once shown
-- [ ] `InvitePanel` shows the persistent note when it is set; copy in `errorCopy` (`/ui-screen`, phone included)
-- [ ] `PlaceSearchInput`: abort on cleanup, ignore an aborted request, guard `selectPlace`; it still reads a 429
-- [ ] `useMutation` handles `signed_out`: the toast says so and the hook calls `router.refresh()`, so the layout's own redirect sends the person to sign-in with a callback (deferred from M2, where it could not be proved)
-- [ ] **T4** (a 401 landing on sign-in with the callback; the offline half is already in T1), **T6** (invites 500 → brunch reached, note shown, sending again clears it), **T8** (delayed first search response vs a fast second)
-- [ ] **Prove the tests can fail:** the wizard ignoring the response again → T6 fails; the abort and guard removed → T8 fails
-- [ ] Commit: `fix: surface a failed invite batch after create and ignore stale place-search responses (M5)`
+- [x] `createBrunch` returns `{ id, invitesFailed }`; thunk tests for ok, a 429 (not a failure), a 500 and a rejected request; the flag lives in the `notices` entry and is released once shown
+- [x] `InvitePanel` shows the persistent note when it is set; copy in `errorCopy` (`/ui-screen`, phone included)
+- [x] `PlaceSearchInput`: abort on cleanup, ignore an aborted request, guard `selectPlace`; it still reads a 429
+- [x] `useMutation` handles `signed_out`: the hook sends the person to `/sign-in?callbackUrl=<this page>` (deferred from M2, where it could not be proved; an explicit redirect rather than `router.refresh()`, see plan.md)
+- [x] **T4** (a 401 landing on sign-in with the callback; the offline half is already in T1), **T6** (invites 500 → brunch reached, note shown, sending again clears it), **T8** (delayed first search response vs a fast second)
+- [x] **Prove the tests can fail:** the wizard ignoring the response again → T6 fails; the abort and guard removed → T8 fails
+- [x] Commit: `fix: surface a failed invite batch after create and ignore stale place-search responses (M5)`
 
 **Accessible names changed:** the new note's text (a `status`); no control renamed. **Journeys that change:** the wizard journeys (create with invites). **Deployable:** yes.
 
-**Testing notes:** _(fill on completion)_
+**Testing notes:**
+
+- **What was tested:** `createBrunch` resolves `{ id, invitesFailed }`: false for an accepted batch, a refused day (429) and no batch; true for a rejected request, a 500 and a 409; a create that fails records the code (`unavailable` for a coded 503, `invalid` for a refused form, `unavailable` for an unreadable 502, `network` offline) and keeps every entry; the in-flight, reset and late-failure rules are unchanged. `noticesSlice`: noted for the new brunch only, not for a batch that went out or was refused for the day or never sent, outlives the wizard's reset, ends when an invite goes out, and does not repeat for one brunch. The create route answers in the coded shape and an outsider/made-up id rule is untouched; `apiErrors.test.ts` has no exemption left. Journeys: **T4** (the session cookie is cleared with the page still open; the next tap is refused by the real middleware and lands on `/sign-in?callbackUrl=<this page>`), **T6** (the create call is real, the invite batch fails: the host reaches the brunch, the Invites panel says so, it stays until an invite is sent; and a 429 batch is not called a failure), **T8** (a held first search answer and a fast second one: only the newest query's results are ever shown, and picking one fills the wizard from the right place; a search our end could not answer says so beside the input, and the next answer clears it), and F2 edited to the code's words.
+- **How:** unit tests in node (web 664, +7 over M4) and Playwright on a production build: **275 passed, 2 skipped** (the same 2); `feedback.spec.ts`, `feedback-controls.spec.ts` and `failure-paths.spec.ts` ran 4 times over with no retries: 156 of 156. `pnpm typecheck` and `pnpm lint` clean. **Mutation checks** (each reverted, confirmed with `cmp`): (1) the wizard ignoring the invite response again → T6 failed; (2) the abort and the stale-answer checks removed from the search → T8 (stale) failed; (3) `useMutation` no longer redirecting a signed-out refusal → T4 failed; (4) a failed search silent again → T8 (down) failed; (5) the notice never cleared → the `noticesSlice` test failed. A first attempt at (3) did not compile and so proved nothing; it was redone as a condition that is never true.
+- **Findings:** (1) **A session that ends is not simulated by `clearCookies()` alone**: NextAuth re-issues the session cookie on any request still in flight (a prefetch), so T4's first version tapped with the session back and got a 200; it now waits for the page's own requests to finish, clears, and polls until no cookie is left. (2) **The place search failed without a word** (a 502 or no connection left an empty list); it says so now. (3) **`router.refresh()` was the wrong way to send a signed-out person to sign in** (the spec's first draft): the explicit redirect does not depend on how the middleware's redirect is followed, but the toast does not survive it, so the person reads the sign-in page instead; see "Not decided here" in the plan.
+- **Phone / look:** reviewed `feedback/invites-note` and `feedback/search-error` (light and dark, desktop, tablet, phone; added to `review.spec.ts`): the note is a soft info panel above the field the host will use, the search line is an error panel under the input, both wrap and keep the layout.
+- **What's deferred:** skeletons and the closing docs (M6). The sign-in page's own wording when a person arrives with a callback after a session ended (`docs/BACKLOG.md` "Security and session follow-ups" (4)) is still open; the redirect itself now works. The wizard's failed-create line no longer carries the route's validation text, only "That didn't look right. Check it and try again."; the wizard checks its own fields first, so a refused form is rare.
+- **How to run it:** `pnpm --filter @brunchsters/web exec vitest run src/store apiErrors noBareFetch`; `CI=true pnpm build && cd apps/web && CI=true pnpm test:e2e feedback failure-paths`.
 
 ---
 

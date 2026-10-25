@@ -2,11 +2,13 @@ import { RATE_LIMIT_POLICIES } from '@brunchsters/shared';
 import { createBrunch, inviteToBrunch, uniqueSuffix } from '../support/factories';
 import { expect, test } from '../support/fixtures';
 import { inviteRow } from '../support/invites';
+import { SIGN_IN_HEADING } from '../support/pages';
 import { fixturePlaces } from '../support/places';
 import { createVotingBrunch } from '../support/showcase';
 import { daysFromNow, datetimeLocalIn } from '../support/time';
 import { TOAST_WORDS, toast, toastRegion } from '../support/toasts';
 import { addAttendee, ballot, removeLocationByName } from '../support/voting';
+import { BrunchWizard } from '../support/wizard';
 import type { Email } from '@brunchsters/shared';
 
 // Spec 0014 (feedback surfaces), M3: the ballots, the invite panel and the voting controls on the
@@ -420,5 +422,185 @@ test.describe('T15 — the end of the road, and hiding', () => {
     await guest.page.unroute(`**/api/v1/brunches/${brunchId}/hidden`);
     await hide.click();
     await expect(toast(guest.page, TOAST_WORDS.hidden)).toBeVisible();
+  });
+});
+
+// M5: the wizard's invite response, the place search, and a session that ends mid-use.
+
+test.describe('T4 — a session that ends while a page is open', () => {
+  test('the next tap says so and sends the person to sign in, with a way back to this page', async ({
+    makeActor,
+  }) => {
+    const host = await makeActor('host');
+    const yes = await makeActor('yes');
+    const maybe = await makeActor('maybe');
+    const pending = await makeActor('pending');
+    const { brunchId } = await createVotingBrunch({ host, guests: { yes, maybe, pending } });
+    await maybe.page.goto(`/brunch/${brunchId}`);
+    await expect(maybe.page.getByRole('heading', { name: 'You in?', exact: true })).toBeVisible();
+
+    // The session ends: the cookie is gone, the page is still open. The next request is refused by
+    // the middleware (the real 401), not by anything stubbed here.
+    // (Let the page's own background requests finish first: a late one could set the cookie again.)
+    await maybe.page.waitForLoadState('networkidle');
+    await maybe.context.clearCookies();
+    await expect.poll(async () => (await maybe.context.cookies()).length).toBe(0);
+    await maybe.page.getByRole('button', { name: "I'm in", exact: true }).click();
+
+    await expect(maybe.page).toHaveURL(
+      new RegExp(`/sign-in\\?callbackUrl=${encodeURIComponent(`/brunch/${brunchId}`)}$`),
+    );
+    await expect(maybe.page.getByRole('heading', { name: SIGN_IN_HEADING })).toBeVisible();
+  });
+});
+
+test.describe('T6 — a brunch created with invites that did not go out', () => {
+  test('the host still reaches the brunch, the Invites panel says so, and sending again clears it', async ({
+    makeActor,
+  }) => {
+    const host = await makeActor('host');
+    const wizard = new BrunchWizard(host.page);
+    const title = `Invites Fail ${uniqueSuffix()}`;
+    const guest = `guest-${uniqueSuffix()}@example.com`;
+
+    await wizard.open();
+    await wizard.fillWhat({ title });
+    await wizard.addPlace(fixturePlaces.sunnySide);
+    await wizard.next();
+    await wizard.addTime(10);
+    await wizard.next();
+    await wizard.addEmail(guest);
+
+    // Only the invite batch fails; the create call is the real one.
+    const invitesRoute = '**/api/v1/brunches/*/invites';
+    await host.page.route(invitesRoute, (route) =>
+      route.fulfill({ status: 500, json: coded('internal', 'Failed to send invites') }),
+    );
+    await wizard.create();
+
+    await expect(host.page).toHaveURL(/\/brunch\/[0-9a-f-]{36}$/);
+    await expect(host.page.getByRole('heading', { name: title })).toBeVisible();
+    const note = host.page
+      .getByRole('status')
+      .filter({ hasText: "Your brunch is up, but the invites didn't go out." });
+    await expect(note).toBeVisible();
+    await expect(host.page.getByText('No invites sent yet.')).toBeVisible();
+
+    // It stays until an invite goes out, and then it is over.
+    await host.page.unroute(invitesRoute);
+    await host.page.getByLabel('Invite more people').fill(guest);
+    await host.page.getByRole('button', { name: 'Round up the crew' }).click();
+    await expect(inviteRow(host.page, guest)).toContainText('pending');
+    await expect(note).toHaveCount(0);
+  });
+
+  test('a batch refused for the day (429) is not called a failure: the page shows its own wait', async ({
+    makeActor,
+  }) => {
+    const host = await makeActor('host');
+    const wizard = new BrunchWizard(host.page);
+    const title = `Invites Wait ${uniqueSuffix()}`;
+
+    await wizard.open();
+    await wizard.fillWhat({ title });
+    await wizard.addPlace(fixturePlaces.sunnySide);
+    await wizard.next();
+    await wizard.addTime(10);
+    await wizard.next();
+    await wizard.addEmail(`guest-${uniqueSuffix()}@example.com`);
+    await host.page.route('**/api/v1/brunches/*/invites', (route) =>
+      route.fulfill({
+        status: 429,
+        headers: { 'Retry-After': '3600' },
+        json: {
+          ...coded('rate_limited'),
+          policy: RATE_LIMIT_POLICIES.inviteEmailsPerHost.name,
+          retryAfterSeconds: 3600,
+        },
+      }),
+    );
+    await wizard.create();
+
+    await expect(host.page).toHaveURL(/\/brunch\/[0-9a-f-]{36}$/);
+    await host.page.waitForTimeout(600);
+    expect(
+      await host.page.getByText("Your brunch is up, but the invites didn't go out.").count(),
+    ).toBe(0);
+  });
+});
+
+test.describe('T8 — searching for a place', () => {
+  test('a slow answer to an earlier query never lands on top of the newest one', async ({
+    makeActor,
+  }) => {
+    const host = await makeActor('host');
+    const wizard = new BrunchWizard(host.page);
+    await wizard.open();
+    await wizard.fillWhat({ title: `Stale Search ${uniqueSuffix()}` });
+
+    // The first query's answer is held; the second's comes at once (the context's own mock).
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const asked: string[] = [];
+    await host.page.route('**/api/v1/places/search**', async (route) => {
+      const query = new URL(route.request().url()).searchParams.get('q') ?? '';
+      asked.push(query);
+      if (query !== 'harb') return route.fallback();
+      await held;
+      const { placeId, name, address } = fixturePlaces.harborBistro;
+      // The browser may have given up on this request already; that is the point.
+      await route
+        .fulfill({ status: 200, json: { places: [{ placeId, name, address }] } })
+        .catch(() => undefined);
+    });
+
+    await wizard.searchBox().fill('harb');
+    await expect.poll(() => asked).toContain('harb');
+    await wizard.searchBox().fill('sunny');
+    const sunny = host.page.getByRole('button', {
+      name: `${fixturePlaces.sunnySide.name} — ${fixturePlaces.sunnySide.address}`,
+    });
+    await expect(sunny).toBeVisible();
+
+    // Now the old answer arrives. It must not replace the results of what is typed.
+    release();
+    await host.page.waitForTimeout(800);
+    await expect(sunny).toBeVisible();
+    await expect(
+      host.page.getByRole('button', { name: new RegExp(fixturePlaces.harborBistro.name) }),
+    ).toHaveCount(0);
+
+    // And picking the result fills the wizard from the right place.
+    await sunny.click();
+    await expect(wizard.selectedItem(fixturePlaces.sunnySide.name)).toBeVisible();
+  });
+
+  test('a search our end could not answer says so beside the input, and the next answer clears it', async ({
+    makeActor,
+  }) => {
+    const host = await makeActor('host');
+    const wizard = new BrunchWizard(host.page);
+    await wizard.open();
+    await wizard.fillWhat({ title: `Search Down ${uniqueSuffix()}` });
+
+    let down = true;
+    await host.page.route('**/api/v1/places/search**', (route) =>
+      down ? route.fulfill({ status: 502, json: coded('unavailable') }) : route.fallback(),
+    );
+    await wizard.searchBox().fill('sunny');
+    await expect(
+      host.page.getByRole('alert').filter({ hasText: 'Our end hiccuped.' }),
+    ).toBeVisible();
+
+    down = false;
+    await wizard.searchBox().fill('sunny side');
+    await expect(
+      host.page.getByRole('button', { name: new RegExp(fixturePlaces.sunnySide.name) }),
+    ).toBeVisible();
+    await expect(host.page.getByRole('alert').filter({ hasText: 'Our end hiccuped.' })).toHaveCount(
+      0,
+    );
   });
 });
