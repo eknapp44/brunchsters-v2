@@ -52,7 +52,7 @@ Decision 7 planned `loading.tsx` skeletons for the brunch page, the manage page 
 - **`loading.tsx` changes a 404 into a 200.** An outsider and a made-up id both got 200 (bodies identical) with a `loading.tsx` over the brunch segment. The fallback decided in the spec, a `Suspense` boundary placed after the membership check, keeps the 404 (everything that can say "not yours" stays in front of it).
 - **Both delay hydration.** The brunch page's first checkbox was owned by React about 45 ms after `load` without a boundary and about 330 ms after with one. A tap in that window is lost, and about ten journeys that click right after `load` failed consistently.
 
-Skeletons are therefore not part of this decision. The attempt (a `Skeleton` primitive, page-shaped placeholders with an accessible `Loading` region, axe passing on them, a status-guard journey) is on the local branch `spike/0014-skeletons`; the question returns after the deployment spec, when real network latency can be measured, as `docs/BACKLOG.md` "Loading skeletons".
+Skeletons are therefore not part of this decision. The attempt (a `Skeleton` primitive, page-shaped placeholders with an accessible `Loading` region, axe passing on them, a status-guard journey) was not kept (it is a few hundred lines, and the finding is the lasting part, so it is described here); the question returns after the deployment spec, when real network latency can be measured, as `docs/BACKLOG.md` "Loading skeletons".
 
 ## Alternatives considered
 
