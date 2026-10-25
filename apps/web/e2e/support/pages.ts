@@ -5,6 +5,9 @@ import { expect, type Page } from '@playwright/test';
 // headline (the prototype's), so a check for either also looks for something only that page has.
 
 export const LANDING_HEADING = 'Your friends are hungry. Probably.';
+// Said to someone who arrives at sign-in with a page to go back to (`lib/signInCopy.ts`).
+export const SIGN_IN_WAY_BACK = "Sign in and we'll take you right back to where you were headed.";
+
 export const SIGN_IN_HEADING = 'Your friends are hungry. Probably.';
 
 // An invite that cannot be used: expired, revoked or unknown all say exactly this.

@@ -1,9 +1,10 @@
-import { safeCallbackPath } from '@brunchsters/shared';
+import { DEFAULT_CALLBACK_PATH, safeCallbackPath } from '@brunchsters/shared';
 import { signIn } from '@/auth';
 import { LogoMark } from '@/components/art/LogoMark';
 import { Button } from '@/components/ui/Button';
 import { Eyebrow } from '@/components/ui/Eyebrow';
 import { Hero } from '@/components/ui/Hero';
+import { SIGN_IN_WAY_BACK } from '@/lib/signInCopy';
 import styles from './signIn.module.css';
 
 async function googleSignIn(formData: FormData) {
@@ -28,6 +29,7 @@ export default async function SignInPage({
         Plan brunch with the gang in 30 seconds. Pick a spot, pick a time, send it. We&apos;ll
         handle the rest.
       </p>
+      {safeCallbackPath(callbackUrl) !== DEFAULT_CALLBACK_PATH && <p>{SIGN_IN_WAY_BACK}</p>}
       <form action={googleSignIn}>
         <input type="hidden" name="callbackUrl" value={safeCallbackPath(callbackUrl)} />
         <Button type="submit" variant="primary" size="lg" block>

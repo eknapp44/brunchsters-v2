@@ -1,6 +1,7 @@
 import { EMPTY_DASHBOARD_HEADLINE, expectDashboard } from '../support/dashboard';
 import { createBrunch, createUser } from '../support/factories';
 import { expect, test } from '../support/fixtures';
+import { SIGN_IN_WAY_BACK } from '../support/pages';
 import { mintSessionCookie } from '../support/session';
 
 // Spec 0002 "Returning user": a session that has expired (or is not valid) is treated as
@@ -27,6 +28,9 @@ test.describe('sessions that stop working', () => {
     const api = await context.request.get('/api/v1/places/search?q=cafe', { maxRedirects: 0 });
     expect(api.status()).toBe(401);
 
+    // It says it will bring them back, because it will.
+    await expect(page.getByText(SIGN_IN_WAY_BACK)).toBeVisible();
+
     // Google's screen cannot be driven (ADR 0007): resume as a completed sign-in would.
     await context.clearCookies();
     await context.addCookies([await mintSessionCookie(user)]);
@@ -47,6 +51,8 @@ test.describe('sessions that stop working', () => {
     await page.goto('/dashboard');
 
     await expect(page).toHaveURL(`/sign-in?callbackUrl=${encodeURIComponent('/dashboard')}`);
+    // Going back to the dashboard is where everyone goes: nothing to promise.
+    await expect(page.getByText(SIGN_IN_WAY_BACK)).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Sign out' })).toHaveCount(0);
     await context.close();
   });
