@@ -1,7 +1,7 @@
 import { API_ERROR_CODES } from '@brunchsters/shared';
 import { RATE_LIMIT_POLICIES } from '@brunchsters/shared';
 import { describe, expect, it } from 'vitest';
-import { ERROR_COPY_CODES, errorCopy } from './errorCopy';
+import { ERROR_COPY_CODES, errorCopy, pageIsStale } from './errorCopy';
 
 describe('errorCopy', () => {
   it('has a line for every code a route can send, and for the one the browser makes', () => {
@@ -52,4 +52,35 @@ describe('errorCopy', () => {
       expect(errorCopy({ code }).toLowerCase()).not.toMatch(/we'?ll (try|retry)|retrying/);
     }
   });
+});
+
+describe('pageIsStale', () => {
+  it.each([
+    'option_gone',
+    'voting_closed',
+    'brunch_called_off',
+    'brunch_not_active',
+    'brunch_changed',
+    'already_confirmed',
+    'already_reviewed',
+  ] as const)('says the page is out of date for %s, so the control asks the page again', (code) => {
+    expect(pageIsStale(code)).toBe(true);
+  });
+
+  it.each([
+    'invalid',
+    'forbidden',
+    'cannot_vote',
+    'not_found',
+    'rate_limited',
+    'unavailable',
+    'internal',
+    'network',
+    'signed_out',
+  ] as const)(
+    'does not for %s: the person, the server or the connection, not the brunch',
+    (code) => {
+      expect(pageIsStale(code)).toBe(false);
+    },
+  );
 });
