@@ -75,6 +75,7 @@ Add these only when they apply: a bug found along the way and how it was caught,
 ## 5. Update docs in the same commit
 
 - Tick this milestone's checkboxes in `tasks.md` (only what is truly done).
+- Keep the spec's `MANUAL-TESTING.md` true: add an item for anything the milestone made a person do or see that automation cannot judge (feel, wording, phone, screen reader), and fix an item whose steps changed. For a UI milestone add its new screens to `e2e/screenshots/review.spec.ts` and, if they belong in the record, to the spec's `screenshots.json`. (`SUMMARY.md` and the final screenshots are the pre-merge review's.)
 - `PLANNING.md` / `SETUP.md` / the spec's `spec.md` if reality diverged or a command or env var changed. PLANNING is the source of truth: fix the doc rather than silently diverging.
 - New ADR if the milestone introduced a library, pattern, or constitution deviation (`docs/adrs/README.md` has the template).
 
