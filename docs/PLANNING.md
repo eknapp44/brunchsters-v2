@@ -1421,15 +1421,15 @@ For solo side project: don't split. Premature.
 
 ### Roadmap after the core flow
 
-| Spec                                | What                                                                                                                                                                       | Status                                |
-| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| 0010 Redux UI state                 | the wizard and the vote ballots on a per-request store ([ADR 0011](adrs/0011-redux-toolkit-for-client-ui-state.md))                                                        | ✅ PR #16                             |
-| 0011 Design fidelity                | the prototype's screen compositions, copy and tone ([ADR 0012](adrs/0012-design-fidelity-and-presentation-rules.md))                                                       | ✅ v1.9.0 (PR #17)                    |
-| 0012 Security hardening             | rate limits in Postgres, patched dependencies, an enforced CSP ([ADR 0013](adrs/0013-rate-limits-in-postgres.md), [0014](adrs/0014-content-security-policy-with-nonce.md)) | ✅ v1.10.0 (PR #18)                   |
-| 0013 Brunch lifecycle               | call it off, bring it back, delete, hide; held cancel and back-on emails ([ADR 0015](adrs/0015-brunch-lifecycle.md))                                                       | ✅ v1.11.0 (PR #21)                   |
-| 0014 Feedback surfaces              | one shared mutation thunk, toasts, skeletons, the server's real error text                                                                                                 | spec 0014 written (ADR 0016), M1 next |
-| Notifications (number when written) | inbox, preferences, per-brunch mute, realtime, reminders, host-facing emails                                                                                               | not started                           |
-| Deployment (last)                   | the app in the cloud as a private beta; infrastructure, no UI change                                                                                                       | not started                           |
+| Spec                                | What                                                                                                                                                                        | Status                          |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| 0010 Redux UI state                 | the wizard and the vote ballots on a per-request store ([ADR 0011](adrs/0011-redux-toolkit-for-client-ui-state.md))                                                         | ✅ PR #16                       |
+| 0011 Design fidelity                | the prototype's screen compositions, copy and tone ([ADR 0012](adrs/0012-design-fidelity-and-presentation-rules.md))                                                        | ✅ v1.9.0 (PR #17)              |
+| 0012 Security hardening             | rate limits in Postgres, patched dependencies, an enforced CSP ([ADR 0013](adrs/0013-rate-limits-in-postgres.md), [0014](adrs/0014-content-security-policy-with-nonce.md))  | ✅ v1.10.0 (PR #18)             |
+| 0013 Brunch lifecycle               | call it off, bring it back, delete, hide; held cancel and back-on emails ([ADR 0015](adrs/0015-brunch-lifecycle.md))                                                        | ✅ v1.11.0 (PR #21)             |
+| 0014 Feedback surfaces              | one shared mutation thunk, toasts, coded error text, the wizard's invite response and the place-search fix; skeletons deferred ([ADR 0016](adrs/0016-feedback-surfaces.md)) | ✅ done 2026-10-25 (PR pending) |
+| Notifications (number when written) | inbox, preferences, per-brunch mute, realtime, reminders, host-facing emails                                                                                                | not started                     |
+| Deployment (last)                   | the app in the cloud as a private beta; infrastructure, no UI change                                                                                                        | not started                     |
 
 How the order was decided, and why deployment moved to the end: `docs/BACKLOG.md`, "Roadmap notes". Ideas that are not on the roadmap are in `docs/BACKLOG.md` under "Product candidates".
 

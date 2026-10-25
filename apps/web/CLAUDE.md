@@ -104,7 +104,7 @@ Phone is the base style and the place to be strict about space (spec 0011). Leav
 
 - **Friend, not service.** Verbs over nouns, specific over generic, no corporate words (event, attendees, leverage, engage, community, "action required", "successfully").
 - **Emoji at moments, not in labels that carry state.** Greetings, celebrations, the empty state. Emoji are always `aria-hidden`, so the accessible name is the words ("I'm in", not "🙌 I'm in"). The RSVP buttons are the one place an emoji sits in a control, by the owner's choice.
-- **Do not promise what the app does not do** (no "we'll try again" without a retry). Error wording belongs to the feedback-surfaces spec; the generic error strings stay as they are until then.
+- **Do not promise what the app does not do** (no "we'll try again" without a retry). Error lines come from `lib/errorCopy.ts` by code (see "Adding a control that sends a request"), and `voiceCopy.test.ts` fails the corporate words.
 - **Status wording on the dashboard is a display mapping** (`src/lib/brunchCopy.ts`, M2), not a change to the status lookup table; the brunch page badge keeps the lookup label and the exact-text rule below. A test fails when a seeded status code has no mapping.
 - A copy change is a journey change: list the names it touches before making it.
 

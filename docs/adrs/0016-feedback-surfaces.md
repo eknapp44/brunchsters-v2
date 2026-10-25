@@ -26,8 +26,8 @@ The 404/403 rule (root `CLAUDE.md`) constrains the answer: a message must never 
 4. **No retry button, and the copy says the true state.** A failed tap leaves the control as it was and says so; tapping again is the retry (voice rule 7).
 5. **Two codes the browser makes sense of itself.** `network` ("Looks like you're offline.") and `signed_out` (a 401: the toast says so and `router.refresh()` lets the layout's own redirect send the person to sign-in with a callback). No queue, no offline banner.
 6. **The wizard keeps going when the invites fail.** The brunch exists, so the host is not blocked: `createBrunch` returns `{ id, invitesFailed }` and the Invites panel shows a persistent inline note after the redirect (not a toast: the addresses are gone with the wizard's reset and the host needs time to act). A refused batch (429) already works through the page's own counters.
-7. **Skeletons by `loading.tsx`** for the brunch page, the manage page and the dashboard, sized to the final layout, `aria-hidden` with a visually hidden "Loading". The 404 rule decides how (Risks in the spec, M5).
-8. **No new runtime dependency.** The toast host, the thunk and the skeletons are built from the existing primitives and tokens.
+7. **Loading skeletons were planned and deferred** (see the addendum): the spike showed that streaming a placeholder changes a 404 into a 200 and delays hydration of the page's controls.
+8. **No new runtime dependency.** The toast host and the thunk are built from the existing primitives and tokens.
 9. **Voice is enforced.** A test scans `lib/*Copy.ts` and JSX text for the corporate words in `docs/voice-and-copy.md` rule 4, with a small allowlist.
 
 **Not decided here (deferred, in `docs/BACKLOG.md`):** live updates for what other people change (a poll, realtime, or `router.refresh()` on focus), which is also what would make live-region announcements of vote counts honest; the host-facing "an email did not go out" signal (the notifications spec); RTK Query.
@@ -44,7 +44,15 @@ The 404/403 rule (root `CLAUDE.md`) constrains the answer: a message must never 
 
 - About 28 routes change their error body; their tests and about ten journeys that assert the generic strings change with them. Each milestone migrates a route together with the control that calls it, and the client tolerates the old shape until the scanning test goes live at the end of M3.
 - A toast is a live region that outlives the component that caused it, so the store and the layout own it, and a result that arrives after a control unmounted still toasts (the action happened).
-- `loading.tsx` streams the page, which can change the HTTP status of a `notFound()` (see the spec's Risks); M5 proves it before building anything on it.
+
+## Addendum, 2026-10-25: skeletons deferred
+
+Decision 7 planned `loading.tsx` skeletons for the brunch page, the manage page and the dashboard. The M6 spike measured two costs on a production build:
+
+- **`loading.tsx` changes a 404 into a 200.** An outsider and a made-up id both got 200 (bodies identical) with a `loading.tsx` over the brunch segment. The fallback decided in the spec, a `Suspense` boundary placed after the membership check, keeps the 404 (everything that can say "not yours" stays in front of it).
+- **Both delay hydration.** The brunch page's first checkbox was owned by React about 45 ms after `load` without a boundary and about 330 ms after with one. A tap in that window is lost, and about ten journeys that click right after `load` failed consistently.
+
+Skeletons are therefore not part of this decision. The attempt (a `Skeleton` primitive, page-shaped placeholders with an accessible `Loading` region, axe passing on them, a status-guard journey) is on the local branch `spike/0014-skeletons`; the question returns after the deployment spec, when real network latency can be measured, as `docs/BACKLOG.md` "Loading skeletons".
 
 ## Alternatives considered
 

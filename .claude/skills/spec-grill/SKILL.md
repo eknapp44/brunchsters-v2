@@ -27,6 +27,8 @@ Verify every claim you intend to put in a spec against the code or by running it
 
 If the feature adds client state or a mutation, say **per piece** whether it is a Redux slice or local `useState` (`apps/web/CLAUDE.md` "State"), and whether it triggers one of the "Redux follow-ups" in `docs/BACKLOG.md` (a toast or visible error, the shared mutation slice, the unread count). Don't add a second pattern for state the store already has a home for.
 
+If the feature adds a control that sends a request or a route that can fail, it uses `useMutation` and a coded `apiError` (`apps/web/CLAUDE.md` "Adding a control that sends a request"): ask where each failure shows (a toast for one tap with nothing to fix, inline for what the person typed or must wait out) and what each new failure code says in the voice (`lib/errorCopy.ts`).
+
 Also check: does the idea **conflict with the constitution or an ADR**? Surface it now and ask; don't comply silently.
 
 ## Phase 2 — Grill

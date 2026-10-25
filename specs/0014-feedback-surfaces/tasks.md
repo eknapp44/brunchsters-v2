@@ -122,15 +122,24 @@ The order proves the path early: the vocabulary (M1), then one control end to en
 
 ---
 
-## M6 — Skeletons, and the docs close
+## M6 — Skeletons (deferred) and the docs close
 
-- [ ] **Spike first:** on a production build, request the brunch page as an outsider and as a made-up id with a `loading.tsx` in place; record the HTTP status and body. If a status moves to 200, switch to the fallback (a `Suspense` boundary after the membership check) and reword the criterion in `spec.md`
-- [ ] `Skeleton` primitive; skeletons for the dashboard, the brunch page and the manage page, sized to the final layout (no layout shift), `aria-hidden` + `aria-busy` + hidden "Loading"; reduced motion; tokens
-- [ ] **T9**; D2 (axe) gains the skeleton state in light and dark; D3 (layout) and the screenshots (`review.spec.ts`) gain it; P9, H4 and the API-authorization journey pass unmodified
-- [ ] `docs/accessible-names.md` (the sweep), BACKLOG (items closed, "Live updates" kept), PLANNING §16 row, ADR 0011 pointer to 0016, `spec.md` Outcome and status, `spec-grill` and `ui-screen` skills mention the error code and toast recipe; the `docs/SETUP.md` check
-- [ ] **Prove the tests can fail:** a skeleton taller than the page → the layout journey (shift) fails; a made-up id returning a different status → P9/H4 fail
-- [ ] Commit: `feat: add loading skeletons and close spec 0014 (M6)`
+The spike ran first, as planned, and changed the milestone: loading skeletons are deferred, and M6 closes the spec's docs.
 
-**Accessible names changed:** none (a hidden "Loading"). **Journeys that change:** D2, D3, new T9. **Deployable:** yes.
+- [x] **Spike first:** on a production build, an outsider and a made-up id were requested for the brunch and manage pages with and without a `loading.tsx`. Without it: **404**, identical bodies (the baseline). With a `loading.tsx` over the brunch segment: **200** for both (bodies still identical), so a not-found page answers as a success. The fallback (a `Suspense` boundary after the membership check, so `notFound()`/`forbidden()` run before anything streams) keeps 404 and 403.
+- [x] Built the fallback to find out what it costs: a `Skeleton` primitive (`aria-hidden` blocks inside a `role="status"` `aria-busy` region with one visually hidden "Loading"), page-shaped placeholders for the dashboard (`loading.tsx`), the brunch page and the manage page (a `Suspense` body), tuned against the real page's layout; journeys: the status guard (404, 404, 403, 200 with identical bodies), the placeholder labelled and busy while the page arrives (a throttled download), and axe on it in light and dark; all passed.
+- [x] **Measured the cost, on a production build:** the brunch page's first checkbox was owned by React about **45 ms after `load` without a boundary and about 330 ms after with one**. A tap in that window is lost, and about ten journeys that click right after `load` failed consistently (V1, R3, R4, V6, L1b, E6: the ballots, the dashboard's Hide eyes, the approvals), including 10 of 12 repeats of V1 alone.
+- [x] **Decision (owner, 2026-10-25): defer skeletons.** The attempt is kept on the local branch `spike/0014-skeletons` (commit `5cdb4a9`, not for merge); the `BACKLOG` entry says what would settle it.
+- [x] Docs: `spec.md` (status, Outcome, the skeleton criteria and journey T9 struck, open question answered), ADR 0016 (decision 7 and an addendum), ADR 0011 pointer, BACKLOG (roadmap item 3 done, Redux follow-ups (1) and (2) done, "Silent failures" and the stale place search closed, the session item partly done, "Loading skeletons" added), PLANNING §16 row, `apps/web/CLAUDE.md` voice line, the `ui-screen` and `spec-grill` skills.
+- [x] Commit: `docs: close spec 0014 and defer loading skeletons (M6)`
 
-**Testing notes:** _(fill on completion)_
+**Accessible names changed:** none. **Journeys that change:** none (T9 is not shipped). **Deployable:** yes (no code changes in this milestone).
+
+**Testing notes:**
+
+- **What was tested:** the spike's journeys (on the spike branch): 404 for an outsider and a made-up id on both pages with identical markup (scripts, nonces and ids removed), 403 for a member on the manage page, 200 for the host; the placeholder labelled and busy while the page arrives, with one "Loading" and hidden blocks, and none left once the page is there, for the dashboard, brunch and manage pages; axe on the placeholder in light and dark. All passed there. The shipped branch has none of this code.
+- **How:** Playwright on a production build, with the download throttled through the Chrome DevTools Protocol (12 KB/s to see the placeholder, 4 KB/s to give axe time). The hydration measurement polled the first checkbox for React's internal keys after `load`, three runs each way (about 45 ms against about 330 ms).
+- **Findings:** (1) the premise "a skeleton is cheap" is wrong in this framework: it costs either a wrong HTTP status or a later hydration, and the later hydration is a real-user cost the journeys were right to complain about. (2) The first full run with the skeletons also took 1.9 minutes against about 40 seconds, because the throttled journeys are slow by design; not a reason by itself. (3) A dev-mode screenshot run overwrites the production build, so the next e2e run fails with "routesManifest.dataRoutes is not iterable" until `pnpm build` is rerun.
+- **What's deferred:** loading skeletons (BACKLOG "Loading skeletons"). Nothing else in the spec.
+- **How to run it:** nothing new; the shipped suite is `CI=true pnpm build && CI=true pnpm test:e2e`.
+- **Final verification of the branch (code as of M5, nothing changed in M6):** `pnpm typecheck` and `pnpm lint` clean; unit tests shared 54, core 721, web 664, database 1; `CI=true pnpm build && CI=true pnpm test:e2e` on a production build **275 passed, 2 skipped** (the same 2 as before the spec); `pnpm audit --prod --audit-level=high` finds no known vulnerabilities (the CI gate).

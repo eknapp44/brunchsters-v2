@@ -1,6 +1,6 @@
 # Spec 0014 — Feedback Surfaces
 
-**Status:** Written 2026-10-24 (not started)  
+**Status:** Complete 2026-10-25 (M1 to M5 shipped; loading skeletons deferred after the M6 spike, see "Outcome")  
 **Branch:** `feat/0014-feedback-surfaces`  
 **PLANNING.md ref:** §16 roadmap table, row 0014; `docs/BACKLOG.md` "Redux follow-ups" (1), (2) and "Silent failures to surface", "Place search can show stale results"  
 **ADRs:** [0016 — Feedback surfaces](../../docs/adrs/0016-feedback-surfaces.md); builds on [0011](../../docs/adrs/0011-redux-toolkit-for-client-ui-state.md) (the store), [0013](../../docs/adrs/0013-rate-limits-in-postgres.md) (limits and waits), [0015](../../docs/adrs/0015-brunch-lifecycle.md) (the lifecycle controls)  
@@ -15,7 +15,7 @@ When something goes wrong in the app today, a person sees "Failed to update RSVP
 - **One shared mutation thunk** with per-key status for the ten controls that each own a `submitting`/`error`/`fetch`/`router.refresh()`.
 - **Error codes** from the routes, worded by the client from one table (no server string is ever shown).
 - **Toasts** for one-tap results and a visible, accessible error surface; inline stays for what a person must fix or wait out.
-- **Loading skeletons** for the brunch page, the manage page and the dashboard.
+- ~~**Loading skeletons** for the brunch page, the manage page and the dashboard.~~ **Deferred** after the M6 spike (see "Outcome" and `docs/BACKLOG.md` "Loading skeletons").
 - **The wizard** stops ignoring the invite request's response.
 - **The place-search stale-response bug** is fixed.
 - **A banned-word test** enforces the voice rules, because this spec writes the most new copy the app has.
@@ -69,7 +69,7 @@ An unknown code, or a body in the old shape, gets one generic voiced line chosen
 3. **A 429**: a control with a wait surface (invites, approval, call-it-off, delete, place search) behaves exactly as in spec 0012; every other control shows "Slow down a sec, then try again." as a toast and stays enabled.
 4. **Offline or signed out**: `network` toast; a 401 toasts "signed out" and the page refreshes into the layout's sign-in redirect.
 5. **Create a brunch with invites that fail** (not 429): the brunch is created, the host lands on it, and the Invites panel shows a persistent note to send them again.
-6. **Open a page**: a skeleton the same size as the page shows until it is ready.
+6. ~~**Open a page**: a skeleton the same size as the page shows until it is ready.~~ Deferred (see "Outcome").
 7. **Type in place search**: only the newest query's results are ever shown.
 
 ---
@@ -78,45 +78,44 @@ An unknown code, or a body in the old shape, gets one generic voiced line chosen
 
 ### Shared and voice (M1)
 
-- [ ] `packages/shared`: the error-code list and its type; a request-error type (`ApiError`) for the client
-- [ ] `apps/web/src/lib/errorCopy.ts` (pure, unit-tested): every code has voiced copy; unknown code and old shape fall back by status; the 404 copy is identical for any id
-- [ ] A banned-word test scans `lib/*Copy.ts` and JSX text for rule 4's words, with a small allowlist, and fails naming the file and word
-- [ ] `docs/voice-and-copy.md` gains the error and toast patterns (and drops "Not enforced yet")
-- [ ] `/limited-surface` run: no new mutating route, no new email, no new paid call, so no new policy (record the answer)
+- [x] `packages/shared`: the error-code list and its type; a request-error type (`ApiError`) for the client
+- [x] `apps/web/src/lib/errorCopy.ts` (pure, unit-tested): every code has voiced copy; unknown code and old shape fall back by status; the 404 copy is identical for any id
+- [x] A banned-word test scans `lib/*Copy.ts` and JSX text for rule 4's words, with a small allowlist, and fails naming the file and word
+- [x] `docs/voice-and-copy.md` gains the error and toast patterns (and drops "Not enforced yet")
+- [x] `/limited-surface` run: no new mutating route, no new email, no new paid call, so no new policy (record the answer)
 
 ### Store (M2)
 
-- [ ] `mutationsSlice` (per-key `{ status, requestId, code }`), `runMutation` thunk (`createAppAsyncThunk`, `fetch` from `extra`, `condition` on a key in flight), `useMutation(key)` hook; thunk tests for each failure path (non-2xx with a code, old shape, 429, 401, network, late result ignored)
-- [ ] `toastsSlice` (queue capped at 3, de-duplicated by key, dismiss) fed by `runMutation`'s cases from `meta.arg`; selectors beside the slice
-- [ ] The toast host: one polite `role="status"` region in the `(authenticated)` layout, no focus change, 4 s / 8 s, pause on hover and focus, dismiss button, reduced motion; tokens only (and `tokenContrast.test.ts` for its colors)
+- [x] `mutationsSlice` (per-key `{ status, requestId, code }`), `runMutation` thunk (`createAppAsyncThunk`, `fetch` from `extra`, `condition` on a key in flight), `useMutation(key)` hook; thunk tests for each failure path (non-2xx with a code, old shape, 429, 401, network, late result ignored)
+- [x] `toastsSlice` (queue capped at 3, de-duplicated by key, dismiss) fed by `runMutation`'s cases from `meta.arg`; selectors beside the slice
+- [x] The toast host: one polite `role="status"` region in the `(authenticated)` layout, no focus change, 4 s / 8 s, pause on hover and focus, dismiss button, reduced motion; tokens only (and `tokenContrast.test.ts` for its colors)
 
 ### API routes (M2 to M4, each with its controls)
 
-- [ ] Each route a control calls returns `{ error: { code, message } }` for every failure; its test asserts the code; unauthorized, not-found and not-host keep their statuses
-- [ ] A scanning test fails, naming the file, when a route under `app/api/v1` returns an error without a code (exemptions with a reason: the rate-limit and the token-redemption bodies, if they stay different)
-- [ ] The API-authorization journey still shows real and made-up ids indistinguishable (same status, same code, same body)
+- [x] Each route a control calls returns `{ error: { code, message } }` for every failure; its test asserts the code; unauthorized, not-found and not-host keep their statuses
+- [x] A scanning test fails, naming the file, when a route under `app/api/v1` returns an error without a code (exemptions with a reason: the rate-limit and the token-redemption bodies, if they stay different)
+- [x] The API-authorization journey still shows real and made-up ids indistinguishable (same status, same code, same body)
 
 ### Controls (M2 to M4)
 
-- [ ] All ten controls use `useMutation`; none owns a `submitting`/`error` pair or a bare `fetch`; keeping the same roles, names, `aria-disabled` waits, and `ConfirmDialog` pending rules
-- [ ] `ballotsSlice` words failures from the code, not `SAVE_FAILED_MESSAGE`; rollback and `requestId` rules unchanged
-- [ ] A 429 on a control with no wait surface is a toast; the four that have one are unchanged
-- [ ] A lint rule (or scanning test) fails a component that calls `fetch` directly for a mutation (the recipe in `apps/web/CLAUDE.md` replaces "keep the generic error string")
+- [x] All ten controls use `useMutation`; none owns a `submitting`/`error` pair or a bare `fetch`; keeping the same roles, names, `aria-disabled` waits, and `ConfirmDialog` pending rules
+- [x] `ballotsSlice` words failures from the code, not `SAVE_FAILED_MESSAGE`; rollback and `requestId` rules unchanged
+- [x] A 429 on a control with no wait surface is a toast; the four that have one are unchanged
+- [x] A lint rule (or scanning test) fails a component that calls `fetch` directly for a mutation (the recipe in `apps/web/CLAUDE.md` replaces "keep the generic error string")
 
 ### Wizard (M5)
 
-- [ ] `createBrunch` returns `{ id, invitesFailed }`; a non-2xx or a rejected invite request (other than 429, which the page already recovers) sets it; thunk tests for ok, 429, 500 and network
-- [ ] The Invites panel shows a persistent inline note when it is set (cleared when read or when an invite is sent); the host is never blocked from reaching the brunch
+- [x] `createBrunch` returns `{ id, invitesFailed }`; a non-2xx or a rejected invite request (other than 429, which the page already recovers) sets it; thunk tests for ok, 429, 500 and network
+- [x] The Invites panel shows a persistent inline note when it is set (cleared when read or when an invite is sent); the host is never blocked from reaching the brunch
 
-### Place search (M5) and skeletons (M6)
+### Place search (M5)
 
-- [ ] `PlaceSearchInput` discards a response that is not the newest query's (abort on cleanup, and a guard on `selectPlace`)
-- [ ] `loading.tsx` for the brunch page, the manage page and the dashboard, sized to the final layout, `aria-hidden` with a visually hidden "Loading"; the 404/403 rule holds (see Risks)
+- [x] `PlaceSearchInput` discards a response that is not the newest query's (abort on cleanup, and a guard on `selectPlace`)
 
 ### Docs (every milestone, final in M6)
 
-- [ ] `apps/web/CLAUDE.md` "State" and "Moving another control onto the store" replaced by the new recipe; "Limits" line about which controls read a 429 updated
-- [ ] Root `CLAUDE.md`: the error-body rule in Architectural Rules; `docs/accessible-names.md`, `docs/BACKLOG.md` (items closed or re-pointed), PLANNING §16, ADR 0011 pointer to 0016, `voice-and-copy.md`, `specs/0014`'s Outcome; the `spec-grill` and `ui-screen` skills mention the error code and toast recipe
+- [x] `apps/web/CLAUDE.md` "State" and "Moving another control onto the store" replaced by the new recipe; "Limits" line about which controls read a 429 updated
+- [x] Root `CLAUDE.md`: the error-body rule in Architectural Rules; `docs/accessible-names.md`, `docs/BACKLOG.md` (items closed or re-pointed), PLANNING §16, ADR 0011 pointer to 0016, `voice-and-copy.md`, `specs/0014`'s Outcome; the `spec-grill` and `ui-screen` skills mention the error code and toast recipe
 
 ---
 
@@ -124,17 +123,17 @@ An unknown code, or a body in the old shape, gets one generic voiced line chosen
 
 New series **T** (toasts and feedback); existing ones are edited where noted.
 
-| ID  | Who                         | Asserts                                                                                                                                                                                                                                                                                |
-| --- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| T1  | one signed-in person        | Tapping RSVP with the route failing (intercepted) shows a toast in voice, the buttons return to their earlier state, nothing says "Failed to"; a second tap works. Proved to fail with the generic string back.                                                                        |
-| T2  | one person                  | The toast region is a `status` that never takes focus, a toast goes away by itself, pauses on hover, and dismisses with its button; with reduced motion nothing slides.                                                                                                                |
-| T3  | one person                  | A 429 on a control with no wait surface (RSVP) toasts "Slow down a sec" and leaves it enabled; the invite panel's own 429 is still an inline wait (existing journey L-series unchanged).                                                                                               |
-| T4  | one person                  | Going offline (request aborted) toasts the `network` line; a 401 (expired cookie) toasts "signed out" and the refresh lands on sign-in with the callback.                                                                                                                              |
-| T5  | host, outsider              | The same failing call for a real brunch an outsider cannot see and a made-up id shows identical copy (the API-authorization journey gets the code assertion too).                                                                                                                      |
-| T6  | host                        | Creating a brunch with the invite request returning 500 still reaches the brunch, and the Invites panel shows the persistent note; sending again clears it. Proved to fail with the response ignored again (today's behavior).                                                         |
-| T7  | two people (host, attendee) | An option the host removes while the attendee's vote is saving: the attendee's rolled-back ballot shows the inline error in voice and the removed option is gone (extends R4/R5 for the new wording).                                                                                  |
-| T8  | one person                  | Place search with a delayed first response and a fast second: only the second's results show, and picking one fills the wizard from the right place. Proved to fail without the fix.                                                                                                   |
-| T9  | one person                  | Navigating to the brunch page and the dashboard shows a skeleton (`Loading` hidden text, `aria-busy`), then the page with no layout shift; axe passes with the skeleton shown (D2 gains the state); a made-up id is still a 404 with the same body as an outsider's (P9/H4 unchanged). |
+| ID  | Who                         | Asserts                                                                                                                                                                                                                                         |
+| --- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| T1  | one signed-in person        | Tapping RSVP with the route failing (intercepted) shows a toast in voice, the buttons return to their earlier state, nothing says "Failed to"; a second tap works. Proved to fail with the generic string back.                                 |
+| T2  | one person                  | The toast region is a `status` that never takes focus, a toast goes away by itself, pauses on hover, and dismisses with its button; with reduced motion nothing slides.                                                                         |
+| T3  | one person                  | A 429 on a control with no wait surface (RSVP) toasts "Slow down a sec" and leaves it enabled; the invite panel's own 429 is still an inline wait (existing journey L-series unchanged).                                                        |
+| T4  | one person                  | Going offline (request aborted) toasts the `network` line; a 401 (expired cookie) toasts "signed out" and the refresh lands on sign-in with the callback.                                                                                       |
+| T5  | host, outsider              | The same failing call for a real brunch an outsider cannot see and a made-up id shows identical copy (the API-authorization journey gets the code assertion too).                                                                               |
+| T6  | host                        | Creating a brunch with the invite request returning 500 still reaches the brunch, and the Invites panel shows the persistent note; sending again clears it. Proved to fail with the response ignored again (today's behavior).                  |
+| T7  | two people (host, attendee) | An option the host removes while the attendee's vote is saving: the attendee's rolled-back ballot shows the inline error in voice and the removed option is gone (extends R4/R5 for the new wording).                                           |
+| T8  | one person                  | Place search with a delayed first response and a fast second: only the second's results show, and picking one fills the wizard from the right place. Proved to fail without the fix.                                                            |
+| T9  | one person                  | _Deferred with the skeletons._ (The attempt's journeys, on the branch `spike/0014-skeletons`: a 404 stays a 404 for an outsider and a made-up id, the placeholder is labelled and busy while the page arrives, and axe passes with it showing.) |
 
 **Edited, not new** (names stay; the strings they assert change): F1, F3 (`failure-paths`), the RSVP, suggestion, confirm and voting-deadline cases in `brunch-page`, `same-person`, `manage-options`, `redux-ui-state`. Each is proved to fail against the old generic string.
 
@@ -163,9 +162,32 @@ A toast sits at the bottom of the window above the safe-area inset (nothing else
 - **The host-facing "an email did not go out" signal**: the notifications spec.
 - **A toast library, RTK Query, or draft persistence** (ADR 0016, 0011).
 - **A new route, a new email or a new paid call**: none, so no new limit or email budget.
+- **Loading skeletons**: deferred after the M6 spike; [`docs/BACKLOG.md`](../../docs/BACKLOG.md) "Loading skeletons".
 
 ## Open Questions
 
-1. Does `loading.tsx` change the status of a 404 page (Risks)? Answered by the M6 spike; the spec says what ships either way.
+1. Does `loading.tsx` change the status of a 404 page (Risks)? **Yes** (M6 spike): an outsider and a made-up id both got 200 instead of 404 with a `loading.tsx` over the brunch segment. A `Suspense` boundary after the membership check keeps the 404, but it and `loading.tsx` both delay hydration of the page (see "Outcome"), so skeletons are deferred.
 2. The exact list of "specific" codes: derived in M1 from the routes' real cases, not guessed here.
 3. Whether a success toast helps "Hide" (the row disappears) or is redundant; decided on the screen in M4 with `/ui-screen`.
+
+## Outcome
+
+**Shipped (M1 to M5, 2026-10-24 and 2026-10-25)**, on `feat/0014-feedback-surfaces`:
+
+- **One error contract**: 26 codes in `packages/shared/src/apiError.ts`, built by `apiError()`, worded in one table (`lib/errorCopy.ts`); the client never shows a server string. `apiErrors.test.ts` fails any route (and the middleware) that answers the old way, with no exemption left. The 404 reads the same for every id.
+- **One mutation thunk** (`runMutation`, `useMutation`) with per-key status for all ten controls, the wizard's create and the ballots' own thunk (codes, not text); `noBareFetch.test.ts` fails a component that calls `fetch` itself.
+- **Toasts** (a polite status region in the signed-in layout, a queue of three, 4 s and 8 s, pause on focus or hover, reduced motion) for one-tap results, and inline lines for what a person must fix or wait out; a 429 on a control with its own wait stays that control's line.
+- **The wizard** says when an invite batch did not go out (a note in the Invites panel); **the place search** drops a stale answer, says when it could not answer, and **a session that ends mid-use** sends the person to sign in with a way back.
+- **A banned-word voice test** (`voiceCopy.test.ts`) and the error and toast patterns in `docs/voice-and-copy.md`.
+- 15 journeys added (T1 to T8 and T10 to T15, in `feedback.spec.ts` and `feedback-controls.spec.ts`) and about 15 edited; each proved to fail with its behavior removed (the testing notes in `tasks.md` list the mutations).
+
+**Not shipped: loading skeletons (M6)**, by decision (2026-10-25). The spike found two costs, both measured on a production build:
+
+1. **A `loading.tsx` turns a not-found page into a 200** for an outsider and a made-up id (the bodies stayed identical). A `Suspense` boundary after the membership check keeps the 404 (tried, with a `Skeleton` primitive, page-shaped placeholders and axe passing on them).
+2. **Either way, the page's controls hydrate later**: the first checkbox on the brunch page was owned by React about 45 ms after `load` without a boundary and about 330 ms after with one. A tap in that window is lost (the checkbox toggles natively, then React resets it), and about ten journeys that click right after `load` failed consistently (the ballots, the dashboard's Hide eyes, the approvals). Making the journeys wait for hydration would hide a cost real people pay.
+
+The app's pages load in about 130 ms locally, so the placeholder buys little until there is a real network to measure; the work is kept on the local branch `spike/0014-skeletons` (not for merge) and the question is a BACKLOG entry to revisit after the deployment spec.
+
+**Differences from the first plan** (each recorded where it happened): the reader parses error bodies by hand, not with Zod (Zod 4 in the browser trips the CSP); a signed-out refusal redirects explicitly instead of `router.refresh()`, and the toast does not survive it; a control's inline line renders whenever a failure is stored (the toast choice is only the `failure` option); a pending control is `aria-disabled`, not `disabled` (focus); `ownsWait` keeps a control's own 429 line out of the toast queue.
+
+**Findings worth remembering** (details in `tasks.md`): the auth middleware's 401 is the one a person meets when a session ends and was still the old shape; `clearCookies()` does not end a session while a prefetch is in flight; a "never" assertion on a toast must not retry; a journey that waits for a toast to disappear proves nothing about it never appearing.
