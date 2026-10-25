@@ -60,6 +60,6 @@ Why handlers read the database: an event can arrive after the invite was revoked
 
 - **Transactional outbox** (an `OutboxEvent` row written in the same transaction, relayed by a job). No lost events, but a new table, a relay, and edits to all nine emit sites for a failure mode that costs a resend click. Deferred, not rejected.
 - **Send email inline from the services.** Violates Constitution 12 and makes API latency and success depend on Resend.
-- **Record every send in the `Notification` table for dedupe.** It would double as history for a later inbox, but non-user invitees have no `userId` (required FK) and it needs a migration now. The in-app inbox spec can decide its own storage.
+- **Record every send in the `Notification` table for dedupe.** It would double as history for a later inbox, but non-user invitees have no `userId` (required FK) and it needs a migration now. The in-app inbox spec can decide its own storage. **Decided in [ADR 0017](./0017-notifications.md) (2026-10-25):** only in-app rows are stored, one per recipient who has an account; email sends are still not recorded.
 - **An in-process EventBus for e2e/dev** (call handlers inline, no Inngest). Simpler CI, but the Inngest wiring (serve route, function registration, signing) would be untested end to end.
 - **A test-only email provider or a bypass flag.** Rejected by CLAUDE.md; the config-selected `FileEmailService` is a legitimate dev adapter, not a seam.

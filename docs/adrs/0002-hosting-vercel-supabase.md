@@ -24,4 +24,6 @@ The app needs hosting for the Next.js frontend/API and a managed Postgres databa
 - **PlanetScale** — MySQL, not Postgres. Schema branching is appealing but Prisma + Postgres is the established combination here.
 - **Netlify** — less optimal for Next.js App Router than Vercel. Vercel builds Next.js.
 
+> **Update (2026-10-25):** Supabase Realtime is not used in v1. Live updates are a refresh on focus plus a polled unread count, because the app has no Supabase client and signs in with NextAuth; see [ADR 0017](./0017-notifications.md) and `docs/BACKLOG.md` "Live updates".
+
 > **Note:** Detailed deliberation predates this repo's git history — this ADR captures the outcome and rationale retroactively from pre-development planning.

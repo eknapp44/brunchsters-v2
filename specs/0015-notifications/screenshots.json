@@ -1,0 +1,39 @@
+{
+  "shots": [
+    {
+      "name": "notifications/inbox",
+      "caption": "The inbox: host activity grouped, member notices, each row a link to its brunch",
+      "variants": ["phone-light", "phone-dark"]
+    },
+    {
+      "name": "notifications/inbox-empty",
+      "caption": "Nothing yet, with a verb out",
+      "variants": ["phone-light"]
+    },
+    {
+      "name": "notifications/bell",
+      "caption": "The bell in the top bar with an unread count",
+      "variants": ["phone-light", "desktop-light"]
+    },
+    {
+      "name": "notifications/settings",
+      "caption": "Preferences grouped in words, only the things that really happen",
+      "variants": ["phone-light", "phone-dark"]
+    },
+    {
+      "name": "notifications/mute",
+      "caption": "Mute a brunch from its page: all, just big stuff, or muted",
+      "variants": ["phone-light"]
+    },
+    {
+      "name": "notifications/invite-failed",
+      "caption": "An invite that did not go out says so on its line, with Resend beside it",
+      "variants": ["phone-light", "desktop-light"]
+    },
+    {
+      "name": "notifications/over",
+      "caption": "A brunch that is over: read-only, labelled, no bring-back",
+      "variants": ["phone-light"]
+    }
+  ]
+}
