@@ -55,6 +55,7 @@ describe('getInvitesForBrunch', () => {
         id: 'invite-1',
         invitedEmail: 'alice@example.com',
         lastResentAt: null,
+        emailFailedAt: new Date('2026-10-25T10:00:00.000Z'),
         token: 'token-1',
         attendee: { rsvpStatus: { code: 'yes' } },
       },
@@ -72,6 +73,8 @@ describe('getInvitesForBrunch', () => {
         invitedEmail: 'alice@example.com',
         status: 'yes',
         lastResentAt: undefined,
+        // The email failed for good and has not gone since: the host's list says so.
+        emailFailed: true,
         token: 'token-1',
       },
     ]);
@@ -83,6 +86,7 @@ describe('getInvitesForBrunch', () => {
         id: 'invite-1',
         invitedEmail: 'alice@example.com',
         lastResentAt: null,
+        emailFailedAt: null,
         token: 'token-1',
         attendee: null,
       },
@@ -90,6 +94,7 @@ describe('getInvitesForBrunch', () => {
         id: 'invite-2',
         invitedEmail: 'bob@example.com',
         lastResentAt: null,
+        emailFailedAt: null,
         token: 'token-2',
         attendee: { rsvpStatus: { code: 'invited' } },
       },
@@ -107,6 +112,7 @@ describe('getInvitesForBrunch', () => {
         invitedEmail: 'alice@example.com',
         status: 'pending',
         lastResentAt: undefined,
+        emailFailed: false,
         token: 'token-1',
       },
       {
@@ -114,6 +120,7 @@ describe('getInvitesForBrunch', () => {
         invitedEmail: 'bob@example.com',
         status: 'pending',
         lastResentAt: undefined,
+        emailFailed: false,
         token: 'token-2',
       },
     ]);

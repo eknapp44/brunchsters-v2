@@ -1,7 +1,7 @@
 import { GONE_COLD, LANDING_HEADING, NOT_FOUND, SIGN_IN_HEADING } from '../support/pages';
 import { EMPTY_DASHBOARD_HEADLINE } from '../support/dashboard';
 import { COLOR_SCHEMES, expectNoA11yViolations, useColorScheme } from '../support/a11y';
-import { createBrunch } from '../support/factories';
+import { createBrunch, failInviteEmail, inviteToBrunch } from '../support/factories';
 import { EMPTY_INBOX_HEADLINE, expectBell, inboxRows } from '../support/inbox';
 import { giveNotification, readNotification } from '../support/notifications';
 import { afterTheHold, callOffBrunch } from '../support/lifecycle';
@@ -159,6 +159,29 @@ for (const scheme of COLOR_SCHEMES) {
       await ann.page.getByRole('radio', { name: /^Muted/ }).check();
       await expect(ann.page.getByRole('radio', { name: /^Muted/ })).toBeChecked();
       await expectNoA11yViolations(ann.page, `mute control, muted (${scheme})`);
+    });
+
+    test('an invite whose email did not go out, on the invite list (spec 0015)', async ({
+      makeActor,
+    }) => {
+      const host = await makeActor('host');
+      await useColorScheme(host.page, scheme);
+      const brunchId = await createBrunch({ host: host.user, title: 'Bounced Brunch' });
+      await inviteToBrunch({
+        brunchId,
+        host: host.user,
+        invitees: [{ email: 'rejected@example.com' }],
+      });
+      await failInviteEmail({ brunchId, email: 'rejected@example.com' });
+
+      await host.page.goto(`/brunch/${brunchId}`);
+      await expect(host.page.getByText("That email didn't go through.")).toBeVisible();
+      await expectNoA11yViolations(host.page, `failed invite on the list (${scheme})`);
+
+      await host.page.setViewportSize({ width: 390, height: 844 });
+      await host.page.goto(`/brunch/${brunchId}`);
+      await expect(host.page.getByText("That email didn't go through.")).toBeVisible();
+      await expectNoA11yViolations(host.page, `failed invite at phone width (${scheme})`);
     });
 
     test('the brunch detail page, as host and as invitee, in every state', async ({

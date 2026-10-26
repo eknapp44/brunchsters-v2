@@ -3,6 +3,7 @@ import {
   createBrunch as createBrunchService,
   NoopEventBus,
   PostgresRateLimiter,
+  recordInviteEmailFailed,
   respondToInvite as respondToInviteService,
   sendInvites as sendInvitesService,
   signInWithProvider,
@@ -12,6 +13,7 @@ import {
   normalizeEmail,
   type BrunchId,
   type Email,
+  type InviteId,
   type InviteToken,
   type UserId,
 } from '@brunchsters/shared';
@@ -130,6 +132,22 @@ export async function inviteToBrunch(params: {
     { db: getDb(), eventBus, rateLimiter: new PostgresRateLimiter({ db: getDb() }) },
   );
   unwrap(result, 'sendInvites');
+}
+
+// The state the queue leaves when an invite email fails for good (a refused address, a provider that
+// kept failing): the real core service the function's onFailure calls. A failing provider cannot be
+// had in the suite (the outbox never refuses), so the failure is seeded and the way out is real.
+export async function failInviteEmail(params: {
+  readonly brunchId: BrunchId;
+  readonly email: string;
+}): Promise<void> {
+  const invite = await getDb().brunchInvite.findFirstOrThrow({
+    where: { brunchId: params.brunchId, invitedEmail: normalizeEmail(params.email) },
+  });
+  unwrap(
+    await recordInviteEmailFailed({ inviteId: invite.id as InviteId }, { db: getDb() }),
+    'recordInviteEmailFailed',
+  );
 }
 
 // Email delivery is a no-op, so the invite link is built from the token stored in the DB.

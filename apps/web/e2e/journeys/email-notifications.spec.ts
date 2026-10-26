@@ -334,7 +334,7 @@ test.describe('N8 — the hold on a called-off notice is real', () => {
 });
 
 test.describe('N4 — the queue endpoint', () => {
-  test('is reachable without a session and has its eight functions registered', async ({
+  test('is reachable without a session and has its nine functions registered', async ({
     request,
   }) => {
     const response = await request.get('/api/inngest');
@@ -343,9 +343,10 @@ test.describe('N4 — the queue endpoint', () => {
     // middleware to the Inngest SDK, which answers its introspection call.
     expect(response.status()).toBe(200);
     const body = (await response.json()) as { function_count?: number; mode?: string };
-    // The invite, confirmed, called-off and back-on email functions, the three that write
+    // The invite, confirmed, called-off and back-on email functions, the invite email's own
+    // failure handler (Inngest registers an onFailure as a function), the three that write
     // notification rows (spec 0015) and the daily rate-limit prune (specs 0012 and 0013).
-    expect(body.function_count).toBe(8);
+    expect(body.function_count).toBe(9);
     expect(body.mode).toBe('dev');
   });
 });

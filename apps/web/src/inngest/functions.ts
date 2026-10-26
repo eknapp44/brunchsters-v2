@@ -8,6 +8,7 @@ import {
   notifyHostOfVote,
   notifyInvited,
   pruneRateLimitBuckets,
+  recordInviteEmailFailed,
   resolveBackOnNotice,
   resolveCancelNotice,
   resolveConfirmationRecipients,
@@ -71,6 +72,21 @@ export const sendInviteEmailFunction = inngest.createFunction(
     // limit they all call back into the app together, each opening a database connection
     // and a request to the email provider; a few at a time is plenty for an email.
     concurrency: MAX_CONCURRENT_INVITE_EMAILS,
+    // The email failed for good: the address was refused, or the provider kept failing until the
+    // retries ran out. The host is told in their inbox and the invite list says so (spec 0015). A
+    // person who switched the email off never gets here: that is a skip, which succeeds.
+    onFailure: async ({ event, step }) => {
+      const { inviteId } = parseEventData({
+        schema: inviteEventSchema,
+        data: event.data.event.data,
+      });
+      await step.run('record-invite-email-failed', async () =>
+        unwrapForQueue({
+          result: await recordInviteEmailFailed({ inviteId: inviteId as InviteId }, { db }),
+          step: 'record-invite-email-failed',
+        }),
+      );
+    },
   },
   async ({ event, step }) => {
     const { inviteId } = parseEventData({ schema: inviteEventSchema, data: event.data });

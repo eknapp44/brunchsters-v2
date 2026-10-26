@@ -62,6 +62,7 @@ export default defineConfig({
         '**/feedback.spec.ts',
         '**/notifications.spec.ts',
         '**/notification-settings.spec.ts',
+        '**/invite-email-failed.spec.ts',
         '**/wizard-page.spec.ts',
         '**/front-door.spec.ts',
       ],

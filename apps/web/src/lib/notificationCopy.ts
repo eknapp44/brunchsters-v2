@@ -98,6 +98,12 @@ export function describeNotification(params: {
   }
 }
 
+// Under an invite whose email failed for good, on the host's invite list. It names the two things
+// the host can do: fix the address (revoke and invite again) or resend, and the link they can send
+// themselves, which works without any email.
+export const INVITE_EMAIL_FAILED_NOTE =
+  "That email didn't go through. Try Resend, or copy the link and send it yourself.";
+
 // Where opening a row goes. A suggestion waits for the host on the manage page; everything else is
 // about the brunch itself, which a member (and an invitee who already has an account) can open.
 export function notificationHref(params: {

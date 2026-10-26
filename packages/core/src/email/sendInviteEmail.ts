@@ -3,6 +3,7 @@ import type { BrunchId, Email, InviteId } from '@brunchsters/shared';
 import { err, ok, type Result } from 'neverthrow';
 import type { EmailSendFailure, EmailService } from './EmailService';
 import { inviteEmailKey, joinUrl } from './emailKeys';
+import { clearInviteEmailFailure } from '../invite/inviteEmailFailure';
 import { emailAllowed } from './emailAllowed';
 import { renderInviteEmail } from './templates/inviteEmail';
 
@@ -87,10 +88,12 @@ export async function sendInviteEmail(
     html,
     idempotencyKey: await inviteEmailKey({ inviteId: input.inviteId, token: invite.token }),
   });
-  if (sent.isErr()) {
-    if (sent.error.kind === 'already_sent') return ok('skipped_duplicate');
-    return err(sent.error);
-  }
+  if (sent.isErr() && sent.error.kind !== 'already_sent') return err(sent.error);
 
-  return ok('sent');
+  // An email for this invite is out (or the provider already had this very one): a failure the host
+  // was told about is over, so the flag and the host's rows about it go (spec 0015).
+  const cleared = await clearInviteEmailFailure({ inviteId: input.inviteId }, ctx);
+  if (cleared.isErr()) return err(cleared.error);
+
+  return ok(sent.isErr() ? 'skipped_duplicate' : 'sent');
 }

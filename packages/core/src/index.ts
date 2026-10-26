@@ -168,6 +168,7 @@ export {
   notifyBrunchReinstated,
 } from './notification/notifyMembers';
 export { notifyInvited } from './notification/notifyInvited';
+export { clearInviteEmailFailure, recordInviteEmailFailed } from './invite/inviteEmailFailure';
 export type { NotifyError } from './notification/deliverInApp';
 export { getNotificationPreferences, setNotificationPreferences } from './notification/preferences';
 export type {

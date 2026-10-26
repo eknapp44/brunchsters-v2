@@ -52,8 +52,10 @@ const HANDLED_EVENTS = [
 // Types something is meant to produce that no event writes yet, and where that is planned.
 const NOT_YET_PRODUCED: Readonly<Record<string, string>> = {
   'vote.deadline.approaching': 'the scheduler, spec 0015 M7 (it runs on a clock, not an event)',
-  'invite.email.failed': 'the invite email handler, spec 0015 M6',
 };
+
+// Written by a function's onFailure, which no event triggers (the next describe guards the wiring).
+const WRITTEN_BY_FAILURE_HANDLERS: readonly NotificationTypeCode[] = ['invite.email.failed'];
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -84,10 +86,30 @@ describe('every event that writes notification rows has a decision', () => {
   });
 });
 
+// invite.email.failed is not written by an event but by the invite email function's onFailure (it
+// runs when the retries are spent or the address is refused). Without it the host is never told.
+describe('the invite email function tells the host when it gives up', () => {
+  it('records the failure from onFailure', () => {
+    const text = readFileSync(
+      path.join(path.dirname(fileURLToPath(import.meta.url)), 'functions.ts'),
+      'utf-8',
+    );
+    const start = text.indexOf("id: 'send-invite-email'");
+    const end = text.indexOf('export const', start);
+    const block = text.slice(start, end);
+    expect(block, 'sendInviteEmailFunction lost its onFailure').toMatch(/onFailure: async/);
+    expect(block, 'onFailure no longer records the failure').toContain('recordInviteEmailFailed');
+  });
+});
+
 describe('every produced type has a producer', () => {
   it('is written by a decision, or listed as not yet produced', () => {
     const written = new Set(Object.values(DECISIONS).flat());
-    const covered = new Set<string>([...written, ...Object.keys(NOT_YET_PRODUCED)]);
+    const covered = new Set<string>([
+      ...written,
+      ...Object.keys(NOT_YET_PRODUCED),
+      ...WRITTEN_BY_FAILURE_HANDLERS,
+    ]);
 
     const missing = PRODUCED_NOTIFICATION_TYPES.filter((type) => !covered.has(type));
     expect(

@@ -34,7 +34,7 @@ For your own sign-off, in your own time. The automated suite proves the behavior
 
 ## D. When an email does not go out
 
-- [ ] **D1. A bad address.** Invite `nobody@example.invalid` (or use a recipient Resend rejects in a real-send recheck). You get a row "didn't go through" and the invite line says so; **Resend** clears both once it goes.
+- [ ] **D1. A bad address.** Invite `nobody@example.invalid` (or use a recipient Resend rejects in a real-send recheck). You get a row "Your invite to … didn't go through" and the invite line says "That email didn't go through. Try Resend, or copy the link and send it yourself."; **Resend** clears both once it goes. (The line should read as help, not blame, and be easy to see on a phone.)
 - [ ] **D2. Silence is silence.** An invitee who switched the invite email off does **not** show you "didn't go out".
 
 ## E. Deadlines and "over"

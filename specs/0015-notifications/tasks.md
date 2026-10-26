@@ -112,16 +112,23 @@ Process (pilot, spec 0014 and this one): the folder also gets `SUMMARY.md`, `MAN
 
 ## M6 — "An email did not go out"
 
-- [ ] `emailFailedAt` set on a rejected address and, via `onFailure`, on exhausted retries; cleared by a successful resend; the host's `invite.email.failed` row (muting ignored); a preference skip writes nothing
-- [ ] The invite list line "Didn't go out" with the existing Resend control (`/ui-screen`); `docs/BACKLOG.md` "Silent failures to surface" closed
-- [ ] Journey B8 (rejected address through the real handler, row and line, resend clears both) and a case in B6 that a preference skip shows the host nothing
-- [ ] **Ask the owner whether M8 stays in this spec**
-- [ ] **Prove the tests can fail:** `onFailure` removed → B8's exhausted-retries case fails; a preference skip counted as failure → B6 fails
-- [ ] Commit: `feat: tell the host when an invite email did not go out (M6)`
+- [x] `emailFailedAt` set on a rejected address and, via `onFailure`, on exhausted retries; cleared by a successful resend; the host's `invite.email.failed` row (muting ignored); a preference skip writes nothing
+- [x] The invite list line "That email didn't go through. Try Resend, or copy the link and send it yourself." with the existing Resend control (`/ui-screen`); `docs/BACKLOG.md` "Silent failures to surface" closed
+- [x] Journey B8 (rejected address through the real handler, row and line, resend clears both) and a case in B6 that a preference skip shows the host nothing
+- [x] **Ask the owner whether M8 stays in this spec** (asked at the M6 review)
+- [x] **Prove the tests can fail:** `onFailure` removed → B8's exhausted-retries case fails; a preference skip counted as failure → B6 fails
+- [x] Commit: `feat: tell the host when an invite email did not go out (M6)`
 
-**Accessible names changed:** new invite-line text "Didn't go out". **Journeys that change:** `invitations-host`, new B8. **Deployable:** yes.
+**Accessible names changed:** none renamed; new text on the invite list and a new inbox row (`docs/accessible-names.md`). **Journeys that change:** new `invite-email-failed.spec.ts` (B8; desktop and `mobile`), `accessibility` D2 (one case). **Deployable:** yes.
 
-**Testing notes:** _(fill on completion)_
+**Testing notes:**
+
+- **What and how:** 2 unit tests in `sendInviteEmail.test.ts` (a sent or already-sent email clears the flag and the host's rows; a refused address, a provider that is down and a skipped invite leave it), 1 in `getInvitesForBrunch.test.ts` (the flag reaches the list), a static guard in `notificationRecipients.test.ts` (the invite function keeps its `onFailure`, which calls `recordInviteEmailFailed`), and 6 integration tests on real Postgres (`inviteEmailFailure.integration.test.ts`: marks and tells the host once however often it is told, news again after a failed resend, ignores a muted brunch but obeys the host's own switch with the flag kept, writes nothing for a revoked invite, made-up id or deleted brunch, shows only to the host, and clears on a real send while leaving another invite's failure). Journey **B8**: the invite list and the inbox say so, opening the row lands on the list, Resend through the real queue sends the email and takes both back; axe on the line in both palettes and at phone width (D2). The failure itself is seeded with the real service (`failInviteEmail`) because the suite's outbox never refuses; the `onFailure` wiring is covered by the guard, not by an end-to-end failure. A preference skip showing the host nothing is B6 (M5). Proved to fail: the list line removed (B8), the clearing removed (B8), `onFailure` renamed (the guard).
+- **Fixed on the way:** the first version of the guard survived the `onFailure` mutation, because a renamed `onFailureX` still contained the word; it now matches `onFailure: async`. A regex escape written through a script again became a backspace character (found by `grep -c`).
+- **Correction to the task list:** the line reads "That email didn't go through. Try Resend, or copy the link and send it yourself." (it names the two things the host can do) rather than "Didn't go out"; the exhausted-retries mutation is the guard, not a B8 case.
+- **Deferred:** the same signal for the three other emails (`docs/BACKLOG.md`, "Silent failures to surface"); a real rejected address through Resend (MANUAL-TESTING D1).
+- **Gate:** typecheck and lint; unit shared 64, core 752, web 755; core integration 207; CI-mode e2e 323 passed, 2 skipped; stress (three times, four workers) 969 passed; dev mode 323 passed. The first gate found two real misses, both fixed: the lifecycle-guard scan wanted a reason for a write that skips the open check (the queue recording a failure on a called-off brunch), and N4 counted 8 queue functions where Inngest registers the onFailure as a ninth.
+- **Run:** `pnpm --filter @brunchsters/core test:integration inviteEmailFailure`; `CI=true pnpm build && CI=true pnpm test:e2e invite-email-failed`.
 
 ---
 
