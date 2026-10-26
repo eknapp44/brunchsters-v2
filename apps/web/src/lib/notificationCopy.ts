@@ -1,4 +1,4 @@
-import type { NotificationData } from '@brunchsters/shared';
+import type { NotificationData, NotificationTypeCode } from '@brunchsters/shared';
 import { formatWhenLong } from './brunchPageFormat';
 
 // The words of the bell and the inbox (spec 0015, ADR 0017). A notification row stores facts (a
@@ -140,3 +140,103 @@ export function relativeAgo(params: {
   if (days < 7) return `${days} days ago`;
   return undefined;
 }
+
+// ─── Settings and the per-brunch level (spec 0015 M5) ────────────────────────────────────────────
+
+export const SETTINGS_LINK = 'Notification settings';
+export const SETTINGS_HEADING = 'Notification settings';
+export const SETTINGS_INTRO =
+  "Pick what you hear about, and where. To quiet one brunch, use the control on that brunch's page.";
+export const SETTINGS_BACK = 'Back to notifications';
+export const IN_APP_CAPTION = 'In the app';
+export const EMAIL_CAPTION = 'By email';
+
+// One line of the settings page: what a person is choosing about, which notification types the
+// switches govern (a line can cover a few that read as one thing), and whether an email exists to
+// switch. Only types something produces are here (a test holds it to `PRODUCED_NOTIFICATION_TYPES`),
+// so the page never offers a switch for something the app does not do.
+export type SettingsLine = {
+  readonly id: string;
+  readonly label: string;
+  readonly types: readonly NotificationTypeCode[];
+  readonly hasEmail: boolean;
+};
+
+export const SETTINGS_GROUPS: readonly {
+  readonly heading: string;
+  readonly lines: readonly SettingsLine[];
+}[] = [
+  {
+    heading: 'Your brunches',
+    lines: [
+      { id: 'invited', label: 'Someone invites you', types: ['invite.received'], hasEmail: true },
+      { id: 'on', label: 'A brunch is on', types: ['brunch.confirmed'], hasEmail: true },
+      {
+        id: 'off',
+        label: 'A brunch is called off or back on',
+        types: ['brunch.cancelled', 'brunch.reinstated'],
+        hasEmail: true,
+      },
+    ],
+  },
+  {
+    heading: 'Reminders',
+    lines: [
+      {
+        id: 'last-call',
+        label: 'Voting is about to close',
+        types: ['vote.deadline.approaching'],
+        hasEmail: true,
+      },
+    ],
+  },
+  {
+    heading: 'When you host',
+    lines: [
+      {
+        id: 'replies',
+        label: 'Replies and votes',
+        types: ['rsvp.received', 'vote.cast'],
+        hasEmail: false,
+      },
+      {
+        id: 'suggestions',
+        label: 'Someone suggests a place, a time or a person',
+        types: ['location.suggested', 'time.suggested', 'invite.suggestion'],
+        hasEmail: false,
+      },
+      {
+        id: 'not-sent',
+        label: "An invite doesn't go through",
+        types: ['invite.email.failed'],
+        hasEmail: false,
+      },
+    ],
+  },
+];
+
+// The accessible name of a switch: the line, then which one, so a screen reader hears
+// "A brunch is on, by email" (it contains the visible caption, as it must).
+export function switchName(params: {
+  readonly label: string;
+  readonly channel: 'in_app' | 'email';
+}): string {
+  return `${params.label}, ${params.channel === 'email' ? 'by email' : 'in the app'}`;
+}
+
+export const LEVEL_HEADING = 'Notifications for this brunch';
+export const LEVEL_OPTIONS: readonly {
+  readonly code: 'all' | 'big_stuff' | 'muted';
+  readonly label: string;
+  readonly hint: string;
+}[] = [
+  { code: 'all', label: 'All', hint: 'Everything about this brunch.' },
+  {
+    code: 'big_stuff',
+    label: 'Just big stuff',
+    hint: "When it's on, called off or back on, and when voting is about to close.",
+  },
+  { code: 'muted', label: 'Muted', hint: 'Nothing about this brunch, in the app or by email.' },
+];
+// The one thing muting does not hide from a host: an invite that did not go through.
+export const LEVEL_HOST_NOTE = "You'll still hear when one of your invites doesn't go through.";

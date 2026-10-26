@@ -1,6 +1,6 @@
 import { escapeHtml, safeHttpUrl } from './escapeHtml';
 import { formatBrunchTime } from './formatBrunchTime';
-import { renderEmail, type RenderedEmail } from './layout';
+import { fewerEmailsHtml, renderEmail, type RenderedEmail } from './layout';
 import { safeSubject } from './safeSubject';
 
 export type ConfirmedEmailParams = {
@@ -13,6 +13,9 @@ export type ConfirmedEmailParams = {
   readonly scheduledAt: Date;
   readonly timezone: string;
   readonly link: string;
+  // Where the footer sends someone who wants fewer emails (see `fewerEmailsHtml`).
+  readonly muteUrl?: string | undefined;
+  readonly settingsUrl?: string | undefined;
 };
 
 export function renderConfirmedEmail(params: ConfirmedEmailParams): RenderedEmail {
@@ -37,7 +40,7 @@ export function renderConfirmedEmail(params: ConfirmedEmailParams): RenderedEmai
       ].join(''),
       buttonLabel: 'See the brunch',
       buttonUrl: params.link,
-      footerHtml: "You're getting this because you're in on this brunch.",
+      footerHtml: `You're getting this because you're in on this brunch.${fewerEmailsHtml(params)}`,
     }),
   };
 }

@@ -64,9 +64,10 @@ function countIn(body: unknown): number | undefined {
 // while a poll is already out or a read is in flight (the read's own answer is the freshest).
 export const pollUnread = createAppAsyncThunk<number, undefined>(
   'notifications/pollUnread',
-  async (_arg, { extra, rejectWithValue }) => {
+  async (_arg, { extra, rejectWithValue, signal }) => {
     try {
-      const response = await extra.fetch(COUNT_URL, { cache: 'no-store' });
+      // The signal lets the hook cancel a poll that is still on its way (see useBadgePoll).
+      const response = await extra.fetch(COUNT_URL, { cache: 'no-store', signal });
       if (!response.ok) return rejectWithValue('poll_failed');
       const count = countIn(await response.json());
       return count === undefined ? rejectWithValue('poll_failed') : count;

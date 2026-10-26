@@ -9,6 +9,7 @@ import { afterTheHold, callOffBrunch } from '../support/lifecycle';
 import { expect, test } from '../support/fixtures';
 import { fixturePlaces } from '../support/places';
 import { createConfirmedBrunch, createVotingBrunch, inviteNewcomer } from '../support/showcase';
+import { addAttendee } from '../support/voting';
 import { BrunchWizard } from '../support/wizard';
 
 // Journey D3 (spec 0009): every screen fits the screen it is on. This file runs in two
@@ -67,6 +68,23 @@ test.describe('D3 — every screen fits and shows its one action', () => {
     await expect(bell(ann.page)).toBeInViewport();
     await expect(ann.page.getByRole('button', { name: 'Mark all read' })).toBeInViewport();
     await expectNoSidewaysScroll(ann.page, 'the inbox');
+  });
+
+  test('the notification settings page and the mute control (spec 0015)', async ({ makeActor }) => {
+    const host = await makeActor('host');
+    const ann = await makeActor('ann');
+    const brunchId = await createBrunch({ host: host.user, title: 'Mute Layout Brunch' });
+    await addAttendee({ brunchId, host: host.user, user: ann.user, response: 'yes' });
+
+    await ann.page.goto('/settings/notifications');
+    await expect(
+      ann.page.getByRole('switch', { name: 'Someone invites you, in the app' }),
+    ).toBeInViewport();
+    await expectNoSidewaysScroll(ann.page, 'the notification settings');
+
+    await ann.page.goto(`/brunch/${brunchId}`);
+    await expect(ann.page.getByRole('radio', { name: /^Muted/ })).toBeAttached();
+    await expectNoSidewaysScroll(ann.page, 'the brunch page with the mute control');
   });
 
   test('the dashboard, empty and full', async ({ makeActor }) => {

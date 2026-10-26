@@ -34,7 +34,10 @@ const guest: ConfirmationRecipient = {
 
 const FUTURE = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 const dbWithInvite = (row: { token: string; tokenExpiresAt: Date } | null): DbClient =>
-  ({ brunchInvite: { findFirst: vi.fn().mockResolvedValue(row) } }) as unknown as DbClient;
+  ({
+    brunchInvite: { findFirst: vi.fn().mockResolvedValue(row) },
+    user: { findFirst: vi.fn().mockResolvedValue(null) },
+  }) as unknown as DbClient;
 
 // The called-off and back-on emails share their sending rules and differ in content and key.
 describe.each([

@@ -38,7 +38,10 @@ describe('pollUnread', () => {
     const fetch = vi.fn<ThunkExtra['fetch']>(async () => json({ count: 1 }));
     await storeWith(fetch).dispatch(pollUnread());
 
-    expect(fetch).toHaveBeenCalledWith('/api/v1/notifications/unread-count', { cache: 'no-store' });
+    expect(fetch).toHaveBeenCalledWith('/api/v1/notifications/unread-count', {
+      cache: 'no-store',
+      signal: expect.any(AbortSignal),
+    });
   });
 
   it('keeps the number it had, and says nothing, when the poll fails any way it can', async () => {
@@ -60,6 +63,28 @@ describe('pollUnread', () => {
       // A failed poll lets the next one start.
       expect(store.getState().notifications.polling).toBe(false);
     }
+  });
+
+  it('can be cancelled while it is on its way: the number stays, and the next poll may start', async () => {
+    const fetch = vi.fn<ThunkExtra['fetch']>(
+      (_url, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () =>
+            reject(new DOMException('aborted', 'AbortError')),
+          );
+        }),
+    );
+    const store = storeWith(fetch);
+    store.dispatch(unreadSeeded(2));
+
+    const polling = store.dispatch(pollUnread());
+    expect(store.getState().notifications.polling).toBe(true);
+    polling.abort();
+    await polling;
+
+    expect(selectUnreadCount(store.getState())).toBe(2);
+    expect(store.getState().notifications.polling).toBe(false);
+    expect(selectToasts(store.getState())).toEqual([]);
   });
 
   it('does not start a second poll while one is out', async () => {

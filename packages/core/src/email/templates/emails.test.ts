@@ -114,3 +114,57 @@ describe('renderConfirmedEmail', () => {
     expect(html).not.toContain('<script>');
   });
 });
+
+describe('the way to want fewer emails (spec 0015)', () => {
+  const brunch = {
+    recipientName: 'Sam',
+    hostName: 'Evan',
+    brunchTitle: 'Sunday Funday',
+    placeName: 'Tartine',
+    placeAddress: '600 Guerrero St',
+    placeUrl: '',
+    scheduledAt: new Date('2026-12-06T18:00:00Z'),
+    timezone: 'America/Los_Angeles',
+    link: 'https://app.example.com/brunch/b1',
+  };
+
+  it('offers muting this brunch and the settings to someone who is in, with both links escaped', () => {
+    const { html } = renderConfirmedEmail({
+      ...brunch,
+      muteUrl: 'https://app.example.com/brunch/b1#notifications',
+      settingsUrl: 'https://app.example.com/settings/notifications?a=1&b="2"',
+    });
+
+    expect(html).toContain('Want fewer of these?');
+    expect(html).toContain('href="https://app.example.com/brunch/b1#notifications"');
+    expect(html).toContain('Mute this brunch');
+    expect(html).toContain(
+      'href="https://app.example.com/settings/notifications?a=1&amp;b=&quot;2&quot;"',
+    );
+  });
+
+  it('offers only the settings when there is no brunch to mute yet, and nothing when it is given neither', () => {
+    const onlySettings = renderConfirmedEmail({
+      ...brunch,
+      settingsUrl: 'https://app.example.com/settings/notifications',
+    }).html;
+    expect(onlySettings).toContain('notification settings');
+    expect(onlySettings).not.toContain('Mute this brunch');
+
+    expect(renderConfirmedEmail(brunch).html).not.toContain('Want fewer of these?');
+  });
+
+  it('puts the settings link in the invite email', () => {
+    const { html } = renderInviteEmail({
+      hostName: 'Evan',
+      brunchTitle: 'Sunday Funday',
+      description: undefined,
+      link: 'https://app.example.com/invite/abc',
+      linkExpiresAt: new Date('2026-11-23T12:00:00Z'),
+      settingsUrl: 'https://app.example.com/settings/notifications',
+    });
+
+    expect(html).toContain('href="https://app.example.com/settings/notifications"');
+    expect(html).not.toContain('Mute this brunch');
+  });
+});

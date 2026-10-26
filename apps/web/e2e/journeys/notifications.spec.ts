@@ -303,6 +303,33 @@ test.describe('B4 — the bell keeps its number, marking read can fail, and noth
     await expect(bell(ann.page)).toHaveCount(0);
   });
 
+  test('signing out cancels a poll that is still on its way, so its answer cannot bring the session back', async ({
+    makeActor,
+  }) => {
+    // Every authenticated answer carries a fresh session cookie, so a poll answered after the
+    // sign-out would put the session back (found in dev mode, where the first poll is slow: journey
+    // A2 failed 8 times in 10). Here the poll is held where it cannot be answered, and what is
+    // asserted is that signing out cancels it, which is what makes the answer harmless.
+    const ann = await makeActor('ann');
+    let held = 0;
+    await ann.page.route('**/api/v1/notifications/unread-count', () => {
+      held += 1; // never answered
+    });
+    await ann.page.goto('/dashboard');
+    await expect.poll(() => held).toBe(1);
+
+    const cancelled = ann.page.waitForEvent('requestfailed', (request) =>
+      request.url().includes('/api/v1/notifications/unread-count'),
+    );
+    await ann.page.getByRole('button', { name: 'Sign out' }).click();
+    await expect(ann.page).toHaveURL('/');
+    expect((await cancelled).failure()?.errorText).toMatch(/ABORTED/i);
+
+    // And the session really is over.
+    await ann.page.goto('/dashboard');
+    await expect(ann.page).toHaveURL(/\/sign-in\?callbackUrl=%2Fdashboard$/);
+  });
+
   test('an inbox longer than a page offers the older ones, and has them', async ({ makeActor }) => {
     const ann = await makeActor('ann');
     // Spread over time, so "older" has an order to follow.

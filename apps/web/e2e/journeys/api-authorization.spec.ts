@@ -580,6 +580,8 @@ test.describe('API authorization: the member endpoints', () => {
     const aMadeUpOption = randomUUID();
     const endpoints: readonly (readonly [string, string, string, unknown])[] = [
       ['RSVP', 'POST', `${b}/rsvp`, { response: 'yes' }],
+      // Spec 0015: muting is the member's own, and an outsider cannot tell the brunch is real.
+      ['set my notification level', 'PUT', `${b}/notification-level`, { level: 'muted' }],
       ['vote for a place', 'PUT', `${b}/votes/locations`, { optionIds: [aMadeUpOption] }],
       ['vote for a time', 'PUT', `${b}/votes/times`, { optionIds: [aMadeUpOption] }],
       ['suggest a person', 'POST', `${b}/suggestions`, { email: 'someone@example.com' }],
@@ -711,6 +713,34 @@ test.describe('API authorization: the member endpoints', () => {
       status: 200,
       body: { count: 0 },
     });
+
+    // The switches (spec 0015 M5) are the caller's own, too: signed out is refused, a switch that
+    // does not exist is refused with a code (an email for a type no email exists for, a type nothing
+    // produces), and a saved choice is hers alone.
+    const prefs = '/api/v1/notification-preferences';
+    const email = { types: ['brunch.confirmed'], channel: 'email', enabled: false };
+    expect(await send(anonymous, 'PUT', prefs, email)).toMatchObject({
+      status: 401,
+      body: { error: { code: 'signed_out' } },
+    });
+    for (const nonsense of [
+      { types: ['rsvp.received'], channel: 'email', enabled: true },
+      { types: ['running.late'], channel: 'in_app', enabled: true },
+      { types: [], channel: 'in_app', enabled: true },
+    ]) {
+      expect(await send(ann.context.request, 'PUT', prefs, nonsense)).toMatchObject({
+        status: 422,
+        body: { error: { code: 'invalid' } },
+      });
+    }
+    expect(await send(ann.context.request, 'PUT', prefs, email)).toEqual({
+      status: 200,
+      body: email,
+    });
+    const saved = (userId: string) =>
+      getDb().userNotificationPreference.count({ where: { userId } });
+    expect(await saved(ann.user.id)).toBe(1);
+    expect(await saved(bea.user.id)).toBe(0);
     await anonymous.dispose();
   });
 });

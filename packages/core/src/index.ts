@@ -169,6 +169,14 @@ export {
 } from './notification/notifyMembers';
 export { notifyInvited } from './notification/notifyInvited';
 export type { NotifyError } from './notification/deliverInApp';
+export { getNotificationPreferences, setNotificationPreferences } from './notification/preferences';
+export type {
+  EffectivePreferences,
+  SetNotificationPreferencesError,
+  SetNotificationPreferencesInput,
+} from './notification/preferences';
+export { getNotificationLevel, setNotificationLevel } from './notification/notificationLevel';
+export type { NotificationLevelError } from './notification/notificationLevel';
 export { COALESCED_TYPES } from './notification/notificationTypes';
 export type {
   CoalescedType,

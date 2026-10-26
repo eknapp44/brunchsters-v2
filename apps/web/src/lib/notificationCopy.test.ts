@@ -1,6 +1,18 @@
-import type { NotificationData } from '@brunchsters/shared';
+import {
+  EMAIL_NOTIFICATION_TYPES,
+  NOTIFICATION_LEVEL_CODES,
+  PRODUCED_NOTIFICATION_TYPES,
+  type NotificationData,
+} from '@brunchsters/shared';
 import { describe, expect, it } from 'vitest';
 import {
+  EMAIL_CAPTION,
+  IN_APP_CAPTION,
+  LEVEL_HOST_NOTE,
+  LEVEL_OPTIONS,
+  SETTINGS_GROUPS,
+  SETTINGS_INTRO,
+  switchName,
   bellBadgeText,
   bellLabel,
   describeNotification,
@@ -164,5 +176,53 @@ describe('relativeAgo', () => {
   it('gives way to the date itself from a week on, and never says a negative time', () => {
     expect(ago(7 * 24 * HOUR)).toBeUndefined();
     expect(relativeAgo({ then: new Date(now.getTime() + HOUR), now })).toBe('Just now');
+  });
+});
+
+describe('the settings page copy', () => {
+  const lines = SETTINGS_GROUPS.flatMap((group) => group.lines);
+
+  it('lists every type something produces exactly once, and nothing else', () => {
+    const listed = lines.flatMap((line) => line.types);
+    expect([...listed].sort()).toEqual([...PRODUCED_NOTIFICATION_TYPES].sort());
+  });
+
+  it('offers an email switch exactly where an email exists, for every type on the line', () => {
+    for (const line of lines) {
+      const emailable = line.types.map((type) => EMAIL_NOTIFICATION_TYPES.includes(type));
+      expect(emailable.every(Boolean) || emailable.every((value) => !value), line.id).toBe(true);
+      expect(line.hasEmail, line.id).toBe(emailable.every(Boolean));
+    }
+  });
+
+  it('has unique line ids and no corporate words', () => {
+    expect(new Set(lines.map((line) => line.id)).size).toBe(lines.length);
+    const text = [
+      SETTINGS_INTRO,
+      ...SETTINGS_GROUPS.map((group) => group.heading),
+      ...lines.map((line) => line.label),
+      ...LEVEL_OPTIONS.flatMap((option) => [option.label, option.hint]),
+      LEVEL_HOST_NOTE,
+    ].join(' ');
+    expect(BANNED_WORDS.filter(({ pattern }) => pattern.test(text))).toEqual([]);
+  });
+
+  it('names a switch with the line and the channel, containing the caption a person sees', () => {
+    expect(switchName({ label: 'A brunch is on', channel: 'email' })).toBe(
+      'A brunch is on, by email',
+    );
+    expect(switchName({ label: 'A brunch is on', channel: 'in_app' })).toBe(
+      'A brunch is on, in the app',
+    );
+    expect(switchName({ label: 'x', channel: 'email' }).toLowerCase()).toContain(
+      EMAIL_CAPTION.toLowerCase(),
+    );
+    expect(switchName({ label: 'x', channel: 'in_app' }).toLowerCase()).toContain(
+      IN_APP_CAPTION.toLowerCase(),
+    );
+  });
+
+  it('has a mute choice for each level, in order', () => {
+    expect(LEVEL_OPTIONS.map((option) => option.code)).toEqual([...NOTIFICATION_LEVEL_CODES]);
   });
 });

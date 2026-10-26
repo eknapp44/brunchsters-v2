@@ -134,6 +134,21 @@ describe('nothing sends mail except the handlers an event triggers', () => {
     ).toEqual([...SENDERS].sort());
   });
 
+  // Spec 0015, ADR 0017: an email goes only to a person who has not switched it off and has not muted
+  // the brunch, and the answer is silent. The question is `emailAllowed`, so a sender that does not
+  // ask it would send to someone who said no, and a new sender cannot be added without it.
+  it('asks emailAllowed before it sends, in every file that sends', () => {
+    const askers = files
+      .filter((file) => /\bemailService\.send\(/.test(file.text))
+      .filter((file) => !/\bemailAllowed\(/.test(file.text))
+      .map((file) => file.name);
+
+    expect(
+      askers,
+      'a file sends mail without asking emailAllowed: ask it first, and treat "no" as a silent skip (a "skipped_by_preference" outcome), never a failure',
+    ).toEqual([]);
+  });
+
   it('reaches the shared sender only from the three email handlers', () => {
     const callers = files
       .filter((file) => /\bsendToRecipient\(/.test(file.text))

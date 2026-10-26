@@ -14,6 +14,7 @@ import {
   INBOX_HEADING,
   notificationHref,
   relativeAgo,
+  SETTINGS_LINK,
   SHOW_OLDER,
 } from '@/lib/notificationCopy';
 import { MarkAllRead } from './MarkAllRead';
@@ -61,7 +62,12 @@ export default async function NotificationsPage({
     <Container as="main" size="narrow">
       <div className={styles.header}>
         <h1>{INBOX_HEADING}</h1>
-        {items.length > 0 && <MarkAllRead hasUnread={items.some((item) => !item.isRead)} />}
+        <div className={styles.actions}>
+          {items.length > 0 && <MarkAllRead hasUnread={items.some((item) => !item.isRead)} />}
+          <ButtonLink href="/settings/notifications" variant="ghost" size="sm">
+            {SETTINGS_LINK}
+          </ButtonLink>
+        </div>
       </div>
 
       {items.length === 0 ? (

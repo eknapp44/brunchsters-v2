@@ -2,6 +2,20 @@ import { escapeHtml } from './escapeHtml';
 
 export type RenderedEmail = { readonly subject: string; readonly html: string };
 
+// The line every email ends with about getting fewer of them (spec 0015). A member can mute the
+// brunch from its page; anyone can change what they get in the settings. Both are optional so an
+// email built without them (a test, a future caller) simply leaves the line out.
+export function fewerEmailsHtml(params: {
+  readonly muteUrl?: string | undefined;
+  readonly settingsUrl?: string | undefined;
+}): string {
+  if (params.settingsUrl === undefined) return '';
+  const settings = `<a href="${escapeHtml(params.settingsUrl)}">notification settings</a>`;
+  return params.muteUrl === undefined
+    ? ` Want fewer of these? Change what you get in your ${settings}.`
+    : ` Want fewer of these? <a href="${escapeHtml(params.muteUrl)}">Mute this brunch</a> or change what you get in your ${settings}.`;
+}
+
 // Shared frame for every email. Inline styles only: mail clients ignore <style>.
 export function renderEmail(params: {
   readonly heading: string;

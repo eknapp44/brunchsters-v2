@@ -92,6 +92,34 @@ test.describe('D4 — the keyboard alone', () => {
     await expect(markAll).toBeFocused();
   });
 
+  test('the settings switches: reach one by keyboard, see where the focus is, and flip it (spec 0015)', async ({
+    makeActor,
+  }) => {
+    const ann = await makeActor('ann');
+    await ann.page.goto('/settings/notifications');
+    const first = ann.page.getByRole('switch', { name: 'Someone invites you, in the app' });
+    await expect(first).toBeVisible();
+
+    // The real input is invisible and the ring is drawn on the track beside it, so look there: a
+    // focus that cannot be seen is a keyboard user lost on the page.
+    for (let press = 0; press < 12; press += 1) {
+      await ann.page.keyboard.press('Tab');
+      if (await first.evaluate((element) => element === document.activeElement)) break;
+    }
+    await expect(first).toBeFocused();
+    const ring = await first.evaluate((input) => {
+      const track = input.nextElementSibling;
+      if (track === null) return 'no track';
+      const style = getComputedStyle(track);
+      return style.outlineStyle !== 'none' && parseFloat(style.outlineWidth) > 0 ? 'drawn' : 'none';
+    });
+    expect(ring, 'the focus ring on the switch track').toBe('drawn');
+
+    await ann.page.keyboard.press('Space');
+    await expect(first).not.toBeChecked();
+    await expect(first).toBeFocused();
+  });
+
   test('the wizard: fill in the first step and move on', async ({ makeActor }) => {
     const host = await makeActor('host');
     const wizard = new BrunchWizard(host.page);

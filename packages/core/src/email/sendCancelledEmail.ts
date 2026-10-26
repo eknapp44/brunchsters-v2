@@ -37,13 +37,16 @@ export function sendCancelledEmail(
         cancelledAt: input.cancelledAt,
         recipientKey: recipient.key,
       }),
-      render: (link) =>
+      type: 'brunch.cancelled',
+      render: ({ link, muteUrl, settingsUrl }) =>
         renderCancelledEmail({
           recipientName: recipient.name,
           hostName: brunch.hostName,
           brunchTitle: brunch.title,
           plan: brunch.plan,
           link,
+          muteUrl,
+          settingsUrl,
         }),
     },
     ctx,

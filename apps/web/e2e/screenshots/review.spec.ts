@@ -59,6 +59,30 @@ test('notifications: the empty inbox, the bell and the inbox', async ({ makeActo
   await captureReviewShots(ann.page, 'notifications/inbox', testInfo);
 });
 
+test('notifications: the settings and the mute control', async ({ makeActor }, testInfo) => {
+  const host = await makeActor('host');
+  const ann = await makeActor('ann');
+  const brunchId = await createBrunch({ host: host.user, title: 'Sunday Catch-up' });
+  await addAttendee({ brunchId, host: host.user, user: ann.user, response: 'yes' });
+
+  await ann.page.goto('/settings/notifications');
+  await expect(
+    ann.page.getByRole('heading', { level: 1, name: 'Notification settings' }),
+  ).toBeVisible();
+  await ann.page.getByRole('switch', { name: 'A brunch is on, by email' }).click();
+  await expect(
+    ann.page.getByRole('switch', { name: 'A brunch is on, by email' }),
+  ).not.toBeChecked();
+  await captureReviewShots(ann.page, 'notifications/settings', testInfo);
+
+  await ann.page.goto(`/brunch/${brunchId}`);
+  await ann.page.getByRole('radio', { name: /^Just big stuff/ }).check();
+  await expect(ann.page.getByRole('radio', { name: /^Just big stuff/ })).toBeChecked();
+  await captureReviewShots(ann.page, 'notifications/mute', testInfo, {
+    focus: ann.page.getByRole('group', { name: 'Notifications for this brunch' }),
+  });
+});
+
 test('dashboard, empty and full', async ({ makeActor }, testInfo) => {
   const host = await makeActor('host');
   await host.page.goto('/dashboard');

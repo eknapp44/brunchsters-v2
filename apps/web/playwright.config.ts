@@ -61,6 +61,7 @@ export default defineConfig({
         '**/brunch-page.spec.ts',
         '**/feedback.spec.ts',
         '**/notifications.spec.ts',
+        '**/notification-settings.spec.ts',
         '**/wizard-page.spec.ts',
         '**/front-door.spec.ts',
       ],

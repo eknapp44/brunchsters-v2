@@ -125,6 +125,42 @@ for (const scheme of COLOR_SCHEMES) {
       await expectNoA11yViolations(ann.page, `inbox at phone width (${scheme})`);
     });
 
+    test('the notification settings page, and the mute control on a brunch (spec 0015)', async ({
+      makeActor,
+    }) => {
+      const host = await makeActor('host');
+      const ann = await makeActor('ann');
+      await useColorScheme(ann.page, scheme);
+      const brunchId = await createBrunch({ host: host.user, title: 'Mutable Brunch' });
+      await addAttendee({ brunchId, host: host.user, user: ann.user, response: 'yes' });
+
+      await ann.page.goto('/settings/notifications');
+      await expect(
+        ann.page.getByRole('heading', { level: 1, name: 'Notification settings' }),
+      ).toBeVisible();
+      await expectNoA11yViolations(ann.page, `notification settings (${scheme})`);
+
+      // A switch that is on and one that is off, so both drawn states are checked.
+      await ann.page.getByRole('switch', { name: 'A brunch is on, by email' }).click();
+      await expect(
+        ann.page.getByRole('switch', { name: 'A brunch is on, by email' }),
+      ).not.toBeChecked();
+      await expectNoA11yViolations(ann.page, `notification settings, one off (${scheme})`);
+
+      await ann.page.setViewportSize({ width: 390, height: 844 });
+      await ann.page.goto('/settings/notifications');
+      await expect(
+        ann.page.getByRole('heading', { level: 1, name: 'Notification settings' }),
+      ).toBeVisible();
+      await expectNoA11yViolations(ann.page, `notification settings at phone width (${scheme})`);
+
+      // The brunch page's own control, with a choice made.
+      await ann.page.goto(`/brunch/${brunchId}`);
+      await ann.page.getByRole('radio', { name: /^Muted/ }).check();
+      await expect(ann.page.getByRole('radio', { name: /^Muted/ })).toBeChecked();
+      await expectNoA11yViolations(ann.page, `mute control, muted (${scheme})`);
+    });
+
     test('the brunch detail page, as host and as invitee, in every state', async ({
       makeActor,
     }) => {

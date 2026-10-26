@@ -1,8 +1,9 @@
 import type { DbClient } from '@brunchsters/database';
-import type { Email, InviteId } from '@brunchsters/shared';
+import type { BrunchId, Email, InviteId } from '@brunchsters/shared';
 import { err, ok, type Result } from 'neverthrow';
 import type { EmailSendFailure, EmailService } from './EmailService';
 import { inviteEmailKey, joinUrl } from './emailKeys';
+import { emailAllowed } from './emailAllowed';
 import { renderInviteEmail } from './templates/inviteEmail';
 
 export type SendInviteEmailInput = { readonly inviteId: InviteId };
@@ -20,6 +21,9 @@ export type SendInviteEmailOutcome =
   | 'skipped_revoked'
   | 'skipped_expired'
   | 'skipped_host'
+  // The invited person has an account and turned this email off (spec 0015). Silent: never shown to
+  // the host as "didn't go out", or the host could tell who opted out.
+  | 'skipped_by_preference'
   // The provider says this exact send already happened (idempotency key seen before).
   | 'skipped_duplicate';
 
@@ -55,12 +59,26 @@ export async function sendInviteEmail(
   }
   if (invite.tokenExpiresAt.getTime() <= Date.now()) return ok('skipped_expired');
 
+  // The invite and its link still exist, and the in-app row is still written; only the email is
+  // the person's to refuse.
+  const allowed = await emailAllowed(
+    {
+      email: invite.invitedEmail as Email,
+      type: 'invite.received',
+      brunchId: invite.brunchId as BrunchId,
+    },
+    ctx,
+  );
+  if (allowed.isErr()) return err(allowed.error);
+  if (!allowed.value) return ok('skipped_by_preference');
+
   const { subject, html } = renderInviteEmail({
     hostName: invite.brunch.host.name,
     brunchTitle: invite.brunch.title,
     description: invite.brunch.description ?? undefined,
     link: joinUrl({ base: ctx.appUrl, path: `/invite/${invite.token}` }),
     linkExpiresAt: invite.tokenExpiresAt,
+    settingsUrl: joinUrl({ base: ctx.appUrl, path: '/settings/notifications' }),
   });
 
   const sent = await ctx.emailService.send({

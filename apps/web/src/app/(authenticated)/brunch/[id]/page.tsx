@@ -1,6 +1,7 @@
 import {
   barPercent,
   getBrunchById,
+  getNotificationLevel,
   getBrunchRoster,
   getBrunchVoting,
   getInvitesForBrunch,
@@ -26,6 +27,7 @@ import { CalledOffBanner } from './CalledOffBanner';
 import { ConfirmedBanner } from './ConfirmedBanner';
 import styles from './detail.module.css';
 import { InvitePanel } from './InvitePanel';
+import { NotificationLevelControl } from './NotificationLevelControl';
 import { LocationSuggestionControl, TimeSuggestionControl } from './OptionSuggestionControl';
 import { RsvpControl } from './RsvpControl';
 import { SuggestionsPanel } from './SuggestionsPanel';
@@ -127,6 +129,10 @@ export default async function BrunchDetailPage({
   if (brunch === undefined) {
     notFound();
   }
+
+  // The viewer's own mute level (spec 0015), read after membership is known. If it cannot be read the
+  // page still renders, without the control.
+  const notificationLevel = await getNotificationLevel({ brunchId, userId: viewerId }, { db });
 
   const [invites, pendingSuggestions] = brunch.isHost
     ? await Promise.all([
@@ -320,6 +326,14 @@ export default async function BrunchDetailPage({
               invites={invites.value}
               sendWait={inviteWaits?.send}
               resendWaits={inviteWaits?.resend ?? {}}
+            />
+          )}
+
+          {notificationLevel.isOk() && (
+            <NotificationLevelControl
+              brunchId={brunchId}
+              initial={notificationLevel.value}
+              isHost={brunch.isHost}
             />
           )}
         </div>

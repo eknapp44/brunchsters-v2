@@ -1,6 +1,7 @@
 import type { DbClient } from '@brunchsters/database';
-import type { BrunchId } from '@brunchsters/shared';
+import type { BrunchId, NotificationTypeCode } from '@brunchsters/shared';
 import { err, ok, type Result } from 'neverthrow';
+import { emailAllowed } from './emailAllowed';
 import type {
   ConfirmationRecipient,
   SendConfirmationEmailError,
@@ -23,7 +24,18 @@ export async function sendToRecipient(
     readonly brunchId: BrunchId;
     readonly recipient: ConfirmationRecipient;
     readonly idempotencyKey: string;
-    readonly render: (link: string) => RenderedEmail;
+    // Which notification type this email is, for the person's preference and mute (spec 0015).
+    readonly type: Extract<
+      NotificationTypeCode,
+      'brunch.confirmed' | 'brunch.cancelled' | 'brunch.reinstated'
+    >;
+    // The words, given the links: where the email goes, how to mute this brunch (only for someone
+    // already in it) and the settings page.
+    readonly render: (links: {
+      readonly link: string;
+      readonly muteUrl: string | undefined;
+      readonly settingsUrl: string;
+    }) => RenderedEmail;
   },
   ctx: {
     readonly db: DbClient;
@@ -33,6 +45,14 @@ export async function sendToRecipient(
   },
 ): Promise<Result<SendConfirmationEmailOutcome, SendConfirmationEmailError>> {
   const { recipient } = input;
+
+  // A person's own choice comes first and is silent: asked before anything else is read.
+  const allowed = await emailAllowed(
+    { email: recipient.email, type: input.type, brunchId: input.brunchId },
+    ctx,
+  );
+  if (allowed.isErr()) return err(allowed.error);
+  if (!allowed.value) return ok('skipped_by_preference');
 
   let path: string;
   if (recipient.destination.kind === 'brunch') {
@@ -54,7 +74,15 @@ export async function sendToRecipient(
     path = `/invite/${invite.token}`;
   }
 
-  const { subject, html } = input.render(joinUrl({ base: ctx.appUrl, path }));
+  const { subject, html } = input.render({
+    link: joinUrl({ base: ctx.appUrl, path }),
+    // Someone with no account yet cannot mute a brunch they have not joined.
+    muteUrl:
+      recipient.destination.kind === 'brunch'
+        ? joinUrl({ base: ctx.appUrl, path: `/brunch/${input.brunchId}#notifications` })
+        : undefined,
+    settingsUrl: joinUrl({ base: ctx.appUrl, path: '/settings/notifications' }),
+  });
 
   const sent = await ctx.emailService.send({
     to: recipient.email,

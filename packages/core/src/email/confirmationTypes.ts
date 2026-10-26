@@ -38,7 +38,10 @@ export type SendConfirmationEmailOutcome =
   | 'sent'
   | 'skipped_duplicate'
   | 'skipped_invite_gone'
-  | 'skipped_invalid_address';
+  | 'skipped_invalid_address'
+  // The person's own choice (a switched-off email, a muted brunch). Silent on purpose: it is never
+  // reported to the host, who must not learn who opted out (spec 0015, ADR 0017).
+  | 'skipped_by_preference';
 
 export type SendConfirmationEmailError =
   | Exclude<EmailSendFailure, { readonly kind: 'invalid_address' }>

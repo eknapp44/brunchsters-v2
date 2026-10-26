@@ -14,6 +14,7 @@ For your own sign-off, in your own time. The automated suite proves the behavior
 - [ ] **A6. Mark all read** clears the count at once and a toast says "All caught up."; with the network blocked it rolls back and a toast says so in plain words.
 - [ ] **A7. Keyboard.** Tab to the bell (it comes before Sign out), press Enter. Tab to **Mark all read** and press Enter: the button dims but keeps the focus (the focus ring does not vanish).
 - [ ] **A8. Unread without color.** Unread rows have a dot and a butter background. With a screen reader each unread row starts with "Unread."; read rows don't. In dark mode both kinds are easy to tell apart.
+- [ ] **A10. Sign out straight away.** Load any page and press **Sign out** at once. You land on the front page, and typing `/dashboard` takes you to sign-in (you do not find yourself signed in again a second later).
 - [ ] **A9. Older.** With more than 30 rows the page ends with **Show older**, and it takes you to the next page.
 
 ## B. Member notices
@@ -27,7 +28,9 @@ For your own sign-off, in your own time. The automated suite proves the behavior
 - [ ] **C1. The settings page** lists only things that really happen, grouped in words you recognise; nothing greyed out that does nothing.
 - [ ] **C2. Email off** for "confirmed": lock in a brunch; that person gets the row but no email. **In-app off:** the email but no row.
 - [ ] **C3. Mute a brunch.** On the brunch page choose **Muted**: no rows or emails for that brunch, others unaffected. **Just big stuff** keeps confirmed / called off / back on and drops the chatter.
-- [ ] **C4. The email footer** link takes you to that brunch's mute control.
+- [ ] **C4. The email footer** (open one of the files in `.mail-outbox/`, or a real send via `/real-send-check`): "Want fewer of these?" with **Mute this brunch** (takes you to the brunch's control, scrolled into view) and **notification settings**. The invite email has the settings link only.
+- [ ] **C5. Feel.** Flip a few switches and radios on a phone: each reacts at once, nothing jumps, and with the network blocked the switch goes back and a toast says why. Tab to a switch and press Space: it flips and keeps the focus ring.
+- [ ] **C6. A silent skip.** Turn off "Someone invites you, by email" for an account, then have the host invite it: the host's invite list shows nothing different (no "didn't go out"), and the in-app row still arrives.
 
 ## D. When an email does not go out
 

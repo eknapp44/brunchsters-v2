@@ -27,7 +27,10 @@ function makeInvite(overrides: Record<string, unknown> = {}): Record<string, unk
 function makeDb(invite: Record<string, unknown> | null | Error): DbClient {
   const findUnique =
     invite instanceof Error ? vi.fn().mockRejectedValue(invite) : vi.fn().mockResolvedValue(invite);
-  return { brunchInvite: { findUnique } } as unknown as DbClient;
+  return {
+    brunchInvite: { findUnique },
+    user: { findFirst: vi.fn().mockResolvedValue(null) },
+  } as unknown as DbClient;
 }
 
 describe('sendInviteEmail', () => {

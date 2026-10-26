@@ -534,3 +534,48 @@
 .ballotNote {
   margin-bottom: var(--space-3);
 }
+
+/* "Notifications for this brunch" (spec 0015): three radio choices, each with a hint under it. The
+   whole label is the target, 44px tall; the native radio is kept so the keyboard and screen readers
+   behave as they always do. */
+.levelGroup {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.levelGroup legend {
+  margin: 0 0 var(--space-2);
+  padding: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+}
+
+.levelOption {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-3);
+  min-height: var(--touch-target);
+  padding: var(--space-2) 0;
+  cursor: pointer;
+}
+
+.levelOption input {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0.15rem 0 0;
+  accent-color: var(--accent-fg);
+}
+
+.levelLabel {
+  display: block;
+}
+
+.levelHint {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+}
