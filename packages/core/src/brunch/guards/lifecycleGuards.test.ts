@@ -25,6 +25,8 @@ const EXEMPT: Readonly<Record<string, string>> = {
   'brunch/deleteBrunch.ts':
     'removing a called-off brunch is the point; it checks the status itself',
   'brunch/setBrunchHidden.ts': 'tidying your own dashboard is allowed in every status',
+  'invite/inviteEmailFailure.ts':
+    'records what the queue did to a mail already sent, which a call-off does not undo; it is the queue, not a person, writing, and the invite list of a called-off brunch still says so',
 };
 
 const GUARD_CALL = /\b(assertBrunchOpen|assertBrunchActive)\(/;

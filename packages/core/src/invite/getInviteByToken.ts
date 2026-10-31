@@ -12,6 +12,8 @@ export type InvitePreview = {
   // holder already knows the title and host from the same preview, so this tells them nothing an
   // outsider could use (someone with no token still gets nothing).
   readonly isCalledOff: boolean;
+  // The brunch happened (spec 0015): the link has nothing left to join.
+  readonly isOver: boolean;
 };
 
 // Deliberately minimal: no attendee list, no other invitees' emails (Constitution
@@ -34,6 +36,7 @@ export async function getInviteByToken(
     hostName: invite.brunch.host.name,
     description: invite.brunch.description ?? undefined,
     brunchStatusLabel: invite.brunch.status.label,
-    isCalledOff: assertBrunchOpen(invite.brunch).isErr(),
+    isCalledOff: invite.brunch.status.code === 'cancelled',
+    isOver: assertBrunchOpen(invite.brunch).isErr() && invite.brunch.status.code !== 'cancelled',
   };
 }

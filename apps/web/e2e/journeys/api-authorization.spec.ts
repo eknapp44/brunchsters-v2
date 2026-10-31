@@ -9,6 +9,7 @@ import { baseUrl } from '../support/env';
 import { createBrunch, uniqueSuffix } from '../support/factories';
 import { expect, test } from '../support/fixtures';
 import { afterTheHold, callOffBrunch } from '../support/lifecycle';
+import { giveNotification, isUnread } from '../support/notifications';
 import { fixturePlaces } from '../support/places';
 import { alignToWindow, untilRefused } from '../support/rateLimits';
 import { daysFromNow } from '../support/time';
@@ -579,6 +580,8 @@ test.describe('API authorization: the member endpoints', () => {
     const aMadeUpOption = randomUUID();
     const endpoints: readonly (readonly [string, string, string, unknown])[] = [
       ['RSVP', 'POST', `${b}/rsvp`, { response: 'yes' }],
+      // Spec 0015: muting is the member's own, and an outsider cannot tell the brunch is real.
+      ['set my notification level', 'PUT', `${b}/notification-level`, { level: 'muted' }],
       ['vote for a place', 'PUT', `${b}/votes/locations`, { optionIds: [aMadeUpOption] }],
       ['vote for a time', 'PUT', `${b}/votes/times`, { optionIds: [aMadeUpOption] }],
       ['suggest a person', 'POST', `${b}/suggestions`, { email: 'someone@example.com' }],
@@ -628,6 +631,116 @@ test.describe('API authorization: the member endpoints', () => {
       expect(asMember.status, path).toBe(404);
       expect(asMember.body, path).toMatchObject({ error: { code: 'option_gone' } });
     }
+    await anonymous.dispose();
+  });
+
+  // Journey B5 (spec 0015): the notification routes belong to the signed-in person. They take no
+  // brunch id and key everything by the session, so what has to hold is that no id a caller names
+  // reaches someone else's notification, and that a real id and a made-up one cannot be told apart.
+  test('B5 — notification routes belong to the signed-in person, and ids cannot be probed', async ({
+    makeActor,
+  }) => {
+    const ann = await makeActor('ann');
+    const bea = await makeActor('bea');
+    const annsRow = await giveNotification({ user: ann.user });
+    const beasRow = await giveNotification({ user: bea.user });
+    const beasSecondRow = await giveNotification({ user: bea.user });
+    const anonymous = await playwrightRequest.newContext({ baseURL: baseUrl });
+    const read = '/api/v1/notifications/read';
+    const count = '/api/v1/notifications/unread-count';
+    const send = async (who: APIRequestContext, method: string, path: string, data?: unknown) => {
+      const response = await who.fetch(path, {
+        method,
+        maxRedirects: 0,
+        ...(data !== undefined ? { data } : {}),
+      });
+      return { status: response.status(), body: await response.json().catch(() => undefined) };
+    };
+
+    // Signed out: refused with a code, on both routes.
+    for (const [method, path, data] of [
+      ['GET', count, undefined],
+      ['POST', read, { all: true }],
+    ] as const) {
+      const refused = await send(anonymous, method, path, data);
+      expect(refused.status, path).toBe(401);
+      expect(refused.body, path).toMatchObject({ error: { code: 'signed_out' } });
+    }
+
+    // Each person's count is their own.
+    expect(await send(ann.context.request, 'GET', count)).toEqual({
+      status: 200,
+      body: { count: 1 },
+    });
+    expect(await send(bea.context.request, 'GET', count)).toEqual({
+      status: 200,
+      body: { count: 2 },
+    });
+
+    // Ann names Bea's notification, a made-up one and something that is not an id: all three get
+    // the same answer, and Bea's stays unread.
+    const answers = await Promise.all(
+      [beasRow, randomUUID(), 'not-an-id'].map((id) =>
+        send(ann.context.request, 'POST', read, { ids: [id] }),
+      ),
+    );
+    expect(answers).toEqual([
+      { status: 200, body: { marked: 0 } },
+      { status: 200, body: { marked: 0 } },
+      { status: 200, body: { marked: 0 } },
+    ]);
+    expect(await isUnread(beasRow)).toBe(true);
+    expect(await isUnread(annsRow)).toBe(true);
+
+    // Her own is marked, and a bad body is refused with a code.
+    expect(await send(ann.context.request, 'POST', read, { ids: [annsRow] })).toEqual({
+      status: 200,
+      body: { marked: 1 },
+    });
+    expect(await isUnread(annsRow)).toBe(false);
+    const bad = await send(ann.context.request, 'POST', read, { ids: [] });
+    expect(bad.status).toBe(422);
+    expect(bad.body).toMatchObject({ error: { code: 'invalid' } });
+
+    // "Mark all read" is the caller's own rows only.
+    expect(await send(bea.context.request, 'POST', read, { all: true })).toEqual({
+      status: 200,
+      body: { marked: 2 },
+    });
+    expect(await isUnread(beasRow)).toBe(false);
+    expect(await isUnread(beasSecondRow)).toBe(false);
+    expect(await send(ann.context.request, 'GET', count)).toEqual({
+      status: 200,
+      body: { count: 0 },
+    });
+
+    // The switches (spec 0015 M5) are the caller's own, too: signed out is refused, a switch that
+    // does not exist is refused with a code (an email for a type no email exists for, a type nothing
+    // produces), and a saved choice is hers alone.
+    const prefs = '/api/v1/notification-preferences';
+    const email = { types: ['brunch.confirmed'], channel: 'email', enabled: false };
+    expect(await send(anonymous, 'PUT', prefs, email)).toMatchObject({
+      status: 401,
+      body: { error: { code: 'signed_out' } },
+    });
+    for (const nonsense of [
+      { types: ['rsvp.received'], channel: 'email', enabled: true },
+      { types: ['running.late'], channel: 'in_app', enabled: true },
+      { types: [], channel: 'in_app', enabled: true },
+    ]) {
+      expect(await send(ann.context.request, 'PUT', prefs, nonsense)).toMatchObject({
+        status: 422,
+        body: { error: { code: 'invalid' } },
+      });
+    }
+    expect(await send(ann.context.request, 'PUT', prefs, email)).toEqual({
+      status: 200,
+      body: email,
+    });
+    const saved = (userId: string) =>
+      getDb().userNotificationPreference.count({ where: { userId } });
+    expect(await saved(ann.user.id)).toBe(1);
+    expect(await saved(bea.user.id)).toBe(0);
     await anonymous.dispose();
   });
 });

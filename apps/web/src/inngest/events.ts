@@ -23,6 +23,37 @@ export const BACK_ON_EMAIL_EVENTS = [
   'brunch/reinstated',
 ] as const satisfies readonly BrunchEventName[];
 
+// Spec 0015 (ADR 0017): events that write in-app notification rows. Not email events (the guard in
+// emailBudgets.test.ts reads only the *_EMAIL_EVENTS lists), and no email goes out from these. The
+// called-off and back-on rows are written inside the two email functions above, after the same
+// hold-and-recheck that decides whether anyone is told.
+export const HOST_NOTIFICATION_EVENTS = [
+  'attendee/rsvp.received',
+  'attendee/rsvp.changed',
+  'vote/cast',
+  'vote/changed',
+  'suggestion/invite',
+  'suggestion/location',
+  'suggestion/time',
+] as const satisfies readonly BrunchEventName[];
+
+export const CONFIRMED_NOTIFICATION_EVENTS = [
+  'brunch/confirmed',
+] as const satisfies readonly BrunchEventName[];
+
+export const INVITED_NOTIFICATION_EVENTS = [
+  'invite/sent',
+] as const satisfies readonly BrunchEventName[];
+
+// Not an event: a schedule (every 15 minutes) for the job that completes past brunches and sends deadline
+// reminders. `scheduler/tick` runs the same job by hand (optionally for one brunch: `{ brunchId }`), which
+// is how the journeys drive it without waiting for a clock.
+export const SCHEDULER_CRON = '*/15 * * * *';
+export const SCHEDULER_TICK_EVENT = 'scheduler/tick';
+
+// Not an event: a schedule (daily, 03:30 UTC) for the job that deletes old notifications.
+export const PRUNE_NOTIFICATIONS_CRON = '30 3 * * *';
+
 // Not an event: a schedule (04:00 UTC daily) for the job that deletes expired rate-limit counters.
 export const PRUNE_RATE_LIMITS_CRON = '0 4 * * *';
 
@@ -31,4 +62,7 @@ export const QUEUED_EVENTS: ReadonlySet<BrunchEventName> = new Set<BrunchEventNa
   ...CONFIRMED_EMAIL_EVENTS,
   ...CANCELLED_EMAIL_EVENTS,
   ...BACK_ON_EMAIL_EVENTS,
+  ...HOST_NOTIFICATION_EVENTS,
+  ...CONFIRMED_NOTIFICATION_EVENTS,
+  ...INVITED_NOTIFICATION_EVENTS,
 ]);

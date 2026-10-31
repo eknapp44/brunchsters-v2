@@ -205,12 +205,36 @@ async function main(): Promise<void> {
     { code: 'vote.autoclose.prompted', label: 'Vote Auto-Close Prompted', sortOrder: 10 },
     { code: 'running.late', label: 'Running Late', sortOrder: 11 },
     { code: 'host.transferred', label: 'Host Transferred', sortOrder: 12 },
+    // Added by spec 0015 (ADR 0017)
+    { code: 'brunch.reinstated', label: 'Brunch Reinstated', sortOrder: 13 },
+    { code: 'invite.email.failed', label: 'Invite Email Failed', sortOrder: 14 },
   ];
   for (const nt of notificationTypes) {
     await prisma.notificationType.upsert({
       where: { code: nt.code },
       update: { label: nt.label, sortOrder: nt.sortOrder },
       create: { ...nt, isActive: true },
+    });
+  }
+
+  // ── NotificationLevel ────────────────────────────────────────────────────
+  // The ids are fixed: BrunchAttendee.notificationLevelId defaults to the 'all' id, and the
+  // migration that created the table inserted these same rows.
+  const notificationLevels = [
+    { id: '00000000-0000-4000-8000-00000000a111', code: 'all', label: 'All', sortOrder: 1 },
+    {
+      id: '00000000-0000-4000-8000-00000000a112',
+      code: 'big_stuff',
+      label: 'Just big stuff',
+      sortOrder: 2,
+    },
+    { id: '00000000-0000-4000-8000-00000000a113', code: 'muted', label: 'Muted', sortOrder: 3 },
+  ];
+  for (const level of notificationLevels) {
+    await prisma.notificationLevel.upsert({
+      where: { code: level.code },
+      update: { label: level.label, sortOrder: level.sortOrder },
+      create: level,
     });
   }
 

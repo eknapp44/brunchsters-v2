@@ -1,0 +1,66 @@
+/* Phone first: each line is a small card, the words on top and the switches under them, side by side
+   while they fit and stacked when they do not. From 40rem the words and the switches share a row. */
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.header h1 {
+  margin: 0;
+  font-size: var(--text-2xl);
+}
+
+.intro {
+  margin: 0 0 var(--space-5);
+  color: var(--fg-muted);
+}
+
+.group {
+  margin-bottom: var(--space-5);
+}
+
+.group h2 {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-lg);
+}
+
+.lines {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.line {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+}
+
+.label {
+  font-size: var(--text-md);
+}
+
+.switches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-5);
+}
+
+@media (min-width: 40rem) {
+  .line {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-2) var(--space-5);
+  }
+}

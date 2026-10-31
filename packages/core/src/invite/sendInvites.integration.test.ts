@@ -150,6 +150,7 @@ describe('sendInvites integration', () => {
       description: undefined,
       brunchStatusLabel: 'Active',
       isCalledOff: false,
+      isOver: false,
     });
   });
 

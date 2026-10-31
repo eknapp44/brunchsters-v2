@@ -47,3 +47,13 @@ export function backOnEmailKey(params: {
 export function joinUrl(params: { readonly base: string; readonly path: string }): string {
   return `${params.base.replace(/\/+$/, '')}${params.path}`;
 }
+
+// The deadline reminder (spec 0015 M7) carries the deadline it is about: a moved deadline is a new
+// reminder, a retry of the same one is not.
+export function deadlineReminderEmailKey(params: {
+  readonly brunchId: BrunchId;
+  readonly deadline: Date;
+  readonly recipientKey: string;
+}): string {
+  return `deadline:${params.brunchId}:${params.deadline.getTime()}:${params.recipientKey}`;
+}

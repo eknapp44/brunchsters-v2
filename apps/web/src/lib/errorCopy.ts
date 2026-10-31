@@ -50,6 +50,7 @@ const PAGE_IS_STALE_CODES: readonly ClientErrorCode[] = [
   'option_gone',
   'voting_closed',
   'brunch_called_off',
+  'brunch_over',
   'brunch_not_active',
   'brunch_changed',
   'already_confirmed',

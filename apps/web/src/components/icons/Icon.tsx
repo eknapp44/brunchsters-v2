@@ -59,6 +59,12 @@ const GLYPHS = {
       <path d="M4 4l16 16" />
     </>
   ),
+  bell: (
+    <>
+      <path d="M6 17v-6a6 6 0 0112 0v6l1.5 2h-15L6 17z" />
+      <path d="M10 21a2 2 0 004 0" />
+    </>
+  ),
   arrowLeft: <path d="M19 12H5M11 6l-6 6 6 6" />,
   arrowRight: <path d="M5 12h14M13 6l6 6-6 6" />,
 } as const satisfies Record<string, ReactNode>;

@@ -30,6 +30,7 @@ describe('getInviteByToken', () => {
       description: 'Pancakes and mimosas',
       brunchStatusLabel: 'Active',
       isCalledOff: false,
+      isOver: false,
     });
   });
 
@@ -74,21 +75,23 @@ describe('getInviteByToken', () => {
 });
 
 describe('getInviteByToken — a called-off brunch', () => {
-  it.each(['cancelled', 'completed', 'archived'])(
-    'flags a %s brunch as called off',
-    async (code) => {
-      const findFirst = vi.fn().mockResolvedValue({
-        ...VALID_INVITE,
-        brunch: { ...VALID_INVITE.brunch, status: { label: 'Cancelled', code } },
-      });
+  it.each([
+    ['cancelled', true, false],
+    ['completed', false, true],
+    ['archived', false, true],
+  ])('flags a %s brunch: called off %s, over %s', async (code, isCalledOff, isOver) => {
+    const findFirst = vi.fn().mockResolvedValue({
+      ...VALID_INVITE,
+      brunch: { ...VALID_INVITE.brunch, status: { label: 'Cancelled', code } },
+    });
 
-      const result = await getInviteByToken('valid-token' as InviteToken, {
-        db: makeMockDb(findFirst),
-      });
+    const result = await getInviteByToken('valid-token' as InviteToken, {
+      db: makeMockDb(findFirst),
+    });
 
-      expect(result?.isCalledOff).toBe(true);
-    },
-  );
+    expect(result?.isCalledOff).toBe(isCalledOff);
+    expect(result?.isOver).toBe(isOver);
+  });
 
   it('still returns the preview, so the page can say who called it off', async () => {
     const findFirst = vi.fn().mockResolvedValue({

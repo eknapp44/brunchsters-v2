@@ -8,6 +8,7 @@ export type BrunchLocationId = Brand<string, 'BrunchLocationId'>;
 export type BrunchTimeId = Brand<string, 'BrunchTimeId'>;
 export type BrunchLocationSuggestionId = Brand<string, 'BrunchLocationSuggestionId'>;
 export type BrunchTimeSuggestionId = Brand<string, 'BrunchTimeSuggestionId'>;
+export type NotificationId = Brand<string, 'NotificationId'>;
 
 // Not a domain entity ID — a branded primitive for type safety at API boundaries
 export type Email = Brand<string, 'Email'>;

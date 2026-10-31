@@ -9,6 +9,7 @@ import { Field } from '@/components/ui/Field';
 import { InlineAlert } from '@/components/ui/InlineAlert';
 import { holdsAllInvites, limitedMessage, type RateLimitFacts } from '@/lib/limitedCopy';
 import { INVITES_DID_NOT_GO_OUT } from '@/lib/noticeCopy';
+import { INVITE_EMAIL_FAILED_NOTE } from '@/lib/notificationCopy';
 import { INVITE_RESENT_TOAST, LINK_COPIED_TOAST, LINK_COPY_FAILED_TOAST } from '@/lib/toastCopy';
 import { useWait, type Wait } from '@/lib/useWait';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -22,6 +23,8 @@ type InviteListItem = {
   readonly id: string;
   readonly invitedEmail: string;
   readonly status: InviteStatus;
+  // The invite email failed for good and has not gone since (spec 0015).
+  readonly emailFailed: boolean;
   readonly token: string;
 };
 
@@ -141,6 +144,13 @@ function InviteRow({
           Revoke
         </Button>
       </span>
+      {invite.emailFailed && (
+        <div className={styles.rowNote}>
+          <InlineAlert tone="error">
+            <p>{INVITE_EMAIL_FAILED_NOTE}</p>
+          </InlineAlert>
+        </div>
+      )}
       {limit !== undefined && (
         <div id={noteId} className={styles.rowNote}>
           <InlineAlert tone="info" role="status">

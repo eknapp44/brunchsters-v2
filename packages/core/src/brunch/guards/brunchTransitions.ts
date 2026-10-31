@@ -8,15 +8,17 @@ import { err, ok, type Result } from 'neverthrow';
 //   active -> confirmed             the host confirms (confirmBrunch)
 //   active, confirmed -> cancelled  the host calls it off (not for a brunch that is already over:
 //                                   that rule needs the confirmed time, so cancelBrunch checks it)
+//   confirmed -> completed          the scheduler, six hours after the brunch's time (spec 0015)
 //   cancelled -> active, confirmed  the host brings it back, to the status it had before (the
 //                                   service restores `statusBeforeCancelId`; a draft is never
 //                                   cancelled)
 //
-// completed, brunching, paying and the legacy archived have no moves: nothing produces them yet.
+// completed is final. brunching, paying and the legacy archived have no moves: nothing produces
+// them yet.
 export const BRUNCH_TRANSITIONS: Readonly<Record<BrunchStatusCode, readonly BrunchStatusCode[]>> = {
   draft: ['active'],
   active: ['confirmed', 'cancelled'],
-  confirmed: ['cancelled'],
+  confirmed: ['cancelled', 'completed'],
   cancelled: ['active', 'confirmed'],
   completed: [],
   brunching: [],

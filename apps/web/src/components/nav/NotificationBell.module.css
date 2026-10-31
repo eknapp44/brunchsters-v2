@@ -1,0 +1,48 @@
+/* A 44px target, the bell centered and the count pinned to its corner. The count uses the accent
+   pair the badges already use (tokenContrast.test.ts covers it in both palettes). */
+.bell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch-target);
+  height: var(--touch-target);
+  color: var(--fg);
+  border-radius: var(--r-pill);
+  text-decoration: none;
+  transition: background var(--duration-fast) var(--ease);
+}
+
+.bell:hover {
+  background: var(--surface-2);
+}
+
+.bell[aria-current='page'] {
+  background: var(--accent-soft);
+  color: var(--accent-soft-fg);
+}
+
+.count {
+  position: absolute;
+  top: 0.15rem;
+  right: 0.05rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.3rem;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--accent-fg);
+  background: var(--accent);
+  border: 2px solid var(--bg);
+  border-radius: var(--r-pill);
+}
+
+@media (forced-colors: active) {
+  .count {
+    border-color: CanvasText;
+  }
+}

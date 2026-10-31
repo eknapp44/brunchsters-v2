@@ -32,16 +32,20 @@ describe('updateVotingDeadline', () => {
   it('sets a future deadline', async () => {
     const db = makeMockDb({});
 
+    const now = new Date('2026-10-25T12:00:00.000Z');
+
     const result = await updateVotingDeadline(
-      { brunchId: BRUNCH_ID, requestedById: HOST_ID, votingDeadline: FUTURE_ISO },
+      { brunchId: BRUNCH_ID, requestedById: HOST_ID, votingDeadline: FUTURE_ISO, now },
       { db },
     );
 
     expect(result.isOk()).toBe(true);
     expect(result._unsafeUnwrap()).toEqual({ votingDeadline: new Date(FUTURE_ISO) });
+    // The moment it was set is recorded with it: a deadline set inside the reminder window sends
+    // no reminder (spec 0015).
     expect(db.brunch.update).toHaveBeenCalledWith({
       where: { id: BRUNCH_ID },
-      data: { votingDeadline: new Date(FUTURE_ISO) },
+      data: { votingDeadline: new Date(FUTURE_ISO), votingDeadlineSetAt: now },
     });
   });
 
@@ -57,7 +61,7 @@ describe('updateVotingDeadline', () => {
     expect(result._unsafeUnwrap()).toEqual({ votingDeadline: undefined });
     expect(db.brunch.update).toHaveBeenCalledWith({
       where: { id: BRUNCH_ID },
-      data: { votingDeadline: null },
+      data: { votingDeadline: null, votingDeadlineSetAt: null },
     });
   });
 
@@ -142,15 +146,17 @@ describe('updateVotingDeadline', () => {
       }),
     });
 
+    const now = new Date('2026-10-25T12:00:00.000Z');
+
     const result = await updateVotingDeadline(
-      { brunchId: BRUNCH_ID, requestedById: HOST_ID, votingDeadline: FUTURE_ISO },
+      { brunchId: BRUNCH_ID, requestedById: HOST_ID, votingDeadline: FUTURE_ISO, now },
       { db },
     );
 
     expect(result.isOk()).toBe(true);
     expect(db.brunch.update).toHaveBeenCalledWith({
       where: { id: BRUNCH_ID },
-      data: { votingDeadline: new Date(FUTURE_ISO) },
+      data: { votingDeadline: new Date(FUTURE_ISO), votingDeadlineSetAt: now },
     });
   });
 

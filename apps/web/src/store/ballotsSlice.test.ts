@@ -5,6 +5,8 @@ import {
   ballotKey,
   ballotReleased,
   effectiveSelection,
+  selectHasUnsavedBallot,
+  selectOwnSaves,
   type ToggleBallotArg,
   toggleBallotOption,
 } from './ballotsSlice';
@@ -60,6 +62,55 @@ describe('effectiveSelection', () => {
     expect(effectiveSelection({ entry, seeded: [], optionIds: ['a'] })).toEqual([]);
     // The same stored entry reads differently once the options change.
     expect(effectiveSelection({ entry, seeded: [], optionIds: ['b'] })).toEqual(['b']);
+  });
+});
+
+describe('what the refresh on focus and the live region read (spec 0015 M8)', () => {
+  it('counts a ballot as unsaved while a save is on its way, and not once it is saved', async () => {
+    let finish: (response: Response) => void = () => undefined;
+    const store = makeStore({
+      fetch: vi.fn<ThunkExtra['fetch']>(
+        () => new Promise<Response>((resolve) => (finish = resolve)),
+      ),
+    });
+    expect(selectHasUnsavedBallot(store.getState())).toBe(false);
+
+    const saving = store.dispatch(toggleBallotOption(arg()));
+    expect(selectHasUnsavedBallot(store.getState())).toBe(true);
+
+    finish(okResponse());
+    await saving;
+    expect(selectHasUnsavedBallot(store.getState())).toBe(false);
+  });
+
+  it('counts a failed save and an emptied ballot as unsaved, both being still with the voter', async () => {
+    const failing = makeStore({
+      fetch: vi.fn<ThunkExtra['fetch']>(
+        async () =>
+          new Response(JSON.stringify({ error: { code: 'internal', message: 'x' } }), {
+            status: 500,
+          }),
+      ),
+    });
+    await failing.dispatch(toggleBallotOption(arg()));
+    expect(selectHasUnsavedBallot(failing.getState())).toBe(true);
+
+    const emptied = makeStore({ fetch: vi.fn<ThunkExtra['fetch']>(async () => okResponse()) });
+    await emptied.dispatch(toggleBallotOption(arg({ current: ['a'], optionId: 'a' })));
+    expect(selectHasUnsavedBallot(emptied.getState())).toBe(true);
+  });
+
+  it('counts each saved vote of the person, and only a saved one', async () => {
+    const store = makeStore({ fetch: vi.fn<ThunkExtra['fetch']>(async () => okResponse()) });
+    expect(selectOwnSaves(store.getState())).toBe(0);
+
+    await store.dispatch(toggleBallotOption(arg()));
+    await store.dispatch(toggleBallotOption(arg({ current: ['a', 'b'], optionId: 'c' })));
+    expect(selectOwnSaves(store.getState())).toBe(2);
+
+    // Nothing was sent for an emptied ballot, so nothing was saved.
+    await store.dispatch(toggleBallotOption(arg({ current: ['a'], optionId: 'a' })));
+    expect(selectOwnSaves(store.getState())).toBe(2);
   });
 });
 

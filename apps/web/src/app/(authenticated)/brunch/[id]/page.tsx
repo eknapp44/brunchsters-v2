@@ -1,6 +1,7 @@
 import {
   barPercent,
   getBrunchById,
+  getNotificationLevel,
   getBrunchRoster,
   getBrunchVoting,
   getInvitesForBrunch,
@@ -8,6 +9,7 @@ import {
   getPendingSuggestionsForBrunch,
   leadingOptionId,
 } from '@brunchsters/core';
+import { RefreshOnFocus } from '@/components/RefreshOnFocus';
 import type { BrunchId, UserId } from '@brunchsters/shared';
 import { notFound } from 'next/navigation';
 import type { ReactElement, ReactNode } from 'react';
@@ -18,14 +20,17 @@ import { Badge } from '@/components/ui/Badge';
 import { Container } from '@/components/ui/Container';
 import { closesIn } from '@/lib/dashboardFormat';
 import { formatWhenLong } from '@/lib/brunchPageFormat';
+import { VoteCountAnnouncer } from './VoteCountAnnouncer';
 import { db } from '@/lib/db';
 import { getRateLimiter } from '@/lib/services';
 import { LocationBallotChecklist, TimeBallotChecklist } from './BallotChecklist';
 import { BrunchHeader } from './BrunchHeader';
 import { CalledOffBanner } from './CalledOffBanner';
+import { OverBanner } from './OverBanner';
 import { ConfirmedBanner } from './ConfirmedBanner';
 import styles from './detail.module.css';
 import { InvitePanel } from './InvitePanel';
+import { NotificationLevelControl } from './NotificationLevelControl';
 import { LocationSuggestionControl, TimeSuggestionControl } from './OptionSuggestionControl';
 import { RsvpControl } from './RsvpControl';
 import { SuggestionsPanel } from './SuggestionsPanel';
@@ -128,6 +133,10 @@ export default async function BrunchDetailPage({
     notFound();
   }
 
+  // The viewer's own mute level (spec 0015), read after membership is known. If it cannot be read the
+  // page still renders, without the control.
+  const notificationLevel = await getNotificationLevel({ brunchId, userId: viewerId }, { db });
+
   const [invites, pendingSuggestions] = brunch.isHost
     ? await Promise.all([
         getInvitesForBrunch({ brunchId, requestedById: viewerId }, { db }),
@@ -180,6 +189,10 @@ export default async function BrunchDetailPage({
   // Called off: the page is read-only. No RSVP, vote, suggestion or invite control is offered, and
   // the server would refuse them anyway (spec 0013, ADR 0015).
   const calledOff = brunch.statusCode === 'cancelled';
+  // Over: the brunch happened (the scheduler completes it six hours after its time). Read-only too,
+  // with its own words (spec 0015, ADR 0017).
+  const over = brunch.statusCode === 'completed';
+  const locked = calledOff || over;
   const votingOpen =
     brunch.statusCode === 'active' && voting !== undefined && !voting.locations.closed;
 
@@ -211,17 +224,38 @@ export default async function BrunchDetailPage({
 
   return (
     <Container as="main">
+      <RefreshOnFocus />
       <BrunchHeader brunch={brunch} brunchId={brunchId} votingOpen={votingOpen} now={now} />
 
       {confirmed && <ConfirmedBanner goingNames={goingNames} />}
       {calledOff && <CalledOffBanner isHost={brunch.isHost} hostName={brunch.hostName} />}
+      {over && <OverBanner isHost={brunch.isHost} />}
 
-      {!calledOff && <RsvpControl brunchId={brunchId} currentStatus={brunch.viewerRsvpStatus} />}
+      {!locked && <RsvpControl brunchId={brunchId} currentStatus={brunch.viewerRsvpStatus} />}
 
       <div className={styles.columns}>
         <div className={styles.column}>
           {voting !== undefined && places !== undefined && times !== undefined && (
             <>
+              <VoteCountAnnouncer
+                options={[
+                  ...(voting.locations.mode === 'group_vote' ? places.options : []).map(
+                    (option) => ({
+                      id: option.id,
+                      name: option.placeName,
+                      voteCount: option.voteCount,
+                    }),
+                  ),
+                  ...(voting.times.mode === 'group_vote' ? times.options : []).map((option) => ({
+                    id: option.id,
+                    name: formatWhenLong({
+                      scheduledAt: option.scheduledAt,
+                      timeZone: representativeLocation?.timezone,
+                    }),
+                    voteCount: option.voteCount,
+                  })),
+                ]}
+              />
               <Card
                 heading="Where to?"
                 chip={
@@ -242,11 +276,9 @@ export default async function BrunchDetailPage({
                 <LocationBallotChecklist
                   brunchId={brunchId}
                   options={places.options}
-                  canVote={voting.canVote && !calledOff}
-                  closed={voting.locations.closed || calledOff}
-                  suggestionsEnabled={
-                    !brunch.isHost && brunch.allowLocationSuggestions && !calledOff
-                  }
+                  canVote={voting.canVote && !locked}
+                  closed={voting.locations.closed || locked}
+                  suggestionsEnabled={!brunch.isHost && brunch.allowLocationSuggestions && !locked}
                   leadingId={placeLeader}
                   votable={voting.locations.mode === 'group_vote'}
                 />
@@ -274,9 +306,9 @@ export default async function BrunchDetailPage({
                 <TimeBallotChecklist
                   brunchId={brunchId}
                   options={times.options}
-                  canVote={voting.canVote && !calledOff}
-                  closed={voting.times.closed || calledOff}
-                  suggestionsEnabled={!brunch.isHost && brunch.allowTimeSuggestions && !calledOff}
+                  canVote={voting.canVote && !locked}
+                  closed={voting.times.closed || locked}
+                  suggestionsEnabled={!brunch.isHost && brunch.allowTimeSuggestions && !locked}
                   locationTimezone={representativeLocation?.timezone}
                   locationName={representativeLocation?.placeName}
                   leadingId={timeLeader}
@@ -290,7 +322,7 @@ export default async function BrunchDetailPage({
         <div className={styles.column}>
           {roster !== undefined && <WhosComingPanel roster={roster} />}
 
-          {voting !== undefined && !brunch.isHost && !calledOff && (
+          {voting !== undefined && !brunch.isHost && !locked && (
             <>
               <LocationSuggestionControl
                 brunchId={brunchId}
@@ -305,7 +337,7 @@ export default async function BrunchDetailPage({
             </>
           )}
 
-          {!calledOff && (
+          {!locked && (
             <SuggestionsPanel
               brunchId={brunchId}
               sendWait={inviteWaits?.send}
@@ -314,12 +346,20 @@ export default async function BrunchDetailPage({
             />
           )}
 
-          {invites?.isOk() && !calledOff && (
+          {invites?.isOk() && !locked && (
             <InvitePanel
               brunchId={brunchId}
               invites={invites.value}
               sendWait={inviteWaits?.send}
               resendWaits={inviteWaits?.resend ?? {}}
+            />
+          )}
+
+          {notificationLevel.isOk() && (
+            <NotificationLevelControl
+              brunchId={brunchId}
+              initial={notificationLevel.value}
+              isHost={brunch.isHost}
             />
           )}
         </div>

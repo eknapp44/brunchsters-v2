@@ -1,6 +1,6 @@
 import { escapeHtml } from './escapeHtml';
 import { formatInstantUtc } from './formatBrunchTime';
-import { renderEmail, type RenderedEmail } from './layout';
+import { fewerEmailsHtml, renderEmail, type RenderedEmail } from './layout';
 import { safeSubject } from './safeSubject';
 
 export type InviteEmailParams = {
@@ -9,6 +9,7 @@ export type InviteEmailParams = {
   readonly description: string | undefined;
   readonly link: string;
   readonly linkExpiresAt: Date;
+  readonly settingsUrl?: string | undefined;
 };
 
 export function renderInviteEmail(params: InviteEmailParams): RenderedEmail {
@@ -29,7 +30,7 @@ export function renderInviteEmail(params: InviteEmailParams): RenderedEmail {
       ].join(''),
       buttonLabel: 'See the brunch',
       buttonUrl: params.link,
-      footerHtml: `P.S. No app to download. Just tap the link. It's personal to you and expires on ${escapeHtml(formatInstantUtc(params.linkExpiresAt))}. If you weren't expecting this, you can ignore the email.`,
+      footerHtml: `P.S. No app to download. Just tap the link. It's personal to you and expires on ${escapeHtml(formatInstantUtc(params.linkExpiresAt))}. If you weren't expecting this, you can ignore the email.${fewerEmailsHtml({ settingsUrl: params.settingsUrl })}`,
     }),
   };
 }

@@ -35,7 +35,8 @@ export function sendConfirmationEmail(
         brunchId: brunch.brunchId,
         recipientKey: recipient.key,
       }),
-      render: (link) =>
+      type: 'brunch.confirmed',
+      render: ({ link, muteUrl, settingsUrl }) =>
         renderConfirmedEmail({
           recipientName: recipient.name,
           hostName: brunch.hostName,
@@ -46,6 +47,8 @@ export function sendConfirmationEmail(
           scheduledAt: brunch.scheduledAt,
           timezone: brunch.timezone,
           link,
+          muteUrl,
+          settingsUrl,
         }),
     },
     ctx,

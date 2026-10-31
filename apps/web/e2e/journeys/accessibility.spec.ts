@@ -1,14 +1,18 @@
 import { GONE_COLD, LANDING_HEADING, NOT_FOUND, SIGN_IN_HEADING } from '../support/pages';
 import { EMPTY_DASHBOARD_HEADLINE } from '../support/dashboard';
 import { COLOR_SCHEMES, expectNoA11yViolations, useColorScheme } from '../support/a11y';
-import { createBrunch } from '../support/factories';
+import { completePastBrunches } from '@brunchsters/core';
+import { getDb } from '../support/db';
+import { createBrunch, failInviteEmail, inviteToBrunch } from '../support/factories';
+import { EMPTY_INBOX_HEADLINE, expectBell, inboxRows } from '../support/inbox';
+import { giveNotification, readNotification } from '../support/notifications';
 import { afterTheHold, callOffBrunch } from '../support/lifecycle';
 import { expect, test } from '../support/fixtures';
 import { fixturePlaces } from '../support/places';
 import { createLifecycleShowcase, hideForGuest } from '../support/lifecycleShowcase';
 import { createConfirmedBrunch, createVotingBrunch, inviteNewcomer } from '../support/showcase';
 import { daysFromNow, toDatetimeLocalValue } from '../support/time';
-import { addAttendee, closeVoting } from '../support/voting';
+import { addAttendee, closeVoting, passConfirmedTime } from '../support/voting';
 import { BrunchWizard } from '../support/wizard';
 
 // Journeys D1 and D2 (spec 0009): axe (WCAG 2.0/2.1 A and AA) on every screen, in the light
@@ -94,6 +98,118 @@ for (const scheme of COLOR_SCHEMES) {
       await host.page.goto('/dashboard');
       await expect(host.page.getByRole('heading', { name: 'Upcoming' })).toBeVisible();
       await expectNoA11yViolations(host.page, `dashboard at phone width (${scheme})`);
+    });
+
+    test('the bell and the inbox: empty, with unread and read rows, and at phone width (spec 0015)', async ({
+      makeActor,
+    }) => {
+      const ann = await makeActor('ann');
+      await useColorScheme(ann.page, scheme);
+
+      await ann.page.goto('/notifications');
+      await expect(ann.page.getByRole('heading', { name: EMPTY_INBOX_HEADLINE })).toBeVisible();
+      await expectNoA11yViolations(ann.page, `empty inbox (${scheme})`);
+
+      // One read and two unread, so the bell has a number and both kinds of row are drawn.
+      const read = await giveNotification({ user: ann.user });
+      await giveNotification({ user: ann.user });
+      await giveNotification({ user: ann.user });
+      await readNotification({ user: ann.user, id: read });
+
+      await ann.page.goto('/notifications');
+      await expect(inboxRows(ann.page)).toHaveCount(3);
+      await expectBell(ann.page, 2);
+      await expectNoA11yViolations(ann.page, `inbox with rows (${scheme})`);
+
+      await ann.page.setViewportSize({ width: 390, height: 844 });
+      await ann.page.goto('/notifications');
+      await expect(inboxRows(ann.page)).toHaveCount(3);
+      await expectNoA11yViolations(ann.page, `inbox at phone width (${scheme})`);
+    });
+
+    test('the notification settings page, and the mute control on a brunch (spec 0015)', async ({
+      makeActor,
+    }) => {
+      const host = await makeActor('host');
+      const ann = await makeActor('ann');
+      await useColorScheme(ann.page, scheme);
+      const brunchId = await createBrunch({ host: host.user, title: 'Mutable Brunch' });
+      await addAttendee({ brunchId, host: host.user, user: ann.user, response: 'yes' });
+
+      await ann.page.goto('/settings/notifications');
+      await expect(
+        ann.page.getByRole('heading', { level: 1, name: 'Notification settings' }),
+      ).toBeVisible();
+      await expectNoA11yViolations(ann.page, `notification settings (${scheme})`);
+
+      // A switch that is on and one that is off, so both drawn states are checked.
+      await ann.page.getByRole('switch', { name: 'A brunch is on, by email' }).click();
+      await expect(
+        ann.page.getByRole('switch', { name: 'A brunch is on, by email' }),
+      ).not.toBeChecked();
+      await expectNoA11yViolations(ann.page, `notification settings, one off (${scheme})`);
+
+      await ann.page.setViewportSize({ width: 390, height: 844 });
+      await ann.page.goto('/settings/notifications');
+      await expect(
+        ann.page.getByRole('heading', { level: 1, name: 'Notification settings' }),
+      ).toBeVisible();
+      await expectNoA11yViolations(ann.page, `notification settings at phone width (${scheme})`);
+
+      // The brunch page's own control, with a choice made.
+      await ann.page.goto(`/brunch/${brunchId}`);
+      await ann.page.getByRole('radio', { name: /^Muted/ }).check();
+      await expect(ann.page.getByRole('radio', { name: /^Muted/ })).toBeChecked();
+      await expectNoA11yViolations(ann.page, `mute control, muted (${scheme})`);
+    });
+
+    test('an invite whose email did not go out, on the invite list (spec 0015)', async ({
+      makeActor,
+    }) => {
+      const host = await makeActor('host');
+      await useColorScheme(host.page, scheme);
+      const brunchId = await createBrunch({ host: host.user, title: 'Bounced Brunch' });
+      await inviteToBrunch({
+        brunchId,
+        host: host.user,
+        invitees: [{ email: 'rejected@example.com' }],
+      });
+      await failInviteEmail({ brunchId, email: 'rejected@example.com' });
+
+      await host.page.goto(`/brunch/${brunchId}`);
+      await expect(host.page.getByText("That email didn't go through.")).toBeVisible();
+      await expectNoA11yViolations(host.page, `failed invite on the list (${scheme})`);
+
+      await host.page.setViewportSize({ width: 390, height: 844 });
+      await host.page.goto(`/brunch/${brunchId}`);
+      await expect(host.page.getByText("That email didn't go through.")).toBeVisible();
+      await expectNoA11yViolations(host.page, `failed invite at phone width (${scheme})`);
+    });
+
+    test('a brunch that is over, on the brunch page and the manage page (spec 0015)', async ({
+      makeActor,
+    }) => {
+      const host = await makeActor('host');
+      const guest = await makeActor('guest');
+      await useColorScheme(host.page, scheme);
+      await useColorScheme(guest.page, scheme);
+      const { brunchId } = await createConfirmedBrunch({ host, guest });
+      await passConfirmedTime(brunchId);
+      const completed = await completePastBrunches({ now: new Date(), brunchId }, { db: getDb() });
+      expect(completed._unsafeUnwrap().completed).toBe(1);
+
+      await guest.page.goto(`/brunch/${brunchId}`);
+      await expect(guest.page.getByRole('heading', { name: 'Over.' })).toBeVisible();
+      await expectNoA11yViolations(guest.page, `over, guest (${scheme})`);
+
+      await host.page.goto(`/brunch/${brunchId}/manage`);
+      await expect(host.page.getByRole('heading', { name: 'Over.' })).toBeVisible();
+      await expectNoA11yViolations(host.page, `over, manage (${scheme})`);
+
+      await guest.page.setViewportSize({ width: 390, height: 844 });
+      await guest.page.goto(`/brunch/${brunchId}`);
+      await expect(guest.page.getByRole('heading', { name: 'Over.' })).toBeVisible();
+      await expectNoA11yViolations(guest.page, `over at phone width (${scheme})`);
     });
 
     test('the brunch detail page, as host and as invitee, in every state', async ({

@@ -10,6 +10,8 @@ export type InviteListItem = {
   readonly invitedEmail: Email;
   readonly status: InviteStatus;
   readonly lastResentAt: Date | undefined;
+  // The invite email failed for good and has not gone since (spec 0015): the list says so beside Resend.
+  readonly emailFailed: boolean;
   // Host-only surface — this is the capability the host copies and shares
   // themselves (no real email delivery yet; see spec 0004's "What This Spec
   // Does Not Cover"). Never expose this list to anyone but the host.
@@ -67,6 +69,7 @@ export async function getInvitesForBrunch(
       invitedEmail: invite.invitedEmail as Email,
       status: toInviteStatus(invite.attendee?.rsvpStatus.code),
       lastResentAt: invite.lastResentAt ?? undefined,
+      emailFailed: invite.emailFailedAt !== null,
       token: invite.token as InviteToken,
     })),
   );

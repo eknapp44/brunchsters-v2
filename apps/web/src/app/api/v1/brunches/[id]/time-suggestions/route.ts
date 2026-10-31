@@ -6,6 +6,7 @@ import { auth } from '@/auth';
 import { apiError } from '@/lib/apiErrorResponse';
 import { enforceWriteLimit } from '@/lib/rateLimit';
 import { db } from '@/lib/db';
+import { eventBus } from '@/lib/services';
 
 const brunchIdSchema = z.uuid();
 
@@ -50,7 +51,7 @@ export async function POST(
       suggestedById: session.user.id as UserId,
       scheduledAt: parsed.data.scheduledAt,
     },
-    { db },
+    { db, eventBus },
   );
 
   if (result.isErr()) {

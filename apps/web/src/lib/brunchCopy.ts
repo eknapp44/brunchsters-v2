@@ -16,7 +16,7 @@ export const DASHBOARD_STATUS_WORDING: Readonly<Record<string, Wording>> = {
   confirmed: copy('Confirmed'),
   brunching: LOOKUP,
   paying: LOOKUP,
-  completed: LOOKUP,
+  completed: copy('Over'),
   cancelled: copy('Called off'),
   archived: LOOKUP,
 };
@@ -24,12 +24,15 @@ export const DASHBOARD_STATUS_WORDING: Readonly<Record<string, Wording>> = {
 // The status badge on the brunch page keeps the status lookup's exact label (the exact-text rule: a
 // great many journeys look for "Active", "Draft" and "Confirmed" once), with one exception: a brunch
 // the host called off reads "Called off" everywhere a person sees it (spec 0013), where the lookup
-// says "Cancelled". One word per idea.
+// says "Cancelled", and one that has happened reads "Over" (spec 0015), where it says "Completed".
+// One word per idea.
 export function pageStatusLabel(params: {
   readonly code: string;
   readonly lookupLabel: string;
 }): string {
-  return params.code === 'cancelled' ? 'Called off' : params.lookupLabel;
+  if (params.code === 'cancelled') return 'Called off';
+  if (params.code === 'completed') return 'Over';
+  return params.lookupLabel;
 }
 
 export function dashboardStatusLabel(params: {

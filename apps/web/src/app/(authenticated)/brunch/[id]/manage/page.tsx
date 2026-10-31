@@ -8,6 +8,7 @@ import {
   getInvitesForBrunch,
   isCancelNoticePending,
 } from '@brunchsters/core';
+import { RefreshOnFocus } from '@/components/RefreshOnFocus';
 import type { BrunchId, UserId } from '@brunchsters/shared';
 import { forbidden, notFound } from 'next/navigation';
 import { z } from 'zod';
@@ -20,6 +21,7 @@ import { db } from '@/lib/db';
 import { DELETE_WAIT_POLICY } from '@/lib/lifecycleCopy';
 import { getRateLimiter } from '@/lib/services';
 import { CalledOffBanner } from '../CalledOffBanner';
+import { OverBanner } from '../OverBanner';
 import detail from '../detail.module.css';
 import { ConfirmControl } from './ConfirmControl';
 import { EndOfTheRoad } from './EndOfTheRoad';
@@ -117,6 +119,7 @@ export default async function ManageBrunchPage({
   if (brunch.statusCode === 'cancelled') {
     return (
       <Container as="main">
+        <RefreshOnFocus />
         <div className={styles.back}>
           <ButtonLink href={`/brunch/${brunchId}`} size="sm">
             <Icon name="arrowLeft" size={16} />
@@ -132,12 +135,32 @@ export default async function ManageBrunchPage({
     );
   }
 
+  // Over: the brunch happened. Nothing to manage, and nothing to call off.
+  if (brunch.statusCode === 'completed') {
+    return (
+      <Container as="main">
+        <RefreshOnFocus />
+        <div className={styles.back}>
+          <ButtonLink href={`/brunch/${brunchId}`} size="sm">
+            <Icon name="arrowLeft" size={16} />
+            Back to brunch
+          </ButtonLink>
+        </div>
+        <div className={styles.header}>
+          <h1>Manage: {brunch.title}</h1>
+        </div>
+        <OverBanner isHost />
+      </Container>
+    );
+  }
+
   if (brunch.statusCode === 'confirmed') {
     const confirmedLocation = voting?.locations.options.find((option) => option.isConfirmed);
     const confirmedTime = voting?.times.options.find((option) => option.isConfirmed);
 
     return (
       <Container as="main">
+        <RefreshOnFocus />
         <div className={styles.back}>
           <ButtonLink href={`/brunch/${brunchId}`} size="sm">
             <Icon name="arrowLeft" size={16} />
@@ -197,6 +220,7 @@ export default async function ManageBrunchPage({
 
   return (
     <Container as="main">
+      <RefreshOnFocus />
       <div className={styles.back}>
         <ButtonLink href={`/brunch/${brunchId}`} size="sm">
           <Icon name="arrowLeft" size={16} />

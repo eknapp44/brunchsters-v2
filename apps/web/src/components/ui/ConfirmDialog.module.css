@@ -15,8 +15,12 @@
 
 /* A modal <dialog> is centered by the browser's `margin: auto`. A parent's `> * + *` spacing rule
    (the brunch page's panels) would give it a top margin and pin it to the top of the window, so
-   the margin is set here with enough weight that no such rule can win. */
-.dialog:modal {
+   the margin is set here with enough weight that no such rule can win. That weight is a type
+   selector more than the panel's `> :last-child` rule (which zeroes the bottom margin of a dialog
+   that is its panel's last child): with equal weight the winner is whichever stylesheet Next
+   happens to load last, and adding an unrelated component to a page once flipped it (spec 0015,
+   journey E1 caught it). */
+dialog.dialog:modal {
   margin: auto;
 }
 

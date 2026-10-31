@@ -22,6 +22,8 @@ export type UpdateVotingDeadlineInput = {
   // undefined clears the deadline — null is for the JSON boundary only
   // (the route maps its nullable body field to this before calling in).
   readonly votingDeadline: string | undefined;
+  // The moment recorded as "when the deadline was set"; the clock by default.
+  readonly now?: Date;
 };
 
 export type UpdateVotingDeadlineError =
@@ -57,7 +59,12 @@ export async function updateVotingDeadline(
   try {
     await ctx.db.brunch.update({
       where: { id: input.brunchId },
-      data: { votingDeadline },
+      // votingDeadlineSetAt lets the reminder job tell a deadline set inside its 24-hour window
+      // (no reminder) from one set long before (spec 0015).
+      data: {
+        votingDeadline,
+        votingDeadlineSetAt: votingDeadline === null ? null : (input.now ?? new Date()),
+      },
     });
   } catch (cause) {
     return err({ kind: 'db_error', cause });

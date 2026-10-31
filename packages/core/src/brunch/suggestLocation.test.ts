@@ -58,7 +58,11 @@ function makeMockDb(
   } as unknown as DbClient;
 }
 
+const emit = vi.fn().mockResolvedValue(undefined);
+const eventBus = { emit };
+
 beforeEach(() => {
+  emit.mockClear();
   vi.mocked(reviewLocationSuggestion).mockReset();
 });
 
@@ -68,7 +72,7 @@ describe('suggestLocation', () => {
   it('creates a pending suggestion when host approval is required', async () => {
     const db = makeMockDb();
 
-    const result = await suggestLocation(BASE_INPUT, { db });
+    const result = await suggestLocation(BASE_INPUT, { db, eventBus });
 
     expect(result.isOk()).toBe(true);
     expect(result._unsafeUnwrap()).toEqual({
@@ -88,7 +92,7 @@ describe('suggestLocation', () => {
         .mockResolvedValue({ ...OPEN_BRUNCH, requireHostApprovalForOptions: false }),
     });
 
-    const result = await suggestLocation(BASE_INPUT, { db });
+    const result = await suggestLocation(BASE_INPUT, { db, eventBus });
 
     expect(result.isOk()).toBe(true);
     expect(result._unsafeUnwrap()).toEqual({
@@ -115,7 +119,7 @@ describe('suggestLocation', () => {
         .mockResolvedValue({ ...OPEN_BRUNCH, requireHostApprovalForOptions: false }),
     });
 
-    const result = await suggestLocation(BASE_INPUT, { db });
+    const result = await suggestLocation(BASE_INPUT, { db, eventBus });
 
     expect(result.isOk()).toBe(true);
     expect(result._unsafeUnwrap().status).toBe('pending');
@@ -125,7 +129,10 @@ describe('suggestLocation', () => {
     const attendeeFindFirst = vi.fn();
     const db = makeMockDb({ attendeeFindFirst });
 
-    const result = await suggestLocation({ ...BASE_INPUT, suggestedById: HOST_ID }, { db });
+    const result = await suggestLocation(
+      { ...BASE_INPUT, suggestedById: HOST_ID },
+      { db, eventBus },
+    );
 
     expect(result.isOk()).toBe(true);
     expect(attendeeFindFirst).not.toHaveBeenCalled();
@@ -134,7 +141,7 @@ describe('suggestLocation', () => {
   it('returns brunch_not_found when the brunch does not exist', async () => {
     const db = makeMockDb({ brunchFindFirst: vi.fn().mockResolvedValue(null) });
 
-    const result = await suggestLocation(BASE_INPUT, { db });
+    const result = await suggestLocation(BASE_INPUT, { db, eventBus });
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_found' });
   });
@@ -146,7 +153,7 @@ describe('suggestLocation', () => {
         .mockResolvedValue({ ...OPEN_BRUNCH, allowLocationSuggestions: false }),
     });
 
-    const result = await suggestLocation(BASE_INPUT, { db });
+    const result = await suggestLocation(BASE_INPUT, { db, eventBus });
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'suggestions_disabled' });
   });
@@ -156,7 +163,7 @@ describe('suggestLocation', () => {
       brunchFindFirst: vi.fn().mockResolvedValue({ ...OPEN_BRUNCH, status: { code: 'confirmed' } }),
     });
 
-    const result = await suggestLocation(BASE_INPUT, { db });
+    const result = await suggestLocation(BASE_INPUT, { db, eventBus });
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_active' });
   });
@@ -164,7 +171,7 @@ describe('suggestLocation', () => {
   it('treats someone who is not a member as if the brunch does not exist', async () => {
     const db = makeMockDb({ attendeeFindFirst: vi.fn().mockResolvedValue(null) });
 
-    const result = await suggestLocation(BASE_INPUT, { db });
+    const result = await suggestLocation(BASE_INPUT, { db, eventBus });
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_not_found' });
   });
@@ -182,10 +189,12 @@ describe('suggestLocation', () => {
       brunchFindFirst: vi.fn().mockResolvedValue({ ...OPEN_BRUNCH, status: { code: 'confirmed' } }),
     });
 
-    expect((await suggestLocation(BASE_INPUT, { db: off }))._unsafeUnwrapErr()).toEqual({
+    expect((await suggestLocation(BASE_INPUT, { db: off, eventBus }))._unsafeUnwrapErr()).toEqual({
       kind: 'brunch_not_found',
     });
-    expect((await suggestLocation(BASE_INPUT, { db: confirmed }))._unsafeUnwrapErr()).toEqual({
+    expect(
+      (await suggestLocation(BASE_INPUT, { db: confirmed, eventBus }))._unsafeUnwrapErr(),
+    ).toEqual({
       kind: 'brunch_not_found',
     });
   });
@@ -195,7 +204,7 @@ describe('suggestLocation', () => {
       suggestionFindUnique: vi.fn().mockResolvedValue({ id: 'existing-suggestion' }),
     });
 
-    const result = await suggestLocation(BASE_INPUT, { db });
+    const result = await suggestLocation(BASE_INPUT, { db, eventBus });
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'already_suggested' });
   });
@@ -205,7 +214,7 @@ describe('suggestLocation', () => {
       locationFindFirst: vi.fn().mockResolvedValue({ id: 'existing-location' }),
     });
 
-    const result = await suggestLocation(BASE_INPUT, { db });
+    const result = await suggestLocation(BASE_INPUT, { db, eventBus });
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'already_suggested' });
   });
@@ -213,7 +222,7 @@ describe('suggestLocation', () => {
   it('returns lookup_not_found when the pending status row is missing', async () => {
     const db = makeMockDb({ statusFindFirst: vi.fn().mockResolvedValue(null) });
 
-    const result = await suggestLocation(BASE_INPUT, { db });
+    const result = await suggestLocation(BASE_INPUT, { db, eventBus });
 
     expect(result._unsafeUnwrapErr()).toEqual({
       kind: 'lookup_not_found',
@@ -224,8 +233,44 @@ describe('suggestLocation', () => {
   it('returns db_error when suggestion creation fails', async () => {
     const db = makeMockDb({ suggestionCreate: vi.fn().mockRejectedValue(new Error('boom')) });
 
-    const result = await suggestLocation(BASE_INPUT, { db });
+    const result = await suggestLocation(BASE_INPUT, { db, eventBus });
 
     expect(result._unsafeUnwrapErr()).toEqual({ kind: 'db_error', cause: expect.any(Error) });
+  });
+
+  it('tells the host about a suggestion that is still waiting for them', async () => {
+    const db = makeMockDb({});
+
+    const result = await suggestLocation(BASE_INPUT, { db, eventBus });
+
+    expect(result._unsafeUnwrap().status).toBe('pending');
+    expect(emit).toHaveBeenCalledWith('suggestion/location', {
+      brunchId: BRUNCH_ID,
+      suggestionId: expect.anything(),
+      suggestedById: ATTENDEE_ID,
+    });
+  });
+
+  it('says nothing when the suggestion was approved on the spot', async () => {
+    vi.mocked(reviewLocationSuggestion).mockResolvedValue(ok({} as never));
+    const db = makeMockDb({
+      brunchFindFirst: vi
+        .fn()
+        .mockResolvedValue({ ...OPEN_BRUNCH, requireHostApprovalForOptions: false }),
+    });
+
+    const result = await suggestLocation(BASE_INPUT, { db, eventBus });
+
+    expect(result._unsafeUnwrap().status).toBe('approved');
+    expect(emit).not.toHaveBeenCalled();
+  });
+
+  it('still succeeds when the queue is down', async () => {
+    emit.mockRejectedValueOnce(new Error('queue down'));
+    const db = makeMockDb({});
+
+    const result = await suggestLocation(BASE_INPUT, { db, eventBus });
+
+    expect(result.isOk()).toBe(true);
   });
 });

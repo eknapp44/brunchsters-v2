@@ -202,10 +202,10 @@ Stored as fields directly on `Brunch` (not a separate `BrunchSettings` table —
 
 Two layers:
 
-- **Real-time in-app** — Supabase Realtime, presence-aware (don't notify someone watching the page)
+- **In-app inbox and live updates** — rows written by Inngest handlers, an unread badge polled about once a minute, and a page refresh when the tab regains focus. ~~Supabase Realtime, presence-aware~~ **Amended by [ADR 0017](adrs/0017-notifications.md) (spec 0015):** no Realtime in v1 (no Supabase client; NextAuth sessions) and no presence-aware suppression; Realtime stays an open entry in `docs/BACKLOG.md` ("Live updates").
 - **External notifications** — email via Resend, sent by Inngest-queued handlers ([ADR 0009](adrs/0009-inngest-event-bus-and-email-delivery.md), spec 0008). The first slice sends only `invite.received` and `brunch.confirmed`; everything else in the list below waits for the follow-up spec (in-app inbox, preferences, mute). Push deferred to v2; v1 features that conceptually want push (running late, host transfer) use in-app + email instead.
 
-User can configure per-type preferences via `UserNotificationPreference`. Per-brunch mute is a separate UI control (All / Just big stuff / Muted) surfaced on the invitee detail screen.
+User can configure per-type preferences via `UserNotificationPreference` (a missing row means the default; `/settings/notifications`). Per-brunch mute is a separate control (All / Just big stuff / Muted, `BrunchAttendee.notificationLevelId`) on the brunch page. All four existing emails obey the per-type email preference. Spec 0015 adds two types, `brunch.reinstated` and `invite.email.failed`, and does not produce `running.late`, `host.transferred` or `vote.autoclose.prompted` as rows (the last stays a banner derived on read).
 
 ### Notification Types (v1)
 
@@ -783,11 +783,11 @@ Single rule: voting closes on `votingDeadline`. Host can manually close early. N
 
 ### 9.9 Notification Table TTL
 
-Auto-delete read notifications older than 60 days. Keep unread indefinitely. Move to cold storage if needed.
+Auto-delete read notifications older than 60 days. ~~Keep unread indefinitely.~~ **Amended by [ADR 0017](adrs/0017-notifications.md):** unread ones go after 90 days; a daily Inngest function does the hard delete (an ephemeral view of events that live elsewhere). Move to cold storage if needed.
 
 ### 9.10 Realtime Strategy
 
-- v1: Supabase Realtime (in-stack, sufficient for early scale)
+- v1: ~~Supabase Realtime~~ **polling and refresh on focus** ([ADR 0017](adrs/0017-notifications.md)); Realtime is deferred behind the `RealtimeProvider` interface
 - Plan for swappable interface — Pusher, Ably, or self-hosted Redis pub/sub at larger scale
 
 ### 9.11 Rate Limiting
@@ -824,7 +824,7 @@ POST /brunch/:id/invite
 - `vote/deadline.approaching`, `vote/deadline.reached`
 - `notification/email.send`
 
-**v1 status (spec 0008).** `BrunchEventPayloads` in `packages/core/src/events/EventBus.ts` is the typed source of truth: `brunch/created`, `brunch/confirmed`, `invite/sent`, `invite/resent`, `attendee/rsvp.received`, `attendee/rsvp.changed`, `vote/cast` and `vote/changed`. Names nothing emits yet (`invite/expired`, `vote/deadline.approaching`, `vote/deadline.reached`, `notification/email.send`) are out of the type until a spec gives them a producer. Only `invite/sent`, `invite/resent`, `brunch/confirmed` and (spec 0013) `brunch/cancelled` and `brunch/reinstated` have handlers (the invite, confirmation, called-off and back-on emails; the called-off one waits five minutes after the cancellation and says nothing if the host brought the brunch back in the meantime); the others are emitted by the services but dropped by the Inngest bus until a handler lists them in `apps/web/src/inngest/events.ts`, which the follow-up notifications spec will do.
+**v1 status (spec 0008).** `BrunchEventPayloads` in `packages/core/src/events/EventBus.ts` is the typed source of truth: `brunch/created`, `brunch/confirmed`, `invite/sent`, `invite/resent`, `attendee/rsvp.received`, `attendee/rsvp.changed`, `vote/cast` and `vote/changed`. Names nothing emits yet (`invite/expired`, `vote/deadline.approaching`, `vote/deadline.reached`, `notification/email.send`) are out of the type until a spec gives them a producer. Only `invite/sent`, `invite/resent`, `brunch/confirmed` and (spec 0013) `brunch/cancelled` and `brunch/reinstated` have handlers (the invite, confirmation, called-off and back-on emails; the called-off one waits five minutes after the cancellation and says nothing if the host brought the brunch back in the meantime); the others are emitted by the services but dropped by the Inngest bus until a handler lists them in `apps/web/src/inngest/events.ts`. **Spec 0015 (M2) adds handlers that write the in-app inbox rows** for `attendee/rsvp.received`, `attendee/rsvp.changed`, `vote/cast`, `vote/changed`, `brunch/confirmed`, `invite/sent` (and, inside the two existing functions, `brunch/cancelled` and `brunch/reinstated`), and three new events from the suggestion services, `suggestion/invite`, `suggestion/location` and `suggestion/time`, emitted only while the suggestion waits for the host. **The clock** (spec 0015 M7) is one Inngest function, `run-scheduler`, on a 15-minute cron and on a `scheduler/tick` event (optionally for one brunch), plus the daily `prune-notifications`; neither is triggered by a service's event, which is why `vote/deadline.approaching` stays out of the typed events. `docs/adrs/0017-notifications.md` has the rest.
 
 ### Why Inngest, not Kafka
 
@@ -1163,7 +1163,7 @@ UserPlaceRating {
 
 **Status flow updates required:**
 
-- The `brunching`, `paying`, `completed` statuses (already defined as inactive in v1) become active when post-brunch features ship
+- The `brunching` and `paying` statuses (defined, inactive) become active when post-brunch features ship. **`completed` is active since spec 0015** ([ADR 0017](adrs/0017-notifications.md)): the scheduler moves a confirmed brunch to it six hours after its time, and it is read-only (`brunch_over`).
 - Photos and ratings only allowed in `brunching` and later statuses
 
 ---
@@ -1339,7 +1339,7 @@ Already-defined inactive statuses become active:
 ```
 BrunchStatus:  brunching → active when photos/ratings ship
                paying → active when bill splitting ships
-               completed → active when post-brunch engagement ships
+               completed → reached by the scheduler since spec 0015 (six hours after a confirmed brunch's time); post-brunch engagement builds on it
 ```
 
 ---
@@ -1412,7 +1412,7 @@ For solo side project: don't split. Premature.
    - ✅ vote (specs/0005-voting-and-confirmation, shipped — PR #8): `castLocationBallot`/`castTimeBallot`, `closeVoting`, `updateVotingDeadline`, `getBrunchVoting`, and the `BallotChecklist`/`OptionSuggestionControl` UI on `/brunch/[id]`. Decision mode is derived, not stored (ADR 0006).
    - ✅ confirm (specs/0005-voting-and-confirmation, shipped — PR #8): `confirmBrunch`, partial unique indexes enforcing one confirmed location/time per brunch, and the `/brunch/[id]/manage` host workbench (`OptionManager`, `VotingControls`, `ConfirmControl`, `OptionSuggestionReview`). Also includes an independent-review fix-through (real `FOR UPDATE` row locking for the vote-vs-close race, duplicate-ballot/duplicate-live-option rejection, voting-closed gating on add/approve, confirm's unique-constraint-collision mapping, and several UI staleness/timezone fixes) — see `specs/0005-voting-and-confirmation/tasks.md`.
 7. ✅ **Google Places integration** — folded into specs/0003-create-brunch (`GooglePlacesProvider`: Places Autocomplete (New) + Time Zone API); `PlaceSearchInput` extracted in specs/0005 M8 and shared between the creation wizard and the manage route
-8. **Notifications + Inngest** — split in two. ✅ **Spec 0008** (shipped: PR #12, released as v1.6.0, [ADR 0009](adrs/0009-inngest-event-bus-and-email-delivery.md)): typed events, Inngest + Resend wiring, and the invite and brunch-confirmed emails. **The notifications spec** (not started; it comes after design fidelity (spec 0011) and the feedback-surfaces spec (0014, v1.12.0), and takes the next free number when written (0015); its unread-count and inbox UI state belongs in the Redux store, ADR 0011, beside the toast queue and `useMutation` that spec 0014 added): in-app inbox, preferences, per-brunch mute, realtime, deadline reminders and host-facing emails. Cancel/undo, running-late and host transfer are separate features whose services do not exist yet. The 66% close-voting nudge (`vote.autoclose.prompted`, §7) is derived on every read rather than fired as an event, for the same reason — see §7's v1 note.
+8. **Notifications + Inngest** — split in two. ✅ **Spec 0008** (shipped: PR #12, released as v1.6.0, [ADR 0009](adrs/0009-inngest-event-bus-and-email-delivery.md)): typed events, Inngest + Resend wiring, and the invite and brunch-confirmed emails. **The notifications spec** (spec 0015, grilled 2026-10-25, [ADR 0017](adrs/0017-notifications.md); it comes after design fidelity (spec 0011) and the feedback-surfaces spec (0014, v1.12.0); its unread-count and inbox UI state belongs in the Redux store, ADR 0011, beside the toast queue and `useMutation` that spec 0014 added): in-app inbox, preferences, per-brunch mute, realtime, deadline reminders and host-facing emails. Cancel/undo, running-late and host transfer are separate features whose services do not exist yet. The 66% close-voting nudge (`vote.autoclose.prompted`, §7) is derived on every read rather than fired as an event, for the same reason — see §7's v1 note.
 9. **UI** — host flow, invitee flow, dashboard. Dashboard, creation wizard, brunch detail page, invite panel, RSVP control, suggestion panel, the public invite landing page, the voting/suggestion UI on the brunch detail page, and the host's manage workbench are all built (specs/0003, 0004, 0005). **Styling is spec 0009** ([ADR 0010](adrs/0010-css-modules-and-design-tokens.md), shipped: PR #14, released as v1.7.0; signed off on 2026-10-19 as the foundation, with the prototype's screen compositions and tone left to a follow-up design-fidelity spec, now 0011, which follows the Redux UI-state spec 0010 and [ADR 0011](adrs/0011-redux-toolkit-for-client-ui-state.md)): tokens, fonts, dark mode, primitives, and every screen above restyled from `prototype/` and `design-docs/`; the prototype's screens that need new behavior (inbox, cancel/change, Quick Brunch, ...) are tracked in that spec's parity table and ship with their features.
    - ✅ **Redux for UI state** — spec 0010 ([ADR 0011](adrs/0011-redux-toolkit-for-client-ui-state.md)): Redux Toolkit store per request in the `(authenticated)` layout; the creation wizard and the vote ballots (places and times) moved onto it with no visible change.
    - **Ideas that are not on the roadmap yet** (friends and "people you know" in the invite panel, pending suggestions inside the Locations and Times panels, staged confirmation) are logged in `docs/BACKLOG.md` under "Product candidates". Add new ideas there.
@@ -1421,15 +1421,15 @@ For solo side project: don't split. Premature.
 
 ### Roadmap after the core flow
 
-| Spec                                | What                                                                                                                                                                        | Status              |
-| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
-| 0010 Redux UI state                 | the wizard and the vote ballots on a per-request store ([ADR 0011](adrs/0011-redux-toolkit-for-client-ui-state.md))                                                         | ✅ PR #16           |
-| 0011 Design fidelity                | the prototype's screen compositions, copy and tone ([ADR 0012](adrs/0012-design-fidelity-and-presentation-rules.md))                                                        | ✅ v1.9.0 (PR #17)  |
-| 0012 Security hardening             | rate limits in Postgres, patched dependencies, an enforced CSP ([ADR 0013](adrs/0013-rate-limits-in-postgres.md), [0014](adrs/0014-content-security-policy-with-nonce.md))  | ✅ v1.10.0 (PR #18) |
-| 0013 Brunch lifecycle               | call it off, bring it back, delete, hide; held cancel and back-on emails ([ADR 0015](adrs/0015-brunch-lifecycle.md))                                                        | ✅ v1.11.0 (PR #21) |
-| 0014 Feedback surfaces              | one shared mutation thunk, toasts, coded error text, the wizard's invite response and the place-search fix; skeletons deferred ([ADR 0016](adrs/0016-feedback-surfaces.md)) | ✅ v1.12.0 (PR #25) |
-| Notifications (number when written) | inbox, preferences, per-brunch mute, realtime, reminders, host-facing emails                                                                                                | not started         |
-| Deployment (last)                   | the app in the cloud as a private beta; infrastructure, no UI change                                                                                                        | not started         |
+| Spec                    | What                                                                                                                                                                                | Status              |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
+| 0010 Redux UI state     | the wizard and the vote ballots on a per-request store ([ADR 0011](adrs/0011-redux-toolkit-for-client-ui-state.md))                                                                 | ✅ PR #16           |
+| 0011 Design fidelity    | the prototype's screen compositions, copy and tone ([ADR 0012](adrs/0012-design-fidelity-and-presentation-rules.md))                                                                | ✅ v1.9.0 (PR #17)  |
+| 0012 Security hardening | rate limits in Postgres, patched dependencies, an enforced CSP ([ADR 0013](adrs/0013-rate-limits-in-postgres.md), [0014](adrs/0014-content-security-policy-with-nonce.md))          | ✅ v1.10.0 (PR #18) |
+| 0013 Brunch lifecycle   | call it off, bring it back, delete, hide; held cancel and back-on emails ([ADR 0015](adrs/0015-brunch-lifecycle.md))                                                                | ✅ v1.11.0 (PR #21) |
+| 0014 Feedback surfaces  | one shared mutation thunk, toasts, coded error text, the wizard's invite response and the place-search fix; skeletons deferred ([ADR 0016](adrs/0016-feedback-surfaces.md))         | ✅ v1.12.0 (PR #25) |
+| 0015 Notifications      | inbox and bell, preferences, per-brunch mute, deadline reminders, completed brunches, host-facing "email did not go out", refresh on focus ([ADR 0017](adrs/0017-notifications.md)) | built, in review    |
+| Deployment (last)       | the app in the cloud as a private beta; infrastructure, no UI change                                                                                                                | not started         |
 
 How the order was decided, and why deployment moved to the end: `docs/BACKLOG.md`, "Roadmap notes". Ideas that are not on the roadmap are in `docs/BACKLOG.md` under "Product candidates".
 

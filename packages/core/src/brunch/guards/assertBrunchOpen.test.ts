@@ -10,10 +10,14 @@ describe('assertBrunchOpen', () => {
     expect(assertBrunchOpen(brunchWith(code)).isOk()).toBe(true);
   });
 
-  it.each(['cancelled', 'completed', 'archived'])('refuses a %s brunch', (code) => {
-    const result = assertBrunchOpen(brunchWith(code));
+  it('refuses a called-off brunch as called off', () => {
+    expect(assertBrunchOpen(brunchWith('cancelled'))._unsafeUnwrapErr()).toEqual({
+      kind: 'brunch_called_off',
+    });
+  });
 
-    expect(result.isErr()).toBe(true);
-    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_called_off' });
+  // A brunch that happened is not "called off": it has a different thing to say and no way back.
+  it.each(['completed', 'archived'])('refuses a %s brunch as over', (code) => {
+    expect(assertBrunchOpen(brunchWith(code))._unsafeUnwrapErr()).toEqual({ kind: 'brunch_over' });
   });
 });

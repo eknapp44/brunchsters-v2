@@ -24,10 +24,19 @@ function makeInvite(overrides: Record<string, unknown> = {}): Record<string, unk
   };
 }
 
+const updateMany = vi.fn().mockResolvedValue({ count: 1 });
+const deleteMany = vi.fn().mockResolvedValue({ count: 1 });
+
 function makeDb(invite: Record<string, unknown> | null | Error): DbClient {
   const findUnique =
     invite instanceof Error ? vi.fn().mockRejectedValue(invite) : vi.fn().mockResolvedValue(invite);
-  return { brunchInvite: { findUnique } } as unknown as DbClient;
+  updateMany.mockClear();
+  deleteMany.mockClear();
+  return {
+    brunchInvite: { findUnique, updateMany },
+    notification: { deleteMany },
+    user: { findFirst: vi.fn().mockResolvedValue(null) },
+  } as unknown as DbClient;
 }
 
 describe('sendInviteEmail', () => {
@@ -185,6 +194,54 @@ describe('sendInviteEmail', () => {
     );
 
     expect(result._unsafeUnwrapErr().kind).toBe('invalid_address');
+  });
+
+  it('clears a failure the host was told about once an email for the invite goes out, and says so only then', async () => {
+    const sent = new MockEmailService();
+    await sendInviteEmail(
+      { inviteId: INVITE_ID },
+      { db: makeDb(makeInvite()), emailService: sent, appUrl: APP_URL },
+    );
+    expect(updateMany).toHaveBeenCalledWith({
+      where: { id: INVITE_ID, emailFailedAt: { not: null } },
+      data: { emailFailedAt: null },
+    });
+    expect(deleteMany).toHaveBeenCalledWith({
+      where: { dedupeKey: { startsWith: `email-failed:${INVITE_ID}:` } },
+    });
+
+    // The provider already had this very email: it did go, so the failure is over as well.
+    const duplicate = new MockEmailService({ kind: 'already_sent' });
+    await sendInviteEmail(
+      { inviteId: INVITE_ID },
+      { db: makeDb(makeInvite()), emailService: duplicate, appUrl: APP_URL },
+    );
+    expect(updateMany).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves the failure alone when the email did not go (a refused address, a provider that is down), and when the person opted out', async () => {
+    for (const failure of [
+      { kind: 'invalid_address', address: 'guest@example.com' } as const,
+      { kind: 'delivery_failed', message: 'provider down' } as const,
+    ]) {
+      await sendInviteEmail(
+        { inviteId: INVITE_ID },
+        { db: makeDb(makeInvite()), emailService: new MockEmailService(failure), appUrl: APP_URL },
+      );
+      expect(updateMany).not.toHaveBeenCalled();
+      expect(deleteMany).not.toHaveBeenCalled();
+    }
+
+    // A skipped invite (revoked here) sent nothing, so there is nothing to clear either.
+    await sendInviteEmail(
+      { inviteId: INVITE_ID },
+      {
+        db: makeDb(makeInvite({ deletedAt: new Date() })),
+        emailService: new MockEmailService(),
+        appUrl: APP_URL,
+      },
+    );
+    expect(updateMany).not.toHaveBeenCalled();
   });
 
   it('maps a database failure to db_error', async () => {

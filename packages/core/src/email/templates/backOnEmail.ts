@@ -1,6 +1,6 @@
 import { escapeHtml } from './escapeHtml';
 import { formatBrunchTime } from './formatBrunchTime';
-import { renderEmail, type RenderedEmail } from './layout';
+import { fewerEmailsHtml, renderEmail, type RenderedEmail } from './layout';
 import { safeSubject } from './safeSubject';
 
 export type BackOnEmailParams = {
@@ -11,6 +11,9 @@ export type BackOnEmailParams = {
     | { readonly placeName: string; readonly scheduledAt: Date; readonly timezone: string }
     | undefined;
   readonly link: string;
+  // Where the footer sends someone who wants fewer emails (see `fewerEmailsHtml`).
+  readonly muteUrl?: string | undefined;
+  readonly settingsUrl?: string | undefined;
 };
 
 // Sent only to people who were told it was off (spec 0013, ADR 0015). Everything is as it was:
@@ -34,7 +37,7 @@ export function renderBackOnEmail(params: BackOnEmailParams): RenderedEmail {
       ].join(''),
       buttonLabel: 'See the brunch',
       buttonUrl: params.link,
-      footerHtml: "You're getting this because you were in on this brunch.",
+      footerHtml: `You're getting this because you were in on this brunch.${fewerEmailsHtml(params)}`,
     }),
   };
 }

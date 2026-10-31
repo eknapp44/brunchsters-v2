@@ -36,7 +36,13 @@ function makeInviteDb(row: { token: string; tokenExpiresAt: Date } | null): {
   findFirst: ReturnType<typeof vi.fn>;
 } {
   const findFirst = vi.fn().mockResolvedValue(row);
-  return { db: { brunchInvite: { findFirst } } as unknown as DbClient, findFirst };
+  return {
+    db: {
+      brunchInvite: { findFirst },
+      user: { findFirst: vi.fn().mockResolvedValue(null) },
+    } as unknown as DbClient,
+    findFirst,
+  };
 }
 
 const FUTURE = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -119,6 +125,7 @@ describe('sendConfirmationEmail', () => {
     const emailService = new MockEmailService();
     const db = {
       brunchInvite: { findFirst: vi.fn().mockRejectedValue(new Error('connection lost')) },
+      user: { findFirst: vi.fn().mockResolvedValue(null) },
     } as unknown as DbClient;
 
     const result = await sendConfirmationEmail(

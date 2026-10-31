@@ -1,6 +1,6 @@
 import { escapeHtml } from './escapeHtml';
 import { formatBrunchTime } from './formatBrunchTime';
-import { renderEmail, type RenderedEmail } from './layout';
+import { fewerEmailsHtml, renderEmail, type RenderedEmail } from './layout';
 import { safeSubject } from './safeSubject';
 
 export type CancelledEmailParams = {
@@ -12,6 +12,9 @@ export type CancelledEmailParams = {
     | { readonly placeName: string; readonly scheduledAt: Date; readonly timezone: string }
     | undefined;
   readonly link: string;
+  // Where the footer sends someone who wants fewer emails (see `fewerEmailsHtml`).
+  readonly muteUrl?: string | undefined;
+  readonly settingsUrl?: string | undefined;
 };
 
 // "Sam called it off. No worries - these things happen." (Brand Voice: gentle, low-stakes, warm.)
@@ -35,7 +38,7 @@ export function renderCancelledEmail(params: CancelledEmailParams): RenderedEmai
       ].join(''),
       buttonLabel: 'See the brunch',
       buttonUrl: params.link,
-      footerHtml: "You're getting this because you were in on this brunch.",
+      footerHtml: `You're getting this because you were in on this brunch.${fewerEmailsHtml(params)}`,
     }),
   };
 }
