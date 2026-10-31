@@ -347,13 +347,63 @@ describe('markRead, markAllRead, countUnread and listNotifications', () => {
     )._unsafeUnwrap();
     const next = (
       await listNotifications(
-        { userId: otherId, limit: 5, before: firstPage[0]?.lastEventAt ?? new Date() },
+        {
+          userId: otherId,
+          limit: 5,
+          before: {
+            lastEventAt: firstPage[0]?.lastEventAt ?? new Date(),
+            ...(firstPage[0] ? { id: firstPage[0].id } : {}),
+          },
+        },
         { db },
       )
     )._unsafeUnwrap();
 
     expect(firstPage).toHaveLength(1);
     expect(next.map((item) => item.id)).toEqual(all.slice(1).map((item) => item.id));
+  });
+
+  it('does not skip or repeat rows that changed in the same millisecond when it pages', async () => {
+    const sameMoment = new Date('2026-01-02T03:04:05.678Z');
+    for (const n of [1, 2, 3, 4, 5]) {
+      (
+        await writeNotification(
+          {
+            userId: samId,
+            type: 'brunch.cancelled',
+            title: `Same moment ${n}`,
+            body: 'x',
+            data: { kind: 'brunch.cancelled', hostName: 'Sam K.' },
+            dedupeKey: `same-moment:${RUN_ID}:${n}`,
+            now: sameMoment,
+          },
+          { db },
+        )
+      )._unsafeUnwrap();
+    }
+
+    const seen: string[] = [];
+    let before: { lastEventAt: Date; id: string } | undefined;
+    for (let page = 0; page < 10; page += 1) {
+      const items = (
+        await listNotifications({ userId: samId, limit: 2, ...(before ? { before } : {}) }, { db })
+      )._unsafeUnwrap();
+      if (items.length === 0) break;
+      seen.push(
+        ...items.filter((item) => item.title.startsWith('Same moment')).map((item) => item.title),
+      );
+      const last = items[items.length - 1];
+      if (last === undefined) break;
+      before = { lastEventAt: last.lastEventAt, id: last.id };
+    }
+
+    expect([...seen].sort()).toEqual([
+      'Same moment 1',
+      'Same moment 2',
+      'Same moment 3',
+      'Same moment 4',
+      'Same moment 5',
+    ]);
   });
 
   it('leaves out, and does not count, a row about a deleted brunch, and a row it cannot read', async () => {

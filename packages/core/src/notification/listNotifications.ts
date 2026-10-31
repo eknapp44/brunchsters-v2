@@ -16,14 +16,26 @@ export type ListNotificationsInput = {
   // Always the signed-in person. Nothing here takes an id the caller named for someone else.
   readonly userId: UserId;
   readonly limit?: number;
-  // Rows changed before this moment (the `lastEventAt` of the last row of the previous page).
-  readonly before?: Date;
+  // Where the previous page ended: the `lastEventAt` and the id of its last row. Rows are ordered by
+  // both, so two rows changed in the same millisecond are not skipped at a page boundary. Without an
+  // id (an older link) it is the moment alone.
+  readonly before?: { readonly lastEventAt: Date; readonly id?: string };
 };
 
 // A row about a brunch that has since been deleted is left out: its title must not outlive it.
 // (The soft-delete extension filters only the model queried, so the relation needs its own check.)
 function liveBrunch() {
   return { OR: [{ brunchId: null }, { brunch: { deletedAt: null } }] };
+}
+
+function startsAfter(before: { readonly lastEventAt: Date; readonly id?: string }) {
+  if (before.id === undefined) return { lastEventAt: { lt: before.lastEventAt } };
+  return {
+    OR: [
+      { lastEventAt: { lt: before.lastEventAt } },
+      { lastEventAt: before.lastEventAt, id: { lt: before.id } },
+    ],
+  };
 }
 
 // The person's inbox, newest change first. A row whose type or data is not one this code reads is
@@ -39,7 +51,7 @@ export async function listNotifications(
         userId: input.userId,
         channel: { code: 'in_app' },
         ...liveBrunch(),
-        ...(input.before === undefined ? {} : { lastEventAt: { lt: input.before } }),
+        ...(input.before === undefined ? {} : startsAfter(input.before)),
       },
       orderBy: [{ lastEventAt: 'desc' }, { id: 'desc' }],
       take: limit,

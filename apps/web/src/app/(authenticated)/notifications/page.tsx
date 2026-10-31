@@ -23,12 +23,20 @@ import styles from './notifications.module.css';
 
 const PAGE_SIZE = 30;
 
-// A page's start is the moment of the last row of the one before. Anything that is not a moment is
-// the first page, so a mangled address shows the inbox rather than an error.
-function parseBefore(value: string | undefined): Date | undefined {
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// A page starts after the last row of the one before: its moment and its id, as "<moment>~<id>" (the
+// id keeps two rows changed in the same millisecond from being skipped; a link with only a moment
+// still works). Anything that is not a moment is the first page, so a mangled address shows the inbox
+// rather than an error.
+function parseBefore(
+  value: string | undefined,
+): { readonly lastEventAt: Date; readonly id?: string } | undefined {
   if (value === undefined) return undefined;
-  const moment = new Date(value);
-  return Number.isNaN(moment.getTime()) ? undefined : moment;
+  const [moment, id] = value.split('~');
+  const lastEventAt = new Date(moment ?? '');
+  if (Number.isNaN(lastEventAt.getTime())) return undefined;
+  return id !== undefined && UUID.test(id) ? { lastEventAt, id } : { lastEventAt };
 }
 
 // The inbox (spec 0015, ADR 0017): what happened on the signed-in person's brunches, newest change
@@ -102,7 +110,7 @@ export default async function NotificationsPage({
       {older !== undefined && (
         <div className={styles.more}>
           <ButtonLink
-            href={`/notifications?before=${encodeURIComponent(older.lastEventAt.toISOString())}`}
+            href={`/notifications?before=${encodeURIComponent(`${older.lastEventAt.toISOString()}~${older.id}`)}`}
             variant="ghost"
             size="sm"
           >
