@@ -71,7 +71,15 @@ export async function sendInviteEmail(
     ctx,
   );
   if (allowed.isErr()) return err(allowed.error);
-  if (!allowed.value) return ok('skipped_by_preference');
+  if (!allowed.value) {
+    // The person has chosen not to get it, so an earlier failure (which the host was told about) is no
+    // longer the state of this invite: the flag and the host's rows go, silently, like any other skip.
+    // Leaving them would show the host "didn't go through" and "Try Resend" for an email that now
+    // can never go, and a resend would only be skipped again.
+    const cleared = await clearInviteEmailFailure({ inviteId: input.inviteId }, ctx);
+    if (cleared.isErr()) return err(cleared.error);
+    return ok('skipped_by_preference');
+  }
 
   const { subject, html } = renderInviteEmail({
     hostName: invite.brunch.host.name,

@@ -1,5 +1,5 @@
 import type { DbClient } from '@brunchsters/database';
-import type { BrunchId, Email, NotificationTypeCode } from '@brunchsters/shared';
+import type { BrunchId, Email, NotificationTypeCode, UserId } from '@brunchsters/shared';
 import { err, ok, type Result } from 'neverthrow';
 import type { NotificationDbError } from '../notification/notificationTypes';
 import { decideDelivery, shouldDeliver } from '../notification/shouldDeliver';
@@ -37,7 +37,7 @@ export async function emailAllowed(
     }
     return shouldDeliver(
       {
-        userId: user.id as never,
+        userId: user.id as UserId,
         type: input.type,
         channel: 'email',
         ...(input.brunchId === undefined ? {} : { brunchId: input.brunchId }),

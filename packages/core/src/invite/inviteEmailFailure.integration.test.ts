@@ -174,6 +174,41 @@ describe('recordInviteEmailFailed', () => {
   });
 });
 
+describe('an earlier failure and a person who has since opted out', () => {
+  it('is cleared, silently, when the invitee now has the invite email switched off', async () => {
+    // The invitee has an account (the guest): the first send failed, then they switched the email off.
+    const inviteId = await newInvite({ brunch: brunchId, address: email('guest') });
+    await recordInviteEmailFailed({ inviteId }, { db });
+    expect(await flag(inviteId)).not.toBeNull();
+
+    const [type, channel] = await Promise.all([
+      db.notificationType.findUniqueOrThrow({ where: { code: 'invite.received' } }),
+      db.notificationChannel.findUniqueOrThrow({ where: { code: 'email' } }),
+    ]);
+    await db.userNotificationPreference.create({
+      data: {
+        userId: guestId,
+        notificationTypeId: type.id,
+        channelId: channel.id,
+        isEnabled: false,
+      },
+    });
+
+    const mail = new MockEmailService();
+    const result = await sendInviteEmail({ inviteId }, { db, emailService: mail, appUrl: APP_URL });
+
+    expect(result._unsafeUnwrap()).toBe('skipped_by_preference');
+    expect(mail.sent).toHaveLength(0);
+    // The host is not left with "didn't go through" and "Try Resend" for an email that can never go.
+    expect(await flag(inviteId)).toBeNull();
+    expect(
+      (await hostRows()).some((row) => JSON.stringify(row.data).includes(email('guest'))),
+    ).toBe(false);
+
+    await db.userNotificationPreference.deleteMany({ where: { userId: guestId } });
+  });
+});
+
 describe('the host list and the way back', () => {
   it('shows an invite whose email failed as such, to the host only, and not one that did not', async () => {
     const bad = await newInvite({ brunch: brunchId, address: email('listed-bad') });
