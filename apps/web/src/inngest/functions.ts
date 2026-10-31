@@ -48,6 +48,7 @@ import {
   SCHEDULER_CRON,
   SCHEDULER_TICK_EVENT,
 } from './events';
+import { readTickScope } from './tickScope';
 import { unwrapForQueue } from './unwrapForQueue';
 
 const MAX_CONCURRENT_INVITE_EMAILS = 5;
@@ -470,8 +471,6 @@ export const pruneRateLimitsFunction = inngest.createFunction(
     }),
 );
 
-const schedulerTickSchema = z.object({ brunchId: z.uuid().optional() });
-
 // The clock's work (spec 0015 M7, ADR 0017), every 15 minutes: confirmed brunches six hours past their
 // time become completed, then voting deadlines inside the next 24 hours are claimed and each claimed
 // brunch gets one reminder. The claim is a conditional update, so a run that overlaps another, or a
@@ -483,9 +482,8 @@ export const runSchedulerFunction = inngest.createFunction(
     triggers: [{ cron: SCHEDULER_CRON }, { event: SCHEDULER_TICK_EVENT }],
   },
   async ({ event, step }) => {
-    // A cron run carries no data; a tick may name a brunch.
-    const scope = schedulerTickSchema.safeParse(event.data ?? {});
-    const brunchId = scope.success ? scope.data.brunchId : undefined;
+    // A cron run carries no data; a tick may name a brunch, and one that is not understood is refused.
+    const { brunchId } = readTickScope(event.data);
     const scoped = brunchId === undefined ? {} : { brunchId: brunchId as BrunchId };
 
     // One moment for the whole run, kept across retries (step output is memoized).
