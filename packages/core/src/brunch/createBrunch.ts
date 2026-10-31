@@ -85,6 +85,9 @@ export async function createBrunch(
           statusId: draftStatus.id,
           votingDeadline:
             input.votingDeadline !== undefined ? new Date(input.votingDeadline) : null,
+          // When it was set (spec 0015): a deadline chosen inside the reminder window gets no reminder,
+          // so a host who sets one for tonight is not echoed by a "last call" minutes after inviting.
+          votingDeadlineSetAt: input.votingDeadline !== undefined ? now : null,
         },
       });
 

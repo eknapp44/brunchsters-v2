@@ -211,6 +211,25 @@ describe('createBrunch', () => {
     );
   });
 
+  it('records when the deadline was set, and nothing when there is none (the reminder rule needs it)', async () => {
+    const withDeadline = makeMockTx();
+    await createBrunch(
+      { ...BASE_INPUT, votingDeadline: '2026-07-30T12:00:00.000Z' },
+      { db: makeMockDb(withDeadline), eventBus: makeMockEventBus() },
+    );
+    const stored = withDeadline.brunch.create.mock.calls[0]?.[0] as {
+      data: { votingDeadlineSetAt: Date | null };
+    };
+    expect(stored.data.votingDeadlineSetAt).toBeInstanceOf(Date);
+
+    const without = makeMockTx();
+    await createBrunch(BASE_INPUT, { db: makeMockDb(without), eventBus: makeMockEventBus() });
+    const none = without.brunch.create.mock.calls[0]?.[0] as {
+      data: { votingDeadlineSetAt: Date | null };
+    };
+    expect(none.data.votingDeadlineSetAt).toBeNull();
+  });
+
   it('emits brunch/created with brunchId and hostId after success', async () => {
     const emit = vi.fn().mockResolvedValue(undefined);
 

@@ -146,6 +146,10 @@ describe('createBrunch (integration — real Postgres)', () => {
 
     const brunch = await db.brunch.findFirst({ where: { id: brunchId } });
     expect(brunch?.votingDeadline?.toISOString()).toBe(deadline.toISOString());
+    // And when it was set, so a deadline chosen right now is not reminded about (spec 0015).
+    expect(Math.abs((brunch?.votingDeadlineSetAt?.getTime() ?? 0) - Date.now())).toBeLessThan(
+      60_000,
+    );
   });
 
   it('getBrunchById returns the brunch for the host and undefined for a non-member', async () => {
