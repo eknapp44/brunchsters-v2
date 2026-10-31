@@ -1,6 +1,6 @@
 # Spec 0015 — Notifications
 
-**Status:** Draft (grilled 2026-10-25; no code yet)  
+**Status:** Complete and released as v1.13.0 (PR #28, merged 2026-10-31)  
 **Branch:** `feat/0015-notifications`  
 **PLANNING.md ref:** §7 (Notifications), §9.9 (Notification table TTL), §9.10 (Realtime), §16 item 8 and the roadmap table; `docs/BACKLOG.md` "Live updates", "Silent failures to surface", Lifecycle deferrals (2) and (5), Redux follow-up (3), design-fidelity deferrals (6), (7) and (10)  
 **ADRs:** [0017 — Notifications](../../docs/adrs/0017-notifications.md); builds on [0009](../../docs/adrs/0009-inngest-event-bus-and-email-delivery.md) (events and email), [0011](../../docs/adrs/0011-redux-toolkit-for-client-ui-state.md) and [0016](../../docs/adrs/0016-feedback-surfaces.md) (the store, `useMutation`, coded errors), [0013](../../docs/adrs/0013-rate-limits-in-postgres.md) (limits), [0015](../../docs/adrs/0015-brunch-lifecycle.md) (called off, `assertBrunchOpen`)  
@@ -165,7 +165,7 @@ Each has one entry in [`docs/BACKLOG.md`](../../docs/BACKLOG.md) ("Notifications
 
 ## Outcome: where the build differs from the plan
 
-Written at the pre-merge review, from the final code. Every box above is ticked against the code; these are the differences.
+Written at the pre-merge review, from the final code, and kept true at release (v1.13.0). Every box above is ticked against the code; these are the differences. **Found in review and fixed before the merge:** a deadline set when a brunch is created sent a "last call" minutes after the first invites (`createBrunch` now records when it was set); a scheduler tick with a bad brunch id ran over every brunch (it is refused); "Show older" could skip rows changed in the same millisecond (the cursor is moment and id); an invitee who opted out left a stale "didn't go through" line (it is cleared); one failed reminder blocked the rest (every recipient is tried). **Deferred, each one entry in `docs/BACKLOG.md` (Notifications deferrals 9 to 14):** a quick look from the bell, dismiss or archive, grouping or labelling by brunch, query cost at scale, a changed vote re-raising a read row, and the default level. **Not yet checked by a person:** a real screen reader and a real mail client (pre-launch checklist).
 
 - **One scheduler function, named `run-scheduler`** (not `send-deadline-reminders-and-complete-brunches`): a 15-minute cron and a `scheduler/tick` event (optionally `{ brunchId }`), which is how the journeys drive it. The core bodies are `completePastBrunches`, `claimDeadlineReminders`, `sendDeadlineReminder` and `pruneNotifications` in `packages/core/src/scheduler/`, each taking `now`. The daily `prune-notifications` is its own function.
 - **One extra column**, `Brunch.deadlineReminderSentFor`: the cron sees a brunch for a whole day, so a deadline is claimed with a conditional update before its reminders go out (at most once; a run that dies between the claim and the send loses that one reminder rather than doubling it).

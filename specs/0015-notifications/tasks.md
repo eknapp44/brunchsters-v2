@@ -1,5 +1,7 @@
 # Tasks 0015 — Notifications
 
+**Released:** v1.13.0 (PR #28, merged 2026-10-31).
+
 Eight milestones (the grill's five grew as the pieces became concrete: routes, the inbox and the settings were separated from the store work), each green on its own and ending in a commit. Branch: `feat/0015-notifications`, cut from `main` (no stacking). Close each milestone with `/milestone-done`, then **stop for the owner's review** before the next. Every milestone runs `pnpm typecheck && pnpm lint && pnpm test`, and `pnpm test:e2e` whenever it touches anything a user sees or does (`CI=true pnpm build && CI=true pnpm test:e2e` is the quick gate; stop your own `pnpm dev` first). Re-verify each milestone's "journeys that change" list with a grep at its start; the grep wins over the list. Use `/ui-screen` for every milestone that changes a screen (M4, M5, M6, M8) and `/limited-surface` at M3 (routes) and M7 (the reminder email).
 
 The order proves the risky parts early: rows and the one delivery decision (M1, M2), then the read side and the poll (M3, M4), then the choices that gate delivery (M5), then the failure signal (M6), then the clock (M7), then focus refresh last (M8), which is the most separable. **At M6, ask whether M8 stays in this spec or becomes 0016.**
