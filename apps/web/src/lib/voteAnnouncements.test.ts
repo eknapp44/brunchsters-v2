@@ -35,7 +35,7 @@ describe('describeVoteChanges', () => {
     const before = ['a', 'b', 'c', 'd', 'e'].map((id) => option(id, id.toUpperCase(), 0));
     const after = before.map((o) => ({ ...o, voteCount: 1 }));
     expect(describeVoteChanges({ before, after })).toBe(
-      'Votes changed. A: 1 vote. B: 1 vote. C: 1 vote. And 2 more.',
+      'Votes changed. A: 1 vote. B: 1 vote. C: 1 vote. 2 more options changed.',
     );
   });
 

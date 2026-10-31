@@ -93,7 +93,7 @@ export function describeNotification(params: {
     case 'invite.email.failed':
       return plain(
         `Your invite to ${data.email} didn't go through`,
-        'Have a look at your invites.',
+        'Resend it from the invite list.',
       );
   }
 }

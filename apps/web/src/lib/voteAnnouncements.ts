@@ -33,5 +33,7 @@ export function describeVoteChanges(params: {
     .map((option) => `${option.name}: ${votes(option.voteCount)}`)
     .join('. ');
   const rest = changed.length - MAX_NAMED;
-  return rest > 0 ? `Votes changed. ${named}. And ${rest} more.` : `Votes changed. ${named}.`;
+  return rest > 0
+    ? `Votes changed. ${named}. ${rest} more options changed.`
+    : `Votes changed. ${named}.`;
 }

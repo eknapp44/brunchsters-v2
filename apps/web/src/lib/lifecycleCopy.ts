@@ -78,7 +78,7 @@ export const OVER_HEADING = 'Over.';
 
 export function overLine(params: { readonly isHost: boolean }): string {
   return params.isHost
-    ? 'This one has come and gone, so there is nothing left to change. Thanks for hosting.'
+    ? 'This one has come and gone. Thanks for hosting.'
     : 'This one has come and gone. Hope it was a good one.';
 }
 
@@ -89,7 +89,7 @@ export function overInvite(params: { readonly hostName: string; readonly title: 
 } {
   return {
     heading: `${params.title} already happened.`,
-    line: `Catch ${params.hostName} for the next one.`,
+    line: `Ask ${params.hostName} about the next one.`,
   };
 }
 
