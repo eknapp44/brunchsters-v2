@@ -91,6 +91,28 @@ test.describe('B9 — a deadline reminder goes to the people who still have a vo
   });
 });
 
+test.describe('B9b — a deadline chosen when the brunch is made is not reminded about', () => {
+  test('a deadline a few hours out, set at creation, sends no last call after the first invites', async ({
+    makeActor,
+  }) => {
+    const host = await makeActor('host');
+    const guest = await makeActor('guest');
+    const brunchId = await createBrunch({
+      host: host.user,
+      title: `Tonight ${uniqueSuffix()}`,
+      locations: [fixturePlaces.sunnySide, fixturePlaces.harborBistro],
+      times: [daysFromNow(3), daysFromNow(4)],
+      votingDeadline: new Date(Date.now() + 10 * 3_600_000),
+    });
+    await addAttendee({ brunchId, host: host.user, user: guest.user, response: 'maybe' });
+
+    await tickScheduler({ brunchId, ticks: 1 });
+
+    expect(await reminderRows(guest.user.id, brunchId)).toBe(0);
+    expect(await reminderEmails(guest.user.email)).toHaveLength(0);
+  });
+});
+
 test.describe('B10 — a brunch that has happened is over, and stays over', () => {
   test('six hours after its time it is over: read-only for everyone, and its invite link says so', async ({
     makeActor,
