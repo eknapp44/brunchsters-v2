@@ -134,17 +134,24 @@ Process (pilot, spec 0014 and this one): the folder also gets `SUMMARY.md`, `MAN
 
 ## M7 — The scheduler: reminders, completed and pruning
 
-- [ ] Spike first: can a journey invoke the registered Inngest function through the dev server? Record the answer in `plan.md`
-- [ ] `findDeadlineReminders`, `completePastBrunches` (take `now`); the cron function and `prune-notifications`; the deadline reminder email (`/limited-surface`: a decision in `emailBudgets.test.ts`, a sender in `SENDERS`)
-- [ ] The over rule (`brunch_over`, 409) beside `assertBrunchOpen`, `confirmed → completed` in `BRUNCH_TRANSITIONS`, Bring it back refuses a past confirmed brunch, `errorCopy` line, `lifecycleGuards.test.ts` and `lifecycleErrorMapping.test.ts` cover it; the dashboard and brunch page show "Over"
-- [ ] Integration tests: due, not due, already voted, cannot vote, a moved deadline, a deadline set inside the window, a retried run, a racing call off, the first-run flip notifying no one, prune boundaries (59/61 days read, 89/91 unread)
-- [ ] Journeys B9 and B10 (as the spike allows); `docs/SETUP.md` and the pre-launch checklist name the new functions to register in Inngest Cloud
-- [ ] **Prove the tests can fail:** drop the over rule → B10 fails; remove the voted-exclusion → B9 fails; prune using `createdAt` for unread → its boundary test fails
-- [ ] Commit: `feat: add deadline reminders, completed brunches and pruning (M7)`
+- [x] Spike first: can a journey invoke the registered Inngest function through the dev server? Record the answer in `plan.md`
+- [x] `findDeadlineReminders`, `completePastBrunches` (take `now`); the cron function and `prune-notifications`; the deadline reminder email (`/limited-surface`: a decision in `emailBudgets.test.ts`, a sender in `SENDERS`)
+- [x] The over rule (`brunch_over`, 409) beside `assertBrunchOpen`, `confirmed → completed` in `BRUNCH_TRANSITIONS`, Bring it back refuses a past confirmed brunch, `errorCopy` line, `lifecycleGuards.test.ts` and `lifecycleErrorMapping.test.ts` cover it; the dashboard and brunch page show "Over"
+- [x] Integration tests: due, not due, already voted, cannot vote, a moved deadline, a deadline set inside the window, a retried run, a racing call off, the first-run flip notifying no one, prune boundaries (59/61 days read, 89/91 unread)
+- [x] Journeys B9 and B10 (as the spike allows); `docs/SETUP.md` and the pre-launch checklist name the new functions to register in Inngest Cloud
+- [x] **Prove the tests can fail:** drop the over rule → B10 fails; remove the voted-exclusion → B9 fails; prune using `createdAt` for unread → its boundary test fails
+- [x] Commit: `feat: add deadline reminders, completed brunches and pruning (M7)`
 
-**Accessible names changed:** none beyond the "Over" status text. **Journeys that change:** the lifecycle journeys, new B9 and B10. **Deployable:** yes (the cron runs once registered).
+**Accessible names changed:** the status text "Over", the banner heading "Over.", the invite-page heading "{title} already happened." and the toast "That brunch already happened." (`docs/accessible-names.md`). **Journeys that change:** new `scheduler.spec.ts` (B9, B10 x2), `accessibility` D2 (one case), `email-notifications` N4 (eleven queue functions). **Deployable:** yes (the cron runs once registered).
 
-**Testing notes:** _(fill on completion)_
+**Testing notes:**
+
+- **What and how:** 12 integration tests on real Postgres (`scheduler.integration.test.ts`: completes at six hours and not a minute before, leaves a called-off or unconfirmed brunch alone, a second run finds nothing, notifies no one; claims a deadline once however often asked and once when two clocks race, skips too far, past, closed early, draft and set-inside-the-window, counts a full-window and a no-record deadline, reminds again for a moved one; reminds only people who can vote and have not, once, obeying each person's switches, nothing for a brunch no longer open; prune boundaries 59/61 read and 89/91 unread, and a long-lived coalescing row stays). Unit: the over rule (`assertBrunchOpen`), `reinstateBrunch` refusing a past confirmed brunch, the invite preview's `isOver`, a mapping case per route (409 `brunch_over`, never 500), the status wording, and the email budget guard (the reminder sender is called from one place, behind its claim). Journeys: **B9** (once per deadline to the right people, row and email, a second tick adds nothing, a moved deadline reminds again, one set just now does not) and **B10** (past six hours: Over, read-only, 409 `brunch_over`, manage page and invite link say so; a called-off brunch is never completed and cannot be brought back after its time), axe on the Over pages in both palettes and at phone width. The real function runs on the real queue (spike: yes, via a `scheduler/tick` event naming one brunch). Proved to fail: prune measured from creation, no six-hour wait, an unconditional claim, set-inside-window ignored (integration); over rule dropped, already-voted members still reminded, Bring it back ignoring the time (B9/B10).
+- **Fixed on the way:** (1) the lifecycle-guard scan and N4's function count caught two things I had not listed (the scan wants a reason for a write that skips the open check; the queue now has 11 functions). (2) **A journey flake worth remembering:** the Inngest dev server reports a run Completed a few tens of milliseconds before its last database write can be read, so a journey that read the result the instant the run finished saw it unchanged about 1 time in 20 (found by the scheduler's own log line, which showed the write landing just after). Journeys now poll for an effect, and wait 750 ms after a tick before showing that something did not happen. Earlier "failures" in sleep-damaged runs were sleep, not the code. (3) The scheduler logs one line per run (time, brunch, completed, reminded).
+- **Independent reads:** not run for this milestone (the accessibility and copy reads were done for M4 to M6). The new words are "Over.", "This one has come and gone…", "Last call to vote." and the reminder email; worth a look in the review.
+- **Deferred:** the cron schedule itself is not exercised by any test (pre-launch checklist); the reminder email in a real mail client (MANUAL-TESTING E1); the Over screens in the review screenshots; the invite email-change for a completed brunch's guests beyond the page.
+- **Gate:** typecheck, lint; unit shared 64, core 755, web 766; core integration 219; CI-mode e2e 326 passed, 2 skipped; stress (three times, four workers) 978 passed; dev mode 326 passed.
+- **Run:** `pnpm --filter @brunchsters/core test:integration scheduler`; `CI=true pnpm build && CI=true pnpm test:e2e scheduler.spec`.
 
 ---
 

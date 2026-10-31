@@ -74,6 +74,25 @@ export function calledOffInvite(params: { readonly hostName: string; readonly ti
   };
 }
 
+export const OVER_HEADING = 'Over.';
+
+export function overLine(params: { readonly isHost: boolean }): string {
+  return params.isHost
+    ? 'This one has come and gone, so there is nothing left to change. Thanks for hosting.'
+    : 'This one has come and gone. Hope it was a good one.';
+}
+
+// The invite page, for a link to a brunch that already happened.
+export function overInvite(params: { readonly hostName: string; readonly title: string }): {
+  readonly heading: string;
+  readonly line: string;
+} {
+  return {
+    heading: `${params.title} already happened.`,
+    line: `Catch ${params.hostName} for the next one.`,
+  };
+}
+
 export const HIDE_LABEL = 'Hide from my dashboard';
 export const UNHIDE_LABEL = 'Unhide';
 export const HIDDEN_LINE = 'Hidden from your dashboard. Nobody else sees a change.';

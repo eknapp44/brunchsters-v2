@@ -57,6 +57,12 @@ export async function POST(
           status: 409,
           message: 'There is no earlier state to bring this brunch back to',
         });
+      case 'brunch_over':
+        return apiError({
+          code: 'brunch_over',
+          status: 409,
+          message: 'The brunch already happened',
+        });
       case 'invalid_transition':
         return apiError({
           code: 'brunch_changed',

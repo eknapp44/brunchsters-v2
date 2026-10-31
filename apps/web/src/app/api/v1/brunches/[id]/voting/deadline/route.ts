@@ -75,6 +75,8 @@ export async function PATCH(
           status: 409,
           message: 'This brunch was called off',
         });
+      case 'brunch_over':
+        return apiError({ code: 'brunch_over', status: 409, message: 'This brunch is over' });
       default:
         console.error('updateVotingDeadline failed', result.error);
         return apiError({

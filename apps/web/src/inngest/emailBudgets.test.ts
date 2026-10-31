@@ -50,7 +50,17 @@ const SHARED_SENDER_CALLERS = [
   'email/sendBackOnEmail.ts',
   'email/sendCancelledEmail.ts',
   'email/sendConfirmationEmail.ts',
+  'email/sendDeadlineReminderEmail.ts',
 ];
+
+// The one email no event causes: a clock does (spec 0015 M7), so it has no row in DECISIONS above. Its
+// bound is recorded here and checked below: one reminder per member per deadline, only to people
+// already in the brunch who can vote and have not, claimed before it is sent so a repeated or
+// overlapping run sends nothing, and nobody outside the brunch can cause one.
+const CLOCK_EMAILS: Readonly<Record<string, string>> = {
+  'email/sendDeadlineReminderEmail.ts':
+    'once per member per deadline (the key carries the deadline), claimed with a conditional update before sending, to members who can vote and have not',
+};
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -149,7 +159,36 @@ describe('nothing sends mail except the handlers an event triggers', () => {
     ).toEqual([]);
   });
 
-  it('reaches the shared sender only from the three email handlers', () => {
+  // The clock's email is bounded by its claim. The claim must come before the send, in the one place that
+  // calls it, and the only caller of the sender is that function (so nothing else can send it).
+  it('keeps the clock email behind its claim, and calls it from one place', () => {
+    for (const [name, reason] of Object.entries(CLOCK_EMAILS)) {
+      expect(reason.length, `${name} needs a real reason`).toBeGreaterThan(40);
+    }
+
+    const callers = files
+      .filter((file) => file.text.includes('sendDeadlineReminderEmail('))
+      .map((file) => file.name)
+      .filter((name) => name !== 'email/sendDeadlineReminderEmail.ts')
+      .sort();
+    expect(
+      callers,
+      'the deadline reminder email is sent from somewhere other than scheduler/sendDeadlineReminder.ts',
+    ).toEqual(['scheduler/sendDeadlineReminder.ts']);
+
+    const functionsText = readFileSync(
+      fileURLToPath(new URL('./functions.ts', import.meta.url)),
+      'utf-8',
+    );
+    const claim = functionsText.indexOf('claimDeadlineReminders(');
+    const send = functionsText.indexOf('sendDeadlineReminder(');
+    expect(claim, 'the scheduler no longer claims a deadline before reminding').toBeGreaterThan(-1);
+    expect(claim, 'the scheduler sends a reminder before it claims the deadline').toBeLessThan(
+      send,
+    );
+  });
+
+  it('reaches the shared sender only from the four email handlers', () => {
     const callers = files
       .filter((file) => /\bsendToRecipient\(/.test(file.text))
       .map((file) => file.name)

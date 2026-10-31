@@ -1,11 +1,15 @@
 import { err, ok, type Result } from 'neverthrow';
 
-export type AssertBrunchOpenError = { readonly kind: 'brunch_called_off' };
+// `brunch_over` is a brunch that happened (`completed`, and the legacy `archived`): a different
+// thing to tell a person than "called off", and it has no way back (spec 0015 M7).
+export type AssertBrunchOpenError =
+  | { readonly kind: 'brunch_called_off' }
+  | { readonly kind: 'brunch_over' };
 
-// Statuses after which a brunch takes no more changes. `cancelled` is the one a host can reach
-// today; `completed` and `archived` have nothing producing them yet (ADR 0015), and share the
-// answer so the day something does, a finished brunch is already closed to writes.
-const CLOSED_STATUS_CODES: ReadonlySet<string> = new Set(['cancelled', 'completed', 'archived']);
+// Statuses after which a brunch takes no more changes: called off by its host, or over. `completed`
+// is reached by the scheduler six hours after the brunch's time (spec 0015, ADR 0017); `archived`
+// is legacy and answers the same way.
+const OVER_STATUS_CODES: ReadonlySet<string> = new Set(['completed', 'archived']);
 
 // The guard every member-write service calls (spec 0013, ADR 0015): a called-off brunch keeps its
 // votes, invites and attendees (so Bring it back restores them), but accepts no new RSVP, vote,
@@ -19,7 +23,8 @@ const CLOSED_STATUS_CODES: ReadonlySet<string> = new Set(['cancelled', 'complete
 export function assertBrunchOpen(brunch: {
   readonly status: { readonly code: string };
 }): Result<void, AssertBrunchOpenError> {
-  if (CLOSED_STATUS_CODES.has(brunch.status.code)) return err({ kind: 'brunch_called_off' });
+  if (brunch.status.code === 'cancelled') return err({ kind: 'brunch_called_off' });
+  if (OVER_STATUS_CODES.has(brunch.status.code)) return err({ kind: 'brunch_over' });
 
   return ok(undefined);
 }

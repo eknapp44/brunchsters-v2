@@ -31,7 +31,7 @@ type EventRecord = {
   readonly name?: string;
   readonly data?: { readonly brunchId?: string };
 };
-type RunRecord = { readonly status?: string };
+type RunRecord = { readonly status?: string; readonly output?: unknown };
 
 const FINISHED = new Set(['Completed', 'Failed', 'Cancelled']);
 
@@ -73,6 +73,25 @@ async function myEvents(params: {
     cursor = last.id;
   }
   return found;
+}
+
+// What the runs of one event for one brunch ended as, for a journey that must know they succeeded
+// (the wait above only knows they finished).
+export async function runOutcomes(params: {
+  readonly event: string;
+  readonly brunchId: string;
+  readonly events?: number;
+}): Promise<readonly { readonly status: string; readonly output: unknown }[]> {
+  const outcomes: { status: string; output: unknown }[] = [];
+  for (const event of await myEvents({ ...params, events: params.events ?? 1 })) {
+    const found = (await (await fetch(`${E2E_INNGEST_URL}/v1/events/${event.id}/runs`)).json()) as {
+      data?: readonly RunRecord[];
+    };
+    for (const run of found.data ?? []) {
+      outcomes.push({ status: run.status ?? 'unknown', output: run.output });
+    }
+  }
+  return outcomes;
 }
 
 export async function waitForRuns(params: {

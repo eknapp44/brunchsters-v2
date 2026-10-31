@@ -285,3 +285,15 @@ export type {
   GetPendingSuggestionsForBrunchInput,
   SuggestionListItem,
 } from './invite/getPendingSuggestionsForBrunch';
+
+export {
+  claimDeadlineReminders,
+  completePastBrunches,
+  pruneNotifications,
+  type DueReminder,
+  type SchedulerError,
+} from './scheduler/scheduler';
+export {
+  sendDeadlineReminder,
+  type SendDeadlineReminderError,
+} from './scheduler/sendDeadlineReminder';

@@ -39,7 +39,7 @@ For your own sign-off, in your own time. The automated suite proves the behavior
 
 ## E. Deadlines and "over"
 
-- [ ] **E1. A deadline reminder.** Set a deadline just over 24 hours out and wait for the cron (or invoke it from the Inngest dev UI at :8288): someone who has not voted gets a row and an email; someone who voted does not. Moving the deadline reminds again.
+- [ ] **E1. A deadline reminder.** Give a brunch a deadline a few hours out that was set days ago (or set one a day ahead and wait), then send the event `scheduler/tick` from the Inngest dev UI at :8288 (or wait for the cron): someone who has not voted gets a row and an email ("{title} closes soon — have you voted?", saying how long is left); someone who voted does not. Sending the tick again changes nothing. Moving the deadline reminds again. (Read the email in a real mail client: the wording, the button, the footer.)
 - [ ] **E2. Over.** A confirmed brunch whose time passed by six hours becomes **Over**: the page says so, nothing can change, and **Bring it back** is not offered. Old test brunches flip quietly on the first run (nobody is mailed).
 
 ## F. Fresh pages

@@ -20,6 +20,7 @@ import { db } from '@/lib/db';
 import { DELETE_WAIT_POLICY } from '@/lib/lifecycleCopy';
 import { getRateLimiter } from '@/lib/services';
 import { CalledOffBanner } from '../CalledOffBanner';
+import { OverBanner } from '../OverBanner';
 import detail from '../detail.module.css';
 import { ConfirmControl } from './ConfirmControl';
 import { EndOfTheRoad } from './EndOfTheRoad';
@@ -128,6 +129,24 @@ export default async function ManageBrunchPage({
         </div>
         <CalledOffBanner isHost hostName={brunch.hostName} />
         {endOfTheRoad}
+      </Container>
+    );
+  }
+
+  // Over: the brunch happened. Nothing to manage, and nothing to call off.
+  if (brunch.statusCode === 'completed') {
+    return (
+      <Container as="main">
+        <div className={styles.back}>
+          <ButtonLink href={`/brunch/${brunchId}`} size="sm">
+            <Icon name="arrowLeft" size={16} />
+            Back to brunch
+          </ButtonLink>
+        </div>
+        <div className={styles.header}>
+          <h1>Manage: {brunch.title}</h1>
+        </div>
+        <OverBanner isHost />
       </Container>
     );
   }

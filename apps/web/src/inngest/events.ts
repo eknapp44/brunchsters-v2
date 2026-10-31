@@ -45,6 +45,15 @@ export const INVITED_NOTIFICATION_EVENTS = [
   'invite/sent',
 ] as const satisfies readonly BrunchEventName[];
 
+// Not an event: a schedule (every 15 minutes) for the job that completes past brunches and sends deadline
+// reminders. `scheduler/tick` runs the same job by hand (optionally for one brunch: `{ brunchId }`), which
+// is how the journeys drive it without waiting for a clock.
+export const SCHEDULER_CRON = '*/15 * * * *';
+export const SCHEDULER_TICK_EVENT = 'scheduler/tick';
+
+// Not an event: a schedule (daily, 03:30 UTC) for the job that deletes old notifications.
+export const PRUNE_NOTIFICATIONS_CRON = '30 3 * * *';
+
 // Not an event: a schedule (04:00 UTC daily) for the job that deletes expired rate-limit counters.
 export const PRUNE_RATE_LIMITS_CRON = '0 4 * * *';
 

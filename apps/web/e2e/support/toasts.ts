@@ -17,6 +17,7 @@ export const TOAST_WORDS = {
   lastOption: "That's the last one on the table, so it has to stay.",
   alreadyThere: "That one's already on the list.",
   alreadyConfirmed: "This one's already locked in.",
+  brunchOver: 'That brunch already happened.',
   hidden: 'Off your dashboard. Nobody else sees a change.',
   unhidden: 'Back on your dashboard.',
 } as const;

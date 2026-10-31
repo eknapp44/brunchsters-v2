@@ -26,8 +26,11 @@ describe('dashboard status wording', () => {
 
   it('keeps the lookup label where that is the wording, and for a code it has never heard of', () => {
     expect(dashboardStatusLabel({ code: 'paying', lookupLabel: 'Paying' })).toBe('Paying');
-    expect(dashboardStatusLabel({ code: 'completed', lookupLabel: 'Completed' })).toBe('Completed');
     expect(dashboardStatusLabel({ code: 'brand-new', lookupLabel: 'Brand New' })).toBe('Brand New');
+  });
+
+  it('words a brunch that has happened as "Over" on the dashboard', () => {
+    expect(dashboardStatusLabel({ code: 'completed', lookupLabel: 'Completed' })).toBe('Over');
   });
 
   it('words a brunch the host called off as "Called off" on the dashboard', () => {
@@ -42,7 +45,10 @@ describe('the brunch page status badge', () => {
     expect(pageStatusLabel({ code: 'active', lookupLabel: 'Active' })).toBe('Active');
     expect(pageStatusLabel({ code: 'draft', lookupLabel: 'Draft' })).toBe('Draft');
     expect(pageStatusLabel({ code: 'confirmed', lookupLabel: 'Confirmed' })).toBe('Confirmed');
-    expect(pageStatusLabel({ code: 'completed', lookupLabel: 'Completed' })).toBe('Completed');
+  });
+
+  it('says "Over" for a brunch that has happened, where the lookup says "Completed"', () => {
+    expect(pageStatusLabel({ code: 'completed', lookupLabel: 'Completed' })).toBe('Over');
   });
 
   it('says "Called off" for a called-off brunch, where the lookup says "Cancelled"', () => {

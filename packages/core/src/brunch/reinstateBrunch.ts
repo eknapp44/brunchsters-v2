@@ -9,6 +9,7 @@ import { assertCanTransition, type InvalidTransitionError } from './guards/brunc
 export type ReinstateBrunchInput = {
   readonly brunchId: BrunchId;
   readonly requestedById: UserId;
+  readonly now?: Date;
 };
 
 export type ReinstateBrunchError =
@@ -18,6 +19,8 @@ export type ReinstateBrunchError =
   // Called off by something other than cancelBrunch, so there is no status to go back to.
   | { readonly kind: 'nothing_to_restore' }
   | InvalidTransitionError
+  // It was confirmed and its time has passed: it would be over the moment it came back.
+  | { readonly kind: 'brunch_over' }
   | { readonly kind: 'db_error'; readonly cause: unknown };
 
 // "Bring it back" (spec 0013, ADR 0015): the status returns to what it was before the brunch was
@@ -56,6 +59,22 @@ export async function reinstateBrunch(
 
   const transitionResult = assertCanTransition({ from: 'cancelled', to: restoredCode });
   if (transitionResult.isErr()) return err(transitionResult.error);
+
+  // A brunch that was confirmed for a time that has gone by cannot come back: there is nothing left to
+  // be on (spec 0015, ADR 0017). The same cut-off as the scheduler's, minus its six hours: the host
+  // cannot restore a brunch whose time has passed even before it would have counted as completed.
+  if (restoredCode === 'confirmed') {
+    try {
+      const confirmedTime = await db.brunchTime.findFirst({
+        where: { brunchId: input.brunchId, isConfirmed: true },
+      });
+      if (confirmedTime !== null && confirmedTime.scheduledAt < (input.now ?? new Date())) {
+        return err({ kind: 'brunch_over' });
+      }
+    } catch (cause) {
+      return err({ kind: 'db_error', cause });
+    }
+  }
 
   try {
     await db.$transaction(async (tx) => {

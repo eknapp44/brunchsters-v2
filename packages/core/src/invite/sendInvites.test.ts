@@ -726,9 +726,13 @@ describe('sendInvites — rate limits', () => {
 });
 
 describe('sendInvites — a brunch that is not open', () => {
-  it.each(['cancelled', 'completed', 'archived'])(
-    'refuses a %s brunch before spending a budget, writing or emailing',
-    async (code) => {
+  it.each([
+    ['cancelled', 'brunch_called_off'],
+    ['completed', 'brunch_over'],
+    ['archived', 'brunch_over'],
+  ])(
+    'refuses a %s brunch (%s) before spending a budget, writing or emailing',
+    async (code, kind) => {
       const tx = makeMockTx();
       const db = makeMockDb(tx, { ...ACTIVE_BRUNCH, status: { id: `status-${code}`, code } });
       const rateLimiter = new RecordingRateLimiter();
@@ -736,7 +740,7 @@ describe('sendInvites — a brunch that is not open', () => {
 
       const result = await sendInvites(BASE_INPUT, { rateLimiter, db, eventBus: { emit } });
 
-      expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_called_off' });
+      expect(result._unsafeUnwrapErr()).toEqual({ kind });
       expect(rateLimiter.spends).toEqual([]);
       expect(db.$transaction).not.toHaveBeenCalled();
       expect(emit).not.toHaveBeenCalled();

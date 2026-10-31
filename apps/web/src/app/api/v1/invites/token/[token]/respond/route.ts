@@ -67,6 +67,8 @@ export async function POST(
           status: 409,
           message: 'This brunch was called off',
         });
+      case 'brunch_over':
+        return apiError({ code: 'brunch_over', status: 409, message: 'This brunch is over' });
       default:
         console.error('respondToInvite failed', result.error);
         return apiError({ code: 'internal', status: 500, message: 'Failed to respond to invite' });

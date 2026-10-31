@@ -358,6 +358,10 @@ model Brunch {
   // When votingDeadline was last set (spec 0015): a deadline set inside the reminder window sends no
   // reminder. Null on older rows, which count as set long ago.
   votingDeadlineSetAt DateTime?
+  // The deadline a reminder went out for (spec 0015): the scheduler claims it with a conditional update
+  // before sending, so a 15-minute cron that sees the same brunch for a whole day reminds once, and a
+  // moved deadline (a different value) is due again.
+  deadlineReminderSentFor DateTime?
 
   // Permissions — stored on Brunch per PLANNING.md §6 (not a separate table)
   allowInviteSuggestions      Boolean @default(true)

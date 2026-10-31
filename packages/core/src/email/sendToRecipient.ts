@@ -27,7 +27,7 @@ export async function sendToRecipient(
     // Which notification type this email is, for the person's preference and mute (spec 0015).
     readonly type: Extract<
       NotificationTypeCode,
-      'brunch.confirmed' | 'brunch.cancelled' | 'brunch.reinstated'
+      'brunch.confirmed' | 'brunch.cancelled' | 'brunch.reinstated' | 'vote.deadline.approaching'
     >;
     // The words, given the links: where the email goes, how to mute this brunch (only for someone
     // already in it) and the settings page.

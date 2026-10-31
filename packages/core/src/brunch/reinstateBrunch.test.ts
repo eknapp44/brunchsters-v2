@@ -22,6 +22,8 @@ function makeMockDb(
     readonly before?: unknown;
     readonly updateMany?: ReturnType<typeof vi.fn>;
     readonly member?: boolean;
+    // When the confirmed time is; a day from now unless a test says otherwise.
+    readonly scheduledAt?: Date | null;
   } = {},
 ) {
   const updateMany = overrides.updateMany ?? vi.fn().mockResolvedValue({ count: 1 });
@@ -29,6 +31,15 @@ function makeMockDb(
     brunch: { findFirst: vi.fn().mockResolvedValue(overrides.brunch ?? calledOff()) },
     brunchAttendee: {
       findFirst: vi.fn().mockResolvedValue(overrides.member === true ? { id: 'a' } : null),
+    },
+    brunchTime: {
+      findFirst: vi
+        .fn()
+        .mockResolvedValue(
+          overrides.scheduledAt === null
+            ? null
+            : { scheduledAt: overrides.scheduledAt ?? new Date(Date.now() + 86_400_000) },
+        ),
     },
     brunchStatus: {
       findFirst: vi
@@ -68,6 +79,39 @@ describe('reinstateBrunch', () => {
 
     const call = updateMany.mock.calls[0]?.[0] as { data: Record<string, unknown> };
     expect(Object.keys(call.data)).toEqual(['statusId']);
+  });
+
+  it('refuses to bring back a confirmed brunch whose time has passed, and changes nothing', async () => {
+    const now = new Date('2026-10-26T12:00:00.000Z');
+    const { db, updateMany } = makeMockDb({ scheduledAt: new Date('2026-10-26T11:59:00.000Z') });
+    const emit = vi.fn();
+
+    const result = await reinstateBrunch({ ...input, now }, { db, eventBus: { emit } });
+
+    expect(result._unsafeUnwrapErr()).toEqual({ kind: 'brunch_over' });
+    expect(updateMany).not.toHaveBeenCalled();
+    expect(emit).not.toHaveBeenCalled();
+  });
+
+  it('brings back one whose time is still ahead, however soon', async () => {
+    const now = new Date('2026-10-26T12:00:00.000Z');
+    const { db, updateMany } = makeMockDb({ scheduledAt: new Date('2026-10-26T12:01:00.000Z') });
+
+    const result = await reinstateBrunch({ ...input, now }, { db, eventBus: { emit: vi.fn() } });
+
+    expect(result.isOk()).toBe(true);
+    expect(updateMany).toHaveBeenCalled();
+  });
+
+  it('does not look at the time for a brunch that was only active (it has none yet)', async () => {
+    const { db } = makeMockDb({
+      before: { id: 'status-active', code: 'active' },
+      scheduledAt: new Date('2000-01-01T00:00:00.000Z'),
+    });
+
+    const result = await reinstateBrunch(input, { db, eventBus: { emit: vi.fn() } });
+
+    expect(result.isOk()).toBe(true);
   });
 
   it('refuses a brunch that is not called off', async () => {

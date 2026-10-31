@@ -1,6 +1,8 @@
 import { GONE_COLD, LANDING_HEADING, NOT_FOUND, SIGN_IN_HEADING } from '../support/pages';
 import { EMPTY_DASHBOARD_HEADLINE } from '../support/dashboard';
 import { COLOR_SCHEMES, expectNoA11yViolations, useColorScheme } from '../support/a11y';
+import { completePastBrunches } from '@brunchsters/core';
+import { getDb } from '../support/db';
 import { createBrunch, failInviteEmail, inviteToBrunch } from '../support/factories';
 import { EMPTY_INBOX_HEADLINE, expectBell, inboxRows } from '../support/inbox';
 import { giveNotification, readNotification } from '../support/notifications';
@@ -10,7 +12,7 @@ import { fixturePlaces } from '../support/places';
 import { createLifecycleShowcase, hideForGuest } from '../support/lifecycleShowcase';
 import { createConfirmedBrunch, createVotingBrunch, inviteNewcomer } from '../support/showcase';
 import { daysFromNow, toDatetimeLocalValue } from '../support/time';
-import { addAttendee, closeVoting } from '../support/voting';
+import { addAttendee, closeVoting, passConfirmedTime } from '../support/voting';
 import { BrunchWizard } from '../support/wizard';
 
 // Journeys D1 and D2 (spec 0009): axe (WCAG 2.0/2.1 A and AA) on every screen, in the light
@@ -182,6 +184,32 @@ for (const scheme of COLOR_SCHEMES) {
       await host.page.goto(`/brunch/${brunchId}`);
       await expect(host.page.getByText("That email didn't go through.")).toBeVisible();
       await expectNoA11yViolations(host.page, `failed invite at phone width (${scheme})`);
+    });
+
+    test('a brunch that is over, on the brunch page and the manage page (spec 0015)', async ({
+      makeActor,
+    }) => {
+      const host = await makeActor('host');
+      const guest = await makeActor('guest');
+      await useColorScheme(host.page, scheme);
+      await useColorScheme(guest.page, scheme);
+      const { brunchId } = await createConfirmedBrunch({ host, guest });
+      await passConfirmedTime(brunchId);
+      const completed = await completePastBrunches({ now: new Date(), brunchId }, { db: getDb() });
+      expect(completed._unsafeUnwrap().completed).toBe(1);
+
+      await guest.page.goto(`/brunch/${brunchId}`);
+      await expect(guest.page.getByRole('heading', { name: 'Over.' })).toBeVisible();
+      await expectNoA11yViolations(guest.page, `over, guest (${scheme})`);
+
+      await host.page.goto(`/brunch/${brunchId}/manage`);
+      await expect(host.page.getByRole('heading', { name: 'Over.' })).toBeVisible();
+      await expectNoA11yViolations(host.page, `over, manage (${scheme})`);
+
+      await guest.page.setViewportSize({ width: 390, height: 844 });
+      await guest.page.goto(`/brunch/${brunchId}`);
+      await expect(guest.page.getByRole('heading', { name: 'Over.' })).toBeVisible();
+      await expectNoA11yViolations(guest.page, `over at phone width (${scheme})`);
     });
 
     test('the brunch detail page, as host and as invitee, in every state', async ({

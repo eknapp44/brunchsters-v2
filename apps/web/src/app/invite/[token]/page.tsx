@@ -8,7 +8,7 @@ import { Hero } from '@/components/ui/Hero';
 import { InitialsAvatar } from '@/components/ui/InitialsAvatar';
 import { InlineAlert } from '@/components/ui/InlineAlert';
 import { db } from '@/lib/db';
-import { calledOffInvite } from '@/lib/lifecycleCopy';
+import { calledOffInvite, overInvite } from '@/lib/lifecycleCopy';
 import { eventBus } from '@/lib/services';
 import styles from './invite.module.css';
 
@@ -43,6 +43,22 @@ export default async function InviteLandingPage({
   // learns nothing here, because there is no link for them to open.
   if (preview.isCalledOff) {
     const news = calledOffInvite({ hostName: preview.hostName, title: preview.brunchTitle });
+    return (
+      <Hero>
+        <PopIcon name="calendar" size={48} />
+        <h1>{news.heading}</h1>
+        <p>{news.line}</p>
+        {session !== null && (
+          <ButtonLink href="/dashboard" variant="secondary">
+            Back to your dashboard
+          </ButtonLink>
+        )}
+      </Hero>
+    );
+  }
+
+  if (preview.isOver) {
+    const news = overInvite({ hostName: preview.hostName, title: preview.brunchTitle });
     return (
       <Hero>
         <PopIcon name="calendar" size={48} />

@@ -6,7 +6,10 @@ import {
   notifyHostOfReply,
   notifyHostOfSuggestion,
   notifyHostOfVote,
+  claimDeadlineReminders,
+  completePastBrunches,
   notifyInvited,
+  pruneNotifications,
   pruneRateLimitBuckets,
   recordInviteEmailFailed,
   resolveBackOnNotice,
@@ -15,6 +18,7 @@ import {
   sendBackOnEmail,
   sendCancelledEmail,
   sendConfirmationEmail,
+  sendDeadlineReminder,
   sendInviteEmail,
   type ConfirmationRecipient,
   type NoticeBrunchSummary,
@@ -39,7 +43,10 @@ import {
   HOST_NOTIFICATION_EVENTS,
   INVITE_EMAIL_EVENTS,
   INVITED_NOTIFICATION_EVENTS,
+  PRUNE_NOTIFICATIONS_CRON,
   PRUNE_RATE_LIMITS_CRON,
+  SCHEDULER_CRON,
+  SCHEDULER_TICK_EVENT,
 } from './events';
 import { unwrapForQueue } from './unwrapForQueue';
 
@@ -463,6 +470,85 @@ export const pruneRateLimitsFunction = inngest.createFunction(
     }),
 );
 
+const schedulerTickSchema = z.object({ brunchId: z.uuid().optional() });
+
+// The clock's work (spec 0015 M7, ADR 0017), every 15 minutes: confirmed brunches six hours past their
+// time become completed, then voting deadlines inside the next 24 hours are claimed and each claimed
+// brunch gets one reminder. The claim is a conditional update, so a run that overlaps another, or a
+// retry, reminds once; each brunch is its own step, so one failing send is retried alone. A tick
+// event runs the same work on demand, for one brunch if it says which.
+export const runSchedulerFunction = inngest.createFunction(
+  {
+    id: 'run-scheduler',
+    triggers: [{ cron: SCHEDULER_CRON }, { event: SCHEDULER_TICK_EVENT }],
+  },
+  async ({ event, step }) => {
+    // A cron run carries no data; a tick may name a brunch.
+    const scope = schedulerTickSchema.safeParse(event.data ?? {});
+    const brunchId = scope.success ? scope.data.brunchId : undefined;
+    const scoped = brunchId === undefined ? {} : { brunchId: brunchId as BrunchId };
+
+    // One moment for the whole run, kept across retries (step output is memoized).
+    const nowIso = await step.run('now', () => new Date().toISOString());
+    const now = new Date(nowIso);
+
+    const completed = await step.run('complete-past-brunches', async () =>
+      unwrapForQueue({
+        result: await completePastBrunches({ now, ...scoped }, { db }),
+        step: 'complete-past-brunches',
+      }),
+    );
+
+    const due = await step.run('claim-deadline-reminders', async () => {
+      const claimed = unwrapForQueue({
+        result: await claimDeadlineReminders({ now, ...scoped }, { db }),
+        step: 'claim-deadline-reminders',
+      });
+      // Step output is JSON: the deadline travels as an ISO string.
+      return claimed.map((reminder) => ({
+        brunchId: reminder.brunchId,
+        deadline: reminder.deadline.toISOString(),
+      }));
+    });
+
+    for (const reminder of due) {
+      await step.run(`remind-${reminder.brunchId}-${reminder.deadline}`, async () =>
+        unwrapForQueue({
+          result: await sendDeadlineReminder(
+            { brunchId: reminder.brunchId, deadline: new Date(reminder.deadline), now },
+            { db, emailService: getEmailService(), appUrl: getAppUrl() },
+          ),
+          step: 'send-deadline-reminder',
+        }),
+      );
+    }
+
+    console.info(
+      JSON.stringify({
+        job: 'run-scheduler',
+        now: nowIso,
+        brunchId: brunchId ?? 'all',
+        completed: completed.completed,
+        reminded: due.length,
+      }),
+    );
+    return { completed: completed.completed, reminded: due.length };
+  },
+);
+
+// Read notifications are deleted 60 days after they were read, unread ones 90 days after their last
+// event (ADR 0017): they are an ephemeral view, not a record.
+export const pruneNotificationsFunction = inngest.createFunction(
+  { id: 'prune-notifications', triggers: [{ cron: PRUNE_NOTIFICATIONS_CRON }] },
+  async ({ step }) =>
+    step.run('prune-notifications', async () =>
+      unwrapForQueue({
+        result: await pruneNotifications({ now: new Date() }, { db }),
+        step: 'prune-notifications',
+      }),
+    ),
+);
+
 export const functions = [
   sendInviteEmailFunction,
   sendBrunchConfirmedEmailsFunction,
@@ -472,4 +558,6 @@ export const functions = [
   writeConfirmedNotificationsFunction,
   writeInviteNotificationFunction,
   pruneRateLimitsFunction,
+  runSchedulerFunction,
+  pruneNotificationsFunction,
 ];

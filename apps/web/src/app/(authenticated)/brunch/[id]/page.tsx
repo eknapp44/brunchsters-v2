@@ -24,6 +24,7 @@ import { getRateLimiter } from '@/lib/services';
 import { LocationBallotChecklist, TimeBallotChecklist } from './BallotChecklist';
 import { BrunchHeader } from './BrunchHeader';
 import { CalledOffBanner } from './CalledOffBanner';
+import { OverBanner } from './OverBanner';
 import { ConfirmedBanner } from './ConfirmedBanner';
 import styles from './detail.module.css';
 import { InvitePanel } from './InvitePanel';
@@ -186,6 +187,10 @@ export default async function BrunchDetailPage({
   // Called off: the page is read-only. No RSVP, vote, suggestion or invite control is offered, and
   // the server would refuse them anyway (spec 0013, ADR 0015).
   const calledOff = brunch.statusCode === 'cancelled';
+  // Over: the brunch happened (the scheduler completes it six hours after its time). Read-only too,
+  // with its own words (spec 0015, ADR 0017).
+  const over = brunch.statusCode === 'completed';
+  const locked = calledOff || over;
   const votingOpen =
     brunch.statusCode === 'active' && voting !== undefined && !voting.locations.closed;
 
@@ -221,8 +226,9 @@ export default async function BrunchDetailPage({
 
       {confirmed && <ConfirmedBanner goingNames={goingNames} />}
       {calledOff && <CalledOffBanner isHost={brunch.isHost} hostName={brunch.hostName} />}
+      {over && <OverBanner isHost={brunch.isHost} />}
 
-      {!calledOff && <RsvpControl brunchId={brunchId} currentStatus={brunch.viewerRsvpStatus} />}
+      {!locked && <RsvpControl brunchId={brunchId} currentStatus={brunch.viewerRsvpStatus} />}
 
       <div className={styles.columns}>
         <div className={styles.column}>
@@ -248,11 +254,9 @@ export default async function BrunchDetailPage({
                 <LocationBallotChecklist
                   brunchId={brunchId}
                   options={places.options}
-                  canVote={voting.canVote && !calledOff}
-                  closed={voting.locations.closed || calledOff}
-                  suggestionsEnabled={
-                    !brunch.isHost && brunch.allowLocationSuggestions && !calledOff
-                  }
+                  canVote={voting.canVote && !locked}
+                  closed={voting.locations.closed || locked}
+                  suggestionsEnabled={!brunch.isHost && brunch.allowLocationSuggestions && !locked}
                   leadingId={placeLeader}
                   votable={voting.locations.mode === 'group_vote'}
                 />
@@ -280,9 +284,9 @@ export default async function BrunchDetailPage({
                 <TimeBallotChecklist
                   brunchId={brunchId}
                   options={times.options}
-                  canVote={voting.canVote && !calledOff}
-                  closed={voting.times.closed || calledOff}
-                  suggestionsEnabled={!brunch.isHost && brunch.allowTimeSuggestions && !calledOff}
+                  canVote={voting.canVote && !locked}
+                  closed={voting.times.closed || locked}
+                  suggestionsEnabled={!brunch.isHost && brunch.allowTimeSuggestions && !locked}
                   locationTimezone={representativeLocation?.timezone}
                   locationName={representativeLocation?.placeName}
                   leadingId={timeLeader}
@@ -296,7 +300,7 @@ export default async function BrunchDetailPage({
         <div className={styles.column}>
           {roster !== undefined && <WhosComingPanel roster={roster} />}
 
-          {voting !== undefined && !brunch.isHost && !calledOff && (
+          {voting !== undefined && !brunch.isHost && !locked && (
             <>
               <LocationSuggestionControl
                 brunchId={brunchId}
@@ -311,7 +315,7 @@ export default async function BrunchDetailPage({
             </>
           )}
 
-          {!calledOff && (
+          {!locked && (
             <SuggestionsPanel
               brunchId={brunchId}
               sendWait={inviteWaits?.send}
@@ -320,7 +324,7 @@ export default async function BrunchDetailPage({
             />
           )}
 
-          {invites?.isOk() && !calledOff && (
+          {invites?.isOk() && !locked && (
             <InvitePanel
               brunchId={brunchId}
               invites={invites.value}

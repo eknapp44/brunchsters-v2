@@ -165,6 +165,24 @@ beforeEach(() => {
 });
 
 describe('routes turn the lifecycle answers into a 409, never a 500', () => {
+  // A brunch that already happened (spec 0015 M7) answers `brunch_over` wherever it would answer
+  // `brunch_called_off`, and it must be its own 409 code, not the 500 a missed case turns into.
+  it.each(CASES.filter((item) => item.errorKind === 'brunch_called_off'))(
+    '$route answers 409 with its own code for a brunch that is over',
+    async ({ service, call }) => {
+      vi.mocked(service as (...args: never[]) => Promise<unknown>).mockResolvedValue(
+        err({ kind: 'brunch_over' as const }),
+      );
+
+      const response = await call();
+
+      expect(response.status).toBe(409);
+      expect(((await response.json()) as { error?: { code?: string } }).error?.code).toBe(
+        'brunch_over',
+      );
+    },
+  );
+
   it.each(CASES)('$route answers 409 for $errorKind', async ({ service, call, errorKind }) => {
     const error =
       errorKind === 'brunch_called_off'
