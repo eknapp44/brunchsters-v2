@@ -57,6 +57,11 @@ export async function sendDeadlineReminder(
     });
 
     let emails = 0;
+    // Everyone is tried even when one send fails: the deadline was claimed before this ran, so a
+    // person after a failing one must not wait on a retry that may never come. The first failure is
+    // returned at the end (the queue retries the step; the emails already sent carry the same key, so
+    // the provider drops a repeat).
+    let firstFailure: SendConfirmationEmailError | undefined;
     for (const user of users) {
       const sent = await sendDeadlineReminderEmail(
         {
@@ -73,9 +78,13 @@ export async function sendDeadlineReminder(
         },
         ctx,
       );
-      if (sent.isErr()) return err(sent.error);
+      if (sent.isErr()) {
+        firstFailure ??= sent.error;
+        continue;
+      }
       if (sent.value === 'sent') emails += 1;
     }
+    if (firstFailure !== undefined) return err(firstFailure);
 
     return ok({ rows: rows.value.written, emails });
   } catch (cause) {

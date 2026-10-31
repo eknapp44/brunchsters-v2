@@ -1,7 +1,9 @@
 import { createDb } from '@brunchsters/database';
 import { normalizeEmail, type BrunchId, type UserId } from '@brunchsters/shared';
+import { err, ok } from 'neverthrow';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createBrunch } from '../brunch/createBrunch';
+import type { EmailId, EmailService } from '../email/EmailService';
 import { MockEmailService } from '../email/MockEmailService';
 import { NoopEventBus } from '../events/NoopEventBus';
 import { claimDeadlineReminders, completePastBrunches, pruneNotifications } from './scheduler';
@@ -429,6 +431,35 @@ describe('sendDeadlineReminder', () => {
     expect(told.has(maybe)).toBe(false);
     expect(emailService.sent.some((mail) => mail.to === address('waiting'))).toBe(false);
     expect(emailService.sent.some((mail) => mail.to === address('maybe'))).toBe(true);
+  });
+
+  it('tries everyone even when one send fails, and reports the failure so the step is retried', async () => {
+    const { id, waiting, maybe, address } = await remindedBrunch();
+    const delivered: string[] = [];
+    const flaky: EmailService = {
+      send: async (input) => {
+        if (input.to === address('waiting')) {
+          return err({ kind: 'delivery_failed', message: 'provider down' });
+        }
+        delivered.push(input.to);
+        return ok(`sent-${delivered.length}` as EmailId);
+      },
+    };
+
+    const result = await sendDeadlineReminder(
+      { brunchId: id, deadline: at(5 * HOUR), now: NOW },
+      { db, emailService: flaky, appUrl: APP_URL },
+    );
+
+    // The step fails (so the queue retries it), but the person after the failing one was not left out.
+    expect(result._unsafeUnwrapErr()).toEqual({
+      kind: 'delivery_failed',
+      message: 'provider down',
+    });
+    expect(delivered).toContain(address('maybe'));
+    expect(delivered).not.toContain(address('waiting'));
+    expect(new Set((await rowsFor(id)).map((row) => row.userId)).has(waiting)).toBe(true);
+    expect(new Set((await rowsFor(id)).map((row) => row.userId)).has(maybe)).toBe(true);
   });
 
   it('says nothing for a brunch that is no longer open for voting', async () => {
