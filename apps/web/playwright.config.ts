@@ -63,6 +63,7 @@ export default defineConfig({
         '**/notifications.spec.ts',
         '**/notification-settings.spec.ts',
         '**/invite-email-failed.spec.ts',
+        '**/live-updates.spec.ts',
         '**/wizard-page.spec.ts',
         '**/front-door.spec.ts',
       ],

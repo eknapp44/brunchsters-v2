@@ -9,6 +9,7 @@ import {
   getPendingSuggestionsForBrunch,
   leadingOptionId,
 } from '@brunchsters/core';
+import { RefreshOnFocus } from '@/components/RefreshOnFocus';
 import type { BrunchId, UserId } from '@brunchsters/shared';
 import { notFound } from 'next/navigation';
 import type { ReactElement, ReactNode } from 'react';
@@ -19,6 +20,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Container } from '@/components/ui/Container';
 import { closesIn } from '@/lib/dashboardFormat';
 import { formatWhenLong } from '@/lib/brunchPageFormat';
+import { VoteCountAnnouncer } from './VoteCountAnnouncer';
 import { db } from '@/lib/db';
 import { getRateLimiter } from '@/lib/services';
 import { LocationBallotChecklist, TimeBallotChecklist } from './BallotChecklist';
@@ -222,6 +224,7 @@ export default async function BrunchDetailPage({
 
   return (
     <Container as="main">
+      <RefreshOnFocus />
       <BrunchHeader brunch={brunch} brunchId={brunchId} votingOpen={votingOpen} now={now} />
 
       {confirmed && <ConfirmedBanner goingNames={goingNames} />}
@@ -234,6 +237,25 @@ export default async function BrunchDetailPage({
         <div className={styles.column}>
           {voting !== undefined && places !== undefined && times !== undefined && (
             <>
+              <VoteCountAnnouncer
+                options={[
+                  ...(voting.locations.mode === 'group_vote' ? places.options : []).map(
+                    (option) => ({
+                      id: option.id,
+                      name: option.placeName,
+                      voteCount: option.voteCount,
+                    }),
+                  ),
+                  ...(voting.times.mode === 'group_vote' ? times.options : []).map((option) => ({
+                    id: option.id,
+                    name: formatWhenLong({
+                      scheduledAt: option.scheduledAt,
+                      timeZone: representativeLocation?.timezone,
+                    }),
+                    voteCount: option.voteCount,
+                  })),
+                ]}
+              />
               <Card
                 heading="Where to?"
                 chip={

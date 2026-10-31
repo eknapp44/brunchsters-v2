@@ -32,9 +32,13 @@ export type BallotEntry = {
 
 export type BallotsState = {
   readonly byKey: Readonly<Record<string, BallotEntry | undefined>>;
+  // How many of this person's own votes have been saved (spec 0015 M8). The vote-count live region
+  // compares it with what it last saw: a count that changed while this went up is the person's own
+  // tap and is not announced; a change with this unchanged came from someone else.
+  readonly ownSaves: number;
 };
 
-const initialState: BallotsState = { byKey: {} };
+const initialState: BallotsState = { byKey: {}, ownSaves: 0 };
 
 const VOTE_PATH: Record<BallotKind, string> = {
   location: 'locations',
@@ -61,6 +65,17 @@ function toggled(current: readonly string[], optionId: string): readonly string[
 
 export const selectBallotEntry = (state: RootState, key: BallotKey): BallotEntry | undefined =>
   state.ballots.byKey[key];
+
+export const selectOwnSaves = (state: RootState): number => state.ballots.ownSaves;
+
+// A ballot with something the page must not replace under the voter's hands: a save on its way, a
+// failure still showing beside the boxes, or everything unticked (nothing to save, a warning shown).
+// Used by the refresh on focus (spec 0015 M8).
+export const selectHasUnsavedBallot = (state: RootState): boolean =>
+  Object.values(state.ballots.byKey).some(
+    (entry) =>
+      entry !== undefined && (entry.submitting || entry.error !== undefined || entry.emptyWarning),
+  );
 
 export type ToggleBallotArg = {
   readonly brunchId: string;
@@ -138,6 +153,7 @@ const ballotsSlice = createSlice({
       .addCase(toggleBallotOption.fulfilled, (state, action) => {
         const entry = state.byKey[ballotKey(action.meta.arg)];
         if (entry?.requestId === action.meta.requestId) entry.submitting = false;
+        if (action.payload.saved) state.ownSaves += 1;
       })
       // A failed save must not leave a checked box for a vote that was never recorded.
       .addCase(toggleBallotOption.rejected, (state, action) => {

@@ -8,6 +8,7 @@ import {
   getInvitesForBrunch,
   isCancelNoticePending,
 } from '@brunchsters/core';
+import { RefreshOnFocus } from '@/components/RefreshOnFocus';
 import type { BrunchId, UserId } from '@brunchsters/shared';
 import { forbidden, notFound } from 'next/navigation';
 import { z } from 'zod';
@@ -118,6 +119,7 @@ export default async function ManageBrunchPage({
   if (brunch.statusCode === 'cancelled') {
     return (
       <Container as="main">
+        <RefreshOnFocus />
         <div className={styles.back}>
           <ButtonLink href={`/brunch/${brunchId}`} size="sm">
             <Icon name="arrowLeft" size={16} />
@@ -137,6 +139,7 @@ export default async function ManageBrunchPage({
   if (brunch.statusCode === 'completed') {
     return (
       <Container as="main">
+        <RefreshOnFocus />
         <div className={styles.back}>
           <ButtonLink href={`/brunch/${brunchId}`} size="sm">
             <Icon name="arrowLeft" size={16} />
@@ -157,6 +160,7 @@ export default async function ManageBrunchPage({
 
     return (
       <Container as="main">
+        <RefreshOnFocus />
         <div className={styles.back}>
           <ButtonLink href={`/brunch/${brunchId}`} size="sm">
             <Icon name="arrowLeft" size={16} />
@@ -216,6 +220,7 @@ export default async function ManageBrunchPage({
 
   return (
     <Container as="main">
+      <RefreshOnFocus />
       <div className={styles.back}>
         <ButtonLink href={`/brunch/${brunchId}`} size="sm">
           <Icon name="arrowLeft" size={16} />

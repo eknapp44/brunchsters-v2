@@ -157,16 +157,22 @@ Process (pilot, spec 0014 and this one): the folder also gets `SUMMARY.md`, `MAN
 
 ## M8 — Live updates: refresh on focus
 
-- [ ] `useRefreshOnFocus` (pure decision function: visible, ≥15 s since the last, no pending mutation, no dirty ballot, no open dialog); mounted on the brunch page, manage page and dashboard; unit tests for every exclusion
-- [ ] The vote-count live region (design-fidelity deferral 6): announces a change the person did not cause, politely; silent for their own tap
-- [ ] `docs/BACKLOG.md` "Live updates": the focus refresh and the live region done; Realtime stays an entry with what would settle it
-- [ ] Journey B11 (an outside change appears on focus; never with a dirty ballot; the live region); the mobile project; axe
-- [ ] **Prove the tests can fail:** drop the dirty-ballot exclusion → B11 fails (the ballot is replaced); announce an own tap → B11 fails
-- [ ] Commit: `feat: refresh pages on focus and announce outside vote changes (M8)`
+- [x] `useRefreshOnFocus` (pure decision function: visible, ≥15 s since the last, no pending mutation, no dirty ballot, no open dialog); mounted on the brunch page, manage page and dashboard; unit tests for every exclusion
+- [x] The vote-count live region (design-fidelity deferral 6): announces a change the person did not cause, politely; silent for their own tap
+- [x] `docs/BACKLOG.md` "Live updates": the focus refresh and the live region done; Realtime stays an entry with what would settle it
+- [x] Journey B11 (an outside change appears on focus; never with a dirty ballot; the live region); the mobile project; axe
+- [x] **Prove the tests can fail:** drop the dirty-ballot exclusion → B11 fails (the ballot is replaced); announce an own tap → B11 fails
+- [x] Commit: `feat: refresh pages on focus and announce outside vote changes (M8)`
 
-**Journeys that change:** `voting` (the live region), new B11. **Deployable:** yes.
+**Accessible names changed:** none (a new visually hidden live region, no label). **Journeys that change:** new `live-updates.spec.ts` (B11, desktop and `mobile`); T2 (the toast region) caught a mistake, below. **Deployable:** yes.
 
-**Testing notes:** _(fill on completion)_
+**Testing notes:**
+
+- **What and how:** 7 unit tests for the refresh rule (every exclusion: hidden tab, the 15-second gap, a request on its way, an unsaved ballot, an open dialog, the ten seconds after a form submit), 5 for the announcement text, and store tests for the three things it reads (`selectHasUnsavedBallot`: a save on its way, a failed save and an emptied ballot count; `selectOwnSaves`: only saved votes count; `selectAnyMutationPending`). Journey **B11**: an outside vote is not on the open page until the person comes back, then appears and is announced politely; the person's own vote is silent; coming back inside the gap asks for nothing; a failed save stays beside the boxes and coming back does not replace the page under it. "It asked" is the count of the framework's page requests (`_rsc`), and the same stimulus is shown to ask when allowed, so the quiet cases mean something; the page clock moves past the gap. Proved to fail: the unsaved-ballot exclusion dropped, the own vote announced, the minimum gap dropped.
+- **Fixed on the way:** the new announcer was a second `role="status"` region, and journey T2 (the toast region must be the page's one polite status region) failed in all three modes. It is now a polite live region without the role, and B11 finds it by `aria-live`. The first design of the own-vote rule (compare the saved-vote counter with what was last seen) would have announced the person's own vote, because the new counts arrive in a later render after the refresh; it is now a short window after an own save during which the next change counts as theirs.
+- **Deferred:** a real screen reader on the announcement (MANUAL-TESTING F2); Realtime, so a page that stays in front of someone changes only when they come back or act (`docs/BACKLOG.md`); an outside vote that lands within the 8-second own-vote window is shown but not announced. The independent accessibility and copy reads were not run for M7 or M8; the new words are the announcement ("Votes changed. Harbor Bistro: 2 votes.") and the M7 Over and reminder words.
+- **Gate:** typecheck, lint; unit shared 64, core 755, web 782; core integration 219; CI-mode e2e 332 passed, 2 skipped; stress (three times, four workers) 996 passed; dev mode 332 passed.
+- **Run:** `CI=true pnpm build && CI=true pnpm test:e2e live-updates`.
 
 ---
 

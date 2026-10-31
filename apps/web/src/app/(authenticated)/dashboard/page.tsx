@@ -1,4 +1,5 @@
 import { getBrunchesForUser, getBrunchRoster, groupDashboard, limitPast } from '@brunchsters/core';
+import { RefreshOnFocus } from '@/components/RefreshOnFocus';
 import type { BrunchSummary } from '@brunchsters/core';
 import { firstNameOf, PAST_BRUNCHES_SHOWN, type UserId } from '@brunchsters/shared';
 import { redirect } from 'next/navigation';
@@ -84,6 +85,7 @@ export default async function DashboardPage({
   if (brunches.length === 0) {
     return (
       <Container as="main">
+        <RefreshOnFocus />
         <div className={styles.header}>
           <div>
             <Greeting firstName={firstName} />
@@ -133,6 +135,7 @@ export default async function DashboardPage({
 
   return (
     <Container as="main">
+      <RefreshOnFocus />
       <div className={styles.header}>
         <div>
           <Greeting firstName={firstName} />

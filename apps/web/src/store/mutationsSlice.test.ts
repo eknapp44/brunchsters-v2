@@ -4,6 +4,7 @@ import {
   mutationReleased,
   runMutation,
   type RunMutationArg,
+  selectAnyMutationPending,
   selectMutation,
 } from './mutationsSlice';
 
@@ -217,5 +218,20 @@ describe('runMutation', () => {
     resolvers[1]?.(json({}, 200));
     await second;
     expect(selectMutation(store.getState(), 'rsvp:brunch-1')).toBeUndefined();
+  });
+
+  it('says whether any control has a request on its way (the refresh on focus waits for it)', async () => {
+    let finish: (response: Response) => void = () => undefined;
+    const store = setup(
+      vi.fn<ThunkExtra['fetch']>(() => new Promise<Response>((resolve) => (finish = resolve))),
+    );
+    expect(selectAnyMutationPending(store.getState())).toBe(false);
+
+    const running = store.dispatch(runMutation(arg()));
+    expect(selectAnyMutationPending(store.getState())).toBe(true);
+
+    finish(json({}, 200));
+    await running;
+    expect(selectAnyMutationPending(store.getState())).toBe(false);
   });
 });

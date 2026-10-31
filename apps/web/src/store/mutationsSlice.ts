@@ -54,6 +54,10 @@ export type MutationsState = {
 
 const initialState: MutationsState = { byKey: {} };
 
+// Any control's request on its way (spec 0015 M8): the refresh on focus waits for it.
+export const selectAnyMutationPending = (state: RootState): boolean =>
+  Object.values(state.mutations.byKey).some((entry) => entry?.status === 'pending');
+
 export const selectMutation = (state: RootState, key: MutationKey): MutationEntry | undefined =>
   state.mutations.byKey[key];
 
