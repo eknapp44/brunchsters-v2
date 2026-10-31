@@ -34,7 +34,7 @@ Realtime and push; `running late` and `host transferred` (no feature behind them
 
 ## How it was checked
 
-Final gate on the last commit: typecheck and lint; unit shared 64, core 757, web 782; core integration 219 (real Postgres); end-to-end 332 passed in CI mode, 996 in the stress run (every journey three times, four workers) and 332 in dev mode. Journeys B1 to B13 (new) plus edits to A, D, E, N and T journeys; each rule was proved to fail by breaking it (about 40 mutations across the milestones). Two independent reads (accessibility, copy) found five minor and four small items; all were fixed. The screenshots are in `screenshots/` (11 images, under 1 MB).
+Final gate on the last commit: typecheck and lint; unit shared 64, core 758, web 785; core integration 222 (real Postgres); end-to-end 333 passed in CI mode, 999 in the stress run (every journey three times, four workers) and 333 in dev mode. Journeys B1 to B13 (new) plus edits to A, D, E, N and T journeys; each rule was proved to fail by breaking it (about 40 mutations across the milestones). Two independent reads (accessibility, copy) found five minor and four small items, and a deep code review found six real bugs (a deadline set at creation sent a "last call" minutes after the first invites; a bad scheduler tick ran over every brunch; "Show older" could skip rows; an opt-out left a stale failure line; one failed reminder blocked the rest; a cast): all fixed, each with a test shown to fail without it. A changed vote re-raising a read row follows the spec and is backlog item 13. The screenshots are in `screenshots/` (11 images, under 1 MB).
 
 ## Where to look
 
