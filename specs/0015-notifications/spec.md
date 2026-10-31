@@ -74,40 +74,40 @@ Not produced in this spec: `running.late`, `host.transferred`, `vote.autoclose.p
 
 ### Schema and shared (M1)
 
-- [ ] Migration: `Notification` gains `data Json`, `dedupeKey String` (unique with `userId`), `lastEventAt` (a plain timestamp, not `@updatedAt`, so reading a row does not move it up the inbox), and an index on (`userId`, `readAt`, `lastEventAt`); `BrunchAttendee` gains `notificationLevelId` (FK to a new `NotificationLevel` lookup: `all`, `big_stuff`, `muted`; default `all`); `BrunchInvite` gains `emailFailedAt`; `Brunch` gains a nullable `votingDeadlineSetAt` (written by `updateVotingDeadline`, so "set inside the 24-hour window" is decidable; existing rows count as set long ago). Seed: the lookup, and two `NotificationType` rows (`brunch.reinstated`, `invite.email.failed`)
-- [ ] `packages/shared`: notification type and level codes (branded where they cross a boundary), `NOTIFICATION_DEFAULTS` (per type and channel), `BIG_STUFF_TYPES`, `COMPLETED_AFTER_HOURS` (6), `DEADLINE_REMINDER_HOURS` (24), `NOTIFICATION_READ_RETENTION_DAYS` (60), `NOTIFICATION_UNREAD_RETENTION_DAYS` (90); unit tests (every seeded type has a default; every code is unique)
-- [ ] `packages/core/src/notification/`: `writeNotification` (idempotent on the dedupe key; coalescing variant that updates in place and clears `readAt`), `recipientsFor` per type (pure rules, injected db for membership, preferences and mute), `shouldDeliver` (preference + mute, one function used by inbox and every email handler), `listNotifications`, `countUnread`, `markRead`, `markAllRead`, `setNotificationLevel`, `getPreferences`, `setPreference`, `pruneNotifications`; all `Result`-returning, unit and integration tested against the local database
+- [x] Migration: `Notification` gains `data Json`, `dedupeKey String` (unique with `userId`), `lastEventAt` (a plain timestamp, not `@updatedAt`, so reading a row does not move it up the inbox), and an index on (`userId`, `readAt`, `lastEventAt`); `BrunchAttendee` gains `notificationLevelId` (FK to a new `NotificationLevel` lookup: `all`, `big_stuff`, `muted`; default `all`); `BrunchInvite` gains `emailFailedAt`; `Brunch` gains a nullable `votingDeadlineSetAt` (written by `updateVotingDeadline`, so "set inside the 24-hour window" is decidable; existing rows count as set long ago). Seed: the lookup, and two `NotificationType` rows (`brunch.reinstated`, `invite.email.failed`)
+- [x] `packages/shared`: notification type and level codes (branded where they cross a boundary), `NOTIFICATION_DEFAULTS` (per type and channel), `BIG_STUFF_TYPES`, `COMPLETED_AFTER_HOURS` (6), `DEADLINE_REMINDER_HOURS` (24), `NOTIFICATION_READ_RETENTION_DAYS` (60), `NOTIFICATION_UNREAD_RETENTION_DAYS` (90); unit tests (every seeded type has a default; every code is unique)
+- [x] `packages/core/src/notification/`: `writeNotification` (idempotent on the dedupe key; coalescing variant that updates in place and clears `readAt`), `recipientsFor` per type (pure rules, injected db for membership, preferences and mute), `shouldDeliver` (preference + mute, one function used by inbox and every email handler), `listNotifications`, `countUnread`, `markRead`, `markAllRead`, `setNotificationLevel`, `getPreferences`, `setPreference`, `pruneNotifications`; all `Result`-returning, unit and integration tested against the local database
 
 ### Handlers and events (M2)
 
-- [ ] The suggestion services emit `suggestion/invite`, `suggestion/location`, `suggestion/time` (typed in `EventBus.ts`, listed in `inngest/events.ts`); RSVP, vote and the brunch events are added to the queued list
-- [ ] Inngest functions write the rows per the table above; every handler is idempotent; the cancel row follows the same hold-and-recheck as the email (`resolveCancelNotice`), so a bring-back inside the hold writes nothing
-- [ ] A test (`notificationRecipients`) fails when a seeded, producible type has no recipient rule, or an event in the queued list has no handler decision (as `emailBudgets.test.ts` does for mail)
+- [x] The suggestion services emit `suggestion/invite`, `suggestion/location`, `suggestion/time` (typed in `EventBus.ts`, listed in `inngest/events.ts`); RSVP, vote and the brunch events are added to the queued list
+- [x] Inngest functions write the rows per the table above; every handler is idempotent; the cancel row follows the same hold-and-recheck as the email (`resolveCancelNotice`), so a bring-back inside the hold writes nothing
+- [x] A test (`notificationRecipients`) fails when a seeded, producible type has no recipient rule, or an event in the queued list has no handler decision (as `emailBudgets.test.ts` does for mail)
 
 ### API routes (M3, M5, M6)
 
-- [ ] `GET /api/v1/notifications/unread-count` (a read; one indexed count; session required); `POST /api/v1/notifications/read` (`{ ids }` or `{ all: true }`, touches only the caller's rows; ids that are not theirs get the same response as made-up ids); `PUT /api/v1/brunches/[id]/notification-level` (membership first, an outsider gets the 404 a made-up id gets; any member, the host included, sets their own level); `PUT /api/v1/notification-preferences`
-- [ ] Every mutating route calls `enforceWriteLimit(session.user.id)` right after the session check; none is keyed by an id the caller named; `routeLimits.test.ts` passes for the right reasons (`/limited-surface` recorded in M3)
-- [ ] Every failure answers with `apiError({ code, status, message })`; new codes (`brunch_over`, and any the routes need) have copy in `errorCopy.ts`; `apiErrors.test.ts`, `lifecycleErrorMapping.test.ts` pass
-- [ ] `emailBudgets.test.ts`: the new deadline-reminder email is a recorded decision (bounded: one per member per (brunch, deadline), to people already in the brunch)
+- [x] `GET /api/v1/notifications/unread-count` (a read; one indexed count; session required); `POST /api/v1/notifications/read` (`{ ids }` or `{ all: true }`, touches only the caller's rows; ids that are not theirs get the same response as made-up ids); `PUT /api/v1/brunches/[id]/notification-level` (membership first, an outsider gets the 404 a made-up id gets; any member, the host included, sets their own level); `PUT /api/v1/notification-preferences`
+- [x] Every mutating route calls `enforceWriteLimit(session.user.id)` right after the session check; none is keyed by an id the caller named; `routeLimits.test.ts` passes for the right reasons (`/limited-surface` recorded in M3)
+- [x] Every failure answers with `apiError({ code, status, message })`; new codes (`brunch_over`, and any the routes need) have copy in `errorCopy.ts`; `apiErrors.test.ts`, `lifecycleErrorMapping.test.ts` pass
+- [x] `emailBudgets.test.ts`: the new deadline-reminder email is a recorded decision (bounded: one per member per (brunch, deadline), to people already in the brunch)
 
 ### UI (M3 to M5, M8)
 
-- [ ] `notificationsSlice` (unread count, polling status, optimistic mark-read with rollback) in the per-mount store; the slice says how it resets (dropped on sign-out, ignores a late response after unmount); thunk tests
-- [ ] Bell in `TopBar` ("Notifications, N unread", count capped at "99+", hidden when signed out), `/notifications` (list, empty state, "Mark all read", link to settings; no list items beyond the notifications), `/settings/notifications`, a mute control on the brunch page; all via `/ui-screen`, `useMutation`, `LocalDateTime`, a `lib/notificationCopy.ts` pure module covered by `voiceCopy.test.ts`
-- [ ] Focus refresh + visible-tab poll hook; rules: at most every 15 s for pages, 60 s for the badge, paused with an unsaved ballot, a request in flight or an open dialog; vote-count live region announces only changes the person did not cause (design-fidelity deferral 6)
-- [ ] The invite list line "didn't go out" with the existing Resend control; the mute choice shown to the person on the brunch page
-- [ ] Phone: see "Phone"
+- [x] `notificationsSlice` (unread count, polling status, optimistic mark-read with rollback) in the per-mount store; the slice says how it resets (dropped on sign-out, ignores a late response after unmount); thunk tests
+- [x] Bell in `TopBar` ("Notifications, N unread", count capped at "99+", hidden when signed out), `/notifications` (list, empty state, "Mark all read", link to settings; no list items beyond the notifications), `/settings/notifications`, a mute control on the brunch page; all via `/ui-screen`, `useMutation`, `LocalDateTime`, a `lib/notificationCopy.ts` pure module covered by `voiceCopy.test.ts`
+- [x] Focus refresh + visible-tab poll hook; rules: at most every 15 s for pages, 60 s for the badge, paused with an unsaved ballot, a request in flight or an open dialog; vote-count live region announces only changes the person did not cause (design-fidelity deferral 6)
+- [x] The invite list line "didn't go out" with the existing Resend control; the mute choice shown to the person on the brunch page
+- [x] Phone: see "Phone"
 
 ### Scheduler (M7)
 
-- [ ] `send-deadline-reminders-and-complete-brunches` (cron every 15 minutes) and `prune-notifications` (daily); the body of each is a core function taking `now`
-- [ ] `completed` has transitions (`confirmed → completed`), an "over" rule beside `assertBrunchOpen` (`brunch_over`, 409) enforced by `lifecycleGuards.test.ts`, and Bring it back refuses a brunch whose time passed
-- [ ] The dashboard's status mapping (`brunchCopy.ts`) and the brunch page show `completed` ("Over"); a test fails when a seeded status has no mapping (already exists)
+- [x] `send-deadline-reminders-and-complete-brunches` (cron every 15 minutes) and `prune-notifications` (daily); the body of each is a core function taking `now`
+- [x] `completed` has transitions (`confirmed → completed`), an "over" rule beside `assertBrunchOpen` (`brunch_over`, 409) enforced by `lifecycleGuards.test.ts`, and Bring it back refuses a brunch whose time passed
+- [x] The dashboard's status mapping (`brunchCopy.ts`) and the brunch page show `completed` ("Over"); a test fails when a seeded status has no mapping (already exists)
 
 ### Docs
 
-- [ ] PLANNING §7, §9.9, §10 and the §16 row; ADR 0002 and ADR 0009 pointers; `docs/BACKLOG.md` (items closed or re-pointed; "Notifications deferrals" added); `docs/accessible-names.md`; `docs/voice-and-copy.md` (a notification pattern row); `docs/SETUP.md` (queue functions, the cron); `apps/web/CLAUDE.md` (the bell, the polling rule, the notification recipe); root `CLAUDE.md` (a recipient-rule test line); the `spec-grill` and `ui-screen` skills if they now need to ask about notifications; `SUMMARY.md`, `MANUAL-TESTING.md`, `screenshots.json` and the curated `screenshots/`
+- [x] PLANNING §7, §9.9, §10 and the §16 row; ADR 0002 and ADR 0009 pointers; `docs/BACKLOG.md` (items closed or re-pointed; "Notifications deferrals" added); `docs/accessible-names.md`; `docs/voice-and-copy.md` (a notification pattern row); `docs/SETUP.md` (queue functions, the cron); `apps/web/CLAUDE.md` (the bell, the polling rule, the notification recipe); root `CLAUDE.md` (a recipient-rule test line); the `spec-grill` and `ui-screen` skills if they now need to ask about notifications; `SUMMARY.md`, `MANUAL-TESTING.md`, `screenshots.json` and the curated `screenshots/`
 
 ---
 
@@ -162,6 +162,22 @@ Each has one entry in [`docs/BACKLOG.md`](../../docs/BACKLOG.md) ("Notifications
 - **Push channel, SMS, and a Settings spec** (profile, photos, dark mode); the preferences page is a standalone page for now.
 - **A one-click unsubscribe** (the footer links to the brunch page's mute).
 - **Leaving a brunch**, and a hidden brunch resurfacing when something important changes (Lifecycle deferrals 3 and 4).
+
+## Outcome: where the build differs from the plan
+
+Written at the pre-merge review, from the final code. Every box above is ticked against the code; these are the differences.
+
+- **One scheduler function, named `run-scheduler`** (not `send-deadline-reminders-and-complete-brunches`): a 15-minute cron and a `scheduler/tick` event (optionally `{ brunchId }`), which is how the journeys drive it. The core bodies are `completePastBrunches`, `claimDeadlineReminders`, `sendDeadlineReminder` and `pruneNotifications` in `packages/core/src/scheduler/`, each taking `now`. The daily `prune-notifications` is its own function.
+- **One extra column**, `Brunch.deadlineReminderSentFor`: the cron sees a brunch for a whole day, so a deadline is claimed with a conditional update before its reminders go out (at most once; a run that dies between the claim and the send loses that one reminder rather than doubling it).
+- **`brunch_over` is its own answer**, distinct from `brunch_called_off`: `assertBrunchOpen` returns both, every route that maps one maps the other, and the lifecycle mapping test fails a route that does not. A completed brunch's invite link and manage page say so.
+- **Core names**: `getNotificationPreferences` and `setNotificationPreferences`, `getNotificationLevel` and `setNotificationLevel` (not `getPreferences` or `setPreference`); the failed-invite pair is `recordInviteEmailFailed` and `clearInviteEmailFailure`, wired through the invite function's `onFailure`.
+- **`emailAllowed`** is the one question every email asks (the person's switch and their level for the brunch), and the failed-invite row ignores a muted brunch (only the host's own switch for it applies).
+- **The invite-list line** reads "That email didn't go through. Try Resend, or copy the link and send it yourself." (it names the two things the host can do).
+- **The refresh on focus also holds for ten seconds after any form is submitted**, and the bell's poll is cancelled on submit and unmount: an authenticated answer arriving after Sign out re-issues the session cookie and would bring the session back (found by journey A2 in dev mode). The wider case, any request in flight at sign-out, is in `docs/BACKLOG.md` ("Security and session follow-ups", item 8).
+- **The reminder says how long is left** ("closes in about 5 hours"), not a clock time: a brunch has no single time zone for a deadline.
+- **The vote-count live region is a polite live region without `role="status"`**, so the toast region stays the page's one status region (journey T2); the announcement is taken out ten seconds after it is set.
+- **The bell stays a direct link** to `/notifications`; a quick look from the bell is a recorded, deferred decision (`docs/BACKLOG.md`, Notifications deferrals item 9).
+- **Journey IDs** are the B series (B1 to B12): N1 to N4 were already spec 0008's.
 
 ## Open Questions
 

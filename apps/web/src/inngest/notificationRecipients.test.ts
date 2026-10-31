@@ -49,10 +49,8 @@ const HANDLED_EVENTS = [
   ...BACK_ON_EMAIL_EVENTS,
 ];
 
-// Types something is meant to produce that no event writes yet, and where that is planned.
-const NOT_YET_PRODUCED: Readonly<Record<string, string>> = {
-  'vote.deadline.approaching': 'the scheduler, spec 0015 M7 (it runs on a clock, not an event)',
-};
+// Written by the clock (the scheduler function), which no event triggers; the describe below guards it.
+const WRITTEN_BY_THE_CLOCK: readonly NotificationTypeCode[] = ['vote.deadline.approaching'];
 
 // Written by a function's onFailure, which no event triggers (the next describe guards the wiring).
 const WRITTEN_BY_FAILURE_HANDLERS: readonly NotificationTypeCode[] = ['invite.email.failed'];
@@ -102,28 +100,36 @@ describe('the invite email function tells the host when it gives up', () => {
   });
 });
 
+describe('the scheduler function reminds people about a deadline', () => {
+  it('is on a schedule and sends the reminders after it has claimed the deadlines', () => {
+    const text = readFileSync(
+      path.join(path.dirname(fileURLToPath(import.meta.url)), 'functions.ts'),
+      'utf-8',
+    );
+    const start = text.indexOf("id: 'run-scheduler'");
+    const end = text.indexOf('export const', start);
+    const block = text.slice(start, end);
+    expect(block, 'the scheduler function is gone or has no schedule').toContain('SCHEDULER_CRON');
+    expect(block, 'the scheduler no longer sends reminders').toContain('sendDeadlineReminder(');
+    expect(block.indexOf('claimDeadlineReminders('), 'it sends before it claims').toBeLessThan(
+      block.indexOf('sendDeadlineReminder('),
+    );
+  });
+});
+
 describe('every produced type has a producer', () => {
-  it('is written by a decision, or listed as not yet produced', () => {
+  it('is written by a decision, a failure handler or the clock', () => {
     const written = new Set(Object.values(DECISIONS).flat());
     const covered = new Set<string>([
       ...written,
-      ...Object.keys(NOT_YET_PRODUCED),
+      ...WRITTEN_BY_THE_CLOCK,
       ...WRITTEN_BY_FAILURE_HANDLERS,
     ]);
 
     const missing = PRODUCED_NOTIFICATION_TYPES.filter((type) => !covered.has(type));
     expect(
       missing,
-      'a type something is meant to produce has no event that writes it: add a decision, or list it in NOT_YET_PRODUCED with where it comes from',
+      'a type something is meant to produce has no event that writes it: add a decision, or name the failure handler or the clock that writes it',
     ).toEqual([]);
-  });
-
-  it('does not list a type as not yet produced once an event writes it', () => {
-    const written = new Set<string>(Object.values(DECISIONS).flat());
-    for (const type of Object.keys(NOT_YET_PRODUCED)) {
-      expect(written.has(type), `${type} is produced now: remove it from NOT_YET_PRODUCED`).toBe(
-        false,
-      );
-    }
   });
 });

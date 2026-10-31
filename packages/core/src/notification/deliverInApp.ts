@@ -7,7 +7,7 @@ import { writeNotification, type WriteNotificationError } from './writeNotificat
 
 export type NotifyError = WriteNotificationError | NotificationDbError;
 
-export type InAppRow = {
+type InAppRow = {
   readonly title: string;
   readonly body: string;
   readonly data: NotificationData;

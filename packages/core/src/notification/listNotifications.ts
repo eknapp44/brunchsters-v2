@@ -9,8 +9,8 @@ import {
 import { err, ok, type Result } from 'neverthrow';
 import type { NotificationDbError, NotificationItem } from './notificationTypes';
 
-export const DEFAULT_PAGE_SIZE = 30;
-export const MAX_PAGE_SIZE = 100;
+const DEFAULT_PAGE_SIZE = 30;
+const MAX_PAGE_SIZE = 100;
 
 export type ListNotificationsInput = {
   // Always the signed-in person. Nothing here takes an id the caller named for someone else.

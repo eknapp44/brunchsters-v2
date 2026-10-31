@@ -2,7 +2,7 @@ import { escapeHtml } from './escapeHtml';
 import { fewerEmailsHtml, renderEmail, type RenderedEmail } from './layout';
 import { safeSubject } from './safeSubject';
 
-export type DeadlineReminderEmailParams = {
+type DeadlineReminderEmailParams = {
   readonly recipientName: string | undefined;
   readonly brunchTitle: string;
   // How long until voting closes, in words ("about 5 hours"): a brunch has no single time zone for

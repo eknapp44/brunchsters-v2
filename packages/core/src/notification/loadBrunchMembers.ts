@@ -2,7 +2,7 @@ import type { DbClient } from '@brunchsters/database';
 import type { BrunchId, UserId } from '@brunchsters/shared';
 import type { RecipientMember } from './recipientsFor';
 
-export type LoadedBrunchMembers = {
+type LoadedBrunchMembers = {
   readonly brunchId: BrunchId;
   readonly title: string;
   readonly statusCode: string;

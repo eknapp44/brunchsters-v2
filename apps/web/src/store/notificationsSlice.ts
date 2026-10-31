@@ -83,7 +83,7 @@ export const pollUnread = createAppAsyncThunk<number, undefined>(
   },
 );
 
-export type MarkReadArg =
+type MarkReadArg =
   // Some rows, and how many of them were unread (the caller knows; the server does not say).
   { readonly ids: readonly string[]; readonly unreadAmong: number } | { readonly all: true };
 

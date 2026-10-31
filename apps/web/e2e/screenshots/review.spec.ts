@@ -1,6 +1,8 @@
 import { GONE_COLD, LANDING_HEADING, SIGN_IN_HEADING, NOT_FOUND } from '../support/pages';
 import { EMPTY_DASHBOARD_HEADLINE } from '../support/dashboard';
-import { createBrunch, inviteToBrunch, uniqueSuffix } from '../support/factories';
+import { completePastBrunches } from '@brunchsters/core';
+import { getDb } from '../support/db';
+import { createBrunch, failInviteEmail, inviteToBrunch, uniqueSuffix } from '../support/factories';
 import { createLifecycleShowcase, hideForGuest } from '../support/lifecycleShowcase';
 import { afterTheHold, callOffBrunch } from '../support/lifecycle';
 import { expect, test } from '../support/fixtures';
@@ -12,7 +14,7 @@ import { daysFromNow, toDatetimeLocalValue } from '../support/time';
 import { TOAST_WORDS, toast } from '../support/toasts';
 import { giveShowcaseNotifications } from '../support/notifications';
 import { EMPTY_INBOX_HEADLINE, inboxRows } from '../support/inbox';
-import { addAttendee, castVotes, closeVoting } from '../support/voting';
+import { addAttendee, castVotes, closeVoting, passConfirmedTime } from '../support/voting';
 import { BrunchWizard } from '../support/wizard';
 
 // The review set (spec 0009): one picture of every screen, light and dark, desktop and phone,
@@ -81,6 +83,32 @@ test('notifications: the settings and the mute control', async ({ makeActor }, t
   await captureReviewShots(ann.page, 'notifications/mute', testInfo, {
     focus: ann.page.getByRole('group', { name: 'Notifications for this brunch' }),
   });
+});
+
+test('notifications: a failed invite and a brunch that is over', async ({
+  makeActor,
+}, testInfo) => {
+  const host = await makeActor('host');
+  const guest = await makeActor('guest');
+  const bouncedId = await createBrunch({ host: host.user, title: 'Sunday Catch-up' });
+  await inviteToBrunch({
+    brunchId: bouncedId,
+    host: host.user,
+    invitees: [{ email: 'nobody@example.com' }],
+  });
+  await failInviteEmail({ brunchId: bouncedId, email: 'nobody@example.com' });
+  await host.page.goto(`/brunch/${bouncedId}`);
+  await expect(host.page.getByText("That email didn't go through.")).toBeVisible();
+  await captureReviewShots(host.page, 'notifications/invite-failed', testInfo, {
+    focus: host.page.getByText("That email didn't go through."),
+  });
+
+  const { brunchId } = await createConfirmedBrunch({ host, guest, title: 'Birthday Brunch' });
+  await passConfirmedTime(brunchId);
+  await completePastBrunches({ now: new Date(), brunchId }, { db: getDb() });
+  await guest.page.goto(`/brunch/${brunchId}`);
+  await expect(guest.page.getByRole('heading', { name: 'Over.' })).toBeVisible();
+  await captureReviewShots(guest.page, 'notifications/over', testInfo);
 });
 
 test('dashboard, empty and full', async ({ makeActor }, testInfo) => {

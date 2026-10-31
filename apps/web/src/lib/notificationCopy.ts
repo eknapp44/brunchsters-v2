@@ -8,7 +8,7 @@ import { formatWhenLong } from './brunchPageFormat';
 // (a friend in the group chat; specific beats generic; nothing promised that the app does not do).
 
 // The bell link's accessible name. The visible number is decorative (it repeats this).
-export const MAX_SHOWN_UNREAD = 99;
+const MAX_SHOWN_UNREAD = 99;
 
 export function bellLabel(count: number): string {
   if (count <= 0) return 'Notifications';
@@ -161,7 +161,7 @@ export const EMAIL_CAPTION = 'By email';
 // switches govern (a line can cover a few that read as one thing), and whether an email exists to
 // switch. Only types something produces are here (a test holds it to `PRODUCED_NOTIFICATION_TYPES`),
 // so the page never offers a switch for something the app does not do.
-export type SettingsLine = {
+type SettingsLine = {
   readonly id: string;
   readonly label: string;
   readonly types: readonly NotificationTypeCode[];
