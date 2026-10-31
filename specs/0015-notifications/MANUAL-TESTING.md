@@ -45,6 +45,7 @@ For your own sign-off, in your own time. The automated suite proves the behavior
 ## F. Fresh pages
 
 - [ ] **F1. Focus refresh.** With the brunch page open in one tab, vote from another profile, then switch back: the counts update without a reload. Start ticking a box in your own ballot, switch tabs and back: **your ticks are not replaced.**
+- [ ] **F3. A failed invite that appears while the page is open.** With the host's brunch page open, make an invite email fail for good (a rejected address): the "That email didn't go through" line appears on return to the tab but is **not announced** (the inbox row and the bell are the notification). Check that this is acceptable to you.
 - [ ] **F2. Announcements.** With a screen reader (VoiceOver, NVDA or TalkBack), an outside change to a count is announced politely ("Votes changed. Harbor Bistro: 2 votes."); your own tap is not announced. Listen to whether the wording is clear and not too chatty when several options change at once.
 
 ## G. Words

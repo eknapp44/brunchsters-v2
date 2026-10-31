@@ -62,11 +62,18 @@ test.describe('B11 — an open page catches up when the person comes back', () =
     await castVotes({ brunchId, voter: other.user, places: ['Harbor Bistro'] });
     await expect(harbor).toHaveAccessibleName(/\b1 vote\b/);
 
+    // The keyboard stays where it was: the page is replaced in place, never under the person's focus.
+    await harbor.focus();
     const before = refreshes.count();
     await comeBack(viewer.page);
     await expect(harbor).toHaveAccessibleName(/\b2 votes\b/);
     expect(refreshes.count()).toBeGreaterThan(before);
+    await expect(harbor).toBeFocused();
     await expect(announcement(viewer.page)).toContainText('Harbor Bistro: 2 votes');
+
+    // It is said once and then taken away, so it is not read again later in browse mode.
+    await viewer.page.clock.fastForward(11_000);
+    await expect(announcement(viewer.page)).toHaveCount(0);
   });
 
   test('never over a ballot that did not save, and not before the short gap is over', async ({

@@ -6,6 +6,11 @@ import { selectOwnSaves } from '@/store/ballotsSlice';
 import { useAppSelector } from '@/store/hooks';
 import styles from './detail.module.css';
 
+// How long the announcement stays in the region. It is spoken once; left in place it would be read
+// again by anyone moving through the page in browse mode, and a repeat of the same words later would
+// change nothing in the page, so a screen reader would not say it.
+const MESSAGE_LIFETIME_MS = 10_000;
+
 // How long after the person's own vote was saved a change in the counts is taken to be theirs: the
 // page asks the server again after a save, and the new counts arrive a moment later.
 const OWN_TAP_WINDOW_MS = 8_000;
@@ -40,6 +45,12 @@ export function VoteCountAnnouncer(props: {
     }
     setMessage(text);
   }, [props.options, ownSaves]);
+
+  useEffect(() => {
+    if (message === '') return;
+    const timer = window.setTimeout(() => setMessage(''), MESSAGE_LIFETIME_MS);
+    return () => window.clearTimeout(timer);
+  }, [message]);
 
   return (
     <div className={styles.srOnly} aria-live="polite" aria-atomic="true">
