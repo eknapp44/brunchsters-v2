@@ -2,7 +2,7 @@
 
 The one page to read. `spec.md` (with its Outcome section), `plan.md` and `tasks.md` are the working documents behind it.
 
-**Status:** built, reviewed, not merged. Branch `feat/0015-notifications` (eight milestones plus review fixes), [ADR 0017](../../docs/adrs/0017-notifications.md).
+**Status:** released as v1.13.0 (PR #28, merged 2026-10-31). Branch `feat/0015-notifications` (eight milestones plus review fixes), [ADR 0017](../../docs/adrs/0017-notifications.md).
 
 ## What it does, in plain words
 
