@@ -14,7 +14,7 @@ Closes out one milestone from `specs/NNNN-feature/tasks.md`. Follows CLAUDE.md's
 
 ## 1. Verify green
 
-Always, from the repo root:
+`pnpm gate` runs everything below in the right order and prints a summary (`--quick` skips the dev-mode and stress runs while building; `--keep-going` runs every stage; the logs are in the temp directory). Run the stages by hand only when targeting one. Always, from the repo root:
 
 ```
 pnpm typecheck && pnpm lint && pnpm test

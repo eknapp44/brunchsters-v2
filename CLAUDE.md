@@ -235,7 +235,7 @@ This is a solo, learning-focused project. The goal is steady, verifiable progres
 
 ## Things to Always Do
 
-- Run `pnpm typecheck` and `pnpm lint` before considering work done.
+- Run `pnpm typecheck` and `pnpm lint` before considering work done. `pnpm gate` runs the whole close-out (typecheck, lint, unit, integration, dev-mode e2e, production build, CI-mode e2e, stress) in the order that works and stops at the first failure.
 - Run `pnpm test:e2e` before considering work done whenever a change touches anything a user sees or does (needs local Supabase running).
 - When adding a new lookup table, also add the seed entries in the same PR.
 - When changing the Prisma schema, generate the migration and commit it alongside the schema change.

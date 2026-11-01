@@ -36,6 +36,18 @@ In the project memory directory: update the build-order entry (`project_scaffold
 
 Reply with a paste-ready prompt for after a `/clear`: the skill to start with (`/spec-grill`), the memory note to read first, the spec number, branch and ADR number, the scope in two lines, the rules that apply (404/403 order, `enforceWriteLimit`, `emailBudgets.test.ts`, `/ui-screen`), and the questions to grill. Put it on the clipboard when asked: write it to a scratch file and pipe it to `clip.exe` from PowerShell (`Get-Content -Raw <file> | Set-Clipboard`).
 
+## 5b. Tooling retro (a few minutes, never blocking)
+
+Before reporting, look back over the spec for things a skill, hook, script, test or plugin would have made cheaper or safer, and put each as a **proposal** the owner picks from. Nothing is installed or changed without their yes. What to look for:
+
+- **A mistake made more than once.** Prefer a check that fails by itself (a test, a lint rule, a hook) over a line in a skill: prose is the first thing skipped under pressure. (Spec 0015: a regex written through a shell heredoc lost its backslash three times; now `noControlCharacters.test.ts` fails the commit.)
+- **A long command run by hand more than twice.** Make it one command (spec 0015: the whole close-out gate is `pnpm gate`).
+- **A step a skill should have asked about** (spec 0015: `/spec-grill` now asks who is told, through which channel, and whether mute applies).
+- **Plugins, MCP servers or mods** that would have saved real time on the spec (a deployment or monitoring plugin before the deployment spec, say). Name the job it does and what it would replace, and say how to remove it.
+- **Not tooling:** an environment fact (a sleeping machine) goes in memory and the kickoff prompt, not in a skill.
+
+Keep the set small: each skill's description is loaded into every session and overlapping ones mis-trigger, so fold a new step into an existing skill before adding a new skill, retire one that has not been used, and only list a plugin the owner will actually keep. Edits to the project skills go in their own `docs:` commit; hooks and settings go through the `update-config` skill.
+
 ## 6. Report
 
-Version released, the docs PR link and its CI state, what memory now says, the prompt, and anything left for the owner (merge the docs PR, repository settings I only propose).
+Version released, the docs PR link and its CI state, what memory now says, the prompt, the tooling retro's proposals (one line each, with a recommendation), and anything left for the owner (merge the docs PR, repository settings I only propose).
