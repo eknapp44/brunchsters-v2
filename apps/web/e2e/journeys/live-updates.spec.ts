@@ -13,13 +13,27 @@ import type { Page } from '@playwright/test';
 const TWO_PLACES = [fixturePlaces.sunnySide, fixturePlaces.harborBistro];
 const TWO_TIMES = [daysFromNow(10), daysFromNow(11)];
 
-// The page asks the server for itself again with a request that carries \`_rsc\`.
-function countRefreshes(page: Page): { readonly count: () => number } {
-  let seen = 0;
+// The page asking the server for itself again is a request that carries _rsc. Next also sends _rsc
+// requests to prefetch the pages its links lead to, whenever the browser is idle (so more of them,
+// and later, on a slow machine): those are marked with `next-router-prefetch` and are not refreshes.
+// Counting them made this journey fail in CI, so only requests without that mark count, and every
+// _rsc request is listed in a failure message.
+function countRefreshes(page: Page): {
+  readonly count: () => number;
+  readonly all: () => string;
+} {
+  const seen: { readonly url: string; readonly prefetch: boolean }[] = [];
   page.on('request', (request) => {
-    if (request.url().includes('_rsc=')) seen += 1;
+    if (!request.url().includes('_rsc=')) return;
+    seen.push({
+      url: new URL(request.url()).pathname,
+      prefetch: request.headers()['next-router-prefetch'] !== undefined,
+    });
   });
-  return { count: () => seen };
+  return {
+    count: () => seen.filter((request) => !request.prefetch).length,
+    all: () => JSON.stringify(seen),
+  };
 }
 
 // The person comes back to the tab, after a while.
@@ -67,7 +81,7 @@ test.describe('B11 — an open page catches up when the person comes back', () =
     const before = refreshes.count();
     await comeBack(viewer.page);
     await expect(harbor).toHaveAccessibleName(/\b2 votes\b/);
-    expect(refreshes.count()).toBeGreaterThan(before);
+    expect(refreshes.count(), refreshes.all()).toBeGreaterThan(before);
     await expect(harbor).toBeFocused();
     await expect(announcement(viewer.page)).toContainText('Harbor Bistro: 2 votes');
 
@@ -103,7 +117,7 @@ test.describe('B11 — an open page catches up when the person comes back', () =
     const atStart = refreshes.count();
     await viewer.page.evaluate(() => window.dispatchEvent(new Event('focus')));
     await viewer.page.waitForTimeout(500);
-    expect(refreshes.count()).toBe(atStart);
+    expect(refreshes.count(), refreshes.all()).toBe(atStart);
     await expect(harbor).toHaveAccessibleName(/\b0 votes\b/);
 
     // A save that fails stays beside the boxes. Coming back now must not replace the page under it.
@@ -119,7 +133,7 @@ test.describe('B11 — an open page catches up when the person comes back', () =
     const beforeBlocked = refreshes.count();
     await comeBack(viewer.page);
     await viewer.page.waitForTimeout(500);
-    expect(refreshes.count()).toBe(beforeBlocked);
+    expect(refreshes.count(), refreshes.all()).toBe(beforeBlocked);
     await expect(harbor).toHaveAccessibleName(/\b0 votes\b/);
     await expect(viewer.page.getByText('Something went sideways on our end.')).toBeVisible();
   });
