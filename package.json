@@ -11,6 +11,7 @@
     "typecheck": "turbo typecheck",
     "lint": "eslint . --max-warnings 0",
     "test": "turbo test",
+    "gate": "node scripts/gate.mjs",
     "test:e2e": "pnpm --filter @brunchsters/web test:e2e",
     "e2e:db:reset": "pnpm --filter @brunchsters/web e2e:db:reset",
     "dev": "turbo dev dev:queue",
